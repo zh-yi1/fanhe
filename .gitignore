@@ -1,3 +1,7 @@
-Output/
+obj/
 *.o
 *.d
+**/app.rv32
+**/app.bin
+**/app.rv32
+**/map.txt

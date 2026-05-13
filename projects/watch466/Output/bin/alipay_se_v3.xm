@@ -1,0 +1,1 @@
+xcopy(..\..\..\..\platform\libs\alipay_secure_sdk\fwk\secure_mode_se_v2\lib\fwk_secure_mode_se_v2_rv32_bluetrum.lib, ..\..\..\..\platform\libs\alipay_secure_sdk\fwk\secure_mode_se_use\lib\fwk_secure_mode_se_rv32_bluetrum.lib);
