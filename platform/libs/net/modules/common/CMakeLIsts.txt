@@ -1,0 +1,10 @@
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.cmake.in ${NET_INCLUDE_DIR}/common/version.h)
+
+add_library(buildinfo OBJECT
+    buildinfo.c
+)
+target_compile_options(buildinfo PRIVATE ${NET_COMPILER_FLAGS})
+
+target_include_directories(buildinfo PRIVATE
+    ${NET_INCLUDE_DIR}/common
+)

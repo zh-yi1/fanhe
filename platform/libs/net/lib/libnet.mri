@@ -1,0 +1,10 @@
+create libnet.a
+addlib libnetz.a
+addlib libmbedcrypto.a
+addlib libmbedtls.a
+addlib libmbedx509.a
+addlib liblwipallapps.a
+addlib liblwipcore.a
+addlib liblwipmbedtls.a
+save
+end

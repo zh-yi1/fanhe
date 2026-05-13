@@ -1,0 +1,8 @@
+add_library(cjson OBJECT
+    cjson.c
+)
+target_compile_options(cjson PRIVATE ${NET_COMPILER_FLAGS})
+target_include_directories(cjson PRIVATE
+    ${LWIP_INCLUDE_DIRS}
+    ${NET_INCLUDE_DIR}/cjson
+)

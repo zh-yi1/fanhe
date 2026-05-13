@@ -1,0 +1,17 @@
+{
+    "version": 3,
+    "configurePresets": [
+      {
+        "name": "riscv-release",
+        "displayName": "riscv Release Build",
+        "generator": "Ninja",
+        "binaryDir": "${sourceDir}/build",
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Release",
+          "CMAKE_MAKE_PROGRAM": "${sourceDir}/ninja.exe",
+          "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/riscv-v3.cmake",
+          "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        }
+      }
+    ]
+  }

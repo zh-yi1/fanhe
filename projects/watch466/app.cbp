@@ -1,0 +1,1615 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="app" />
+		<Option pch_mode="2" />
+		<Option compiler="riscv32-v3" />
+		<Build>
+			<Target title="Debug">
+				<Option output="Output/bin/app.rv32" prefix_auto="1" extension_auto="0" />
+				<Option object_output="Output/obj/" />
+				<Option type="1" />
+				<Option compiler="riscv32-v3" />
+				<Linker>
+					<Add library="../../platform/libs/alipay_secure_sdk/app/trans_code/lib/app_trans_code_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/quickjs/lib/3rdparty_quickjs_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/js_api/lib/fwk_js_api_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/quickjs_adapt/lib/fwk_quickjs_adapt_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/sm2/lib/fwk_sm2_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/cJSON/lib/3rdparty_cJSON_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/mbedtls/lib/3rdparty_mbedtls_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/protobuf-c/lib/3rdparty_protobuf-c_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/regex/lib/3rdparty_regex_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/sm3/lib/3rdparty_sm3_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/uEcc/lib/3rdparty_uEcc_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/app/aid_code/lib/app_aid_code_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/app/bind_ble/lib/app_bind_ble_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/app/pay_code/lib/app_pay_code_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/app/provision/lib/app_provision_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/app/setting/lib/app_setting_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/bind_status/lib/fwk_bind_status_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/common/lib/fwk_common_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/ble_communicate/lib/fwk_ble_communicate_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/crypt/lib/fwk_crypt_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/crypt_ext/lib/fwk_crypt_ext_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/device_certificate/lib/fwk_device_certificate_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/storage/lib/fwk_storage_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/network/lib/fwk_network_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/alipay_secure_sdk/fwk/secure_mode_se_v2/lib/fwk_secure_mode_se_v2_rv32_bluetrum.lib" />
+					<Add library="../../platform/libs/libm.a" />
+					<Add library="../../platform/libs/libgcc.a" />
+					<Add library="../../platform/libs/libc.a" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Os" />
+			<Add option="-Wall" />
+			<Add option="-march=rv32imc_zba_zbb_zbc_zbs_zca_zcb_zcmp_zfinx_xbs1" />
+			<Add option="--param=min-pagesize=0" />
+			<Add option="-Wno-address-of-packed-member" />
+			<Add option="-ffunction-sections" />
+			<Add option="-mjump-tables-in-text" />
+			<Add directory="." />
+			<Add directory="functions" />
+			<Add directory="port" />
+			<Add directory="i18n" />
+			<Add directory="plugin" />
+			<Add directory="../../platform/header" />
+			<Add directory="../../platform/libs" />
+			<Add directory="../../platform/bsp" />
+			<Add directory="../../platform/bsp/bsp_app" />
+			<Add directory="../../platform/bsp/bsp_bt" />
+			<Add directory="../../platform/bsp/bsp_ble" />
+			<Add directory="../../platform/bsp/bsp_sensor" />
+			<Add directory="../../platform/bsp/bsp_music" />
+			<Add directory="../../platform/bsp/bsp_effect" />
+			<Add directory="../../platform/bsp/bsp_modem" />
+			<Add directory="../../platform/bsp/bsp_sensor/hx3602" />
+			<Add directory="../../platform/bsp/bsp_video" />
+			<Add directory="../../platform/gui" />
+			<Add directory="../../platform/gui/rotate_disp" />
+			<Add directory="../../platform/gui/components" />
+			<Add directory="../../platform/gui/tft" />
+			<Add directory="../../platform/gui/ctp" />
+			<Add directory="../../platform/gui/lcd" />
+			<Add directory="../../platform/bsp/bsp_sensor/internal_sensor" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/app/aid_code/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/app/bind_ble/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/app/pay_code/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/app/provision/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/app/setting/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/app/trans_code/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/hal/bluetooth/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/hal/device_info/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/hal/file/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/hal/network/interface" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/hal/os/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/port" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/se/hsec/hsc32i3" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/se/hed" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/share/common/inc" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/softse" />
+			<Add directory="../../platform/gui/ctp/axs5106" />
+			<Add directory="functions/common" />
+			<Add directory="../../platform/libs/alipay_secure_sdk/hal/cert" />
+			<Add directory="../../platform/modules/yj" />
+			<Add directory="../../platform/modules/awk_map" />
+			<Add directory="../../platform/libs/awk" />
+			<Add directory="../../platform/libs/libfixmath" />
+			<Add directory="../../platform/libs/net/include" />
+			<Add directory="../../platform/libs/net/include/lwip" />
+			<Add directory="../../platform/libs/net/include/lwip/ports" />
+			<Add directory="../../platform/bsp/bsp_image_sensor" />
+			<Add directory="../../platform/bsp/bsp_fs" />
+			<Add directory="../../platform/bsp/bsp_record" />
+		</Compiler>
+		<Linker>
+			<Add option="-T$(TARGET_OBJECT_DIR)ram.o" />
+			<Add option="--gc-sections" />
+			<Add option="--no-warn-rwx-segments" />
+			<Add option="-Map=Output\bin\map.txt" />
+			<Add library="libplatform" />
+			<Add library="libbtstack" />
+			<Add library="libcodecs" />
+			<Add library="libdrivers_v2" />
+			<Add library="libvoices" />
+			<Add library="libimg" />
+			<Add library="libttf" />
+			<Add library="libgui" />
+			<Add library="libnet" />
+			<Add library="../../platform/bsp/bsp_sensor/hx3605/libhx3605.a" />
+			<Add library="../../platform/bsp/bsp_sensor/hrs3300/libhrs3300.a" />
+			<Add library="../../platform/bsp/bsp_sensor/hrs3300/libhrs3300_s.a" />
+			<Add library="../../platform/bsp/bsp_sensor/hrs3300/libhrs3300_test.a" />
+			<Add library="../../platform/bsp/bsp_sensor/sc7a20/libsc7a20.a" />
+			<Add library="../../platform/libs/libm.a" />
+			<Add library="../../platform/libs/libgcc.a" />
+			<Add library="../../platform/libs/libc.a" />
+			<Add library="../../platform/libs/libapp.a" />
+			<Add library="../../platform/libs/alipay_secure_sdk/app/trans_code/lib/app_trans_code_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/quickjs/lib/3rdparty_quickjs_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/js_api/lib/fwk_js_api_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/quickjs_adapt/lib/fwk_quickjs_adapt_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/sm2/lib/fwk_sm2_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/cJSON/lib/3rdparty_cJSON_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/mbedtls/lib/3rdparty_mbedtls_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/protobuf-c/lib/3rdparty_protobuf-c_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/regex/lib/3rdparty_regex_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/sm3/lib/3rdparty_sm3_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/uEcc/lib/3rdparty_uEcc_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/app/aid_code/lib/app_aid_code_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/app/bind_ble/lib/app_bind_ble_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/app/pay_code/lib/app_pay_code_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/app/provision/lib/app_provision_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/app/setting/lib/app_setting_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/bind_status/lib/fwk_bind_status_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/common/lib/fwk_common_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/ble_communicate/lib/fwk_ble_communicate_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/crypt/lib/fwk_crypt_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/secure_mode_se_v2/lib/fwk_secure_mode_se_v2_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/crypt_ext/lib/fwk_crypt_ext_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/device_certificate/lib/fwk_device_certificate_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/storage/lib/fwk_storage_rv32_bluetrum.lib" />
+			<Add library="../../platform/libs/alipay_secure_sdk/fwk/network/lib/fwk_network_rv32_bluetrum.lib" />
+			<Add library="../../platform/modules/asr_using/libasr.a" />
+			<Add library="../../platform/modules/asr_using/libasr_air.a" />
+			<Add library="../../platform/bsp/bsp_sensor/hx3602/libhx3602.a" />
+			<Add library="../../platform/libs/awk/lib_map.a" />
+			<Add library="../../platform/bsp/bsp_sensor/qmc6309/lib_qst_ical.a" />
+			<Add directory="../../platform/libs" />
+			<Add directory="../../platform/libs/net" />
+		</Linker>
+		<ExtraCommands>
+			<Add before="Output\bin\prebuild.bat $(PROJECT_NAME)" />
+			<Add before="Output\bin\prebuild_se.bat SE_VERSION_V3" />
+			<Add after="Output\bin\postbuild.bat $(PROJECT_NAME)" />
+			<Add after="Output\bin\postbuild_ble_ota.bat $(PROJECT_NAME)" />
+		</ExtraCommands>
+		<Unit filename="../../platform/bsp/bsp.h" />
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/ab_common.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/ab_common.h" />
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/app_data.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/app_data.h" />
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/app_data_config.h" />
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/data_storage.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/data_transmit.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/device_attr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/health_data.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/msg_notification.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/personal_info.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/ab_command/status_control.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/app_ancs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/app_ancs.h" />
+		<Unit filename="../../platform/bsp/bsp_app/app_platform.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_app/app_platform.h" />
+		<Unit filename="../../platform/bsp/bsp_app/bsp_app.h" />
+		<Unit filename="../../platform/bsp/bsp_app/weak_symbol.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_asr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_asr.h" />
+		<Unit filename="../../platform/bsp/bsp_audio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_audio.h" />
+		<Unit filename="../../platform/bsp/bsp_auphy.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_auphy.h" />
+		<Unit filename="../../platform/bsp/bsp_backtrace.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/adv0.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/app.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/app.h" />
+		<Unit filename="../../platform/bsp/bsp_ble/app_ab_link.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/app_ab_link.h" />
+		<Unit filename="../../platform/bsp/bsp_ble/app_blue_fit.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/app_blue_fit.h" />
+		<Unit filename="../../platform/bsp/bsp_ble/app_watch.h" />
+		<Unit filename="../../platform/bsp/bsp_ble/ble.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/ble.h" />
+		<Unit filename="../../platform/bsp/bsp_ble/bsp_ams.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/bsp_ams.h" />
+		<Unit filename="../../platform/bsp/bsp_ble/bsp_ancs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/bsp_ble.h" />
+		<Unit filename="../../platform/bsp/bsp_ble/bt_fota.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/bt_fota.h" />
+		<Unit filename="../../platform/bsp/bsp_ble/hid/ble_hid_event.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/hid/ble_hid_service.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/hid/ble_hid_service.h" />
+		<Unit filename="../../platform/bsp/bsp_ble/hid/ble_hid_tiktok.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ble/hid/hid_usage.h" />
+		<Unit filename="../../platform/bsp/bsp_bt/a2dp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/bsp_bt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/bsp_bt.h" />
+		<Unit filename="../../platform/bsp/bsp_bt/bsp_bt_call.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/bsp_bt_ring.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/bsp_emit.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/bt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/bt_id3_tag.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/bt_sco_app_dbg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/bt_sco_app_dbg.h" />
+		<Unit filename="../../platform/bsp/bsp_bt/bt_sco_nr_dbg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/dev_vol.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/hfhs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/hid.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/pbap.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_bt/pbap.h" />
+		<Unit filename="../../platform/bsp/bsp_bt/profile.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_call_mgr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_call_mgr.h" />
+		<Unit filename="../../platform/bsp/bsp_charge.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_charge.h" />
+		<Unit filename="../../platform/bsp/bsp_cm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_dac.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_dac.h" />
+		<Unit filename="../../platform/bsp/bsp_effect/effect_idx.h" />
+		<Unit filename="../../platform/bsp/bsp_effect/mic_effect.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_effect/mic_effect.h" />
+		<Unit filename="../../platform/bsp/bsp_eq.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_eq.h" />
+		<Unit filename="../../platform/bsp/bsp_fmrx.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_fmrx.h" />
+		<Unit filename="../../platform/bsp/bsp_fs/bsp_disk.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_fs/bsp_disk.h" />
+		<Unit filename="../../platform/bsp/bsp_fs/example/fs_example_findall_frist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_fs/example/fs_example_findfirst.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_fs/example/fs_example_scan_disk.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_fs/fs_drv_sd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_fs/fs_drv_spiflash.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_gif.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_gif.h" />
+		<Unit filename="../../platform/bsp/bsp_gpio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_gpio.h" />
+		<Unit filename="../../platform/bsp/bsp_halt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_halt.h" />
+		<Unit filename="../../platform/bsp/bsp_huart.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_huart.h" />
+		<Unit filename="../../platform/bsp/bsp_hw_timer.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_hw_timer.h" />
+		<Unit filename="../../platform/bsp/bsp_i2c.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_i2c.h" />
+		<Unit filename="../../platform/bsp/bsp_image_sensor/bsp_image_sensor.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_image_sensor/bsp_image_sensor.h" />
+		<Unit filename="../../platform/bsp/bsp_image_sensor/bsp_image_sensor_drv.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_image_sensor/drv_bf03a2.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_image_sensor/drv_gc0308.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_image_sensor/drv_spa0a39.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_key.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_key.h" />
+		<Unit filename="../../platform/bsp/bsp_map.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_mav.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_mem/bsp_mem.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_mem/heap.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_mem/tlsf.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_mem/tlsf.h" />
+		<Unit filename="../../platform/bsp/bsp_modem/bsp_modem.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_modem/bsp_modem.h" />
+		<Unit filename="../../platform/bsp/bsp_modem/bsp_modem_call.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_modem/bsp_modem_sleep.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_modem/modem_custom.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_modem/modem_custom.h" />
+		<Unit filename="../../platform/bsp/bsp_music/bsp_fs.h" />
+		<Unit filename="../../platform/bsp/bsp_music/bsp_func_music.h" />
+		<Unit filename="../../platform/bsp/bsp_music/bsp_music.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_music/bsp_music.h" />
+		<Unit filename="../../platform/bsp/bsp_music/bsp_record.h" />
+		<Unit filename="../../platform/bsp/bsp_music/music_id3_tag.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_music/music_id3_tag.h" />
+		<Unit filename="../../platform/bsp/bsp_music/music_lrc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_music/music_lrc.h" />
+		<Unit filename="../../platform/bsp/bsp_music/music_res.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_music/music_res.h" />
+		<Unit filename="../../platform/bsp/bsp_music/record_file.h" />
+		<Unit filename="../../platform/bsp/bsp_net/bsp_lwip.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_net/common.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_noise/bsp_noise_dnn.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_opus.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_opus.h" />
+		<Unit filename="../../platform/bsp/bsp_param.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_param.h" />
+		<Unit filename="../../platform/bsp/bsp_piano.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_piano.h" />
+		<Unit filename="../../platform/bsp/bsp_port_int.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_port_int.h" />
+		<Unit filename="../../platform/bsp/bsp_pwm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_pwm.h" />
+		<Unit filename="../../platform/bsp/bsp_qdec.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_ram_backup.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_record/bsp_mic_record.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_record/bsp_mic_record.h" />
+		<Unit filename="../../platform/bsp/bsp_record/bsp_record_fs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_record/bsp_record_fs.h" />
+		<Unit filename="../../platform/bsp/bsp_rtc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_rtc.h" />
+		<Unit filename="../../platform/bsp/bsp_saradc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_saradc.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/bsp_sensor.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/bsp_sensor.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hrs3300/fit_hrs3300.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hrs3300/fit_hrs3300.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hrs3300/hrs3300.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hrs3300/hrs3300.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hrs3300/hrs3300_reg_init.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3602/fit_hx3602.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3602/fit_hx3602.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3602/hx3602.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3602/hx3602.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3602/hx3602_hrs_driv.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3602/hx3602_hrs_driv.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3602/hx3602_reg_init.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3602/tyhx_hrs_alg.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/fit_hx3605.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/fit_hx3605.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/hx3605.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/hx3605.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/hx3605_factory_test.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/hx3605_factory_test.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/hx3605_hrs_agc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/hx3605_hrs_agc.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/hx3605_spo2_agc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/hx3605/hx3605_spo2_agc.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/internal_sensor/bsp_internal_sensor.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/internal_sensor/bsp_internal_sensor.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/msa310/msa310.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/msa310/msa310.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/msa310/msa_app.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/msa310/msa_app.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/qmc6309/ICAL_GDF30X.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/qmc6309/ICFG_GDF30X.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/qmc6309/qmc6309.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/qmc6309/qmc6309.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/sc7a20/sc7a20.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/sc7a20/sc7a20.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor/sc7a20/sl_watch_application.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor/sc7a20/sl_watch_application.h" />
+		<Unit filename="../../platform/bsp/bsp_sensor_hub.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sensor_hub.h" />
+		<Unit filename="../../platform/bsp/bsp_sleep.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sleep.h" />
+		<Unit filename="../../platform/bsp/bsp_spi.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_spi.h" />
+		<Unit filename="../../platform/bsp/bsp_spi1flash.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_spp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sys.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_sys.h" />
+		<Unit filename="../../platform/bsp/bsp_uart.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_uart.h" />
+		<Unit filename="../../platform/bsp/bsp_uitool_phrase.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_uitool_phrase.h" />
+		<Unit filename="../../platform/bsp/bsp_vbat.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_vbat.h" />
+		<Unit filename="../../platform/bsp/bsp_video/bsp_photo_view.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_video/bsp_photo_view.h" />
+		<Unit filename="../../platform/bsp/bsp_video/bsp_take_photo.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_video/bsp_take_photo.h" />
+		<Unit filename="../../platform/bsp/bsp_video/bsp_video_play.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_video/bsp_video_play.h" />
+		<Unit filename="../../platform/bsp/bsp_video/bsp_video_recode.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_video/bsp_video_recode.h" />
+		<Unit filename="../../platform/bsp/bsp_video/bsp_video_watermark.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_video/bsp_video_watermark.h" />
+		<Unit filename="../../platform/gui/api_gui.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_animation.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_animation.h" />
+		<Unit filename="../../platform/gui/components/compo_arc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_arc.h" />
+		<Unit filename="../../platform/gui/components/compo_butterfly.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_butterfly.h" />
+		<Unit filename="../../platform/gui/components/compo_button.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_button.h" />
+		<Unit filename="../../platform/gui/components/compo_camera.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_camera.h" />
+		<Unit filename="../../platform/gui/components/compo_cardbox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_cardbox.h" />
+		<Unit filename="../../platform/gui/components/compo_chartbox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_chartbox.h" />
+		<Unit filename="../../platform/gui/components/compo_cube.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_cube.h" />
+		<Unit filename="../../platform/gui/components/compo_datetime.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_datetime.h" />
+		<Unit filename="../../platform/gui/components/compo_disklist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_disklist.h" />
+		<Unit filename="../../platform/gui/components/compo_fish.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_fish.h" />
+		<Unit filename="../../platform/gui/components/compo_football.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_football.h" />
+		<Unit filename="../../platform/gui/components/compo_form.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_form.h" />
+		<Unit filename="../../platform/gui/components/compo_gif.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_gif.h" />
+		<Unit filename="../../platform/gui/components/compo_iconlist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_iconlist.h" />
+		<Unit filename="../../platform/gui/components/compo_jpg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_jpg.h" />
+		<Unit filename="../../platform/gui/components/compo_kaleidoscope.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_kaleidoscope.h" />
+		<Unit filename="../../platform/gui/components/compo_label.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_label.h" />
+		<Unit filename="../../platform/gui/components/compo_listbox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_listbox.h" />
+		<Unit filename="../../platform/gui/components/compo_move_ctr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_number.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_number.h" />
+		<Unit filename="../../platform/gui/components/compo_picturebox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_picturebox.h" />
+		<Unit filename="../../platform/gui/components/compo_qrcodebox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_qrcodebox.h" />
+		<Unit filename="../../platform/gui/components/compo_rings.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_rings.h" />
+		<Unit filename="../../platform/gui/components/compo_rotary.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_rotary.h" />
+		<Unit filename="../../platform/gui/components/compo_rowbox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_rowbox.h" />
+		<Unit filename="../../platform/gui/components/compo_scrollbar.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_scrollbar.h" />
+		<Unit filename="../../platform/gui/components/compo_shape.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_shape.h" />
+		<Unit filename="../../platform/gui/components/compo_stacklist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_stacklist.h" />
+		<Unit filename="../../platform/gui/components/compo_textbox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_textbox.h" />
+		<Unit filename="../../platform/gui/components/compo_video.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_video.h" />
+		<Unit filename="../../platform/gui/components/compo_windmill.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/compo_windmill.h" />
+		<Unit filename="../../platform/gui/components/component_func.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/component_func.h" />
+		<Unit filename="../../platform/gui/components/components.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/components/components.h" />
+		<Unit filename="../../platform/gui/ctp/axs152x/axs152x.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/ctp/axs152x/axs152x.h" />
+		<Unit filename="../../platform/gui/ctp/axs5106/GD9853_G2538B_AXS5106_V01_03_20231106_App.h" />
+		<Unit filename="../../platform/gui/ctp/axs5106/axs5106.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/ctp/axs5106/axs5106.h" />
+		<Unit filename="../../platform/gui/ctp/ctp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/ctp/ctp.h" />
+		<Unit filename="../../platform/gui/ctp/ctp_chsc6x.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/ctp/ctp_cst8x.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/gui.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/gui.h" />
+		<Unit filename="../../platform/gui/lcd/lcd.h" />
+		<Unit filename="../../platform/gui/rotate_disp/rotate_disp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/rotate_disp/rotate_disp.h" />
+		<Unit filename="../../platform/gui/rotate_disp/rotate_widget.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/rotate_disp/rotate_widget.h" />
+		<Unit filename="../../platform/gui/tft/oled_368_st7801n.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/tft/oled_466_icna3310b.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/tft/tft.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/tft/tft.h" />
+		<Unit filename="../../platform/gui/tft/tft_240_st7789_i80.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/tft/tft_320_st77916.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/tft/tft_480_st7283_srgb.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/tft/tft_800_st7265_prgb.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/tft/tft_drv.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/gui/tft/tft_drv.h" />
+		<Unit filename="../../platform/gui/tft/tft_vga012a_640.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/header/clib.h" />
+		<Unit filename="../../platform/header/config_define.h" />
+		<Unit filename="../../platform/header/config_extra.h" />
+		<Unit filename="../../platform/header/global.h" />
+		<Unit filename="../../platform/header/include.h" />
+		<Unit filename="../../platform/header/io_def.h" />
+		<Unit filename="../../platform/header/macro.h" />
+		<Unit filename="../../platform/header/reg_access.h" />
+		<Unit filename="../../platform/header/s_common.h" />
+		<Unit filename="../../platform/header/sfr.h" />
+		<Unit filename="../../platform/header/typedef.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/app/aid_code/inc/aid_code.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/app/bind_ble/inc/alipay_bind.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/app/pay_code/inc/alipay_pay.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/app/provision/inc/alipay_activation.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/app/provision/inc/alipay_cert.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/app/setting/inc/alipay_account_manage.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/app/trans_code/inc/alipay_transit.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/bluetooth/inc/csi_ble.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/bluetooth/inc/hal_ble.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/bluetooth/inc/vendor_ble.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/bluetooth/sample/vendor_ble.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/cert/inc/vendor_cert.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/cert/sample/test_cert.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/cert/sample/vendor_cert.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/inc/csi_device_info.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/inc/hal_device_info.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/inc/vendor_device_info.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/sample/test_device_info.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/sample/vendor_device_info.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/file/inc/vendor_file.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/file/sample/test_file.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/file/src/vendor_file.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/alipay_ble_common.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/alipay_blue_tcp.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/alipay_iot_type.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/alipay_net_kal.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/data.pb-c.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/iot_err.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/protobuf-c.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/alipay_ble_os.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/alipay_blue.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/alipay_blue_tcp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/alipay_iot_kal.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/data.pb-c.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/protobuf-c.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/test/test_netwotk_ble.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/os/inc/csi_os.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/os/inc/hal_os.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/os/inc/vendor_os.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/os/sample/vendor_os.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/port/iotsec.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/common.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d/hed_private.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d/hed_private.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d/port_hed_i2c.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d/port_hed_i2c.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/vendor_api.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/vendor_api.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hsec/hsc32i3/hs_private.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hsec/hsc32i3/hs_private.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hsec/vendor_ssp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/vendor_crypto.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/se/vendor_product.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/share/common/inc/alipay_common.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/share/common/inc/alipay_mem.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/share/common/inc/csi_common.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/share/common/inc/hal_common.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/aes.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/aes.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/kdf.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/kdf.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/list.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/list.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/sha256.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/sha256.h" />
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/utils.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/utils.h" />
+		<Unit filename="../../platform/libs/api.h" />
+		<Unit filename="../../platform/libs/api_app.h" />
+		<Unit filename="../../platform/libs/api_ble.h" />
+		<Unit filename="../../platform/libs/api_bt.h" />
+		<Unit filename="../../platform/libs/api_btstack.h" />
+		<Unit filename="../../platform/libs/api_charge.h" />
+		<Unit filename="../../platform/libs/api_cm.h" />
+		<Unit filename="../../platform/libs/api_co_time.h" />
+		<Unit filename="../../platform/libs/api_dac.h" />
+		<Unit filename="../../platform/libs/api_device.h" />
+		<Unit filename="../../platform/libs/api_flash.h" />
+		<Unit filename="../../platform/libs/api_fmrx.h" />
+		<Unit filename="../../platform/libs/api_fs.h" />
+		<Unit filename="../../platform/libs/api_gpdma.h" />
+		<Unit filename="../../platform/libs/api_gpio.h" />
+		<Unit filename="../../platform/libs/api_gui.h" />
+		<Unit filename="../../platform/libs/api_huart.h" />
+		<Unit filename="../../platform/libs/api_jpeg.h" />
+		<Unit filename="../../platform/libs/api_key.h" />
+		<Unit filename="../../platform/libs/api_math.h" />
+		<Unit filename="../../platform/libs/api_mem.h" />
+		<Unit filename="../../platform/libs/api_modem.h" />
+		<Unit filename="../../platform/libs/api_msg.h" />
+		<Unit filename="../../platform/libs/api_music.h" />
+		<Unit filename="../../platform/libs/api_noc.h" />
+		<Unit filename="../../platform/libs/api_nr.h" />
+		<Unit filename="../../platform/libs/api_pacc.h" />
+		<Unit filename="../../platform/libs/api_photo_view.h" />
+		<Unit filename="../../platform/libs/api_pwr.h" />
+		<Unit filename="../../platform/libs/api_rtc.h" />
+		<Unit filename="../../platform/libs/api_saradc.h" />
+		<Unit filename="../../platform/libs/api_sd.h" />
+		<Unit filename="../../platform/libs/api_sdadc.h" />
+		<Unit filename="../../platform/libs/api_spi.h" />
+		<Unit filename="../../platform/libs/api_src.h" />
+		<Unit filename="../../platform/libs/api_sys.h" />
+		<Unit filename="../../platform/libs/api_sysclk.h" />
+		<Unit filename="../../platform/libs/api_tdnn.h" />
+		<Unit filename="../../platform/libs/api_uart.h" />
+		<Unit filename="../../platform/libs/api_update.h" />
+		<Unit filename="../../platform/libs/api_usb.h" />
+		<Unit filename="../../platform/libs/api_video.h" />
+		<Unit filename="../../platform/libs/cpu.h" />
+		<Unit filename="../../platform/libs/libfixmath/fix16.h" />
+		<Unit filename="../../platform/libs/libfixmath/fix16.hpp" />
+		<Unit filename="../../platform/libs/libfixmath/fix16_trig_sin_lut.h" />
+		<Unit filename="../../platform/libs/libfixmath/fixmath.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/libfixmath/fixmath.h" />
+		<Unit filename="../../platform/libs/libfixmath/fract32.h" />
+		<Unit filename="../../platform/libs/libfixmath/int64.h" />
+		<Unit filename="../../platform/libs/libfixmath/uint32.h" />
+		<Unit filename="../../platform/libs/strong_ble.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/strong_bt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/strong_sco.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/libs/strong_symbol.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/awk_map/awk_fs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/awk_map/awk_interface.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/awk_map/awk_json.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/awk_map/awk_mem.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/awk_map/awk_mem.h" />
+		<Unit filename="../../platform/modules/awk_map/awk_net.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/awk_map/awk_pr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/awk_map/awk_pr.h" />
+		<Unit filename="../../platform/modules/awk_map/awk_render.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws/asr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws/asr.h" />
+		<Unit filename="../../platform/modules/ws/asr_prefetch.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws/asr_process.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws/asr_strong_symbol.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws/fst_graph.h" />
+		<Unit filename="../../platform/modules/ws/fst_words.h" />
+		<Unit filename="../../platform/modules/ws_air/air/asr_config.h" />
+		<Unit filename="../../platform/modules/ws_air/air/func_api_air.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws_air/air/func_api_air.h" />
+		<Unit filename="../../platform/modules/ws_air/air/ir.h" />
+		<Unit filename="../../platform/modules/ws_air/air/ir_cap.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws_air/air/ir_cap.h" />
+		<Unit filename="../../platform/modules/ws_air/air/ir_code.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws_air/air/ir_data_parse.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws_air/air/ir_index #.h" />
+		<Unit filename="../../platform/modules/ws_air/air/ir_index.h" />
+		<Unit filename="../../platform/modules/ws_air/air/isd_pwm_ir_send.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws_air/air/wanson_ir.h" />
+		<Unit filename="../../platform/modules/ws_air/asr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws_air/asr.h" />
+		<Unit filename="../../platform/modules/ws_air/asr_prefetch.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws_air/asr_process.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws_air/asr_strong_symbol.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/ws_air/fst_graph.h" />
+		<Unit filename="../../platform/modules/ws_air/fst_words.h" />
+		<Unit filename="../../platform/modules/yj/bsp_et_asr_ctrl.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/yj/bsp_et_asr_ctrl.h" />
+		<Unit filename="../../platform/modules/yj/et_collects.h" />
+		<Unit filename="../../platform/modules/yj/et_keyword.h" />
+		<Unit filename="../../platform/modules/yj/et_kws_labels.h" />
+		<Unit filename="../../platform/modules/yj/et_thres_list.h" />
+		<Unit filename="../../platform/modules/yj/lib_et_asr.h" />
+		<Unit filename="../../platform/modules/yj/lib_et_ui_io.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/yj/lib_et_ui_io.h" />
+		<Unit filename="../../platform/modules/yj/third_bsp_sys.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/yj/third_bsp_sys.h" />
+		<Unit filename="../../platform/modules/yj/third_func.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/modules/yj/third_func.h" />
+		<Unit filename="../../platform/modules/yj/third_kws_event.h" />
+		<Unit filename="Output/bin/app.xm">
+			<Option compile="1" />
+			<Option compiler="riscv32-v3" use="1" buildCommand="$compiler $options $includes -E -P -x c -c $file -o $(TARGET_OUTPUT_DIR)appxm.o" />
+			<Option compiler="riscv32-v2" use="1" buildCommand="$compiler $options $includes -E -P -x c -c $file -o $(TARGET_OUTPUT_DIR)appxm.o" />
+			<Option compiler="riscv32" use="1" buildCommand="$compiler $options $includes -E -P -x c -c $file -o $(TARGET_OUTPUT_DIR)appxm.o" />
+		</Unit>
+		<Unit filename="Output/bin/download.xm">
+			<Option compile="1" />
+			<Option compiler="riscv32-v3" use="1" buildCommand=" " />
+			<Option compiler="riscv32-v2" use="1" buildCommand=" " />
+			<Option compiler="riscv32" use="1" buildCommand=" " />
+		</Unit>
+		<Unit filename="Output/bin/res.xm">
+			<Option compile="1" />
+			<Option compiler="riscv32-v3" use="1" buildCommand=" " />
+			<Option compiler="riscv32-v2" use="1" buildCommand=" " />
+			<Option compiler="riscv32" use="1" buildCommand=" " />
+		</Unit>
+		<Unit filename="Output/bin/ui/0gpu/gpu.bin">
+			<Option compile="1" />
+			<Option compiler="riscv32-v3" use="1" buildCommand=" " />
+		</Unit>
+		<Unit filename="Output/bin/xcfg.xm">
+			<Option compile="1" />
+			<Option compiler="riscv32-v3" use="1" buildCommand=" " />
+			<Option compiler="riscv32-v2" use="1" buildCommand=" " />
+			<Option compiler="riscv32" use="1" buildCommand=" " />
+		</Unit>
+		<Unit filename="config.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="config.h" />
+		<Unit filename="functions/common/func_bt_update.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/func_idle.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/func_idle.h" />
+		<Unit filename="functions/common/func_lowpwr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/func_lowpwr.h" />
+		<Unit filename="functions/common/func_manage.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/func_manage.h" />
+		<Unit filename="functions/common/func_ota_ui.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/func_ota_ui.h" />
+		<Unit filename="functions/common/func_switching.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/func_switching.h" />
+		<Unit filename="functions/common/func_switching3d.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/func_switching3d.h" />
+		<Unit filename="functions/common/func_update.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/func_update.h" />
+		<Unit filename="functions/common/listbox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/listbox.h" />
+		<Unit filename="functions/common/msgbox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/msgbox.h" />
+		<Unit filename="functions/common/rotary.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/common/rotary.h" />
+		<Unit filename="functions/common/sfunc_bt_ota.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func.h" />
+		<Unit filename="functions/func_activity.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_address_book.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alarm_clock.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alarm_clock_sub_edit.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alarm_clock_sub_repeat.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alarm_clock_sub_set.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alipay.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alipay.h" />
+		<Unit filename="functions/func_altitude.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_bird.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_blood_oxygen.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_blood_pressure.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_bloodsugar.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_breathe.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_bt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_bt.h" />
+		<Unit filename="functions/func_bt_call.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_bt_dut.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_bt_dut.h" />
+		<Unit filename="functions/func_bt_ring.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_calculator.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_calculator_alg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_calculator_alg.h" />
+		<Unit filename="functions/func_calendar.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_call.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_call_mgr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_call_sub_dial.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_call_sub_record.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_camera.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_charge.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock.h" />
+		<Unit filename="functions/func_clock_butterfly.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_cube.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_fish.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_preview.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_sub_card2.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_sub_dropdown.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_sub_pullup.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_sub_rotary.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_sub_side.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_sub_sidebar.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_clock_windmill.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_compass.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_compo_select.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_compo_select_sub.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_debug_info.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_disturd_config.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_emit_list.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_findphone.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_flashlight.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_fmrx.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_fmrx.h" />
+		<Unit filename="functions/func_game.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_game_tetris.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_game_tetris_over.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_game_tetris_start.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_gif.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_heartrate.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_light.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_map.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu.h" />
+		<Unit filename="functions/func_menu_sub_cum_sudoku.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_disk.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_football.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_grid.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_hexagon.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_honeycomb.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_kaleidoscope.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_list.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_ring.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_skyrer.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_sudoku.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_waterfall.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menustyle.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_message.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_modem_call.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_modem_ring.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_music.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_music.h" />
+		<Unit filename="functions/func_music_source.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_passwod_sub_disp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_password_sub_select.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_photo_view.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_recorder.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_recorder.h" />
+		<Unit filename="functions/func_scan.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_about.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_about_4g.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_disturd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_dousing.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_language.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_menu_navigation.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_off.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_password.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_restart.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_rstfy.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_sav.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_time.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_wrist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sleep.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_smartstack.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sport.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sport_config.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sport_sub_run.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sport_switching.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_stopwatch.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_stopwatch_sub_record.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_style.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_take_photo.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_tbl.h" />
+		<Unit filename="functions/func_time_sub_custom.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_timer.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_usbdev.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_usbdev.h" />
+		<Unit filename="functions/func_video_play.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_video_recode.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_video_showlist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_voice.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_volume.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_weather.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="i18n/lang.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="i18n/lang.h" />
+		<Unit filename="i18n/lang_en.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="i18n/lang_zh.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="plugin/bt_call.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="plugin/bt_call.h" />
+		<Unit filename="plugin/eq_table.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="plugin/multi_lang.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="plugin/multi_lang.h" />
+		<Unit filename="plugin/plugin.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="plugin/plugin.h" />
+		<Unit filename="plugin/user_halt.h" />
+		<Unit filename="port/port_ctp.h" />
+		<Unit filename="port/port_key.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="port/port_mute.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="port/port_sd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="port/port_sd.h" />
+		<Unit filename="port/port_update.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ram.ld">
+			<Option compile="1" />
+			<Option compiler="riscv32-v3" use="1" buildCommand="$compiler $options $includes -E -P -x c -c $file -o $(TARGET_OBJECT_DIR)ram.o" />
+			<Option compiler="riscv32-v2" use="1" buildCommand="$compiler $options $includes -E -P -x c -c $file -o $(TARGET_OBJECT_DIR)ram.o" />
+			<Option compiler="riscv32" use="1" buildCommand="$compiler $options $includes -E -P -x c -c $file -o $(TARGET_OBJECT_DIR)ram.o" />
+		</Unit>
+		<Unit filename="res.h" />
+		<Unit filename="ui.h" />
+		<Unit filename="ui_external.h" />
+		<Unit filename="xcfg.h" />
+		<Extensions />
+	</Project>
+</CodeBlocks_project_file>

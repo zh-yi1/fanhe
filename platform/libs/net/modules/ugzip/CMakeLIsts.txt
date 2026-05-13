@@ -1,0 +1,9 @@
+file(GLOB SOURCES "*.c")
+add_library(ugzip OBJECT
+    ${SOURCES}
+)
+
+target_compile_options(ugzip PRIVATE ${NET_COMPILER_FLAGS})
+target_include_directories(ugzip PRIVATE
+    ${NET_INCLUDE_DIR}/ugzip
+)
