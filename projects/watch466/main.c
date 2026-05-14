@@ -1,4 +1,6 @@
 #include "include.h"
+#include "demo/spi1flash_demo.h"
+#include "demo/flash_fatfs_demo.h"
 
 const uint8_t *bt_rf_get_inq_param(void)
 {
@@ -63,6 +65,19 @@ WEAK const u8* get_soft_key(void)
 }
 #endif
 
+void run_test()
+{
+#if FLASH_EXTERNAL_EN
+    printf("\t**spi1flash_demo**\n");
+    spi1flash_demo();
+#endif // FLASH_EXTERNAL_EN
+
+#if 0 //FLASH_DISK_EN
+    printf("\t**flash_fatfs_demo**\n"); 
+    flash_fatfs_demo();
+#endif // FLASH_DISK_EN
+}
+
 //正常启动Main函数
 int main(void)
 {
@@ -70,7 +85,7 @@ int main(void)
 
     rst_reason = LVDCON;
     rtccon10 = RTCCON10;
-    printf("Hello AB5790: %08x, CPUID: %d\n", rst_reason, CPUID);
+    printf("Hello **AB5790**: %08x, CPUID: %d\n", rst_reason, CPUID);
     printf("float print test: %.3f, %f, %f, %f\n", -1.23546f, 1.23546f, -0.0000000000235f, 798956256225.0f);
 
     if (rst_reason & BIT(24)) {
@@ -109,6 +124,11 @@ int main(void)
         printf("Dongle authorization verification successful!\n");
     }
 #endif
+
+    bsp_flash_disk_mount();
+    
+    run_test();
+
     func_run();
     return 0;
 }
