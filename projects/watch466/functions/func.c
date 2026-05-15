@@ -791,17 +791,34 @@ void evt_message(size_msg_t msg)
     }
 }
 
+/* 表盘子界面（下拉/侧边/转盘等）仍占用 func_cb.sta==FUNC_CLOCK，但 f_clk->sta!=MAIN。
+ * 此时若仍走 func_switch_next / func_switch_to_menu 等，会与 sub_frm、转场状态机冲突，易 WDT。 */
+static bool func_clock_subui_active(void)
+{
+    if (func_cb.sta != FUNC_CLOCK || func_cb.f_cb == NULL) {
+        return false;
+    }
+    return ((f_clock_t *)func_cb.f_cb)->sta != FUNC_CLOCK_MAIN;
+}
+
 //func common message process
 void func_message(size_msg_t msg)
 {
     switch (msg) {
     case MSG_CTP_SHORT_LEFT:
-        if (func_cb.sta == FUNC_CLOCK || func_cb.flag_sort) {
-            func_switch_next(false, true);                    //切到下一个任务
+        if (func_cb.sta == FUNC_CLOCK) {
+            if (!func_clock_subui_active()) {
+                func_switch_next(false, true);                    //切到下一个任务
+            }
+        } else if (func_cb.flag_sort) {
+            func_switch_next(false, true);
         }
         break;
 
     case MSG_CTP_SHORT_RIGHT:
+        if (func_cb.sta == FUNC_CLOCK && func_clock_subui_active()) {
+            break;
+        }
         if (func_cb.flag_sort){
             func_switch_prev(false);                    //切到上一个任务
         } else if(func_cb.menu_style == MENU_STYLE_FOOTBALL) {
@@ -816,9 +833,14 @@ void func_message(size_msg_t msg)
         break;
 
     case MSG_QDEC_FORWARD:
-        if (func_cb.sta == FUNC_CLOCK || func_cb.flag_sort) {
-            msg_queue_detach(MSG_QDEC_FORWARD, 0);  //防止不停滚动
-            func_switch_next(true, true);                     //切到下一个任务
+        if (func_cb.sta == FUNC_CLOCK) {
+            if (!func_clock_subui_active()) {
+                msg_queue_detach(MSG_QDEC_FORWARD, 0);  //防止不停滚动
+                func_switch_next(true, true);                     //切到下一个任务
+            }
+        } else if (func_cb.flag_sort) {
+            msg_queue_detach(MSG_QDEC_FORWARD, 0);
+            func_switch_next(true, true);
         }
         break;
 
@@ -835,7 +857,9 @@ void func_message(size_msg_t msg)
         if (func_cb.flag_sort) {
             func_switch_to_clock();                     //切换回主时钟
         } else if (func_cb.sta == FUNC_CLOCK) {
-            func_switch_to_menu();                      //退回到主菜单
+            if (!func_clock_subui_active()) {
+                func_switch_to_menu();                  //退回到主菜单
+            }
         } else {
             func_back_to();								//直接退出任务
         }
@@ -854,10 +878,16 @@ void func_message(size_msg_t msg)
             break;
 
         case KL_BACK:   //堆栈后台
+            /* 下拉等子界面内勿切智能堆栈：避免 sub_frm 与切换栈交错导致异常 PC（如 0xfff9xxxx） */
+            if (func_cb.sta == FUNC_CLOCK && func_clock_subui_active()) {
+                break;
+            }
             if (bt_cb.disp_status < BT_STA_INCOMING && func_cb.sta != FUNC_MENUSTYLE) {
                 if (func_cb.sta == FUNC_CLOCK) {
                     f_clock_t *f_clk = (f_clock_t *)func_cb.f_cb;
-                    if (f_clk->sub_frm) {
+                    /* 仅在主表盘态销毁 sub_frm。FUNC_CLOCK_SUB_* 子界面在自有 while 内仍持有 sub_frm，
+                     * 若此处销毁，子界面 exit 会二次 compo_form_destroy -> 堆损坏 / WDT。 */
+                    if (f_clk != NULL && f_clk->sta == FUNC_CLOCK_MAIN && f_clk->sub_frm != NULL) {
                         compo_form_destroy(f_clk->sub_frm);     //下拉界面存在双窗体
                     }
                 }

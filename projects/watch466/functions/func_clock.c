@@ -23,9 +23,9 @@ const u32 dialplate_info[] = {
 //    UI_BUF_DIALPLATE_7_BIN,
 //     UI_BUF_DIALPLATE_8_BIN,                //精准时图
 
-#if AVI_DIALPLATE_EN && VIDEO_PLAY_EN
+    
     UI_BUF_DIALPLATE_AVI_1_BIN,
-#endif // AVI_DIALPLATE_EN
+
     UI_BUF_DIALPLATE_1_BIN,
     UI_BUF_DIALPLATE_WINDMILL_BIN,
     UI_BUF_DIALPLATE_FISH_BIN,
@@ -230,9 +230,8 @@ static void func_clock_process(void)
     //        bsp_video_play_init(GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT, video->res_addr);
             compo_video_play(video, NULL);
             f_clk->flag_video_start = true;
-            if (video->obuf == NULL) {
-                compo_video_play_control(video, true);
-            }
+            /* obuf 由解码异步填充；勿在 obuf==NULL 时调 compo_video_play_control(true)：
+             * 旧 compo_video_play_control 曾 do{}while(obuf==NULL) 死等导致 WDT，且 next==1 会误改 file_num。 */
         }
     }
 #endif // VIDEO_PLAY_EN
@@ -255,6 +254,7 @@ static void func_clock_message_nomal(size_msg_t msg)
 
     case MSG_CTP_SHORT_DOWN:
         printf("MSG_CTP_SHORT_DOWN\n");
+        printf("MSG_CTP_SHORT_DOWN1111\n");
         func_clock_sub_dropdown();              //下拉菜单
         break;
 
@@ -310,6 +310,10 @@ static void func_clock_message(size_msg_t msg)
 void func_clock_enter(void)
 {
     func_cb.f_cb = func_zalloc(sizeof(f_clock_t));
+    {
+        f_clock_t *f_clk = (f_clock_t *)func_cb.f_cb;
+        f_clk->sta = FUNC_CLOCK_MAIN;
+    }
     func_cb.frm_main = func_clock_form_create();
 
 #if VIDEO_PLAY_EN

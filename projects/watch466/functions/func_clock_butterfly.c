@@ -125,6 +125,9 @@ void func_clock_butterfly_set_light_visible(bool visible)
     compo_picturebox_t *pic;
     for(u8 i=0;i<BTF_LIGHT_NUM;i++) {
         pic = compo_getobj_byid(COMPO_ID_L_LIGHT1 + i);
+        if (pic == NULL) {
+            continue;
+        }
         if (compo_picturebox_get_visible(pic)) {
             compo_picturebox_set_visible(pic, visible);
         }

@@ -16,6 +16,7 @@ const char str_xy[] = "%d: %d, %d\n";
 //TP相关配置
 #define CTP_CNT_SHORT_MOV                (GUI_SCREEN_WIDTH / 30)    //CTP短划阈值(屏幕距离)
 #define CTP_CNT_LONG_MOV                 (GUI_SCREEN_WIDTH / 3)     //CTP长划阈值(屏幕距离)
+#define CTP_SHORT_DOWN_TOP_ZONE          (GUI_SCREEN_HEIGHT / 10)   //下短划仅当按下起点 Y 在此区域内（屏顶向下）
 #define CTP_CNT_LONG                     40                         //CTP长按时间阈值(CTP INT时钟个数)
 #define CTP_DOUBLE_CLICK_TIME            200                        //CTP双击响应时间（单位ms）
 #define I2C_WRITE_ADDR(ADDR)     		 ((ADDR) << 1)				//CTP IIC写地址
@@ -147,7 +148,9 @@ void ctp_msg_deal(bool press)
                         ctp_cb.sta = CTP_STA_MOV_LONG;
                     } else {
                         if (ctp_cb.sta != CTP_STA_MOV_SHORT) {
-                            msg_enqueue(MSG_CTP_SHORT_DOWN);        //补发下短划
+                            if (ctp_cb.sy < CTP_SHORT_DOWN_TOP_ZONE) {
+                                msg_enqueue(MSG_CTP_SHORT_DOWN);    //补发下短划（仅屏顶起始）
+                            }
                         }
                         msg_enqueue(MSG_CTP_LONG_DOWN);             //下长划
                         ctp_cb.sta = CTP_STA_MOV_LONG;
@@ -159,7 +162,9 @@ void ctp_msg_deal(bool press)
                         msg_enqueue(MSG_CTP_SHORT_UP);              //上短划
                         ctp_cb.sta = CTP_STA_MOV_SHORT;
                     } else {
-                        msg_enqueue(MSG_CTP_SHORT_DOWN);            //下短划
+                        if (ctp_cb.sy < CTP_SHORT_DOWN_TOP_ZONE) {
+                            msg_enqueue(MSG_CTP_SHORT_DOWN);        //下短划（仅屏顶起始）
+                        }
                         ctp_cb.sta = CTP_STA_MOV_SHORT;
                     }
                     return;

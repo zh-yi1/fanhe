@@ -491,7 +491,8 @@ static bool func_switching_menu(u16 switch_mode, bool flag_auto)
     int xpos = GUI_SCREEN_CENTER_X;
     int ypos = GUI_SCREEN_CENTER_Y;
     if (sub_frm == NULL) {
-        halt(HALT_FUNC_SWITCH_MENU_PTR);
+        /* 勿 halt：会进 halt 忙等并最终 WDT_RST（PC 约 0x1002afxx）。池顶偶发为空时跳过帘式动画。 */
+        return false;
     }
 
 #if GUI_USE_BLUR

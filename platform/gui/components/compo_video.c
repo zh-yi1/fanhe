@@ -161,46 +161,44 @@ bool compo_video_play_control(compo_video_t *video, u8 next)
         return 0;
     }
 
-    do {
-        if (next == 1) {
-            video->file_num++;
-            if (video->file_num > video->file_total - 1) {
-                video->file_num = 0;
-            }
-        } else if (next == 0) {
-            video->file_num--;
-            if (video->file_num < 0) {
-                video->file_num = video->file_total - 1;
-            }
-        } else {
-
+    if (next == 1) {
+        video->file_num++;
+        if (video->file_num > video->file_total - 1) {
+            video->file_num = 0;
         }
+    } else if (next == 0) {
+        video->file_num--;
+        if (video->file_num < 0) {
+            video->file_num = video->file_total - 1;
+        }
+    } else {
 
-        if (video->style != COMPO_VIDEO_TYPE_FLASH) {
-            if (video->style == COMPO_VIDEO_TYPE_SD_FATFS) {
-                bsp_sd_disk_close_file();
-                compo_video_exit(video);
-                TRACE("total:%d, video->file_num:%d\n",video->file_total, video->file_num);
-                if (bsp_sd_disk_open_file_idx(video->file_num)) {
-                    compo_video_play(video, &bsp_sd_disk_get_fatfs()->fp);
-                } else {
-                    return false;
-                }
-            }
-        } else {
-            if(api_video_play_sta_get() >= AVI_STA_END) {
-                compo_video_exit(video);
-                TRACE("total:%d, video->file_num:%d\n",video->file_total, video->file_num);
-                if (video->list) {
-                    video->res_addr = video->list[video->file_num].res_addr;
-        //            video->res_size = video->list[video->file_num].res_size;
-                }
-                compo_video_play(video, NULL);
-            } else if (!video->file_total && !video->file_num) {        //重复播放只需设置时间即可
-                api_video_play_set_times(0);
+    }
+
+    if (video->style != COMPO_VIDEO_TYPE_FLASH) {
+        if (video->style == COMPO_VIDEO_TYPE_SD_FATFS) {
+            bsp_sd_disk_close_file();
+            compo_video_exit(video);
+            TRACE("total:%d, video->file_num:%d\n",video->file_total, video->file_num);
+            if (bsp_sd_disk_open_file_idx(video->file_num)) {
+                compo_video_play(video, &bsp_sd_disk_get_fatfs()->fp);
+            } else {
+                return false;
             }
         }
-    } while(video->obuf == NULL);
+    } else {
+        if(api_video_play_sta_get() >= AVI_STA_END) {
+            compo_video_exit(video);
+            TRACE("total:%d, video->file_num:%d\n",video->file_total, video->file_num);
+            if (video->list) {
+                video->res_addr = video->list[video->file_num].res_addr;
+    //            video->res_size = video->list[video->file_num].res_size;
+            }
+            compo_video_play(video, NULL);
+        } else if (!video->file_total && !video->file_num) {        //重复播放只需设置时间即可
+            api_video_play_set_times(0);
+        }
+    }
 
     return true;
 }
