@@ -2830,3 +2830,2855 @@
 1772787721 source:d:\packet4\sdk_579x_011_s2376_20260306\app\projects\watch466\ram.ld
 	"config.h"
 
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\ab_common.c
+	"include.h"
+	"ab_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\include.h
+	"global.h"
+	"xcfg.h"
+	"config.h"
+	"io_def.h"
+	"api.h"
+	"bsp.h"
+	"gui.h"
+	"func.h"
+	"lang.h"
+	"plugin.h"
+	"res.h"
+	"ui.h"
+	"ui_external.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\global.h
+	<stddef.h>
+	<stdarg.h>
+	<stdbool.h>
+	<stdlib.h>
+	<string.h>
+	"typedef.h"
+	"macro.h"
+	"clib.h"
+	"sfr.h"
+	"reg_access.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\typedef.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\macro.h
+
+1758357622 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\clib.h
+
+1761634889 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\sfr.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\reg_access.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\xcfg.h
+
+1778841282 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\config.h
+	"config_define.h"
+	"config_extra.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\config_define.h
+	"config_define.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\config_extra.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\io_def.h
+	"global.h"
+	"config.h"
+	"sfr.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api.h
+	"api_math.h"
+	"api_btstack.h"
+	"api_bt.h"
+	"api_ble.h"
+	"api_cm.h"
+	"api_music.h"
+	"api_rtc.h"
+	"api_sdadc.h"
+	"api_update.h"
+	"api_dac.h"
+	"api_sysclk.h"
+	"api_msg.h"
+	"api_saradc.h"
+	"api_sys.h"
+	"api_pwr.h"
+	"api_key.h"
+	"api_gpio.h"
+	"api_uart.h"
+	"api_huart.h"
+	"api_nr.h"
+	"api_gui.h"
+	"api_charge.h"
+	"api_mem.h"
+	"api_flash.h"
+	"api_app.h"
+	"api_co_time.h"
+	"api_sd.h"
+	"api_usb.h"
+	"api_fs.h"
+	"api_device.h"
+	"api_modem.h"
+	"api_db.h"
+	"api_jpeg.h"
+	"rt_thread.h"
+	"api_rt_thread.h"
+	"api_noc.h"
+	"api_tdnn.h"
+	"api_pacc.h"
+	"api_src.h"
+	"api_video.h"
+	"api_photo_view.h"
+	"api_gpdma.h"
+	"cpu.h"
+	"api_fmrx.h"
+	"api_spi.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_math.h
+
+1757664460 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_btstack.h
+
+1761220637 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_bt.h
+	"api_btstack.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_ble.h
+	"api_btstack.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_cm.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_music.h
+
+1755854268 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_rtc.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_sdadc.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_update.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_dac.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_sysclk.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_msg.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_saradc.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_sys.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_pwr.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_key.h
+
+1754651301 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_gpio.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_uart.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_huart.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_nr.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_gui.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_charge.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_mem.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_flash.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_app.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_co_time.h
+	"include.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_sd.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_usb.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_fs.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_device.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_modem.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_db.h
+
+1760344345 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_jpeg.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\rt_thread.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_rt_thread.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_noc.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_tdnn.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_pacc.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_src.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_video.h
+	"include.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_photo_view.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_gpdma.h
+
+1754647056 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\cpu.h
+
+1758357622 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_fmrx.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_spi.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp.h
+	"bsp_halt.h"
+	"bsp_sys.h"
+	"bsp_backtrace.h"
+	"bsp_hw_timer.h"
+	"bsp_pwm.h"
+	"bsp_key.h"
+	"bsp_dac.h"
+	"bsp_param.h"
+	"bsp_audio.h"
+	"bsp_music.h"
+	"bsp_bt.h"
+	"bsp_eq.h"
+	"bsp_piano.h"
+	"bsp_i2c.h"
+	"bsp_ble.h"
+	"bsp_app.h"
+	"bsp_charge.h"
+	"bsp_saradc.h"
+	"bsp_vbat.h"
+	"bsp_rtc.h"
+	"bsp_sensor.h"
+	"bsp_port_int.h"
+	"bsp_sleep.h"
+	"bsp_vusb.h"
+	"bsp_uitool_phrase.h"
+	"bsp_modem.h"
+	"bsp_opus.h"
+	"bsp_call_mgr.h"
+	"bsp_spi.h"
+	"bsp_spi1flash.h"
+	"bsp_uart.h"
+	"bsp_huart.h"
+	"bsp_asr.h"
+	"bsp_auphy.h"
+	"bsp_sensor_hub.h"
+	"bsp_image_sensor.h"
+	"bsp_video_play.h"
+	"bsp_video_recode.h"
+	"bsp_take_photo.h"
+	"bsp_photo_view.h"
+	"bsp_video_watermark.h"
+	"bsp_gpio.h"
+	"mic_effect.h"
+	"bsp_fmrx.h"
+	"bsp_disk.h"
+	"bsp_mic_record.h"
+	"bsp_record_fs.h"
+	"bsp_gif.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_halt.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sys.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_backtrace.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_hw_timer.h
+
+1762335653 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_pwm.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_key.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_dac.h
+
+1758357622 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_param.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_audio.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_music\bsp_music.h
+	"music_lrc.h"
+	"music_id3_tag.h"
+	"music_res.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_music\music_lrc.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_music\music_id3_tag.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_music\music_res.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bsp_bt.h
+	"pbap.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\pbap.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_eq.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_piano.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_i2c.h
+
+1755242277 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\bsp_ble.h
+	"app.h"
+	"ble.h"
+	"bsp_ams.h"
+	"bsp_ancs.h"
+
+1763699612 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app.h
+	"app_ab_link.h"
+	"app_watch.h"
+	"bt_fota.h"
+	"bsp_app.h"
+	"bsp_ble/hid/ble_hid_service.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app_ab_link.h
+	"include.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app_watch.h
+	"include.h"
+	"app_blue_fit.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app_blue_fit.h
+	"include.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\bt_fota.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\bsp_app.h
+	"app_platform.h"
+	"app_ancs.h"
+	"ab_command/ab_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\app_platform.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\app_ancs.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\ab_common.h
+	"app_data.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\app_data.h
+	"app_data_config.h"
+	"app_data.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\app_data_config.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\hid\ble_hid_service.h
+	"include.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\ble.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\bsp_ams.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\bsp_ancs.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_charge.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_saradc.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_vbat.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_rtc.h
+
+1758769021 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\bsp_sensor.h
+	"sc7a20/sc7a20.h"
+	"hrs3300/fit_hrs3300.h"
+	"hx3605/fit_hx3605.h"
+	"hx3602/fit_hx3602.h"
+	"msa310/msa310.h"
+	"internal_sensor/bsp_internal_sensor.h"
+	"qmc6309/qmc6309.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\sc7a20\sc7a20.h
+	"sl_watch_application.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\sc7a20\sl_watch_application.h
+	"include.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hrs3300\fit_hrs3300.h
+	"include.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\fit_hx3605.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3602\fit_hx3602.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\msa310\msa310.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\internal_sensor\bsp_internal_sensor.h
+
+1758769021 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\qmc6309\qmc6309.h
+	"ICAL_GDF30X.h"
+	"ICFG_GDF30X.h"
+
+1758769021 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\qmc6309\ical_gdf30x.h
+
+1758769021 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\qmc6309\icfg_gdf30x.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_port_int.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sleep.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_vusb.h
+
+1762506708 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_uitool_phrase.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_modem\bsp_modem.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_opus.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_call_mgr.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_spi.h
+
+1761890851 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_spi1flash.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_uart.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_huart.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_asr.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_auphy.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor_hub.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_image_sensor\bsp_image_sensor.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_video_play.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_video_recode.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_take_photo.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_photo_view.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_video_watermark.h
+
+1762335653 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_gpio.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_effect\mic_effect.h
+
+1758357622 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fmrx.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fs\bsp_disk.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_record\bsp_mic_record.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_record\bsp_record_fs.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_gif.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\gui.h
+	"components.h"
+	"tft.h"
+	"ctp.h"
+	"rotate_disp/rotate_disp.h"
+	"rotate_disp/rotate_widget.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\components.h
+	"component_func.h"
+	"compo_form.h"
+	"compo_picturebox.h"
+	"compo_textbox.h"
+	"compo_label.h"
+	"compo_shape.h"
+	"compo_button.h"
+	"compo_number.h"
+	"compo_datetime.h"
+	"compo_qrcodebox.h"
+	"compo_listbox.h"
+	"compo_rowbox.h"
+	"compo_stacklist.h"
+	"compo_iconlist.h"
+	"compo_rotary.h"
+	"compo_football.h"
+	"compo_cube.h"
+	"compo_disklist.h"
+	"compo_kaleidoscope.h"
+	"compo_animation.h"
+	"compo_rings.h"
+	"compo_arc.h"
+	"compo_chartbox.h"
+	"compo_cardbox.h"
+	"compo_move_ctr.h"
+	"compo_butterfly.h"
+	"compo_scrollbar.h"
+	"compo_windmill.h"
+	"compo_fish.h"
+	"compo_video.h"
+	"compo_jpg.h"
+	"compo_camera.h"
+	"compo_gif.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\component_func.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_form.h
+	"compo_animation.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_animation.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_picturebox.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_textbox.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_label.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_shape.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_button.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_number.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_datetime.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_qrcodebox.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_listbox.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_rowbox.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_stacklist.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_iconlist.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_rotary.h
+
+1762334559 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_football.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_cube.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_disklist.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_kaleidoscope.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_rings.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_arc.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_chartbox.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_cardbox.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_move_ctr.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_butterfly.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_scrollbar.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_windmill.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_fish.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_video.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_jpg.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_camera.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_gif.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\tft.h
+	"tft_drv.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\tft_drv.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\ctp\ctp.h
+	"axs5106/axs5106.h"
+	"axs152x/axs152x.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\ctp\axs5106\axs5106.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\ctp\axs152x\axs152x.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\rotate_disp\rotate_disp.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\rotate_disp\rotate_widget.h
+
+1778836353 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func.h
+	"common/msgbox.h"
+	"common/listbox.h"
+	"common/rotary.h"
+	"common/func_switching.h"
+	"func_clock.h"
+	"func_bt.h"
+	"common/func_idle.h"
+	"common/func_lowpwr.h"
+	"common/func_manage.h"
+	"common/func_update.h"
+	"func_bt_dut.h"
+	"func_music.h"
+	"func_usbdev.h"
+	"func_recorder.h"
+	"func_fmrx.h"
+	"func_ble_gatts.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\msgbox.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\listbox.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\rotary.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_switching.h
+	"func_switching3d.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_switching3d.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_bt.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_idle.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_lowpwr.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_manage.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_update.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_bt_dut.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_music.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_usbdev.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_recorder.h
+
+1758358950 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_fmrx.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\i18n\lang.h
+
+1762339162 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\plugin\plugin.h
+	"user_halt.h"
+	"multi_lang.h"
+	"bt_call.h"
+	"port_ctp.h"
+	"port_sd.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\plugin\user_halt.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\plugin\multi_lang.h
+
+1759109344 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\plugin\bt_call.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\port\port_ctp.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\port\port_sd.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\res.h
+
+1779101165 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\ui.h
+
+1778761965 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\ui_external.h
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\app_data.c
+	"include.h"
+	"ab_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\data_storage.c
+	"include.h"
+	"ab_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\data_transmit.c
+	"include.h"
+	"ab_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\device_attr.c
+	"include.h"
+	"ab_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\health_data.c
+	"include.h"
+	"ab_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\msg_notification.c
+	"include.h"
+	"ab_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\personal_info.c
+	"include.h"
+	"ab_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\status_control.c
+	"include.h"
+	"ab_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\app_ancs.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\app_platform.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\weak_symbol.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_asr.c
+	"include.h"
+	<lib_et_asr.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\lib_et_asr.h
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_audio.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_auphy.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_backtrace.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\adv0.c
+	"include.h"
+	"bsp_ble.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app.c
+	"include.h"
+	"app.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app_ab_link.c
+	"include.h"
+	"app_ab_link.h"
+	"bt_fota.h"
+
+1779093058 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app_blue_fit.c
+	"include.h"
+	"app_ab_link.h"
+	"alipay_bind.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\app\bind_ble\inc\alipay_bind.h
+	"alipay_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\share\common\inc\alipay_common.h
+	<string.h>
+	<stdint.h>
+	<stdbool.h>
+
+1778836525 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\ble.c
+	"include.h"
+	"bsp_ble.h"
+	"func_ble_gatts.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\bsp_ams.c
+	"include.h"
+	"bsp_ams.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\bsp_ancs.c
+	"include.h"
+	"bsp_ancs.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\bt_fota.c
+	"include.h"
+	"bt_fota.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\hid\ble_hid_event.c
+	"ble_hid_service.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\hid\ble_hid_service.c
+	"ble_hid_service.h"
+	"../ble.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\hid\ble_hid_tiktok.c
+	"ble_hid_service.h"
+	"hid_usage.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\hid\hid_usage.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\a2dp.c
+	"include.h"
+	"api.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bsp_bt.c
+	"include.h"
+	"api.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bsp_bt_call.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bsp_bt_ring.c
+	"include.h"
+	"func.h"
+	"func_bt.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bsp_emit.c
+	"include.h"
+
+1756902667 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bt.c
+	"include.h"
+	"api.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bt_id3_tag.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bt_sco_app_dbg.c
+	"bt_sco_app_dbg.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bt_sco_app_dbg.h
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\bt_sco_nr_dbg.c
+	"bt_sco_app_dbg.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\dev_vol.c
+	"include.h"
+	"api.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\hfhs.c
+	"include.h"
+	"api.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\hid.c
+	"include.h"
+	"api.h"
+	"func.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\pbap.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_bt\profile.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_call_mgr.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_charge.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_cm.c
+	"include.h"
+	"func.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_dac.c
+	"include.h"
+	"bsp_dac.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_effect\mic_effect.c
+	"include.h"
+	"effect_idx.h"
+	"mic_effect.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_effect\effect_idx.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_eq.c
+	"include.h"
+	"bsp_eq.h"
+
+1758357622 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fmrx.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fs\bsp_disk.c
+	"include.h"
+	"bsp_disk.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fs\example\fs_example_findall_frist.c
+	"include.h"
+	"api_fs.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fs\example\fs_example_findfirst.c
+	"include.h"
+	"api_fs.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fs\example\fs_example_scan_disk.c
+	"include.h"
+	"api_fs.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fs\fs_drv_sd.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fs\fs_drv_spiflash.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_gif.c
+	"include.h"
+
+1762335653 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_gpio.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_halt.c
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_huart.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_hw_timer.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_i2c.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_image_sensor\bsp_image_sensor.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_image_sensor\bsp_image_sensor_drv.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_image_sensor\drv_bf03a2.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_image_sensor\drv_gc0308.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_image_sensor\drv_spa0a39.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_key.c
+	"include.h"
+	"func.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_map.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_mav.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_mem\bsp_mem.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_mem\heap.c
+	"include.h"
+	"tlsf.h"
+	"rt_thread.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_mem\tlsf.h
+	<stddef.h>
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_mem\tlsf.c
+	"include.h"
+	<limits.h>
+	"tlsf.h"
+	<api_math.h>
+	<intrin.h>
+	<ppcintrinsics.h>
+	<ppc_ghs.h>
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_modem\bsp_modem.c
+	"include.h"
+	"api.h"
+	"api_modem.h"
+	"api_iis.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\api_iis.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_modem\bsp_modem_call.c
+	"include.h"
+	"api_iis.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_modem\bsp_modem_sleep.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_modem\modem_custom.c
+	"include.h"
+	"api.h"
+	"api_modem.h"
+	"modem_custom.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_modem\modem_custom.h
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_music\bsp_music.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_music\music_id3_tag.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_music\music_lrc.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_music\music_res.c
+	"include.h"
+
+1756457225 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_net\bsp_lwip.c
+	"include.h"
+	"lwip/api.h"
+	"nopoll/nopoll.h"
+	"webclient/webclient.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\api.h
+	"lwip/opt.h"
+	"lwip/arch.h"
+	"lwip/netbuf.h"
+	"lwip/sys.h"
+	"lwip/ip_addr.h"
+	"lwip/err.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\opt.h
+	"lwipopts.h"
+	"lwip/debug.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\ports\lwipopts.h
+	"lwipopts_test.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\debug.h
+	"lwip/arch.h"
+	"lwip/opt.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\arch.h
+	"arch/cc.h"
+	<stdio.h>
+	<stdlib.h>
+	<stdio.h>
+	<stdlib.h>
+	<stddef.h>
+	<stdint.h>
+	<inttypes.h>
+	<limits.h>
+	<unistd.h>
+	<ctype.h>
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\ports\arch\cc.h
+	<errno.h>
+	<sys/time.h>
+	<sys/fcntl.h>
+	<stdlib.h>
+	<stdbool.h>
+	<stdint.h>
+	<stdio.h>
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\netbuf.h
+	"lwip/opt.h"
+	"lwip/pbuf.h"
+	"lwip/ip_addr.h"
+	"lwip/ip6_addr.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\pbuf.h
+	"lwip/opt.h"
+	"lwip/err.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\err.h
+	"lwip/opt.h"
+	"lwip/arch.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\ip_addr.h
+	"lwip/opt.h"
+	"lwip/def.h"
+	"lwip/ip4_addr.h"
+	"lwip/ip6_addr.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\def.h
+	"lwip/arch.h"
+	"lwip/opt.h"
+	"arch/perf.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\ip4_addr.h
+	"lwip/opt.h"
+	"lwip/def.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\ip6_addr.h
+	"lwip/opt.h"
+	"def.h"
+	"lwip/ip6_zone.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\ip6_zone.h
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\sys.h
+	"lwip/opt.h"
+	"lwip/err.h"
+	"arch/sys_arch.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\ports\arch\sys_arch.h
+	"lwip/opt.h"
+	"lwip/arch.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll.h
+	"nopoll_decl.h"
+	"nopoll_handlers.h"
+	<nopoll_win32.h>
+	"nopoll_rtthread.h"
+	"nopoll_ctx.h"
+	"nopoll_io.h"
+	"nopoll_conn_opts.h"
+	"nopoll_conn.h"
+	"nopoll_msg.h"
+	"nopoll_log.h"
+	"nopoll_listener.h"
+	"nopoll_io.h"
+	"nopoll_loop.h"
+
+1761028867 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_decl.h
+	"nopoll_config.h"
+	<stdlib.h>
+	<stdarg.h>
+	<string.h>
+	<ctype.h>
+	<winsock2.h>
+	<windows.h>
+	<ws2tcpip.h>
+	<fcntl.h>
+	<io.h>
+	<process.h>
+	<time.h>
+	<sys/types.h>
+	<fcntl.h>
+	<netdb.h>
+	<sys/socket.h>
+	<netinet/in.h>
+	<arpa/inet.h>
+	<sys/select.h>
+	<sys/time.h>
+	<sys/resource.h>
+	<time.h>
+	<unistd.h>
+	<stdint.h>
+	<string.h>
+	<time.h>
+	<lwip/netdb.h>
+	<sys/poll.h>
+	<sys/epoll.h>
+	<errno.h>
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_config.h
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\netdb.h
+	"lwip/opt.h"
+	"lwip/arch.h"
+	"lwip/inet.h"
+	"lwip/sockets.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\inet.h
+	"lwip/opt.h"
+	"lwip/def.h"
+	"lwip/ip_addr.h"
+	"lwip/ip6_addr.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\sockets.h
+	"lwip/opt.h"
+	"lwip/ip_addr.h"
+	"lwip/netif.h"
+	"lwip/err.h"
+	"lwip/inet.h"
+	"lwip/errno.h"
+	<string.h>
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\netif.h
+	"lwip/opt.h"
+	"lwip/err.h"
+	"lwip/ip_addr.h"
+	"lwip/def.h"
+	"lwip/pbuf.h"
+	"lwip/stats.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\stats.h
+	"lwip/opt.h"
+	"lwip/mem.h"
+	"lwip/memp.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\mem.h
+	"lwip/opt.h"
+	"lwip/arch.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\memp.h
+	"lwip/opt.h"
+	"lwip/priv/memp_std.h"
+	"lwip/priv/memp_std.h"
+	"lwip/priv/memp_priv.h"
+	"lwip/stats.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\priv\memp_std.h
+	"lwippools.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\priv\memp_priv.h
+	"lwip/opt.h"
+	"lwip/mem.h"
+	"lwip/priv/mem_priv.h"
+	"lwip/priv/memp_std.h"
+	"lwip/priv/memp_std.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\priv\mem_priv.h
+	"lwip/opt.h"
+	"lwip/mem.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\lwip\lwip\errno.h
+	"lwip/opt.h"
+	<errno.h>
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_handlers.h
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_rtthread.h
+	"nopoll.h"
+	<tinycrypt/tiny_sha1.h>
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\tinycrypt\tiny_sha1.h
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_ctx.h
+	"nopoll.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_io.h
+	"nopoll.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_conn_opts.h
+	"nopoll.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_conn.h
+	"nopoll.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_msg.h
+	"nopoll.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_log.h
+	"nopoll_decl.h"
+	"nopoll_handlers.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_listener.h
+	"nopoll.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\nopoll\nopoll_loop.h
+	"nopoll.h"
+
+1758089832 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\webclient\webclient.h
+	<stddef.h>
+	<tls_client.h>
+
+1761189232 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_net\common.c
+	"include.h"
+	"lwip/sys.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_noise\bsp_noise_dnn.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_opus.c
+	"include.h"
+	"bsp_opus.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_param.c
+	"include.h"
+	"../ws_air/air/asr_config.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\asr_config.h
+	"include.h"
+	"func_api_air.h"
+	"ir.h"
+	"ir_index.h"
+	"wanson_ir.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\func_api_air.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\ir.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\ir_index.h
+	"macro.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\wanson_ir.h
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_piano.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_port_int.c
+	"include.h"
+
+1762335653 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_pwm.c
+	"include.h"
+
+1755582319 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_qdec.c
+	"include.h"
+
+1762506708 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ram_backup.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_record\bsp_mic_record.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_record\bsp_record_fs.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_rtc.c
+	"include.h"
+
+1755077761 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_saradc.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\bsp_sensor.c
+	"include.h"
+
+1757921812 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hrs3300\fit_hrs3300.c
+	<include.h>
+	"hrs3300.h"
+	"fit_hrs3300.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hrs3300\hrs3300.h
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hrs3300\hrs3300.c
+	<include.h>
+	"hrs3300.h"
+	"hrs3300_reg_init.h"
+	"fit_hrs3300.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hrs3300\hrs3300_reg_init.h
+
+1763100033 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3602\fit_hx3602.c
+	<include.h>
+	"hx3602.h"
+	"hx3602_hrs_driv.h"
+	"tyhx_hrs_alg.h"
+	"fit_hx3602.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3602\hx3602.h
+	<stdint.h>
+	<stdbool.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3602\hx3602_hrs_driv.h
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3602\tyhx_hrs_alg.h
+	<stdint.h>
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3602\hx3602.c
+	<include.h>
+	"hx3602.h"
+	"hx3602_reg_init.h"
+	"hx3602_hrs_driv.h"
+	"tyhx_hrs_alg.h"
+	"SEGGER_RTT.h"
+	"app_timer.h"
+	"nrf_delay.h"
+	"nrf_gpio.h"
+	"nrf_drv_gpiote.h"
+	"twi_master.h"
+	"drv_oled.h"
+	"button.h"
+	"demo_ctrl.h"
+	"testvec.h"
+	"lis3dh_drv.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3602\hx3602_reg_init.h
+	<stdint.h>
+
+1757921812 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3602\hx3602_hrs_driv.c
+	"include.h"
+	"hx3602.h"
+	"hx3602_hrs_driv.h"
+	"tyhx_hrs_alg.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\fit_hx3605.c
+	<include.h>
+	"hx3605.h"
+	"fit_hx3605.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\hx3605.h
+	<stdint.h>
+	<stdbool.h>
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\hx3605.c
+	<include.h>
+	"hx3605.h"
+	"hx3605_factory_test.h"
+	"fit_hx3605.h"
+	"SEGGER_RTT.h"
+	"app_timer.h"
+	"nrf_delay.h"
+	"nrf_gpio.h"
+	"nrf_drv_gpiote.h"
+	"twi_master.h"
+	"drv_oled.h"
+	"opr_oled.h"
+	"oled_iic.h"
+	"word.h"
+	"iic.h"
+	"spo2_vec.h"
+	"hr_vec.h"
+	"hrv_testvec.h"
+	"lis3dh_drv.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\hx3605_factory_test.h
+	<stdint.h>
+	<stdbool.h>
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\hx3605_factory_test.c
+	<include.h>
+	"hx3605.h"
+	"hx3605_factory_test.h"
+	"SEGGER_RTT.h"
+	"nrf_delay.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\hx3605_hrs_agc.c
+	<include.h>
+	"hx3605.h"
+	"hx3605_hrs_agc.h"
+	"twi_master.h"
+	"SEGGER_RTT.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\hx3605_hrs_agc.h
+	<stdint.h>
+	<stdbool.h>
+	"hx3605.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\hx3605_spo2_agc.c
+	<include.h>
+	"hx3605.h"
+	"hx3605_spo2_agc.h"
+	"twi_master.h"
+	"SEGGER_RTT.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\hx3605\hx3605_spo2_agc.h
+	<stdint.h>
+	<stdbool.h>
+	"hx3605.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\internal_sensor\bsp_internal_sensor.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\msa310\msa310.c
+	"include.h"
+	"msa310.h"
+	"msa_app.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\msa310\msa_app.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\msa310\msa_app.c
+	"msa_app.h"
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\qmc6309\qmc6309.c
+	"include.h"
+	"qmc6309.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\sc7a20\sc7a20.c
+	"include.h"
+
+1758360054 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor\sc7a20\sl_watch_application.c
+	"sl_watch_application.h"
+	"include.h"
+	"usart.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sensor_hub.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sleep.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_spi.c
+	"include.h"
+
+1761890851 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_spi1flash.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_spp.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_sys.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_uart.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_uitool_phrase.c
+	"include.h"
+	"../gui/components/compo_form.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_vbat.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_photo_view.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_take_photo.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_video_play.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_video_recode.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_video\bsp_video_watermark.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\api_gui.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_animation.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_arc.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_butterfly.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_button.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_camera.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_cardbox.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_chartbox.c
+	"include.h"
+
+1757941434 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_cube.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_datetime.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_disklist.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_fish.c
+	"include.h"
+	"fixmath.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\libfixmath\fixmath.h
+	<linux/types.h>
+	<stdint.h>
+	<linux/types.h>
+	<stdint.h>
+	<linux/types.h>
+	<stdint.h>
+	<linux/types.h>
+	<stdint.h>
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_football.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_form.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_gif.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_iconlist.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_jpg.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_kaleidoscope.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_label.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_listbox.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_move_ctr.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_number.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_picturebox.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_qrcodebox.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_rings.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_rotary.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_rowbox.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_scrollbar.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_shape.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_stacklist.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_textbox.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_video.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\compo_windmill.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\component_func.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\components\components.c
+	"include.h"
+
+1758610101 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\ctp\axs152x\axs152x.c
+	"include.h"
+	"bsp_i2c.h"
+	"axs152x.h"
+
+1758610101 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\ctp\axs5106\axs5106.c
+	"include.h"
+	"bsp_i2c.h"
+	"axs5106.h"
+	"GD9853_G2538B_AXS5106_V01_03_20231106_App.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\ctp\axs5106\gd9853_g2538b_axs5106_v01_03_20231106_app.h
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\ctp\ctp.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\ctp\ctp_chsc6x.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\ctp\ctp_cst8x.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\gui.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\rotate_disp\rotate_disp.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\rotate_disp\rotate_widget.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\oled_368_st7801n.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\oled_466_icna3310b.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\tft.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\tft_240_st7789_i80.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\tft_320_st77916.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\tft_480_st7283_srgb.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\tft_800_st7265_prgb.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\tft_drv.c
+	"include.h"
+	"tft.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\gui\tft\tft_vga012a_640.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\bluetooth\sample\vendor_ble.c
+	"include.h"
+	"alipay_common.h"
+	"hal_ble.h"
+	"csi_ble.h"
+	"vendor_ble.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\bluetooth\inc\hal_ble.h
+	"hal_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\share\common\inc\hal_common.h
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\bluetooth\inc\csi_ble.h
+	"csi_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\share\common\inc\csi_common.h
+	<stdint.h>
+	<ctype.h>
+	<stdarg.h>
+	<alipay_common.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\bluetooth\inc\vendor_ble.h
+	"alipay_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\cert\sample\test_cert.c
+	"alipay_common.h"
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\cert\sample\vendor_cert.c
+	"alipay_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\device_info\sample\test_device_info.c
+	"alipay_common.h"
+	"vendor_device_info.h"
+	<include.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\device_info\inc\vendor_device_info.h
+	"alipay_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\device_info\sample\vendor_device_info.c
+	"include.h"
+	"alipay_common.h"
+	<string.h>
+	"hal_device_info.h"
+	"csi_device_info.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\device_info\inc\hal_device_info.h
+	"hal_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\device_info\inc\csi_device_info.h
+	"alipay_common.h"
+	"csi_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\file\sample\test_file.c
+	"alipay_common.h"
+	"vendor_file.h"
+	"include.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\file\inc\vendor_file.h
+	"alipay_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\file\src\vendor_file.c
+	"include.h"
+	"alipay_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\sample\alipay_ble_os.c
+	"alipay_net_kal.h"
+	"sfr.h"
+	"iotsec.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\interface\alipay_net_kal.h
+	"alipay_iot_type.h"
+	"iot_err.h"
+	<pthread.h>
+	"alipay_net_kal.h"
+	"data.pb-c.h"
+	"alipay_iot_type.h"
+	<stdlib.h>
+	<string.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\interface\alipay_iot_type.h
+	<limits.h>
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\interface\iot_err.h
+	<string.h>
+	<stdio.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\interface\data.pb-c.h
+	<protobuf-c.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\interface\protobuf-c.h
+	<assert.h>
+	<limits.h>
+	<stddef.h>
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\port\iotsec.h
+	<stdint.h>
+	<ctype.h>
+	<stdarg.h>
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\sample\alipay_blue.c
+	<stdbool.h>
+	<time.h>
+	"config.h"
+	"data.pb-c.h"
+	"alipay_net_kal.h"
+	"alipay_blue_tcp.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\interface\alipay_blue_tcp.h
+	"data.pb-c.h"
+	"alipay_net_kal.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\sample\alipay_blue_tcp.c
+	"alipay_blue_tcp.h"
+	"data.pb-c.h"
+	"alipay_ble_common.h"
+	"alipay_net_kal.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\interface\alipay_ble_common.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\sample\alipay_iot_kal.c
+	"alipay_net_kal.h"
+	"iot_err.h"
+	"alipay_iot_kv.h"
+	"flash_disk.h"
+	"stdarg.h"
+	<stdio.h>
+	<stdlib.h>
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\sample\data.pb-c.c
+	"data.pb-c.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\sample\protobuf-c.c
+	<include.h>
+	"protobuf-c.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\network\test\test_netwotk_ble.c
+	"alipay_ble_common.h"
+	"alipay_net_kal.h"
+	<stdio.h>
+	"config.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\os\sample\vendor_os.c
+	"include.h"
+	<stdlib.h>
+	<stdarg.h>
+	<string.h>
+	<time.h>
+	"hal_os.h"
+	"csi_os.h"
+	"alipay_common.h"
+	"vendor_os.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\os\inc\hal_os.h
+	"hal_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\os\inc\csi_os.h
+	"alipay_common.h"
+	"csi_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\hal\os\inc\vendor_os.h
+	"alipay_common.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\common.c
+	"include.h"
+	"list.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\list.h
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\hed\hed_98d\hed_private.c
+	"include.h"
+	"hed_private.h"
+	"port_hed_i2c.h"
+	<stdint.h>
+	<string.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\hed\hed_98d\hed_private.h
+	"include.h"
+	<stdint.h>
+	<string.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\hed\hed_98d\port_hed_i2c.h
+	"include.h"
+	"hed_private.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\hed\hed_98d\port_hed_i2c.c
+	"include.h"
+	"hed_private.h"
+	"port_hed_i2c.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\hed\vendor_api.c
+	"include.h"
+	"vendor_api.h"
+	"hed_private.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\hed\vendor_api.h
+	<stdint.h>
+	<ctype.h>
+	<stdarg.h>
+	"alipay_common.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\hsec\hsc32i3\hs_private.c
+	"include.h"
+	"hs_private.h"
+	"bsp_i2c.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\hsec\hsc32i3\hs_private.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\hsec\vendor_ssp.c
+	"include.h"
+	"hs_private.h"
+	"csi_common.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\vendor_crypto.c
+	"include.h"
+	"iotsec.h"
+	"aes.h"
+	"sha256.h"
+	"kdf.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\aes.h
+	<stddef.h>
+	<stdint.h>
+	"aes_alt.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\sha256.h
+	<stddef.h>
+	<stdint.h>
+	"sha256_alt.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\kdf.h
+	<stdint.h>
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\se\vendor_product.c
+	"include.h"
+	"iotsec.h"
+	"utils.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\utils.h
+	<stdint.h>
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\aes.c
+	"include.h"
+	"aes.h"
+	<string.h>
+	"aes.h"
+	"mbedtls/padlock.h"
+	"mbedtls/aesni.h"
+	"mbedtls/platform.h"
+	<stdio.h>
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\platform.h
+	"mbedtls/private_access.h"
+	"mbedtls/build_info.h"
+	"mbedtls/platform_time.h"
+	<stdio.h>
+	<stdlib.h>
+	<time.h>
+	<stddef.h>
+	<stdio.h>
+	<stdarg.h>
+	<stdarg.h>
+	<stdio.h>
+	"platform_alt.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\private_access.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\build_info.h
+	"mbedtls/mbedtls_config.h"
+	"psa/crypto_config.h"
+	"mbedtls/config_psa.h"
+	"mbedtls/config_adjust_legacy_crypto.h"
+	"mbedtls/config_adjust_x509.h"
+	"mbedtls/config_adjust_ssl.h"
+	"mbedtls/check_config.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\mbedtls_config.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\psa\crypto_config.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\config_psa.h
+	"psa/crypto_legacy.h"
+	"psa/crypto_adjust_config_synonyms.h"
+	"psa/crypto_adjust_config_dependencies.h"
+	"mbedtls/config_adjust_psa_superset_legacy.h"
+	"psa/crypto_adjust_config_key_pair_types.h"
+	"mbedtls/config_adjust_legacy_from_psa.h"
+	"mbedtls/config_adjust_psa_from_legacy.h"
+	"psa/crypto_adjust_config_key_pair_types.h"
+	"psa/crypto_adjust_auto_enabled.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\psa\crypto_legacy.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\psa\crypto_adjust_config_synonyms.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\psa\crypto_adjust_config_dependencies.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\config_adjust_psa_superset_legacy.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\psa\crypto_adjust_config_key_pair_types.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\config_adjust_legacy_from_psa.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\config_adjust_psa_from_legacy.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\psa\crypto_adjust_auto_enabled.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\config_adjust_legacy_crypto.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\config_adjust_x509.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\config_adjust_ssl.h
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\check_config.h
+	<limits.h>
+	<stdint.h>
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\mbedtls\platform_time.h
+	"mbedtls/build_info.h"
+	<time.h>
+	<stdint.h>
+	<inttypes.h>
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\kdf.c
+	"include.h"
+	"kdf.h"
+	"sha256.h"
+	<stddef.h>
+	"iotsec.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\list.c
+	"include.h"
+	"list.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\sha256.c
+	"include.h"
+	"sha256.h"
+	<string.h>
+	"mbedtls/platform.h"
+	<stdio.h>
+	<stdlib.h>
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\softse\utils.c
+	"include.h"
+	"utils.h"
+	"iotsec.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\libfixmath\fixmath.c
+	"fixmath.h"
+	<linux/types.h>
+	<stdbool.h>
+	<linux/types.h>
+	<stdint.h>
+	<limits.h>
+	<stdio.h>
+	<ctype.h>
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\strong_ble.c
+	"include.h"
+
+1756457225 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\strong_bt.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\strong_sco.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\strong_symbol.c
+	"include.h"
+
+1760943382 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\awk_map\awk_fs.c
+	"include.h"
+	"awk_adapter.h"
+	"awk_mem.h"
+
+1757417326 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\awk\awk_adapter.h
+	<stdbool.h>
+	<stddef.h>
+	<stdint.h>
+	"awk_defines.h"
+
+1757417326 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\awk\awk_defines.h
+	<stddef.h>
+	<stdint.h>
+	<stdbool.h>
+
+1757417326 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\awk_map\awk_mem.h
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\awk_map\awk_interface.c
+	"include.h"
+	"awk.h"
+	"awk_mem.h"
+
+1757417326 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\awk\awk.h
+	"awk_adapter.h"
+	"awk_map.h"
+
+1757417326 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\awk\awk_map.h
+	<stddef.h>
+	<stdint.h>
+	<stdlib.h>
+	<stdbool.h>
+	"awk_map_defines.h"
+	"awk_adapter.h"
+
+1757417326 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\awk\awk_map_defines.h
+	<stdlib.h>
+	<stdint.h>
+	<stdbool.h>
+	"awk_defines.h"
+
+1760594245 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\awk_map\awk_json.c
+	"include.h"
+	"awk_mem.h"
+	"cjson/cJSON.h"
+
+1756294729 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\cjson\cjson.h
+	<stddef.h>
+
+1758186125 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\awk_map\awk_mem.c
+	"include.h"
+	"awk.h"
+	"../bsp/bsp_mem/tlsf.h"
+
+1760594245 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\awk_map\awk_net.c
+	"include.h"
+	"awk.h"
+	"rt_thread.h"
+	"ugzip/uzlib.h"
+	<string.h>
+	<webclient/webclient.h>
+
+1756712121 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\ugzip\uzlib.h
+	<stdlib.h>
+	<stdint.h>
+	<stdbool.h>
+	<string.h>
+	"uzlib_conf.h"
+	<stdio.h>
+
+1756712121 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\net\include\ugzip\uzlib_conf.h
+
+1760615978 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\awk_map\awk_pr.c
+	"include.h"
+	"awk_pr.h"
+	"awk.h"
+	"awk_mem.h"
+	"cjson/cJSON.h"
+	"rt_thread.h"
+
+1760594245 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\awk_map\awk_pr.h
+	"awk_map.h"
+
+1757417326 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\awk_map\awk_render.c
+	"include.h"
+	"awk.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws\asr.c
+	"include.h"
+	"asr.h"
+	"fst_graph.h"
+	"fst_words.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws\asr.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws\fst_graph.h
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws\fst_words.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws\asr_prefetch.c
+	"include.h"
+	"asr.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws\asr_process.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws\asr_strong_symbol.c
+	"include.h"
+	"asr.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\func_api_air.c
+	"asr_config.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\ir_cap.c
+	"include.h"
+	"ir_cap.h"
+	"asr_config.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\ir_cap.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\ir_code.c
+	"asr_config.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\ir_data_parse.c
+	"asr_config.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\air\isd_pwm_ir_send.c
+	"asr_config.h"
+	"bsp_hw_timer.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\asr.c
+	"include.h"
+	"asr.h"
+	"fst_graph.h"
+	"fst_words.h"
+
+1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\asr.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\fst_graph.h
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\fst_words.h
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\asr_prefetch.c
+	"include.h"
+	"asr.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\asr_process.c
+	"include.h"
+	"../ws_air/air/ir_cap.h"
+	"../ws_air/air/func_api_air.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\ws_air\asr_strong_symbol.c
+	"include.h"
+	"asr.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\bsp_et_asr_ctrl.c
+	"include.h"
+	"bsp_et_asr_ctrl.h"
+	<lib_et_asr.h>
+	"et_keyword.h"
+	"et_thres_list.h"
+	"et_kws_labels.h"
+	"et_collects.h"
+	"third_kws_event.h"
+	"third_func.h"
+	"third_bsp_sys.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\bsp_et_asr_ctrl.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\et_keyword.h
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\et_thres_list.h
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\et_kws_labels.h
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\et_collects.h
+	<stdint.h>
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\third_kws_event.h
+	"include.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\third_func.h
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\third_bsp_sys.h
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\lib_et_ui_io.c
+	"include.h"
+	"lib_et_ui_io.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\lib_et_ui_io.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\third_bsp_sys.c
+	"include.h"
+	"third_bsp_sys.h"
+	"third_kws_event.h"
+	<lib_et_ui_io.h>
+	"third_func.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\modules\yj\third_func.c
+	"include.h"
+	"third_func.h"
+	<lib_et_ui_io.h>
+	<lib_et_asr.h>
+	"third_bsp_sys.h"
+	"bsp_et_asr_ctrl.h"
+	"third_kws_event.h"
+
+1759109344 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\config.c
+	"include.h"
+
+1778750908 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\demo\flash_fatfs_demo.c
+	"include.h"
+	"flash_fatfs_demo.h"
+
+1778750870 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\demo\flash_fatfs_demo.h
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_bt_update.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_idle.c
+	"include.h"
+	"func.h"
+	"func_idle.h"
+	"bsp_led.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_led.h
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_lowpwr.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_ota_ui.c
+	"include.h"
+	"func.h"
+	"func_idle.h"
+	"bsp_led.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_switching.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_switching3d.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_update.c
+	"include.h"
+	"func.h"
+	"func_update.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\listbox.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\msgbox.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\rotary.c
+	"include.h"
+	"func.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\sfunc_bt_ota.c
+	"include.h"
+	"func.h"
+	"func_bt.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func.c
+	"include.h"
+	"func_menu.h"
+	"func_tbl.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu.h
+
+1778836458 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_tbl.h
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_activity.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_address_book.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_alarm_clock.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_alarm_clock_sub_edit.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_alarm_clock_sub_repeat.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_alarm_clock_sub_set.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_alipay.c
+	"include.h"
+	"func.h"
+	"func_alipay.h"
+	"alipay_ble_common.h"
+	"alipay_transit.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_alipay.h
+	"include.h"
+	"func.h"
+	"alipay_common.h"
+	"alipay_bind.h"
+	"alipay_pay.h"
+	"hs_private.h"
+	"hed_private.h"
+	"iotsec.h"
+	"list.h"
+	"alipay_account_manage.h"
+	"aid_code.h"
+	"vendor_api.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\app\pay_code\inc\alipay_pay.h
+	"alipay_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\app\setting\inc\alipay_account_manage.h
+	"alipay_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\app\aid_code\inc\aid_code.h
+	"alipay_common.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\platform\libs\alipay_secure_sdk\app\trans_code\inc\alipay_transit.h
+	"alipay_common.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_altitude.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_bird.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_blood_oxygen.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_blood_pressure.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_bloodsugar.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_breathe.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_bt.c
+	"include.h"
+	"func.h"
+	"func_bt.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_bt_call.c
+	"include.h"
+	"func.h"
+	"func_bt.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_bt_dut.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_bt_ring.c
+	"include.h"
+	"func.h"
+	"func_bt.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_calculator.c
+	"include.h"
+	"func.h"
+	"func_calculator_alg.h"
+
+1754643636 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_calculator_alg.h
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_calculator_alg.c
+	"include.h"
+	"func_calculator_alg.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_calendar.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_call.c
+	"include.h"
+	"func.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_call_mgr.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_call_sub_dial.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_call_sub_record.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_camera.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_charge.c
+	"include.h"
+	"func.h"
+
+1772788669 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock.c
+	"include.h"
+	"func.h"
+	"func_clock.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_butterfly.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_cube.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_fish.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_preview.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_sub_card2.c
+	"include.h"
+	"func.h"
+	"func_clock.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_sub_dropdown.c
+	"include.h"
+	"func.h"
+	"func_clock.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_sub_pullup.c
+	"include.h"
+	"func.h"
+	"func_clock.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_sub_rotary.c
+	"include.h"
+	"func.h"
+	"func_clock.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_sub_side.c
+	"include.h"
+	"func.h"
+	"func_clock.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_sub_sidebar.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_clock_windmill.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_compass.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_compo_select.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_compo_select_sub.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_debug_info.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_disturd_config.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_emit_list.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_findphone.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_flashlight.c
+	"include.h"
+	"func.h"
+
+1758358950 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_fmrx.c
+	"include.h"
+	"func.h"
+	"func_fmrx.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_game.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_game_tetris.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_game_tetris_over.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_game_tetris_start.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_gif.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_heartrate.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_light.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_map.c
+	"include.h"
+	"func.h"
+	"awk_pr.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_cum_sudoku.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1778730191 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_disk.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_football.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1778837316 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_grid.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_hexagon.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_honeycomb.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_kaleidoscope.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_ring.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_skyrer.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_sudoku.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_waterfall.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menustyle.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_message.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_modem_call.c
+	"include.h"
+	"func.h"
+	"func_bt.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_modem_ring.c
+	"include.h"
+	"func.h"
+	"func_bt.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_music.c
+	"include.h"
+	"func.h"
+	"func_music.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_music_source.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_passwod_sub_disp.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_password_sub_select.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_photo_view.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_recorder.c
+	"include.h"
+	"func.h"
+	"func_recorder.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_scan.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_about.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_about_4g.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_disturd.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_dousing.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_language.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_menu_navigation.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_off.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_password.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_restart.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_rstfy.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_sav.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_time.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_setting_sub_wrist.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_sleep.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_smartstack.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_sport.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_sport_config.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_sport_sub_run.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_sport_switching.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_stopwatch.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_stopwatch_sub_record.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_style.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_take_photo.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_time_sub_custom.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_timer.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_usbdev.c
+	"include.h"
+	"func.h"
+	"func_usbdev.h"
+
+1772788838 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_video_play.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_video_recode.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_video_showlist.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_voice.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_volume.c
+	"include.h"
+	"func.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_weather.c
+	"include.h"
+	"func.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\i18n\lang.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\i18n\lang_zh.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\output\bin\app.xm
+	"config.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\output\bin\download.xm
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\output\bin\res.xm
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\output\bin\ui\0gpu\gpu.bin
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\output\bin\xcfg.xm
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\plugin\bt_call.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\plugin\eq_table.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\plugin\multi_lang.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\plugin\plugin.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\port\port_key.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\port\port_mute.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\port\port_sd.c
+	"include.h"
+
+1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\port\port_update.c
+	"include.h"
+
+1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\ram.ld
+	"config.h"
+
+1778836550 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_ble_gatts.h
+	"include.h"
+
+1778761166 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_manage.c
+	"include.h"
+
+1778761166 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\i18n\lang_en.c
+	"include.h"
+
+1778755977 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\main.c
+	"include.h"
+	"demo/spi1flash_demo.h"
+	"demo/flash_fatfs_demo.h"
+
+1778657618 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\demo\spi1flash_demo.h
+	"include.h"
+
+1778841627 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_ble_gatts.c
+	"include.h"
+	"func.h"
+
+1778840041 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_list.c
+	"include.h"
+	"func.h"
+	"func_menu.h"
+

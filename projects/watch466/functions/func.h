@@ -16,6 +16,9 @@
 #include "func_usbdev.h"
 #include "func_recorder.h"
 #include "func_fmrx.h"
+#if FUNC_BLE_GATTS_EN
+#include "func_ble_gatts.h"
+#endif
 
 #define TICK_IGNORE_KEY            700      //忽略700ms内的部分消息
 
@@ -128,6 +131,9 @@ enum {
     FUNC_MESSAGE_REPLY,                  //消息发送
     FUNC_MIC_TEST,
     FUNC_EMIT_LIST,
+#if FUNC_BLE_GATTS_EN
+    FUNC_BLE_GATTS,                //BLE GATTS Demo
+#endif
     FUNC_BIRD,
 #if FUNC_GAME_TETRIS_EN
     FUNC_GAME_TETRIS,           //俄罗斯方块

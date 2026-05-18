@@ -1,5 +1,8 @@
 #include "include.h"
 #include "bsp_ble.h"
+#if FUNC_BLE_GATTS_EN
+#include "func_ble_gatts.h"
+#endif
 
 
 #if LE_EN
@@ -180,6 +183,9 @@ void ble_init_att(void)
                     LE_ATT_NUM);
     ble_app_init();
     ble_ams_var_init();
+#if FUNC_BLE_GATTS_EN
+    ble_gatts_demo_service_init();
+#endif
 }
 
 //可重定义该函数修改ble地址

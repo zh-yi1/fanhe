@@ -26,6 +26,7 @@
 #define FUNC_CAMERA_TRANS_EN            0   //是否打开相机传输功能,需要一张图片的RGB数据缓存
 #define FUNC_IDLE_EN                    0   //是否打开IDLE功能
 #define FUNC_GAME_TETRIS_EN             0   //是否打开俄罗斯方块游戏
+#define FUNC_BLE_GATTS_EN               1   //是否打开BLE GATTS Demo功能
 
 /******************************************************************************
 *Module      :BT EMIT FUNCTION
@@ -277,7 +278,7 @@
 #define LE_ALLOW_WKUP_EN                0   //休眠中ble断开/连接/传输是否需要退出休眠
 
 //gatt 配置
-#define LE_ATT_NUM                      45  //最大支持多少条gatt属性, att_handle 1 ~ LE_ATT_NUM
+#define LE_ATT_NUM                      25  //最大支持多少条gatt属性, att_handle 1 ~ LE_ATT_NUM (BlueFit 5 + demo 8 + 余量 12)
 
 //APP 功能相关
 #define USE_APP_TYPE                    APP_BLUE_FIT //选择手表应用app类型

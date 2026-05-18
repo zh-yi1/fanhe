@@ -1350,6 +1350,10 @@
 		<Unit filename="functions/func_findphone.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_ble_gatts.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_ble_gatts.h" />
 		<Unit filename="functions/func_flashlight.c">
 			<Option compilerVar="CC" />
 		</Unit>

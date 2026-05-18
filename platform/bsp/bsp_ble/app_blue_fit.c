@@ -233,7 +233,7 @@ static struct ble_cmd_cb_t ble_cmd_cb;
 #if LE_AB_FOT_EN
 u16 att_get_max_mtu(void)
 {
-    return 512;
+    return 422;
 }
 #endif
 
