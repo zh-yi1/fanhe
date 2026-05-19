@@ -5,11 +5,11 @@
 
 #if FUNC_BLE_GATTS_EN
 
-// BLE GATTS Demo Service 初始化（由 ble_init_att() 调用）
+// BLE GATTS Service 初始化（由 ble_init_att() 调用）
 void ble_gatts_demo_service_init(void);
 
-// Notify 发送接口
-bool ble_gatts_demo_send_notify(u8 *buf, u16 len);
+// BLE 断开连接时的传输资源清理
+void ble_gatts_disconnect_cleanup(void);
 
 // 屏幕功能函数（由 func_tbl.h 调用）
 compo_form_t *func_ble_gatts_form_create(void);

@@ -37,7 +37,7 @@
 #undef  SYS_CLK_SEL
 #define SYS_CLK_SEL                     SYS_192M
 #undef  LE_ATT_NUM
-#define LE_ATT_NUM                      25
+#define LE_ATT_NUM                      35
 #undef BT_DISCOVER_CTRL_EN
 #define BT_DISCOVER_CTRL_EN             0
 #endif

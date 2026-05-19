@@ -2873,14 +2873,14 @@
 
 1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\xcfg.h
 
-1779162850 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\config.h
+1779184576 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\config.h
 	"config_define.h"
 	"config_extra.h"
 
 1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\config_define.h
 	"config_define.h"
 
-1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\config_extra.h
+1779183166 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\config_extra.h
 
 1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\platform\header\io_def.h
 	"global.h"
@@ -3480,7 +3480,7 @@
 	"include.h"
 	"ab_common.h"
 
-1754643636 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\device_attr.c
+1779178500 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_app\ab_command\device_attr.c
 	"include.h"
 	"ab_common.h"
 
@@ -3538,7 +3538,7 @@
 	"app_ab_link.h"
 	"bt_fota.h"
 
-1779160046 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app_blue_fit.c
+1779183293 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app_blue_fit.c
 	"include.h"
 	"app_ab_link.h"
 	"alipay_bind.h"
@@ -3551,7 +3551,7 @@
 	<stdint.h>
 	<stdbool.h>
 
-1778836525 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\ble.c
+1779173350 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\ble.c
 	"include.h"
 	"bsp_ble.h"
 	"func_ble_gatts.h"
@@ -5369,7 +5369,7 @@
 	"func.h"
 	"awk_pr.h"
 
-1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu.c
+1779162608 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu.c
 	"include.h"
 	"func.h"
 	"func_menu.h"
@@ -5656,7 +5656,7 @@
 1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\ram.ld
 	"config.h"
 
-1778836550 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_ble_gatts.h
+1779173312 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_ble_gatts.h
 	"include.h"
 
 1778761166 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\common\func_manage.c
@@ -5665,7 +5665,7 @@
 1778761166 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\i18n\lang_en.c
 	"include.h"
 
-1778755977 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\main.c
+1779162800 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\main.c
 	"include.h"
 	"demo/spi1flash_demo.h"
 	"demo/flash_fatfs_demo.h"
@@ -5673,7 +5673,7 @@
 1778657618 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\demo\spi1flash_demo.h
 	"include.h"
 
-1778841627 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_ble_gatts.c
+1779184038 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_ble_gatts.c
 	"include.h"
 	"func.h"
 

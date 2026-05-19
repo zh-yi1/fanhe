@@ -109,6 +109,9 @@ void ble_emit_notice(u8 evt, u8 *param)
         ble_cb.ble_connected = false;
         ble_app_disconnect_callback();
         ble_txpkt_init();
+#if FUNC_BLE_GATTS_EN
+        ble_gatts_disconnect_cleanup();
+#endif
         printf("LE_NOTICE_DISCONNECT:%x\n", param[5]);
         break;
 
