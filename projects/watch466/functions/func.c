@@ -1012,7 +1012,7 @@ void func_run(void)
     func_cb.tbl_sort[5] = FUNC_BT;
     func_cb.tbl_sort[6] = FUNC_COMPO_SELECT;
     func_cb.sort_cnt = 7;
-    func_cb.sta = DEFAULE_START_FUNC;
+    func_cb.sta = FUNC_MENU; //DEFAULE_START_FUNC;
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
     for (;;) {

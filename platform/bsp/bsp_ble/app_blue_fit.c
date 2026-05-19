@@ -578,6 +578,7 @@ static void ble_app_gatts_service_init(void)
 //
 void ble_app_watch_init(void)
 {
+    ble_change_name("ebadges");
     ble_app_gatts_service_init();
 }
 

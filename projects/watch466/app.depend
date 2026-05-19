@@ -2873,7 +2873,7 @@
 
 1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\xcfg.h
 
-1778841282 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\config.h
+1779162850 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\config.h
 	"config_define.h"
 	"config_extra.h"
 
@@ -3464,7 +3464,7 @@
 
 1772787721 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\res.h
 
-1779101165 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\ui.h
+1779162748 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\ui.h
 
 1778761965 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\ui_external.h
 
@@ -3538,7 +3538,7 @@
 	"app_ab_link.h"
 	"bt_fota.h"
 
-1779093058 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app_blue_fit.c
+1779160046 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_ble\app_blue_fit.c
 	"include.h"
 	"app_ab_link.h"
 	"alipay_bind.h"
@@ -3664,7 +3664,7 @@
 1758357622 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fmrx.c
 	"include.h"
 
-1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fs\bsp_disk.c
+1779157326 source:d:\workspace\mcu\bluetrum\projects\ebadges\platform\bsp\bsp_fs\bsp_disk.c
 	"include.h"
 	"bsp_disk.h"
 
@@ -5098,7 +5098,7 @@
 	"func.h"
 	"func_bt.h"
 
-1772787721 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func.c
+1779162675 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func.c
 	"include.h"
 	"func_menu.h"
 	"func_tbl.h"
@@ -5389,7 +5389,7 @@
 	"func.h"
 	"func_menu.h"
 
-1778837316 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_grid.c
+1779101394 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_grid.c
 	"include.h"
 	"func.h"
 	"func_menu.h"

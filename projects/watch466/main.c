@@ -72,7 +72,7 @@ void run_test()
     spi1flash_demo();
 #endif // FLASH_EXTERNAL_EN
 
-#if 0 //FLASH_DISK_EN
+#if FLASH_DISK_EN
     printf("\t**flash_fatfs_demo**\n"); 
     flash_fatfs_demo();
 #endif // FLASH_DISK_EN
@@ -124,10 +124,10 @@ int main(void)
         printf("Dongle authorization verification successful!\n");
     }
 #endif
-
-    bsp_flash_disk_mount();
     
     run_test();
+
+    bsp_flash_disk_mount();
 
     func_run();
     return 0;

@@ -88,7 +88,7 @@
 /*****************************************************************************
  * Module    : FLASH配置
  *****************************************************************************/
-#define FLASH_DISK_EN                   0                                                   //是否支持FLASH DISK 功能
+#define FLASH_DISK_EN                   1                                                   //是否支持FLASH DISK 功能
 #define FLASH_SIZE                      FSIZE_16M                                            //根据芯片信息配置实际FLASH SIZE
 #define FLASH_CODE_BASE_SIZE            0xEA000                                             //基础功能所需FLASH
 #define FLASH_UI_BASE                   0x200000                                            //UI资源起始地址(最小值为FLASH_CODE_SIZE)
@@ -738,7 +738,7 @@
 /*****************************************************************************
  * Module    : AVI视频播放功能
  *****************************************************************************/
-#define AVI_DIALPLATE_EN                    1*CHIP_PACKAGE_SUPPORT_PSRAM  //使用视频表盘功能
+#define AVI_DIALPLATE_EN                    0*CHIP_PACKAGE_SUPPORT_PSRAM  //使用视频表盘功能
 #define VIDEO_CLK_SEL                       SYS_192M                    //AVI选择的系统时钟
 #define VIDEO_PLAY_EN                       1                           //AVI视频播放功能
 #define AVI_USE_SD                          (1)*VIDEO_PLAY_EN           //AVI是否使用SD卡

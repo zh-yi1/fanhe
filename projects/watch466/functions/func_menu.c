@@ -162,6 +162,7 @@ void func_menu_sub_exit(void)
 //进入主菜单功能
 void func_menu_enter(void)
 {
+    func_cb.menu_style = MENU_STYLE_LIST;
 }
 
 //退出主菜单功能
