@@ -26,7 +26,31 @@ void flash_fatfs_demo(void)
     }
     printf("flash fatfs demo: mount ok\n");
 
-    //2.创建文件并写入测试数据
+    //2.检查并创建 PIC 目录
+    res = fs_stat("A:\\PIC", NULL);
+    if (res == FR_NO_PATH || res == FR_NO_FILE) {
+        res = fs_mkdir("A:\\PIC");
+        if (res == FR_OK) {
+            printf("flash fatfs demo: mkdir PIC ok\n");
+        } else {
+            printf("flash fatfs demo: mkdir PIC failed, res=%d\n", res);
+        }
+    } else if (res == FR_OK) {
+        printf("flash fatfs demo: PIC dir already exists\n");
+        // 枚举 PIC 目录下的文件
+        file_cnt = 0;
+        res = fs_findfirst(&fno, "A:\\PIC", "*", D_FILE, NULL);
+        while (res == FR_OK && fno.fname[0]) {
+            printf("flash fatfs demo: PIC file: %s\n", fno.fname);
+            file_cnt++;
+            res = fs_findnext(&fno);
+        }
+        printf("flash fatfs demo: PIC has %d files\n", file_cnt);
+    } else {
+        printf("flash fatfs demo: stat PIC failed, res=%d\n", res);
+    }
+
+    //3.创建文件并写入测试数据
     res = fs_open(&fp, FFTEST_PATH, FA_WRITE | FA_CREATE_ALWAYS);
     if (res != FR_OK) {
         printf("flash fatfs demo: open failed, res=%d\n", res);
@@ -40,7 +64,7 @@ void flash_fatfs_demo(void)
     }
     printf("flash fatfs demo: write ok, %d bytes\n", bw);
 
-    //3.读取文件并校验数据
+    //4.读取文件并校验数据
     res = fs_open(&fp, FFTEST_PATH, FA_READ);
     if (res != FR_OK) {
         printf("flash fatfs demo: read open failed, res=%d\n", res);
@@ -64,7 +88,7 @@ void flash_fatfs_demo(void)
         }
     }
 
-    //4.目录扫描 *.txt
+    //5.目录扫描 *.txt
 __scan:
     file_cnt = 0;
     res = fs_findfirst(&fno, "A:\\", "*.txt", D_FILE, NULL);
@@ -75,7 +99,7 @@ __scan:
     }
     printf("flash fatfs demo: scan done, %d txt files\n", file_cnt);
 
-    //5.删除测试文件
+    //6.删除测试文件
     res = fs_unlink(FFTEST_PATH);
     if (res == FR_OK) {
         printf("flash fatfs demo: delete ok\n");
@@ -83,11 +107,11 @@ __scan:
         printf("flash fatfs demo: delete failed, res=%d\n", res);
     }
 
-    //6.查询剩余空间
+    //7.查询剩余空间
     free_size = fs_getfree("A:");
     printf("flash fatfs demo: free space = %d KB\n", (u32)(free_size / 1024));
 
-    //7.卸载磁盘
+    //8.卸载磁盘
     bsp_flash_disk_unmount();
     printf("flash fatfs demo: unmount done\n");
 

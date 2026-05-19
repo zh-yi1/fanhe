@@ -320,7 +320,7 @@ static void ble_img_handle_prepare(const ble_frame_t *frame)
     // 生成文件名并打开文件
     tm_t tm = rtc_clock_get();
     char filename[32];
-    sprintf(filename, "A:\\%02d%02d%02d.jpg", tm.hour, tm.min, tm.sec);
+    sprintf(filename, "A:\\PIC\\%02d%02d%02d.jpg", tm.hour, tm.min, tm.sec);
     printf("IMG: opening %s\n", filename);
 
     FRESULT res = fs_open(&img_xfer.fp, filename, FA_WRITE | FA_CREATE_ALWAYS);
@@ -411,6 +411,20 @@ static void ble_img_handle_finish(const ble_frame_t *frame)
         fs_close(&img_xfer.fp);
         img_xfer.file_opened = false;
         printf("IMG: file closed, %lu bytes written\n", img_xfer.received_bytes);
+    }
+
+    // 枚举 A:\PIC 目录文件
+    {
+        FRESULT res;
+        FILINFO fno;
+        u32 pic_cnt = 0;
+        res = fs_findfirst(&fno, "A:\\PIC", "*", D_FILE, NULL);
+        while (res == FR_OK && fno.fname[0]) {
+            printf("IMG: PIC file: %s\n", fno.fname);
+            pic_cnt++;
+            res = fs_findnext(&fno);
+        }
+        printf("IMG: PIC has %d files\n", pic_cnt);
     }
 
     ble_img_send_response(BLE_CMD_FINISH, 0x00, NULL, 0);

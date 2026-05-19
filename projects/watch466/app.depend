@@ -5042,7 +5042,7 @@
 1759109344 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\config.c
 	"include.h"
 
-1778750908 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\demo\flash_fatfs_demo.c
+1779190689 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\demo\flash_fatfs_demo.c
 	"include.h"
 	"flash_fatfs_demo.h"
 
@@ -5673,11 +5673,11 @@
 1778657618 d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\demo\spi1flash_demo.h
 	"include.h"
 
-1779184038 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_ble_gatts.c
+1779190163 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_ble_gatts.c
 	"include.h"
 	"func.h"
 
-1778840041 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_list.c
+1779188427 source:d:\workspace\mcu\bluetrum\projects\ebadges\projects\watch466\functions\func_menu_sub_list.c
 	"include.h"
 	"func.h"
 	"func_menu.h"

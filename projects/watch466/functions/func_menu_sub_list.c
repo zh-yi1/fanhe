@@ -57,6 +57,7 @@ static const compo_listbox_item_t tbl_menu_list[] = {
 #if FUNC_BLE_GATTS_EN
     //{STR_BT,                     UI_BUF_ICON_BT_BIN,                .func_sta = FUNC_BLE_GATTS},            //BLE GATTS Demo
     {STR_SETTING,                UI_BUF_ICON_SETTING_BIN,           .func_sta = FUNC_BLE_GATTS},              //设置
+    {STR_STYLE,                  UI_BUF_ICON_MENU_BIN,              .func_sta = FUNC_PHOTO_VIEW},                //风格
 #endif
 };
 
