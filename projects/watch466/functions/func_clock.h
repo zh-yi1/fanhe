@@ -61,4 +61,8 @@ void func_clock_sub_rotary(void);
 u32 func_clock_get_dialplate_cube_idx(void);
 u32 func_clock_get_dialplate_butterfly_idx(void);
 
+//自屏幕底部区域上滑进入足球菜单（长划，非短划）
+#define FUNC_CLOCK_SWIPE_UP_BOTTOM_ZONE    (GUI_SCREEN_HEIGHT - GUI_SCREEN_HEIGHT / 10)
+void func_clock_swipe_up_to_football_menu(void);
+
 #endif

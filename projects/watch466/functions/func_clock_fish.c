@@ -142,9 +142,8 @@ void func_clock_fish_message(size_msg_t msg)
         }
         break;
 
-    case MSG_CTP_SHORT_UP:
-//        func_clock_sub_pullup();                //上拉菜单
-        func_switch_to(FUNC_CARD, FUNC_SWITCH_MENU_PULLUP_UP | FUNC_SWITCH_DOWN_BG_BLUR);  //上拉卡片界面
+    case MSG_CTP_LONG_UP:
+        func_clock_swipe_up_to_football_menu();         //自底部上长滑进入足球菜单
         break;
 
     case MSG_CTP_SHORT_RIGHT:

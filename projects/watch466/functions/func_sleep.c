@@ -216,7 +216,6 @@ static void func_sleep_message(size_msg_t msg)
 
     case MSG_CTP_CLICK:
     case MSG_CTP_SHORT_UP:
-    case MSG_CTP_SHORT_DOWN:
     case MSG_CTP_LONG:
         break;
 

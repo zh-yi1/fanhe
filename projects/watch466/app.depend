@@ -3088,7 +3088,7 @@
 
 1778655289 d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_pwm.h
 
-1778655289 d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_key.h
+1779084174 d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_key.h
 
 1778655289 d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_dac.h
 
@@ -3242,7 +3242,7 @@
 
 1778655289 d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_image_sensor\bsp_image_sensor.h
 
-1778655289 d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_video\bsp_video_play.h
+1779347580 d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_video\bsp_video_play.h
 
 1778655289 d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_video\bsp_video_recode.h
 
@@ -3392,7 +3392,7 @@
 
 1778655289 d:\cqianru\ab579x_watch\ebadges\platform\gui\rotate_disp\rotate_widget.h
 
-1778655290 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func.h
+1779348292 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func.h
 	"common/msgbox.h"
 	"common/listbox.h"
 	"common/rotary.h"
@@ -3420,7 +3420,7 @@
 
 1778655290 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\common\func_switching3d.h
 
-1778754514 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock.h
+1779088392 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock.h
 
 1778655290 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_bt.h
 
@@ -3442,7 +3442,7 @@
 
 1778655290 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_fmrx.h
 
-1778655290 d:\cqianru\ab579x_watch\ebadges\projects\watch466\i18n\lang.h
+1779263880 d:\cqianru\ab579x_watch\ebadges\projects\watch466\i18n\lang.h
 
 1778655290 d:\cqianru\ab579x_watch\ebadges\projects\watch466\plugin\plugin.h
 	"user_halt.h"
@@ -3463,7 +3463,7 @@
 
 1778655290 d:\cqianru\ab579x_watch\ebadges\projects\watch466\res.h
 
-1778835567 d:\cqianru\ab579x_watch\ebadges\projects\watch466\ui.h
+1779330618 d:\cqianru\ab579x_watch\ebadges\projects\watch466\ui.h
 
 1778806014 d:\cqianru\ab579x_watch\ebadges\projects\watch466\ui_external.h
 
@@ -3690,7 +3690,7 @@
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_gpio.c
 	"include.h"
 
-1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_halt.c
+1778899513 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_halt.c
 
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_huart.c
 	"include.h"
@@ -3716,7 +3716,7 @@
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_image_sensor\drv_spa0a39.c
 	"include.h"
 
-1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_key.c
+1779086713 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_key.c
 	"include.h"
 	"func.h"
 
@@ -4033,7 +4033,7 @@
 	"include.h"
 	"bsp_opus.h"
 
-1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_param.c
+1779263874 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_param.c
 	"include.h"
 	"../ws_air/air/asr_config.h"
 
@@ -4075,7 +4075,7 @@
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_record\bsp_record_fs.c
 	"include.h"
 
-1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_rtc.c
+1779245081 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_rtc.c
 	"include.h"
 
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_saradc.c
@@ -4249,7 +4249,7 @@
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_spp.c
 	"include.h"
 
-1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_sys.c
+1779345226 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_sys.c
 	"include.h"
 
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_uart.c
@@ -4268,7 +4268,7 @@
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_video\bsp_take_photo.c
 	"include.h"
 
-1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_video\bsp_video_play.c
+1779347579 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_video\bsp_video_play.c
 	"include.h"
 
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\bsp\bsp_video\bsp_video_recode.c
@@ -4406,7 +4406,7 @@
 
 1778655289 d:\cqianru\ab579x_watch\ebadges\platform\gui\ctp\axs5106\gd9853_g2538b_axs5106_v01_03_20231106_app.h
 
-1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\gui\ctp\ctp.c
+1778903350 source:d:\cqianru\ab579x_watch\ebadges\platform\gui\ctp\ctp.c
 	"include.h"
 
 1778655289 source:d:\cqianru\ab579x_watch\ebadges\platform\gui\ctp\ctp_chsc6x.c
@@ -5092,16 +5092,17 @@
 	"func.h"
 	"func_bt.h"
 
-1778831861 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func.c
+1779347587 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func.c
 	"include.h"
 	"func_menu.h"
 	"func_tbl.h"
+	"func.h"
 
-1778655290 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_menu.h
+1779073550 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_menu.h
 
-1778655290 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_tbl.h
+1779328261 d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_tbl.h
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_activity.c
+1778924713 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_activity.c
 	"include.h"
 	"func.h"
 
@@ -5212,9 +5213,10 @@
 	"include.h"
 	"func_calculator_alg.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_calendar.c
+1779263882 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_calendar.c
 	"include.h"
 	"func.h"
+	"compo_shape.h"
 
 1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_call.c
 	"include.h"
@@ -5244,14 +5246,14 @@
 	"func.h"
 	"func_clock.h"
 
-1778837034 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_sub_dropdown.c
+1779328858 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_sub_dropdown.c
 	"include.h"
 	"func.h"
 	"func_clock.h"
 	"compo_picturebox.h"
 	"compo_button.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_sub_pullup.c
+1778918106 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_sub_pullup.c
 	"include.h"
 	"func.h"
 	"func_clock.h"
@@ -5274,7 +5276,7 @@
 	"include.h"
 	"func.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_compo_select.c
+1779069031 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_compo_select.c
 	"include.h"
 	"func.h"
 
@@ -5298,9 +5300,11 @@
 	"include.h"
 	"func.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_flashlight.c
+1779172887 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_flashlight.c
 	"include.h"
 	"func.h"
+	"compo_shape.h"
+	"compo_picturebox.h"
 
 1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_fmrx.c
 	"include.h"
@@ -5340,7 +5344,7 @@
 	"func.h"
 	"awk_pr.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_menu.c
+1779073359 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_menu.c
 	"include.h"
 	"func.h"
 	"func_menu.h"
@@ -5355,7 +5359,7 @@
 	"func.h"
 	"func_menu.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_menu_sub_football.c
+1779329470 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_menu_sub_football.c
 	"include.h"
 	"func.h"
 	"func_menu.h"
@@ -5474,7 +5478,7 @@
 	"include.h"
 	"func.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_setting_sub_language.c
+1779263867 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_setting_sub_language.c
 	"include.h"
 	"func.h"
 
@@ -5510,7 +5514,7 @@
 	"include.h"
 	"func.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_sleep.c
+1779238848 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_sleep.c
 	"include.h"
 	"func.h"
 
@@ -5551,7 +5555,7 @@
 	"include.h"
 	"func.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_time_sub_custom.c
+1779245094 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_time_sub_custom.c
 	"include.h"
 	"func.h"
 
@@ -5564,7 +5568,7 @@
 	"func.h"
 	"func_usbdev.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_video_play.c
+1779346388 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_video_play.c
 	"include.h"
 	"func.h"
 
@@ -5591,7 +5595,7 @@
 1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\i18n\lang.c
 	"include.h"
 
-1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\i18n\lang_en.c
+1779263119 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\i18n\lang_en.c
 	"include.h"
 
 1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\i18n\lang_zh.c
@@ -5638,20 +5642,20 @@
 1778655290 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\ram.ld
 	"config.h"
 
-1778834075 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock.c
+1779088399 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock.c
 	"include.h"
 	"func.h"
 	"func_clock.h"
 
-1778831850 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_butterfly.c
+1779088402 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_butterfly.c
 	"include.h"
 	"func.h"
 
-1778745935 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_cube.c
+1779088400 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_cube.c
 	"include.h"
 	"func.h"
 
-1778809956 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_fish.c
+1779088403 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_fish.c
 	"include.h"
 	"func.h"
 
@@ -5659,7 +5663,12 @@
 	"include.h"
 	"func.h"
 
-1778810594 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_windmill.c
+1779088404 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_clock_windmill.c
 	"include.h"
 	"func.h"
+
+1779328852 source:d:\cqianru\ab579x_watch\ebadges\projects\watch466\functions\func_brightness.c
+	"include.h"
+	"func.h"
+	"compo_button.h"
 

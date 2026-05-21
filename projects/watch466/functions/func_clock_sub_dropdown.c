@@ -21,14 +21,85 @@
 
 enum {
     COMPO_ID_NULL = 0,
+    COMPO_ID_DROPDOWN_VOLUME,           //音量
+    COMPO_ID_DROPDOWN_DELETE,           //设置（资源名为 delete）
+    COMPO_ID_DROPDOWN_BLUETOOTH,        //蓝牙音乐
+    COMPO_ID_DROPDOWN_BRIGHTNESS,       //亮度
+    COMPO_ID_DROPDOWN_FLASHLIGHT,       //手电筒
 };
 
 static u32 dropdown_short_up_ignore_tick;
 
 static compo_picturebox_t *dropdown_center_pic_bt;
 static compo_picturebox_t *dropdown_center_pic_bat;
+static compo_button_t *dropdown_btn_brightness;
 static u16 dropdown_last_vbat;
 static u8  dropdown_last_ble;
+static u8  dropdown_brightness_pic_idx;
+
+/* 亮度图标：由暗到亮循环（ui/dropdown 下 bin；增图后改 CNT 并补表项） */
+#define DROPDOWN_BRIGHTNESS_PIC_CNT     6
+#define DROPDOWN_LIGHT_LEVEL_MAX        6       /* 6 张亮度图对应 6 档背光 */
+
+static const u32 tbl_dropdown_brightness_pic[DROPDOWN_BRIGHTNESS_PIC_CNT] = {
+    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_ONE_BIN,
+    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_TWO_BIN,
+    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_THREE_BIN,
+    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_FOUR_BIN,
+    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_FIVE_BIN,
+    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_SIX_BIN
+};
+
+static void dropdown_brightness_icon_show(u8 idx)
+{
+    if (dropdown_btn_brightness == NULL) {
+        return;
+    }
+    dropdown_brightness_pic_idx = idx % DROPDOWN_BRIGHTNESS_PIC_CNT;
+    compo_button_set_bgimg(dropdown_btn_brightness,
+                           tbl_dropdown_brightness_pic[dropdown_brightness_pic_idx]);
+    compo_button_set_size(dropdown_btn_brightness,
+                          MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+}
+
+/* 图标下标 0~5 -> 背光档 1~6 */
+static u8 dropdown_brightness_pic_to_level(u8 pic_idx)
+{
+    return (pic_idx % DROPDOWN_BRIGHTNESS_PIC_CNT) + 1;
+}
+
+/* 背光档 1~6 -> 图标下标 0~5 */
+static u8 dropdown_brightness_level_to_pic(u8 level)
+{
+    if (level < 1) {
+        return 0;
+    }
+    if (level > DROPDOWN_LIGHT_LEVEL_MAX) {
+        return DROPDOWN_BRIGHTNESS_PIC_CNT - 1;
+    }
+    return level - 1;
+}
+
+static u8 dropdown_brightness_level_to_duty(u8 level)
+{
+    if (level < 1) {
+        level = 1;
+    }
+    if (level > DROPDOWN_LIGHT_LEVEL_MAX) {
+        level = DROPDOWN_LIGHT_LEVEL_MAX;
+    }
+    return (u8)((u16)level * 100 / DROPDOWN_LIGHT_LEVEL_MAX);
+}
+
+static void dropdown_brightness_icon_next(void)
+{
+    u8 level;
+
+    dropdown_brightness_icon_show(dropdown_brightness_pic_idx + 1);
+    level = dropdown_brightness_pic_to_level(dropdown_brightness_pic_idx);
+    sys_cb.light_level = level;
+    lcd_drv_set_brightness(dropdown_brightness_level_to_duty(level));
+}
 
 static u32 dropdown_battery_icon_addr(void)
 {
@@ -87,6 +158,7 @@ static void dropdown_center_icons_clear(void)
 {
     dropdown_center_pic_bt = NULL;
     dropdown_center_pic_bat = NULL;
+    dropdown_btn_brightness = NULL;
 }
 
 //创建下拉菜单
@@ -105,27 +177,36 @@ static void func_clock_sub_dropdown_form_create(void)
         const s16 cx = GUI_SCREEN_CENTER_X;
         const s16 cy = GUI_SCREEN_CENTER_Y;
 
-        compo_button_t *btn_connect = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_BLUETOOTH_BIN);
-        compo_button_set_pos(btn_connect, cx + (s16)(((s32)rr * 0)   / 128), cy + (s16)(((s32)rr * -128) / 128));
-        compo_button_set_size(btn_connect, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
-        compo_button_set_alpha(btn_connect, MENU_DROPDOWN_ALPHA);
+        compo_button_t *btn_volume = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_VOLUME_BIN);
+        compo_setid(btn_volume, COMPO_ID_DROPDOWN_VOLUME);
+        compo_button_set_pos(btn_volume, cx + (s16)(((s32)rr * 0)   / 128), cy + (s16)(((s32)rr * -128) / 128));
+        compo_button_set_size(btn_volume, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+        compo_button_set_alpha(btn_volume, MENU_DROPDOWN_ALPHA);
 
-        compo_button_t *btn_disurb = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_BIN);
-        compo_button_set_pos(btn_disurb, cx + (s16)(((s32)rr * 122) / 128), cy + (s16)(((s32)rr * -40)  / 128));
-        compo_button_set_size(btn_disurb, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
-        compo_button_set_alpha(btn_disurb, MENU_DROPDOWN_ALPHA);
+        compo_button_t *btn_delete = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_DELETE_BIN);
+        compo_setid(btn_delete, COMPO_ID_DROPDOWN_DELETE);
+        compo_button_set_pos(btn_delete, cx + (s16)(((s32)rr * 122) / 128), cy + (s16)(((s32)rr * -40)  / 128));
+        compo_button_set_size(btn_delete, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+        compo_button_set_alpha(btn_delete, MENU_DROPDOWN_ALPHA);
 
-        compo_button_t *btn_findphone = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_DELETE_BIN);
-        compo_button_set_pos(btn_findphone, cx + (s16)(((s32)rr * 75) / 128), cy + (s16)(((s32)rr * 104) / 128));
-        compo_button_set_size(btn_findphone, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
-        compo_button_set_alpha(btn_findphone, MENU_DROPDOWN_ALPHA);
+        compo_button_t *btn_bluetooth = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_BLUETOOTH_BIN);
+        compo_setid(btn_bluetooth, COMPO_ID_DROPDOWN_BLUETOOTH);
+        compo_button_set_pos(btn_bluetooth, cx + (s16)(((s32)rr * 75) / 128), cy + (s16)(((s32)rr * 104) / 128));
+        compo_button_set_size(btn_bluetooth, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+        compo_button_set_alpha(btn_bluetooth, MENU_DROPDOWN_ALPHA);
 
-        compo_button_t *btn_mute = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_FLASHLIGHT_BIN);
-        compo_button_set_pos(btn_mute, cx + (s16)(((s32)rr * -75) / 128), cy + (s16)(((s32)rr * 104) / 128));
-        compo_button_set_size(btn_mute, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
-        compo_button_set_alpha(btn_mute, MENU_DROPDOWN_ALPHA);
+        dropdown_btn_brightness = compo_button_create_by_image(frm,
+            tbl_dropdown_brightness_pic[0]);
+        compo_setid(dropdown_btn_brightness, COMPO_ID_DROPDOWN_BRIGHTNESS);
+        compo_button_set_pos(dropdown_btn_brightness,
+            cx + (s16)(((s32)rr * -75) / 128), cy + (s16)(((s32)rr * 104) / 128));
+        compo_button_set_size(dropdown_btn_brightness,
+            MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+        compo_button_set_alpha(dropdown_btn_brightness, MENU_DROPDOWN_ALPHA);
+        dropdown_brightness_icon_show(dropdown_brightness_level_to_pic(sys_cb.light_level));
 
-        compo_button_t *btn_flashlight = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_VOLUME_BIN);
+        compo_button_t *btn_flashlight = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_FLASHLIGHT_BIN);
+        compo_setid(btn_flashlight, COMPO_ID_DROPDOWN_FLASHLIGHT);
         compo_button_set_pos(btn_flashlight, cx + (s16)(((s32)rr * -122) / 128), cy + (s16)(((s32)rr * -40) / 128));
         compo_button_set_size(btn_flashlight, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
         compo_button_set_alpha(btn_flashlight, MENU_DROPDOWN_ALPHA);
@@ -149,8 +230,55 @@ static void func_clock_sub_dropdown_process(void)
 
 void func_clock_sub_dropdown_btn_handle(void)
 {
-    /* 不在此处调用 compo_get_button_id()：其从 compo_pool_get_top 遍历组件链，
-     * 双窗体/触摸与 process 交错时偶发异常链，易导致野指针崩溃（PC 落在 0xfff9xxxx）。 */
+    f_clock_t *f_clk = (f_clock_t *)func_cb.f_cb;
+    u8 func_jump = FUNC_NULL;
+    int btn_id;
+
+    if (f_clk == NULL || f_clk->sub_frm == NULL) {
+        return;
+    }
+    compo_pool_set_top(f_clk->sub_frm);
+
+    btn_id = compo_get_button_id();
+    if (btn_id == ID_NULL) {
+        return;
+    }
+
+    switch (btn_id) {
+    case COMPO_ID_DROPDOWN_VOLUME:
+        func_jump = FUNC_VOLUME;
+        break;
+    case COMPO_ID_DROPDOWN_DELETE:
+        func_jump = FUNC_SETTING;
+        break;
+    case COMPO_ID_DROPDOWN_BLUETOOTH:
+        func_jump = FUNC_BT;
+        break;
+    case COMPO_ID_DROPDOWN_BRIGHTNESS:
+        dropdown_brightness_icon_next();
+        return;
+    case COMPO_ID_DROPDOWN_FLASHLIGHT:
+        func_jump = FUNC_FLASHLIGHT;
+        break;
+    default:
+        break;
+    }
+
+    if (func_jump != FUNC_NULL) {
+        f_clk->sta = FUNC_CLOCK_MAIN;
+        /* 下拉 sub_frm 与表盘主窗体占满双缓冲池；不先释放则 func_switch_to 内
+         * func_create_form 无法再 compo_pool_create -> resource halt 0x5106。 */
+        if (f_clk->sub_frm != NULL) {
+            compo_form_destroy(f_clk->sub_frm);
+            f_clk->sub_frm = NULL;
+            f_clk->masklayer = NULL;
+            dropdown_center_icons_clear();
+        }
+        if (func_cb.frm_main != NULL) {
+            compo_pool_set_top(func_cb.frm_main);
+        }
+        func_switch_to(func_jump, func_get_switching_mode_byidx(sys_cb.nav_index, true) | FUNC_SWITCH_AUTO);
+    }
 }
 
 //时钟表盘下拉菜单功能消息处理
@@ -248,6 +376,15 @@ void func_clock_sub_dropdown(void)
 #if VIDEO_PLAY_EN
     compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
     compo_video_exit_lock(video);
+    /* exit_lock 内会 bsp_video_play_uninit；若 flag_video_start 仍为 true，
+     * func_clock_process 不会再调 compo_video_play，解码/GPU 与 UI 脱节易触发 resource halt C241。 */
+    {
+        f_clock_t *f_clk = (f_clock_t *)func_cb.f_cb;
+        if (f_clk != NULL) {
+            f_clk->tick_video_start = tick_get();
+            f_clk->flag_video_start = false;
+        }
+    }
 #endif // VIDEO_PLAY_EN
     func_clock_sub_dropdown_enter();
     while (func_cb.sta == FUNC_CLOCK && func_cb.f_cb != NULL

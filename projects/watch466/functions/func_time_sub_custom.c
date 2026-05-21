@@ -81,19 +81,23 @@ compo_form_t *func_time_sub_custom_form_create(void)
     compo_setid(txt, COMPO_ID_NUM_DISP_YEAR);
     compo_textbox_set_pos(txt, 62, 167);
     compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_24_BIN);
-    snprintf(str_buff, sizeof(str_buff), "%04d", sys_cb.year);
-    compo_textbox_set(txt, str_buff);
-    txt = compo_textbox_create(frm, 2);    //月
-    compo_setid(txt, COMPO_ID_NUM_DISP_MON);
-    compo_textbox_set_pos(txt, 152, 167);
-    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_24_BIN);
-    snprintf(str_buff, sizeof(str_buff), "%02d", sys_cb.mon);
-    compo_textbox_set(txt, str_buff);
-    txt = compo_textbox_create(frm, 2);    //日
-    compo_setid(txt, COMPO_ID_NUM_DISP_DAY);
-    compo_textbox_set_pos(txt, 252, 167);
-    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_24_BIN);
-    snprintf(str_buff, sizeof(str_buff), "%02d", sys_cb.day);
+    {
+        tm_t tm_rtc = rtc_clock_get();
+
+        snprintf(str_buff, sizeof(str_buff), "%04d", tm_rtc.year);
+        compo_textbox_set(txt, str_buff);
+        txt = compo_textbox_create(frm, 2);    //月
+        compo_setid(txt, COMPO_ID_NUM_DISP_MON);
+        compo_textbox_set_pos(txt, 152, 167);
+        compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_24_BIN);
+        snprintf(str_buff, sizeof(str_buff), "%02d", tm_rtc.mon);
+        compo_textbox_set(txt, str_buff);
+        txt = compo_textbox_create(frm, 2);    //日
+        compo_setid(txt, COMPO_ID_NUM_DISP_DAY);
+        compo_textbox_set_pos(txt, 252, 167);
+        compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_24_BIN);
+        snprintf(str_buff, sizeof(str_buff), "%02d", tm_rtc.day);
+    }
     compo_textbox_set(txt, str_buff);
 
     return frm;
@@ -115,22 +119,24 @@ static void func_time_sub_custom_button_click(void)
     char str_buff[8];
 
     f_time_sub_custom_t *time = (f_time_sub_custom_t *)func_cb.f_cb;
-    if(time->year == 0) {
-         year = sys_cb.year;
-    }else{
-         year = time->year;
+    tm_t tm_rtc = rtc_clock_get();
+
+    if (time->year == 0) {
+        year = tm_rtc.year;
+    } else {
+        year = time->year;
     }
 
-    if(time->mon == 0) {
-         mon = sys_cb.mon;
-    }else{
-         mon = time->mon;
+    if (time->mon == 0) {
+        mon = tm_rtc.mon;
+    } else {
+        mon = time->mon;
     }
 
-    if(time->day == 0) {
-         day = sys_cb.day;
-    }else{
-         day = time->day;
+    if (time->day == 0) {
+        day = tm_rtc.day;
+    } else {
+        day = time->day;
     }
 
     //获取数字组件的地址
@@ -190,9 +196,17 @@ static void func_time_sub_custom_button_click(void)
             break;
 
         case COMPO_ID_BTN_YES:
-            sys_cb.year = time->year;
-            sys_cb.mon  = time->mon;
-            sys_cb.day  = time->day;
+            {
+                tm_t tm_set = rtc_clock_get();
+
+                tm_set.year = year;
+                tm_set.mon = mon;
+                tm_set.day = day;
+                rtc_clock_set(tm_set);
+                sys_cb.year = year;
+                sys_cb.mon = mon;
+                sys_cb.day = day;
+            }
             time->year = time->mon = time->day = 0;
             func_cb.sta = FUNC_SET_SUB_TIME;
             break;

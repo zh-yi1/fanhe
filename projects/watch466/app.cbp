@@ -1353,6 +1353,9 @@
 		<Unit filename="functions/func_flashlight.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_brightness.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_fmrx.c">
 			<Option compilerVar="CC" />
 		</Unit>

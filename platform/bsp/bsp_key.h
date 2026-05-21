@@ -192,6 +192,7 @@ u8 get_iokey(void);
 void key_var_init(void);
 void key_init(void);
 u8 bsp_key_scan(void);
+u8 bsp_pwrkey_get_usage_id(void);
 
 u8 get_double_key_time(void);
 

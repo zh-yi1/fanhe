@@ -13,12 +13,12 @@ void *bsp_video_play(FIL* fp);
 void bsp_video_stop(void);
 
 /**
- * avi²¥·Å¹ý³ÌÖÐ£¬²¥·Å×ÊÔ´ÇøµÄÒôÆµ
+ * aviï¿½ï¿½ï¿½Å¹ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æµ
  */
 void bsp_video_mp3_res_play(u32 addr, u32 len);
 
 /**
- * avi²¥·Å³õÊ¼»¯
+ * aviï¿½ï¿½ï¿½Å³ï¿½Ê¼ï¿½ï¿½
  */
 void bsp_video_play_init(u32 res_addr);
 
@@ -26,5 +26,7 @@ void bsp_video_play_init(u32 res_addr);
  * video play uninit
  */
 void bsp_video_play_uninit(void);
+
+void bsp_video_play_audio_keepalive(void);
 
 #endif

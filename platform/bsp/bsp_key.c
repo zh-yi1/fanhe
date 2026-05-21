@@ -44,6 +44,15 @@ static u8 get_pwrkey(void)
 }
 #endif // USER_PWRKEY
 
+u8 bsp_pwrkey_get_usage_id(void)
+{
+#if USER_PWRKEY
+    return get_pwrkey();
+#else
+    return NO_KEY;
+#endif
+}
+
 bool power_off_check(void)
 {
 #if CHARGE_EN
@@ -441,6 +450,7 @@ u8 bsp_key_scan(void)
 #if USER_PWRKEY
     if (key_val == NO_KEY) {
         key_val = get_pwrkey();
+        //printf("key_val: %d\n", key_val);
     }
 #endif // USER_PWRKEY
 

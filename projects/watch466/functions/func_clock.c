@@ -205,6 +205,14 @@ void func_clock_sub_message(size_msg_t msg)
     func_message(msg);
 }
 
+void func_clock_swipe_up_to_football_menu(void)
+{
+    point_t pt = ctp_get_sxy();
+    if (pt.y >= FUNC_CLOCK_SWIPE_UP_BOTTOM_ZONE) {
+        func_switch_to_football_menu();
+    }
+}
+
 //时钟表盘功能事件处理
 static void func_clock_process(void)
 {
@@ -240,12 +248,8 @@ static void func_clock_process(void)
 static void func_clock_message_nomal(size_msg_t msg)
 {
     switch (msg) {
-    case MSG_CTP_SHORT_UP:
-        func_clock_butterfly_set_light_visible(false);
-        func_switch_to(FUNC_CARD, FUNC_SWITCH_MENU_PULLUP_UP | FUNC_SWITCH_DOWN_BG_BLUR);  //上拉卡片界面
-        if (func_cb.sta == FUNC_CLOCK) {
-            func_clock_butterfly_set_light_visible(true);
-        }
+    case MSG_CTP_LONG_UP:
+        func_clock_swipe_up_to_football_menu();         //自底部上长滑进入足球菜单
         break;
 
     case MSG_CTP_SHORT_RIGHT:
@@ -253,8 +257,6 @@ static void func_clock_message_nomal(size_msg_t msg)
         break;
 
     case MSG_CTP_SHORT_DOWN:
-        printf("MSG_CTP_SHORT_DOWN\n");
-        printf("MSG_CTP_SHORT_DOWN1111\n");
         func_clock_sub_dropdown();              //下拉菜单
         break;
 

@@ -34,12 +34,12 @@ uint32_t bsp_rtc_recode_get(void)
 void rtc_clock_init(void)
 {
     tm_t tm;
-    tm.year = 2023;
-    tm.mon  = 8;
-    tm.day = 18;
-    tm.hour = 10;
-    tm.min  = 8;
-    tm.sec  = 36;
+    tm.year = 2026;
+    tm.mon  = 5;
+    tm.day = 20;
+    tm.hour = 12;
+    tm.min  = 0;
+    tm.sec  = 0;
     //tm.weekday = get_weekday(tm.year, tm.mon, tm.day);
     RTCCNT = tm_to_time(tm);
 }

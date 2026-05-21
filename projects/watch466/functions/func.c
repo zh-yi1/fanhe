@@ -1,6 +1,7 @@
 #include "include.h"
 #include "func_menu.h"
 #include "func_tbl.h"
+#include "func.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -487,6 +488,13 @@ void func_switch_to_menu(void)
 #if VIDEO_PLAY_EN
     compo_video_exit_unlock(video);
 #endif // VIDEO_PLAY_EN
+}
+
+//上滑进入足球菜单
+void func_switch_to_football_menu(void)
+{
+    func_cb.menu_style = MENU_STYLE_FOOTBALL;
+    func_switch_to_menu();
 }
 
 //手动退回到主菜单
@@ -990,7 +998,7 @@ void func_enter(void)
     param_sync();
     reset_sleep_delay_all();
     reset_pwroff_delay();
-    func_cb.mp3_res_play = NULL;
+    func_cb.mp3_res_play = mp3_res_play;
     func_cb.set_vol_callback = NULL;
 //    bsp_clr_mute_sta();
 //    sys_cb.voice_evt_brk_en = 1;    //播放提示音时，快速响应事件。
@@ -1045,8 +1053,12 @@ void func_run(void)
     func_cb.sta = DEFAULE_START_FUNC;
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
+    // func.c
+    
     for (;;) {
+        printf("func_enter <<\n");
         func_enter();
+        printf("pwrkey usage_id: %d\n", bsp_pwrkey_get_usage_id());
         for (int i = 0; i < FUNC_ENTRY_CNT; i++) {
             if (tbl_func_entry[i].func_idx == func_cb.sta) {
                 task_stack_push(func_cb.sta);
@@ -1056,9 +1068,14 @@ void func_run(void)
                 break;
             }
         }
+        printf("func_cb.sta:%d\n", func_cb.sta);
         if (func_cb.sta == FUNC_PWROFF) {
+            printf("func_pwroff <<\n");
             func_pwroff(1);
+            printf("func_pwroff >>\n");
         }
+        printf("func_exit <<\n");
         func_exit();
+        printf("func_exit >>\n");
     }
 }

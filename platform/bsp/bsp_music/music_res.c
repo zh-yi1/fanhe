@@ -123,7 +123,7 @@ static void wav_res_play_do(u32 addr, u32 len, bool sync)
     if (len == 0 || sys_param_cb.camera_vol == 0) {
         return;
     }
-    if(api_video_play_sta_get() < AVI_STA_PAUSE){
+    if (api_video_play_sta_get() < AVI_STA_PAUSE && !func_video_allow_warning_tone()) {
         return;
     }
 

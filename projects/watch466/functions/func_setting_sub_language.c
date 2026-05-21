@@ -121,6 +121,8 @@ void func_set_sub_language_list_icon_click(void)
         if (!lang_ctl_bits) {
             sys_cb.lang_id = 0; //如果什么都没有选，默认选0
         }
+        param_lang_id_write();
+        lang_select(sys_cb.lang_id);
         u8 func_sta = task_stack_pop();
         if (func_sta == FUNC_MENU) {
             func_switch_to(func_sta, FUNC_SWITCH_ZOOM_EXIT | FUNC_SWITCH_AUTO);

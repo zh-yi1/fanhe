@@ -11,10 +11,10 @@ enum {
 
 //MENU STYLE
 enum {
+    MENU_STYLE_FOOTBALL,                //足球
     MENU_STYLE_HONEYCOMB,               //蜂窝
     MENU_STYLE_WATERFALL,               //瀑布流
     MENU_STYLE_LIST,                    //菜单列表
-    MENU_STYLE_FOOTBALL,                //足球
     MENU_STYLE_SUDOKU,                  //九宫格
     MENU_STYLE_SUDOKU_HRZ,              //横向九宫格
     MENU_STYLE_GRID,                    //网格

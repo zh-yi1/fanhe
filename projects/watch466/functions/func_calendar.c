@@ -1,6 +1,6 @@
 #include "include.h"
 #include "func.h"
-
+#include "compo_shape.h"
 
 typedef struct f_calendar_t_ {
     u16 today_year;
@@ -8,314 +8,313 @@ typedef struct f_calendar_t_ {
     u8 today_day;
     u16 update_year;
     u8 update_mon;
+    u16 last_rtc_year;
+    u8 last_rtc_mon;
+    u8 last_rtc_day;
 } f_calendar_t;
 
-enum
-{
-    CALE_SUNDAY = 0,
-    CALE_MONDAY,
-    CALE_TUESDAY,
-    CALE_WEDNESDAY,
-    CALE_THURSDAY,
-    CALE_FRIDAY,
-    CALE_SATURDAY,
-}e_cale_week;
+#define CALE_GRID_COLS              7
+#define CALE_GRID_ROWS              6
+#define CALE_CELL_MAX               (CALE_GRID_COLS * CALE_GRID_ROWS)
 
+#define CALE_MARGIN_X               24
+#define CALE_GAP_X                  6
+#define CALE_CELL_W                 ((s16)((GUI_SCREEN_WIDTH - 2 * CALE_MARGIN_X - (CALE_GRID_COLS - 1) * CALE_GAP_X) / CALE_GRID_COLS))
+#define CALE_CELL_H                 30
+#define CALE_ROW_GAP                8
+#define CALE_HIGHLIGHT_WH           36
 
-#define CALE_CONTEXT_X_START_GAP    10  //x方向边界间隙
-#define CALE_CONTEXT_X_GAP          15  //间隔间隙
-#define CALE_CONTEXT_WIDTH          ((GUI_SCREEN_WIDTH - 6*CALE_CONTEXT_X_GAP - 2*CALE_CONTEXT_X_START_GAP) / 7) //宽度
+#define CALE_HEADER_Y               72
+#define CALE_WEEK_Y                 118
+#define CALE_GRID_Y0                152
 
-#define CALE_CONTEXT_y_START_GAP    200 //y方向上边界间隙
-#define CALE_CONTEXT_y_GAP          14  //间隔间隙
-#define CALE_CONTEXT_HEIGHT         21  //字高
+#define IS_LEAP_YEAR(year)          (!((year) % 400) || (((year) % 100) && !((year) % 4)))
 
-#define CALE_CONTEXT_MAX            35
-#define CALE_CONTEXT_NUM_COUNT_MAX  2
-
-
-//判断闰年
-#define IS_LEAP_YEAR(year)                          (!((year) % 400) || (((year) % 100) && !((year) % 4)))
-
-//基姆拉尔森计算公式，求某天的星期(当月份为1月或2月时，当作上一年的13月和14月)
-#define CAL_DAY_OF_WEEK(year, month, day)     (uint16_t)(((day) + 1 + 2 * (month) + 3 * (month + 1) / 5 + \
-                                                                (year) + (year) / 4 - (year) / 100 + (year) / 400) % 7)
-
-enum{
-    //文本
-    COMPO_ID_YEAR_TEXT = 1,
-    COMPO_ID_MON_TEXT,
-    COMPO_ID_DATE_TEXT_START,
-    COMPO_ID_DATE_TEXT_END = 44,
-
-    //按钮
-    COMPO_ID_LAST_BTN,
-    COMPO_ID_NEXT_BTN,
+enum {
+    COMPO_ID_HEADER_DATE = 1,
+    COMPO_ID_TODAY_HIGHLIGHT,           /* 仅 1 个，刷新时移到当天格 */
+    COMPO_ID_DATE_PIC_START = 3,
 };
 
-//根据当前月获取上个月
-static uint8_t cal_last_month(uint8_t cur_month)
+static char calendar_header_str[16];
+
+static const u16 tbl_calendar_week_str[CALE_GRID_COLS] = {
+    STR_MONDAY, STR_TUESDAY, STR_WEDNESDAY, STR_THURSDAY,
+    STR_FRIDAY, STR_SATURDAY, STR_SUNDAY,
+};
+
+static u8 cal_last_month(u8 cur_month)
 {
-    return (uint8_t)(cur_month > 1 ? (--cur_month) : 12);
+    return (cur_month > 1) ? (cur_month - 1) : 12;
 }
 
-//获取每个月最大天数
-static uint8_t cal_max_of_days_per_month(uint16_t year, uint8_t month)
+static u8 cal_max_of_days_per_month(u16 year, u8 month)
 {
-    uint8_t day_max;
-
-    switch(month) {
-        case 1:
-        case 3:
-        case 5:
-        case 7:
-        case 8:
-        case 10:
-        case 12:
-            day_max = 31;
-            break;
-
-        case 4:
-        case 6:
-        case 9:
-        case 11:
-            day_max = 30;
-            break;
-
-        case 2:
-            day_max = IS_LEAP_YEAR(year) ? 29 : 28;
-            break;
-
-        default:
-            day_max = 30;
-            break;
+    switch (month) {
+    case 1: case 3: case 5: case 7: case 8: case 10: case 12:
+        return 31;
+    case 4: case 6: case 9: case 11:
+        return 30;
+    case 2:
+        return IS_LEAP_YEAR(year) ? 29 : 28;
+    default:
+        return 30;
     }
-
-    return day_max;
 }
 
-
-//刷新日历内容
-static void func_calender_refresh(uint16_t year, uint8_t month, uint8_t today_day)
+/* Zeller：返回 0=周一 … 6=周日 */
+static u8 cal_weekday_monday_first(u16 year, u8 month, u8 day)
 {
-    component_t *comop;
-    uint16_t frist_day_week;
-    uint8_t day;
-    uint8_t day_max;
-    uint8_t last_day_max;
-    uint8_t i;
+    u16 y = year;
+    u8 m = month;
 
-    day = 1;
-    day_max = cal_max_of_days_per_month(year, month);
-    last_day_max = cal_max_of_days_per_month(year, cal_last_month(month));
-    if(1 == month || 2 == month) {
-        month += 12;
-        year --;
+    if (m < 3) {
+        m += 12;
+        y--;
     }
-    frist_day_week = CAL_DAY_OF_WEEK(year, month, 1);
+    {
+        u16 k = y % 100;
+        u16 j = y / 100;
+        int h = (day + 13 * (m + 1) / 5 + k + k / 4 + j / 4 + 5 * j) % 7;
 
-    for(i = 0; i < CALE_CONTEXT_MAX; i++) {
-        comop = compo_getobj_byid(COMPO_ID_DATE_TEXT_START + i);
-        if(comop) {
-            if(i < frist_day_week) {
-                compo_picturebox_set_color((compo_picturebox_t*)comop, COLOR_GRAY);
-                compo_picturebox_cut((compo_picturebox_t*)comop, (last_day_max - frist_day_week + i + 1), 32);
-            } else {
-                if(day <= day_max) {
-                    if(today_day == day) {
-                        compo_picturebox_set_color((compo_picturebox_t*)comop, COLOR_RED);
-                    } else {
-                        compo_picturebox_set_color((compo_picturebox_t*)comop, COLOR_WHITE);
-                    }
-                    compo_picturebox_cut((compo_picturebox_t*)comop, day, 32);
-                } else {
-                    compo_picturebox_set_color((compo_picturebox_t*)comop, COLOR_GRAY);
-                    compo_picturebox_cut((compo_picturebox_t*)comop, day - day_max, 32);
-                }
+        return (u8)((h + 5) % 7);
+    }
+}
 
-                day ++;
+static void func_calendar_rtc_read(f_calendar_t *f)
+{
+    tm_t tm = rtc_clock_get();
+
+    f->today_year = tm.year;
+    f->today_mon = tm.mon;
+    f->today_day = tm.day;
+}
+
+/* 月历始终对准 RTC 当天所在年月 */
+static void func_calendar_sync_today_view(f_calendar_t *f)
+{
+    func_calendar_rtc_read(f);
+    f->update_year = f->today_year;
+    f->update_mon = f->today_mon;
+}
+
+static void func_calendar_header_refresh(f_calendar_t *f)
+{
+    compo_label_t *header = compo_getobj_byid(COMPO_ID_HEADER_DATE);
+
+    snprintf(calendar_header_str, sizeof(calendar_header_str), "%04u/%u/%u",
+             (unsigned)f->today_year, (unsigned)f->today_mon, (unsigned)f->today_day);
+    if (header != NULL) {
+        compo_label_set(header, calendar_header_str);
+    }
+}
+
+static s16 func_calendar_cell_x(u8 col)
+{
+    return (s16)(CALE_MARGIN_X + CALE_CELL_W / 2 + col * (CALE_CELL_W + CALE_GAP_X));
+}
+
+static s16 func_calendar_cell_y(u8 row)
+{
+    return (s16)(CALE_GRID_Y0 + CALE_CELL_H / 2 + row * (CALE_CELL_H + CALE_ROW_GAP));
+}
+
+static void func_calendar_grid_refresh(f_calendar_t *f)
+{
+    u16 year = f->update_year;
+    u8 month = f->update_mon;
+    u8 first_col = cal_weekday_monday_first(year, month, 1);
+    u8 day_max = cal_max_of_days_per_month(year, month);
+    u8 last_day_max = cal_max_of_days_per_month(year, cal_last_month(month));
+    u8 day = 1;
+    u8 i;
+    bool today_found = false;
+    s16 today_x = 0;
+    s16 today_y = 0;
+    compo_shape_t *hl = compo_getobj_byid(COMPO_ID_TODAY_HIGHLIGHT);
+
+    for (i = 0; i < CALE_CELL_MAX; i++) {
+        compo_picturebox_t *pic = compo_getobj_byid(COMPO_ID_DATE_PIC_START + i);
+        bool in_month;
+        bool is_today;
+        u8 show_day;
+
+        if (pic == NULL) {
+            continue;
+        }
+
+        in_month = false;
+        is_today = false;
+        show_day = 0;
+
+        if (i < first_col) {
+            show_day = (u8)(last_day_max - first_col + i + 1);
+        } else if (day <= day_max) {
+            show_day = day;
+            in_month = true;
+            if (f->today_year == year && f->today_mon == month && f->today_day == day) {
+                is_today = true;
+                today_found = true;
+                today_x = func_calendar_cell_x(i % CALE_GRID_COLS);
+                today_y = func_calendar_cell_y(i / CALE_GRID_COLS);
             }
+            day++;
+        } else {
+            show_day = (u8)(day - day_max);
+            day++;
+        }
+
+        compo_picturebox_set_color(pic, is_today ? COLOR_BLACK : (in_month ? COLOR_WHITE : COLOR_GRAY));
+        compo_picturebox_cut(pic, show_day, 32);
+    }
+
+    if (hl != NULL) {
+        if (today_found) {
+            compo_shape_set_location(hl, today_x, today_y, CALE_HIGHLIGHT_WH, CALE_HIGHLIGHT_WH);
+            compo_shape_set_visible(hl, true);
+        } else {
+            compo_shape_set_visible(hl, false);
         }
     }
 }
 
-//创建日历主界面
+static void func_calender_refresh(f_calendar_t *f)
+{
+    func_calendar_header_refresh(f);
+    func_calendar_grid_refresh(f);
+}
+
 compo_form_t *func_calender_form_create(void)
 {
-    uint8_t i;
-    compo_label_t *cale_label;
-    s16 x_pos = CALE_CONTEXT_X_START_GAP + CALE_CONTEXT_WIDTH / 2;
-    s16 y_pos = CALE_CONTEXT_y_START_GAP + CALE_CONTEXT_HEIGHT / 2;
-    // char week_text[7][4] = {"日", "一", "二", "三", "四", "五", "六"};
-
-    //新建窗体
+    u8 i;
     compo_form_t *frm = compo_form_create(true);
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_SETTING_CALENDAR]);
 
-    //新建日历文本内容
-    for(i = 0; i < CALE_CONTEXT_MAX; i++) {
-        if(!(i % 7)) {
-            x_pos = CALE_CONTEXT_X_START_GAP + CALE_CONTEXT_WIDTH / 2;
-            y_pos = CALE_CONTEXT_y_START_GAP + CALE_CONTEXT_HEIGHT / 2 + (i / 7) * (CALE_CONTEXT_HEIGHT + CALE_CONTEXT_y_GAP);
+    compo_label_t *header = compo_label_create(frm, 16);
+    compo_label_set_pos(header, GUI_SCREEN_CENTER_X, CALE_HEADER_Y);
+    compo_label_set_align_center(header, true);
+    compo_label_set_forecolor(header, COLOR_WHITE);
+    compo_setid(header, COMPO_ID_HEADER_DATE);
+
+    {
+        s16 x_pos = func_calendar_cell_x(0);
+
+        for (i = 0; i < CALE_GRID_COLS; i++) {
+            compo_label_t *lbl = compo_label_create(frm, 4);
+            compo_label_set_pos(lbl, x_pos, CALE_WEEK_Y);
+            compo_label_set_align_center(lbl, true);
+            compo_label_set_forecolor(lbl, COLOR_WHITE);
+            /* 英文 Mon/Tue 用窗体时间小字库；中文仍用系统字库 */
+            if (sys_cb.lang_id == LANG_EN) {
+                compo_label_set_font(lbl, UI_BUF_FONT_FORM_TIME);
+            } else {
+                compo_label_set_font(lbl, UI_BUF_FONT_SYS);
+            }
+            compo_label_set(lbl, i18n[tbl_calendar_week_str[i]]);
+            x_pos += (CALE_CELL_W + CALE_GAP_X);
         }
-
-       compo_picturebox_t *pic;
-       pic = compo_picturebox_create(frm, UI_BUF_COMMON_NUM_30_26_BIN);
-       compo_picturebox_cut(pic, i % 32, 32);
-       compo_picturebox_set_pos(pic, x_pos, y_pos);
-       compo_setid(pic, COMPO_ID_DATE_TEXT_START + i);
-
-        x_pos += (CALE_CONTEXT_WIDTH + CALE_CONTEXT_X_GAP);
     }
 
-    //新建（日 一 二 三 四 五 六）文本
-    x_pos = CALE_CONTEXT_X_START_GAP + CALE_CONTEXT_WIDTH / 2;
-    y_pos = CALE_CONTEXT_y_START_GAP - 40;
-    for(i = 0; i < 7; i++) {
-        cale_label = compo_label_create(frm, 3);
-        compo_label_set_pos(cale_label, x_pos, y_pos);
-        compo_label_set(cale_label, i18n[STR_SUNDAY + i]);
-        x_pos += (CALE_CONTEXT_WIDTH + CALE_CONTEXT_X_GAP);
+    {
+        compo_shape_t *hl = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
+        compo_shape_set_color(hl, COLOR_WHITE);
+        compo_shape_set_visible(hl, false);
+        compo_setid(hl, COMPO_ID_TODAY_HIGHLIGHT);
     }
 
-    compo_shape_t *line_shape = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
-    compo_shape_set_location(line_shape, GUI_SCREEN_CENTER_X, y_pos + CALE_CONTEXT_HEIGHT, GUI_SCREEN_WIDTH, 2);
-    compo_shape_set_color(line_shape, COLOR_GRAY);
+    for (i = 0; i < CALE_CELL_MAX; i++) {
+        u8 row = i / CALE_GRID_COLS;
+        u8 col = i % CALE_GRID_COLS;
+        s16 x_pos = func_calendar_cell_x(col);
+        s16 y_pos = func_calendar_cell_y(row);
+        compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_COMMON_NUM_30_26_BIN);
 
-    //year_text
-    compo_number_t* num = compo_number_create(frm, UI_BUF_COMMON_NUM_16_24_BIN, 4);
-    compo_number_set_radix(num, 10, false);
-    compo_number_set_zfill(num, true);
-    compo_number_set(num, 2023);
-    compo_number_set_pos(num, GUI_SCREEN_CENTER_X - 30, CALE_CONTEXT_y_START_GAP - 90);
-    compo_setid(num, COMPO_ID_YEAR_TEXT);
-
-    //mon_text
-    num = compo_number_create(frm, UI_BUF_COMMON_NUM_16_24_BIN, 2);
-    compo_number_set_radix(num, 10, false);
-    compo_number_set_zfill(num, true);
-    compo_number_set(num, 11);
-    compo_number_set_pos(num, GUI_SCREEN_CENTER_X + 40, CALE_CONTEXT_y_START_GAP - 90);
-    compo_setid(num, COMPO_ID_MON_TEXT);
-
-    //last_btn
-    compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_COMMON_REDUCE_BIN);
-    compo_setid(btn, COMPO_ID_LAST_BTN);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X - 110, CALE_CONTEXT_y_START_GAP - 90);
-    compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA);
-
-    //next_btn
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_INCREASE_BIN);
-    compo_setid(btn, COMPO_ID_NEXT_BTN);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X + 110, CALE_CONTEXT_y_START_GAP - 90);
-    compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA);
+        compo_picturebox_cut(pic, 1, 32);
+        compo_picturebox_set_pos(pic, x_pos, y_pos);
+        compo_setid(pic, COMPO_ID_DATE_PIC_START + i);
+    }
 
     return frm;
 }
 
-//切换日期并刷新
-static void func_calendar_date_update(bool next)
+static void func_calendar_rtc_tick(void)
 {
-    f_calendar_t *time = (f_calendar_t *)func_cb.f_cb;
-    component_t *comop;
-    uint8_t today_day;
+    f_calendar_t *f = (f_calendar_t *)func_cb.f_cb;
 
-    if(next) {
-        time->update_mon ++;
-        if(time->update_mon > 12) {
-            time->update_mon = 1;
-            time->update_year ++;
-        }
-    } else {
-        time->update_mon --;
-        if(0 == time->update_mon) {
-            time->update_mon = 12;
-            time->update_year --;
-        }
+    if (f == NULL) {
+        return;
     }
 
-    comop = compo_getobj_byid(COMPO_ID_YEAR_TEXT);
-    compo_number_set((compo_number_t*)comop, time->update_year);
+    func_calendar_rtc_read(f);
+    if (f->last_rtc_year != f->today_year || f->last_rtc_mon != f->today_mon
+        || f->last_rtc_day != f->today_day) {
+        f->last_rtc_year = f->today_year;
+        f->last_rtc_mon = f->today_mon;
+        f->last_rtc_day = f->today_day;
 
-    comop = compo_getobj_byid(COMPO_ID_MON_TEXT);
-    compo_number_set((compo_number_t*)comop, time->update_mon);
-
-    //刷新当前日期
-    today_day = 0;
-    if(time->today_year == time->update_year && time->today_mon == time->update_mon) {
-        today_day = time->today_day;
-    }
-
-    //刷新日历内容
-    func_calender_refresh(time->update_year, time->update_mon, today_day);
-}
-
-//单击按钮
-static void func_calendar_button_click(void)
-{
-    int id = compo_get_button_id();
-
-    if(COMPO_ID_LAST_BTN == id) {
-        func_calendar_date_update(false);
-    } else if(COMPO_ID_NEXT_BTN == id) {
-        func_calendar_date_update(true);
+        f->update_year = f->today_year;
+        f->update_mon = f->today_mon;
+        func_calender_refresh(f);
     }
 }
 
-//公共事件处理
 static void func_calendar_comm_process(void)
 {
+    func_calendar_rtc_tick();
     func_process();
 }
 
-//消息处理
 static void func_calendar_message(size_msg_t msg)
 {
     switch (msg) {
-        case MSG_CTP_CLICK:
-            func_calendar_button_click();
-            break;
+    case KU_RIGHT:                                      /* KEY2 返回上一级 */
+        if (tick_check_expire(func_cb.enter_tick, TICK_IGNORE_KEY)) {
+            func_back_to();
+        }
+        break;
 
-        case MSG_QDEC_FORWARD:
-            func_calendar_date_update(true);
-            break;
+    case KU_BACK:
+        if (tick_check_expire(func_cb.enter_tick, TICK_IGNORE_KEY)) {
+            func_back_to();
+        }
+        break;
 
-        case MSG_QDEC_BACKWARD:
-            func_calendar_date_update(false);
-            break;
+    /* 禁止滑动退出（不交给 func_message） */
+    case MSG_CTP_SHORT_UP:
+    case MSG_CTP_SHORT_DOWN:
+    case MSG_CTP_SHORT_LEFT:
+    case MSG_CTP_SHORT_RIGHT:
+    case MSG_CTP_LONG:
+    case MSG_CTP_LONG_UP:
+        break;
 
-        default:
-            func_message(msg);
-            break;
+    default:
+        func_message(msg);
+        break;
     }
 }
 
-//进入日历功能
 void func_calendar_enter(void)
 {
-    func_cb.f_cb = func_zalloc(sizeof(f_calendar_t));
-    f_calendar_t *f_calendar = (f_calendar_t *)func_cb.f_cb;
-    f_calendar->today_year = 2023;
-    f_calendar->today_mon = 11;
-    f_calendar->today_day = 22;
+    f_calendar_t *f;
 
-    f_calendar->update_year = f_calendar->today_year;
-    f_calendar->update_mon = f_calendar->today_mon;
+    func_cb.f_cb = func_zalloc(sizeof(f_calendar_t));
+    f = (f_calendar_t *)func_cb.f_cb;
+
+    func_calendar_sync_today_view(f);
+    f->last_rtc_year = f->today_year;
+    f->last_rtc_mon = f->today_mon;
+    f->last_rtc_day = f->today_day;
 
     func_cb.frm_main = func_calender_form_create();
-    //刷新文本内容
-    func_calender_refresh(2023, 11, 22);
+    func_calender_refresh(f);
+    func_cb.enter_tick = tick_get();
 }
 
-//退出日历功能
 void func_calendar_exit(void)
 {
     func_cb.last = FUNC_CALENDAER;
 }
 
-//日历功能
 void func_calendar(void)
 {
     printf("%s\n", __func__);
@@ -326,5 +325,3 @@ void func_calendar(void)
     }
     func_calendar_exit();
 }
-
-

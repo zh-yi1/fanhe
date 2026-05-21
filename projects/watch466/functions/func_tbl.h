@@ -77,6 +77,7 @@ compo_form_t *func_activity_form_create(void);
 compo_form_t *func_bloodsugar_form_create(void);
 compo_form_t *func_bloodpressure_form_create(void);
 compo_form_t *func_flashlight_form_create(void);
+compo_form_t *func_brightness_form_create(void);
 compo_form_t *func_charge_form_create(void);
 compo_form_t *func_clock_preview_form_create(void);
 compo_form_t *func_compo_select_form_create(void);
@@ -146,7 +147,7 @@ const func_t tbl_func_create[] = {
     {FUNC_GAME,                         func_game_form_create},
     {FUNC_STYLE,                        func_style_form_create},
     {FUNC_FINDPHONE,                    func_findphone_form_create},
-    {FUNC_ALTITUDE,                     func_altitude_form_create},
+    {FUNC_ALTITUDE,                     func_altitude_form_create},  
     {FUNC_MAP,                          func_map_form_create},
     {FUNC_MESSAGE,                      func_message_form_create},
     {FUNC_SCAN,                         func_scan_form_create},
@@ -164,6 +165,7 @@ const func_t tbl_func_create[] = {
     {FUNC_VOLUME,                       func_volume_form_create},
     {FUNC_ACTIVITY,                     func_activity_form_create},
     {FUNC_FLASHLIGHT,                   func_flashlight_form_create},
+    {FUNC_BRIGHTNESS,                   func_brightness_form_create},
     {FUNC_LIGHT,                        func_light_form_create},
     {FUNC_SET_SUB_DOUSING,              func_set_sub_dousing_form_create},
     {FUNC_SET_SUB_WRIST,                func_set_sub_wrist_form_create},
@@ -294,6 +296,7 @@ extern void func_sport_switching(void);
 extern void func_bloodsugar(void);
 extern void func_bloodpressure(void);
 extern void func_flashlight(void);
+extern void func_brightness(void);
 extern void func_charge(void);
 extern void func_debug_info(void);
 
@@ -386,6 +389,7 @@ const func_t tbl_func_entry[] = {
     {FUNC_VOLUME,                       func_volume},                   //音量调节
     {FUNC_ACTIVITY,                     func_activity},                 //活动记录
     {FUNC_FLASHLIGHT,                   func_flashlight},               //手电筒
+    {FUNC_BRIGHTNESS,                   func_brightness},               //亮度（全屏图标）
     {FUNC_SETTING,                      func_set_sub_list},             //设置
     {FUNC_SET_SUB_DOUSING,              func_set_sub_dousing},          //设置--熄屏
     {FUNC_SET_SUB_WRIST,                func_set_sub_wrist},            //设置--抬腕
@@ -517,6 +521,7 @@ void func_call_sub_dial_enter(void);
 void func_volume_enter(void);
 void func_activity_enter(void);
 void func_flashlight_enter(void);
+void func_brightness_enter(void);
 void func_set_sub_list_enter(void);
 void func_set_sub_dousing_enter(void);
 void func_set_sub_wrist_enter(void);
@@ -643,6 +648,7 @@ const func_t tbl_func_enter[] = {
     {FUNC_VOLUME,                       func_volume_enter},                   //音量调节
     {FUNC_ACTIVITY,                     func_activity_enter},                 //活动记录
     {FUNC_FLASHLIGHT,                   func_flashlight_enter},               //手电筒
+    {FUNC_BRIGHTNESS,                   func_brightness_enter},               //亮度（全屏图标）
     {FUNC_SETTING,                      func_set_sub_list_enter},             //设置
     {FUNC_SET_SUB_DOUSING,              func_set_sub_dousing_enter},          //设置--熄屏
     {FUNC_SET_SUB_WRIST,                func_set_sub_wrist_enter},            //设置--抬腕
@@ -773,6 +779,7 @@ void func_call_sub_dial_exit(void);
 void func_volume_exit(void);
 void func_activity_exit(void);
 void func_flashlight_exit(void);
+void func_brightness_exit(void);
 void func_set_sub_exit(void);
 void func_set_sub_dousing_exit(void);
 void func_set_sub_wrist_exit(void);
@@ -896,6 +903,7 @@ const func_t tbl_func_exit[] = {
     {FUNC_VOLUME,                       func_volume_exit},                   //音量调节
     {FUNC_ACTIVITY,                     func_activity_exit},                 //活动记录
     {FUNC_FLASHLIGHT,                   func_flashlight_exit},               //手电筒
+    {FUNC_BRIGHTNESS,                   func_brightness_exit},               //亮度（全屏图标）
     {FUNC_SETTING,                      func_set_sub_exit},             //设置
     {FUNC_SET_SUB_DOUSING,              func_set_sub_dousing_exit},          //设置--熄屏
     {FUNC_SET_SUB_WRIST,                func_set_sub_wrist_exit},            //设置--抬腕

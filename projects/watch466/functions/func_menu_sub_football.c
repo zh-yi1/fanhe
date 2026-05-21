@@ -30,29 +30,30 @@ typedef struct f_menu_football_t_ {
 
 //足球图标列表(固定20项)
 static const compo_football_item_t tbl_menu_football[] = {
-    {UI_BUF_ICON_FOOTBALL_FLASHLIGHT_BIN,       FUNC_FLASHLIGHT},
-    {UI_BUF_ICON_FOOTBALL_MAP_BIN,              FUNC_MAP},
-    {UI_BUF_ICON_FOOTBALL_LANGUAGE_BIN,         FUNC_LANGUAGE},
-    {UI_BUF_ICON_FOOTBALL_ALARM_CLOCK_BIN,      FUNC_ALARM_CLOCK},
-    {UI_BUF_ICON_FOOTBALL_VOLUME_BIN,           FUNC_VOLUME},
+    {UI_BUF_ICON_FOOTBALL_BATTERY_LEVEL_BIN,       FUNC_FLASHLIGHT},
+    {UI_BUF_ICON_FOOTBALL_BLUETOOTH_BIN,              FUNC_MAP},
+    {UI_BUF_ICON_FOOTBALL_BRIGHTNESS__ADJUSTMENT_BIN,         FUNC_BRIGHTNESS},//
+    {UI_BUF_ICON_FOOTBALL_BRIGHTNESS_TIME_BIN,      FUNC_ALARM_CLOCK},
+    {UI_BUF_ICON_FOOTBALL_CALENDAR_BIN,           FUNC_CALENDAER},//
 
-    {UI_BUF_ICON_FOOTBALL_MUSIC_BIN,            FUNC_BT},
-    {UI_BUF_ICON_FOOTBALL_GAME_BIN,             FUNC_GAME},
-    {UI_BUF_ICON_FOOTBALL_BLOOD_OXYGEN_BIN,     FUNC_BLOOD_OXYGEN},
-    {UI_BUF_ICON_FOOTBALL_CALENDAR_BIN,         FUNC_CALENDAER},
-    {UI_BUF_ICON_FOOTBALL_ALIPAY_BIN,           FUNC_NULL},
+    {UI_BUF_ICON_FOOTBALL_DELETE_BIN,            FUNC_BT},
+    {UI_BUF_ICON_FOOTBALL_DOWNLOAD_BIN,             FUNC_GAME},
+    {UI_BUF_ICON_FOOTBALL_FLASHLIGHT_BIN,     FUNC_FLASHLIGHT},//
+    {UI_BUF_ICON_FOOTBALL_PERSONAL_STATUS_BIN,         FUNC_CALENDAER},
+    {UI_BUF_ICON_FOOTBALL_SETTING_BIN,           FUNC_NULL},
 
-    {UI_BUF_ICON_FOOTBALL_CALL_BIN,             FUNC_CALL},
-    {UI_BUF_ICON_FOOTBALL_WEATHER_BIN,          FUNC_ADDRESS_BOOK},
-    {UI_BUF_ICON_FOOTBALL_SLEEP_BIN,            FUNC_SLEEP},
-    {UI_BUF_ICON_FOOTBALL_CALCULATOR_BIN,       FUNC_CALCULATOR},
-    {UI_BUF_ICON_FOOTBALL_COMPASS_BIN,          FUNC_COMPASS},
+    {UI_BUF_ICON_FOOTBALL_TIME_BIN,             FUNC_CALL},
+    {UI_BUF_ICON_FOOTBALL_VOLUME_BIN,          FUNC_ADDRESS_BOOK},
+    {UI_BUF_ICON_FOOTBALL_WEATHER_BIN,            FUNC_SLEEP},
 
-    {UI_BUF_ICON_FOOTBALL_TIMER_BIN,            FUNC_TIMER},
-    {UI_BUF_ICON_FOOTBALL_STOPWATCH_BIN,        FUNC_STOPWATCH},
-    {UI_BUF_ICON_FOOTBALL_SPORT_BIN,            FUNC_SPORT},
-    {UI_BUF_ICON_FOOTBALL_HEART_RATE_BIN,       FUNC_HEARTRATE},
-    {UI_BUF_ICON_FOOTBALL_SETTING_BIN,          FUNC_SETTING},
+    {UI_BUF_ICON_FOOTBALL_BATTERY_LEVEL_BIN,       FUNC_CALCULATOR},
+    {UI_BUF_ICON_FOOTBALL_BLUETOOTH_BIN,          FUNC_COMPASS},
+
+    {UI_BUF_ICON_FOOTBALL_BRIGHTNESS__ADJUSTMENT_BIN,            FUNC_BRIGHTNESS},//
+    {UI_BUF_ICON_FOOTBALL_BRIGHTNESS_TIME_BIN,        FUNC_STOPWATCH},
+    {UI_BUF_ICON_FOOTBALL_CALENDAR_BIN,            FUNC_CALENDAER},//
+    {UI_BUF_ICON_FOOTBALL_DELETE_BIN,       FUNC_HEARTRATE},
+    {UI_BUF_ICON_FOOTBALL_DOWNLOAD_BIN,          FUNC_SETTING},
 };
 
 //创建主菜单窗体，创建窗体中不要使用功能结构体 func_cb.f_cb
@@ -119,6 +120,12 @@ static void func_menu_sub_football_process(void)
 static void func_menu_sub_football_drag_message(size_msg_t msg)
 {
     switch (msg) {
+    case KU_RIGHT:                                      //KEY2 返回表盘
+        if (tick_check_expire(func_cb.enter_tick, TICK_IGNORE_KEY)) {
+            func_menu_sub_football_switch_to_clock();
+        }
+        break;
+
     default:
         evt_message(msg);
         break;
@@ -143,6 +150,12 @@ static void func_menu_sub_football_move_message(size_msg_t msg)
 
     case MSG_QDEC_BACKWARD:                             //向后滚动菜单
         compo_football_move_control(ball, COMPO_FOOTBALL_MOVE_CMD_BACKWARD);
+        break;
+
+    case KU_RIGHT:                                      //KEY2 返回表盘
+        if (tick_check_expire(func_cb.enter_tick, TICK_IGNORE_KEY)) {
+            func_menu_sub_football_switch_to_clock();
+        }
         break;
 
     default:
@@ -180,6 +193,12 @@ static void func_menu_sub_football_normal_message(size_msg_t msg)
     case KU_DELAY_BACK:
         if (tick_check_expire(func_cb.enter_tick, TICK_IGNORE_KEY)) {
             func_menu_sub_football_switch_to_clock();       //返回时钟表盘界面
+        }
+        break;
+
+    case KU_RIGHT:                                      //KEY2 返回表盘
+        if (tick_check_expire(func_cb.enter_tick, TICK_IGNORE_KEY)) {
+            func_menu_sub_football_switch_to_clock();
         }
         break;
 
