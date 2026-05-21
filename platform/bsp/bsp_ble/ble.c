@@ -1,5 +1,8 @@
 #include "include.h"
 #include "bsp_ble.h"
+#if FUNC_BLE_GATTS_EN
+#include "func_ble_gatts.h"
+#endif
 
 
 #if LE_EN
@@ -106,6 +109,9 @@ void ble_emit_notice(u8 evt, u8 *param)
         ble_cb.ble_connected = false;
         ble_app_disconnect_callback();
         ble_txpkt_init();
+#if FUNC_BLE_GATTS_EN
+        ble_gatts_disconnect_cleanup();
+#endif
         printf("LE_NOTICE_DISCONNECT:%x\n", param[5]);
         break;
 
@@ -180,6 +186,9 @@ void ble_init_att(void)
                     LE_ATT_NUM);
     ble_app_init();
     ble_ams_var_init();
+#if FUNC_BLE_GATTS_EN
+    ble_gatts_demo_service_init();
+#endif
 }
 
 //可重定义该函数修改ble地址

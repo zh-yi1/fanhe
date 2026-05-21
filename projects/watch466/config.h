@@ -26,6 +26,7 @@
 #define FUNC_CAMERA_TRANS_EN            0   //是否打开相机传输功能,需要一张图片的RGB数据缓存
 #define FUNC_IDLE_EN                    0   //是否打开IDLE功能
 #define FUNC_GAME_TETRIS_EN             0   //是否打开俄罗斯方块游戏
+#define FUNC_BLE_GATTS_EN               1   //是否打开BLE GATTS Demo功能
 
 /******************************************************************************
 *Module      :BT EMIT FUNCTION
@@ -87,7 +88,7 @@
 /*****************************************************************************
  * Module    : FLASH配置
  *****************************************************************************/
-#define FLASH_DISK_EN                   0                                                   //是否支持FLASH DISK 功能
+#define FLASH_DISK_EN                   1                                                   //是否支持FLASH DISK 功能
 #define FLASH_SIZE                      FSIZE_16M                                            //根据芯片信息配置实际FLASH SIZE
 #define FLASH_CODE_BASE_SIZE            0xEA000                                             //基础功能所需FLASH
 #define FLASH_UI_BASE                   0x200000                                            //UI资源起始地址(最小值为FLASH_CODE_SIZE)
@@ -222,42 +223,42 @@
 
 #define BT_2ACL_EN                      0   //是否支持连接两部手机（TWS不支持）
 #define BT_2ACL_AUTO_SWITCH             0   //连接两部手机时是否支持点击播放切换到对应的手机
-#define BT_A2DP_EN                      1   //是否打开蓝牙音乐服务
-#define BT_HFP_EN                       1*CHIP_PACKAGE_SUPPORT_HFP   //是否打开蓝牙通话服务
+#define BT_A2DP_EN                      0   //是否打开蓝牙音乐服务
+#define BT_HFP_EN                       0*CHIP_PACKAGE_SUPPORT_HFP   //是否打开蓝牙通话服务
 #define BT_HFP_GET_TIME_EN              0   //是否使用HFP获取设备时间
 #define BT_HSP_EN                       0   //是否打开蓝牙HSP通话服务
-#define BT_PBAP_EN                      1   //是否打开蓝牙电话簿服务
+#define BT_PBAP_EN                      0   //是否打开蓝牙电话簿服务
 #define BT_MAP_EN                       0   //是否打开蓝牙短信服务(用于获取设备时间，支持IOS/Android)
-#define BT_SPP_EN                       1   //是否打开蓝牙串口服务
-#define BT_ID3_TAG_EN                   1   //是否打开蓝牙ID3功能
+#define BT_SPP_EN                       0   //是否打开蓝牙串口服务
+#define BT_ID3_TAG_EN                   0   //是否打开蓝牙ID3功能
 #define BT_PANU_EN                      0   //是否打开蓝牙个人区域网服务
 #define BT_HID_EN                       0   //是否打开蓝牙HID服务
 #define BT_HID_TYPE                     0   //选择HID服务类型: 0=自拍器(VOL+, 部分Android不能拍照), 1=自拍器(VOL+和ENTER, 影响IOS键盘使用), 2=游戏手柄
 #define BT_HID_MANU_EN                  0   //蓝牙HID是否需要手动连接/断开
 #define BT_HID_DISCON_DEFAULT_EN        0   //蓝牙HID服务默认不连接，需要手动进行连接。
 #define BT_HID_VOL_CTRL_EN              0   //是否支持HID调手机音量功能（需同时打开BT_HID_EN和BT_A2DP_VOL_CTRL_EN）
-#define BT_HFP_CALL_PRIVATE_SWITCH_EN   1   //是否打开按键切换私密接听与蓝牙接听功能
+#define BT_HFP_CALL_PRIVATE_SWITCH_EN   0   //是否打开按键切换私密接听与蓝牙接听功能
 #define BT_HFP_CALL_PRIVATE_FORCE_EN    0   //是否强制使用私密接听（仅在手机接听，不通过蓝牙外放）
 #define BT_HFP_RECORD_DEVICE_VOL_EN     0   //是否支持分别记录不同连接设备的通话音量
-#define BT_HFP_RING_NUMBER_EN           1   //是否支持来电报号
-#define BT_HFP_INBAND_RING_EN           1   //是否支持手机来电铃声（部分android不支持，默认用本地RING提示音）
+#define BT_HFP_RING_NUMBER_EN           0   //是否支持来电报号
+#define BT_HFP_INBAND_RING_EN           0   //是否支持手机来电铃声（部分android不支持，默认用本地RING提示音）
 #define BT_HFP_BAT_REPORT_EN            1   //是否支持电量显示
-#define BT_HFP_MSBC_EN                  1   //是否打开宽带语音功能
-#define BT_A2DP_AAC_AUDIO_EN            1   //是否支持蓝牙AAC音频格式
-#define BT_HFP_3WAY_CTRL_EN             1   //是否使能三方通话管理
+#define BT_HFP_MSBC_EN                  0   //是否打开宽带语音功能
+#define BT_A2DP_AAC_AUDIO_EN            0   //是否支持蓝牙AAC音频格式
+#define BT_HFP_3WAY_CTRL_EN             0   //是否使能三方通话管理
 #define BT_HFP_SWITCH_EN                0   //是否使能通话切换功能，包括主动切换和哪边接听哪边出声
-#define BT_VOIP_REJECT_EN               1   //网络电话不建立SCO功能使能,使用时需A2DP断开 (网络电话：微信通话，QQ通话等)
-#define BT_A2DP_PROFILE_DEFAULT_EN      1   //蓝牙音频服务是否默认打开
-#define BT_A2DP_VOL_CTRL_EN             1   //是否支持音量与手机同步，（默认使用AVRCP协议，打开BT_HID_VOL_CTRL_EN后使用HID协议）
-#define BT_A2DP_RECORD_DEVICE_VOL_EN    1   //是否支持分别记录不同连接设备的音量，使用设备时恢复当前设备音量
+#define BT_VOIP_REJECT_EN               0   //网络电话不建立SCO功能使能,使用时需A2DP断开 (网络电话：微信通话，QQ通话等)
+#define BT_A2DP_PROFILE_DEFAULT_EN      0   //蓝牙音频服务是否默认打开
+#define BT_A2DP_VOL_CTRL_EN             0   //是否支持音量与手机同步，（默认使用AVRCP协议，打开BT_HID_VOL_CTRL_EN后使用HID协议）
+#define BT_A2DP_RECORD_DEVICE_VOL_EN    0   //是否支持分别记录不同连接设备的音量，使用设备时恢复当前设备音量
 #define BT_A2DP_VOL_REST_EN             0   //是否支持连接不支持同步音量手机时复位音量
 #define BT_A2DP_AVRCP_PLAY_STATUS_EN    0   //是否支持手机播放状态同步，可加快播放暂停响应速度
 #define BT_A2DP_RECON_EN                0   //是否支持A2DP控制键（播放/暂停、上下曲键）回连
-#define BT_A2DP_SUPTO_RESTORE_PLAY_EN   1   //是否支持蓝牙超距回连恢复播放
+#define BT_A2DP_SUPTO_RESTORE_PLAY_EN   0   //是否支持蓝牙超距回连恢复播放
 #define BT_A2DP_EXCEPT_RESTORE_PLAY_EN  0   //是否支持异常复位后回连恢复播放
-#define BT_AVDTP_DYN_LATENCY_EN         1   //是否支持根据信号环境动态调整延迟
+#define BT_AVDTP_DYN_LATENCY_EN         0   //是否支持根据信号环境动态调整延迟
 #define BT_SCO_DBG_EN                   0   //是否打开无线调试通话参数功能
-#define BT_CONNECT_REQ_FROM_WATCH_EN    1   //是否使能一键双连BT连接请求由手表发起
+#define BT_CONNECT_REQ_FROM_WATCH_EN    0   //是否使能一键双连BT连接请求由手表发起
 #define BT_RF_EXT_CTL_EN                0   //是否打开rf动态功耗调节
 #define BT_HID_ONLY_FOR_IOS_EN          0   //是否使能安卓手机不建立HID
 #define BT_HCI_DUMP                     0   //是否打开蓝牙HCI DUMP功能
@@ -277,7 +278,7 @@
 #define LE_ALLOW_WKUP_EN                0   //休眠中ble断开/连接/传输是否需要退出休眠
 
 //gatt 配置
-#define LE_ATT_NUM                      45  //最大支持多少条gatt属性, att_handle 1 ~ LE_ATT_NUM
+#define LE_ATT_NUM                      25  //最大支持多少条gatt属性, att_handle 1 ~ LE_ATT_NUM (BlueFit + 128bit UUID img service)
 
 //APP 功能相关
 #define USE_APP_TYPE                    APP_BLUE_FIT //选择手表应用app类型
@@ -737,7 +738,7 @@
 /*****************************************************************************
  * Module    : AVI视频播放功能
  *****************************************************************************/
-#define AVI_DIALPLATE_EN                    1*CHIP_PACKAGE_SUPPORT_PSRAM  //使用视频表盘功能
+#define AVI_DIALPLATE_EN                    0*CHIP_PACKAGE_SUPPORT_PSRAM  //使用视频表盘功能
 #define VIDEO_CLK_SEL                       SYS_192M                    //AVI选择的系统时钟
 #define VIDEO_PLAY_EN                       1                           //AVI视频播放功能
 #define AVI_USE_SD                          (1)*VIDEO_PLAY_EN           //AVI是否使用SD卡

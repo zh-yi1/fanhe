@@ -54,6 +54,11 @@ static const compo_listbox_item_t tbl_menu_list[] = {
     {STR_GAME,                   UI_BUF_ICON_GAME_BIN,              .func_sta = FUNC_GAME},                 //游戏
     {STR_SETTING,                UI_BUF_ICON_SETTING_BIN,           .func_sta = FUNC_SETTING},              //设置
     {STR_STYLE,                  UI_BUF_ICON_MENU_BIN,              .func_sta = FUNC_STYLE},                //风格
+#if FUNC_BLE_GATTS_EN
+    //{STR_BT,                     UI_BUF_ICON_BT_BIN,                .func_sta = FUNC_BLE_GATTS},            //BLE GATTS Demo
+    {STR_SETTING,                UI_BUF_ICON_SETTING_BIN,           .func_sta = FUNC_BLE_GATTS},              //设置
+    {STR_STYLE,                  UI_BUF_ICON_MENU_BIN,              .func_sta = FUNC_PHOTO_VIEW},                //风格
+#endif
 };
 
 //菜单栏自定义图标更新

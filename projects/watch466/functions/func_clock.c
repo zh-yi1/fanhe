@@ -24,7 +24,7 @@ const u32 dialplate_info[] = {
 //     UI_BUF_DIALPLATE_8_BIN,                //精准时图
 
     
-    UI_BUF_DIALPLATE_AVI_1_BIN,
+    //UI_BUF_DIALPLATE_AVI_1_BIN,
 
     UI_BUF_DIALPLATE_1_BIN,
     UI_BUF_DIALPLATE_WINDMILL_BIN,

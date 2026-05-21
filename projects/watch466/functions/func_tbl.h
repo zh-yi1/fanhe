@@ -97,6 +97,9 @@ compo_form_t *func_game_tetris_form_create(void);
 compo_form_t *func_game_tetris_start_form_create(void);
 compo_form_t *func_game_tetris_over_form_create(void);
 compo_form_t *func_bird_form_create(void);
+#if FUNC_BLE_GATTS_EN
+compo_form_t *func_ble_gatts_form_create(void);
+#endif
 
 #if VIDEO_PLAY_EN
 compo_form_t *func_video_play_form_create(void);
@@ -205,6 +208,9 @@ const func_t tbl_func_create[] = {
 #endif
 
     {FUNC_BIRD,                         func_bird_form_create},
+#if FUNC_BLE_GATTS_EN
+    {FUNC_BLE_GATTS,                    func_ble_gatts_form_create},
+#endif
 #if FUNC_GAME_TETRIS_EN
     {FUNC_GAME_TETRIS,                  func_game_tetris_form_create},
     {FUNC_GAME_TETRIS_START,            func_game_tetris_start_form_create},
@@ -323,6 +329,9 @@ extern void func_game_tetris_start(void);
 extern void func_game_tetris_over(void);
 #endif // FUNC_GAME_TETRIS_EN
 extern void func_bird(void);
+#if FUNC_BLE_GATTS_EN
+extern void func_ble_gatts(void);
+#endif
 
 #if VIDEO_PLAY_EN
 extern void func_video_play(void);
@@ -448,6 +457,9 @@ const func_t tbl_func_entry[] = {
     {FUNC_MESSAGE_REPLY,                func_message_reply_info},
 #endif
     {FUNC_BIRD,                         func_bird},
+#if FUNC_BLE_GATTS_EN
+    {FUNC_BLE_GATTS,                    func_ble_gatts},
+#endif
 #if FUNC_GAME_TETRIS_EN
     {FUNC_GAME_TETRIS,                  func_game_tetris},
     {FUNC_GAME_TETRIS_START,            func_game_tetris_start},
@@ -578,6 +590,9 @@ void func_bt_update_enter(void);
 void func_message_reply_info_enter(void);
 #endif // FLASHDB_EN
 void func_bird_enter(void);
+#if FUNC_BLE_GATTS_EN
+void func_ble_gatts_enter(void);
+#endif
 #if FUNC_GAME_TETRIS_EN
 void func_game_tetris_enter(void);
 void func_game_tetris_start_enter(void);
@@ -707,6 +722,9 @@ const func_t tbl_func_enter[] = {
     {FUNC_MESSAGE_REPLY,                func_message_reply_info_enter},
 #endif
     {FUNC_BIRD,                         func_bird_enter},
+#if FUNC_BLE_GATTS_EN
+    {FUNC_BLE_GATTS,                    func_ble_gatts_enter},
+#endif
 #if FUNC_GAME_TETRIS_EN
     {FUNC_GAME_TETRIS,                  func_game_tetris_enter},
     {FUNC_GAME_TETRIS_START,            func_game_tetris_start_enter},
@@ -832,6 +850,9 @@ void func_modem_call_exit(void);
 void func_modem_ring_exit(void);
 void func_bt_update_exit(void);
 void func_bird_exit(void);
+#if FUNC_BLE_GATTS_EN
+void func_ble_gatts_exit(void);
+#endif
 #if FUNC_GAME_TETRIS_EN
 void func_game_tetris_exit(void);
 void func_game_tetris_start_exit(void);
@@ -962,6 +983,9 @@ const func_t tbl_func_exit[] = {
     {FUNC_MESSAGE_REPLY,                NULL},
 #endif
     {FUNC_BIRD,                         func_bird_exit},
+#if FUNC_BLE_GATTS_EN
+    {FUNC_BLE_GATTS,                    func_ble_gatts_exit},
+#endif
 #if FUNC_GAME_TETRIS_EN
     {FUNC_GAME_TETRIS,                  func_game_tetris_exit},
     {FUNC_GAME_TETRIS_START,            func_game_tetris_start_exit},

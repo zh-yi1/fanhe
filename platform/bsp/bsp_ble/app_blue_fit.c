@@ -233,7 +233,7 @@ static struct ble_cmd_cb_t ble_cmd_cb;
 #if LE_AB_FOT_EN
 u16 att_get_max_mtu(void)
 {
-    return 512;
+    return 422;
 }
 #endif
 
@@ -337,7 +337,7 @@ int app_protocol_tx(u8 *buf, u8 len)
         }
     }
 
-    printf("app_tx:");
+    printf("%s:app_tx:", __func__);
     print_r(buf, len);
 
     return ble_tx_notify(gatts_tx_base.handle, buf, len);
@@ -499,17 +499,17 @@ static void ble_app_gatts_service_init(void)
                                  uuid_tx_primay_base.type,
                                  NULL);
 
-    ret |= ble_gatts_characteristic_add(gatt_tx_base.uuid,
-                                        gatt_tx_base.type,
-                                        gatt_tx_base.props,
-                                        &gatts_tx_base.handle,
-                                        &gatts_app_protocol_tx_cb_info);      //characteristic
+    // ret |= ble_gatts_characteristic_add(gatt_tx_base.uuid,
+    //                                     gatt_tx_base.type,
+    //                                     gatt_tx_base.props,
+    //                                     &gatts_tx_base.handle,
+    //                                     &gatts_app_protocol_tx_cb_info);      //characteristic
 
-    ret |= ble_gatts_characteristic_add(gatt_rx_base.uuid,
-                                        gatt_rx_base.type,
-                                        gatt_rx_base.props,
-                                        &gatts_rx_base.handle,
-                                        &gatts_app_protocol_rx_cb_info);      //characteristic
+    // ret |= ble_gatts_characteristic_add(gatt_rx_base.uuid,
+    //                                     gatt_rx_base.type,
+    //                                     gatt_rx_base.props,
+    //                                     &gatts_rx_base.handle,
+    //                                     &gatts_app_protocol_rx_cb_info);      //characteristic
 
 #if SECURITY_PAY_EN
     //alipay
@@ -578,6 +578,7 @@ static void ble_app_gatts_service_init(void)
 //
 void ble_app_watch_init(void)
 {
+    ble_change_name("ebadges");
     ble_app_gatts_service_init();
 }
 

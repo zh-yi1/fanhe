@@ -5,3 +5,8 @@ obj/
 **/app.bin
 **/app.rv32
 **/map.txt
+**/app.dcf
+**/app.depend
+**/app.layout
+**/ui.bin
+**/ui.h
