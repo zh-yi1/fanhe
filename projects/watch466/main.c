@@ -125,7 +125,7 @@ int main(void)
     }
 #endif
     
-    run_test();
+    //run_test();
 
     bsp_flash_disk_mount();
 
