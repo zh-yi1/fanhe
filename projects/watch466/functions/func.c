@@ -1042,7 +1042,7 @@ void func_run(void)
     void (*func_entry)(void) = NULL;
     printf("%s\n", __func__);
     memset(func_cb.tbl_sort, 0, sizeof(func_cb.tbl_sort));
-    func_cb.tbl_sort[0] = FUNC_CLOCK;
+    func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.tbl_sort[1] = FUNC_VIDEO_SHOWLIST;
     func_cb.tbl_sort[2] = FUNC_ACTIVITY;
     func_cb.tbl_sort[3] = FUNC_SLEEP;

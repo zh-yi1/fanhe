@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate ui/home GPU bins for ui.bin (UI resource flash).
 
-All Home page bitmaps are written to Output/bin/ui/home/*.bin and packed by prebuild.
+All Home/Heat page bitmaps are written to Output/bin/ui/home/*.bin and packed by prebuild.
 PNG sources live in res/home/ (kept out of ui/ to avoid duplicate packing).
 
 After running this script, run Output/bin/prebuild.bat to refresh ui.h.
@@ -18,6 +18,7 @@ DASH_H = 3
 DIGIT_W = 48
 DIGIT_H = 82
 COLON_W = 24
+FG_GREY = (140, 140, 140)
 ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT / "res" / "home"
 BIN_DIR = ROOT / "Output" / "bin" / "ui" / "home"
@@ -37,6 +38,11 @@ STATUS_ITEMS = [
     ("bluetooth.png", "bluetooth"),
     ("lock.png", "lock"),
     ("battery_level.png", "battery_level"),
+]
+
+SYMBOL_ITEMS = [
+    ("Vector.png", "degf_w"),
+    ("Vector-1.png", "degf_g"),
 ]
 
 
@@ -116,7 +122,7 @@ def digit_png_to_gpu(path: Path) -> bytes:
     return bytes(buf)
 
 
-def colon_to_gpu() -> bytes:
+def colon_to_gpu(fg_rgb) -> bytes:
     im = Image.new("RGBA", (COLON_W, DIGIT_H), (0, 0, 0, 255))
     draw = ImageDraw.Draw(im)
     dot_w = 10
@@ -127,7 +133,7 @@ def colon_to_gpu() -> bytes:
     for y in (y1, y2):
         draw.rectangle(
             (cx - dot_w // 2, y, cx + dot_w // 2 - 1, y + dot_h - 1),
-            fill=(255, 255, 255, 255),
+            fill=(*fg_rgb, 255),
         )
     px = im.load()
     bg = rgba565(*BG_BLACK)
@@ -152,10 +158,13 @@ def cleanup_obsolete_bins() -> None:
     for fname, stem in ICON_ITEMS:
         keep.add(f"{stem}_sel.bin")
         keep.add(f"{stem}_nor.bin")
-    keep.update(["dash_sel.bin", "dash_nor.bin", "colon.bin"])
+    keep.update(["dash_sel.bin", "dash_nor.bin", "colon.bin", "colon_g.bin"])
     for d in range(10):
         keep.add(f"{d}.bin")
+        keep.add(f"{d}_g.bin")
     for _, stem in STATUS_ITEMS:
+        keep.add(f"{stem}.bin")
+    for _, stem in SYMBOL_ITEMS:
         keep.add(f"{stem}.bin")
     for path in BIN_DIR.glob("*.bin"):
         if path.name not in keep:
@@ -166,8 +175,11 @@ def cleanup_obsolete_bins() -> None:
 def main():
     ensure_src_layout()
     digit_max_size = 0
+    digit_grey_max_size = 0
     colon_size = 0
+    colon_grey_size = 0
     status_sizes = {}
+    symbol_sizes = {}
 
     for fname, stem in ICON_ITEMS:
         path = SRC_DIR / fname
@@ -195,9 +207,20 @@ def main():
         write_bin(f"{d}.bin", data, f"{d}.png")
         digit_max_size = max(digit_max_size, len(data))
 
-    colon_data = colon_to_gpu()
-    write_bin("colon.bin", colon_data, "(generated)")
+        path_g = SRC_DIR / f"{d}-1.png"
+        if not path_g.exists():
+            raise SystemExit(f"missing grey digit {path_g}")
+        data_g = digit_png_to_gpu(path_g)
+        write_bin(f"{d}_g.bin", data_g, f"{d}-1.png")
+        digit_grey_max_size = max(digit_grey_max_size, len(data_g))
+
+    colon_data = colon_to_gpu(FG_WHITE)
+    write_bin("colon.bin", colon_data, "(generated white)")
     colon_size = len(colon_data)
+
+    colon_grey_data = colon_to_gpu(FG_GREY)
+    write_bin("colon_g.bin", colon_grey_data, "(generated grey)")
+    colon_grey_size = len(colon_grey_data)
 
     for fname, stem in STATUS_ITEMS:
         path = SRC_DIR / fname
@@ -207,9 +230,18 @@ def main():
         write_bin(f"{stem}.bin", data, fname)
         status_sizes[stem] = (sw, sh, len(data))
 
+    for fname, stem in SYMBOL_ITEMS:
+        path = SRC_DIR / fname
+        if not path.exists():
+            raise SystemExit(f"missing {path}")
+        data, sw, sh = png_native_to_gpu(path)
+        write_bin(f"{stem}.bin", data, fname)
+        symbol_sizes[stem] = (sw, sh, len(data))
+
     bt_w, bt_h, _ = status_sizes["bluetooth"]
     lock_w, lock_h, _ = status_sizes["lock"]
     bat_w, bat_h, _ = status_sizes["battery_level"]
+    degf_g_w, degf_g_h, degf_g_size = symbol_sizes["degf_g"]
 
     OUT_H.write_text(
         "#ifndef _HOME_ICON_RES_H\n"
@@ -225,9 +257,14 @@ def main():
         f"#define HOME_DIGIT_H                    {DIGIT_H}\n"
         f"#define HOME_DIGIT_MAX_W                {DIGIT_W}\n"
         f"#define HOME_DIGIT_RAM_MAX_SIZE         {digit_max_size}\n"
+        f"#define HOME_DIGIT_GREY_RAM_MAX_SIZE    {digit_grey_max_size}\n"
         f"#define HOME_COLON_W                    {COLON_W}\n"
         f"#define HOME_COLON_H                    {DIGIT_H}\n"
-        f"#define HOME_COLON_RAM_SIZE             {colon_size}\n\n"
+        f"#define HOME_COLON_RAM_SIZE             {colon_size}\n"
+        f"#define HOME_COLON_GREY_RAM_SIZE        {colon_grey_size}\n\n"
+        f"#define HOME_TEMPF_W                    {degf_g_w}\n"
+        f"#define HOME_TEMPF_H                    {degf_g_h}\n"
+        f"#define HOME_TEMPF_RAM_SIZE             {degf_g_size}\n\n"
         f"#define HOME_STATUS_BT_W                {bt_w}\n"
         f"#define HOME_STATUS_BT_H                {bt_h}\n"
         f"#define HOME_STATUS_LOCK_W              {lock_w}\n"

@@ -15,9 +15,15 @@
 #define HOME_DIGIT_H                    82
 #define HOME_DIGIT_MAX_W                48
 #define HOME_DIGIT_RAM_MAX_SIZE         7880
+#define HOME_DIGIT_GREY_RAM_MAX_SIZE    7880
 #define HOME_COLON_W                    24
 #define HOME_COLON_H                    82
 #define HOME_COLON_RAM_SIZE             3944
+#define HOME_COLON_GREY_RAM_SIZE        3944
+
+#define HOME_TEMPF_W                    65
+#define HOME_TEMPF_H                    65
+#define HOME_TEMPF_RAM_SIZE             8458
 
 #define HOME_STATUS_BT_W                13
 #define HOME_STATUS_BT_H                21

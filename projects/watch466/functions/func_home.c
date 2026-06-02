@@ -1,6 +1,7 @@
 #include "include.h"
 #include "func.h"
 #include "home_icon_res.h"
+#include "home_ui_ram.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -10,8 +11,7 @@
 
 /*
  * 全部 Home 位图：tools/gen_home_icons.py -> ui/home/*.bin -> ui.bin
- * 运行时 os_spiflash_read 到 RAM，再 compo_picturebox_set_ram
- * 数字/冒号缓冲在 .disp.home_ram，其余在普通 SRAM
+ * 全部 home/*.bin 为 GPU 格式(0x24150)：必须 Flash->RAM->set_ram，不可 set/create 直引。
  */
 #define UI_HOME_ICON_PLACEHOLDER          UI_BUF_ICON_ACTIVITY_BIN
 
@@ -130,15 +130,12 @@ typedef struct f_home_t_ {
 } f_home_t;
 
 static u8 home_icon_runtime[HOME_TAB_CNT][HOME_ICON_RAM_SIZE];
-static u8 home_digit_runtime[HOME_CLOCK_IDX_CNT][HOME_DIGIT_RAM_MAX_SIZE] AT(.disp.home_ram);
-static u8 home_colon_runtime[HOME_COLON_RAM_SIZE] AT(.disp.home_ram);
 static u8 home_status_bt_runtime[HOME_STATUS_BT_RAM_SIZE];
 static u8 home_status_lock_runtime[HOME_STATUS_LOCK_RAM_SIZE];
 static u8 home_status_bat_runtime[HOME_STATUS_BAT_RAM_SIZE];
-static bool home_colon_inited;
-static bool home_status_icons_inited;
 static u8 home_dash_runtime_sel[HOME_DASH_RAM_SIZE];
 static u8 home_dash_runtime_nor[HOME_DASH_RAM_SIZE];
+static bool home_status_icons_inited;
 static bool home_dash_runtime_inited;
 
 static u32 home_countdown_remain_sec;
@@ -158,16 +155,9 @@ static const u32 tbl_home_digit_addr[10] = {
 };
 
 static const u16 tbl_home_digit_len[10] = {
-    UI_LEN_HOME_0_BIN,
-    UI_LEN_HOME_1_BIN,
-    UI_LEN_HOME_2_BIN,
-    UI_LEN_HOME_3_BIN,
-    UI_LEN_HOME_4_BIN,
-    UI_LEN_HOME_5_BIN,
-    UI_LEN_HOME_6_BIN,
-    UI_LEN_HOME_7_BIN,
-    UI_LEN_HOME_8_BIN,
-    UI_LEN_HOME_9_BIN,
+    UI_LEN_HOME_0_BIN, UI_LEN_HOME_1_BIN, UI_LEN_HOME_2_BIN, UI_LEN_HOME_3_BIN,
+    UI_LEN_HOME_4_BIN, UI_LEN_HOME_5_BIN, UI_LEN_HOME_6_BIN, UI_LEN_HOME_7_BIN,
+    UI_LEN_HOME_8_BIN, UI_LEN_HOME_9_BIN,
 };
 
 static const u32 tbl_home_icon_sel_addr[HOME_TAB_CNT] = {
@@ -213,13 +203,14 @@ static const u16 tbl_home_clock_id[HOME_CLOCK_IDX_CNT] = {
     COMPO_ID_PIC_CLOCK_M1,
 };
 
-static void func_home_colon_init(void)
+static void func_home_dash_runtime_init(void)
 {
-    if (home_colon_inited) {
+    if (home_dash_runtime_inited) {
         return;
     }
-    os_spiflash_read(home_colon_runtime, UI_BUF_HOME_COLON_BIN, UI_LEN_HOME_COLON_BIN);
-    home_colon_inited = true;
+    os_spiflash_read(home_dash_runtime_sel, UI_BUF_HOME_DASH_SEL_BIN, UI_LEN_HOME_DASH_SEL_BIN);
+    os_spiflash_read(home_dash_runtime_nor, UI_BUF_HOME_DASH_NOR_BIN, UI_LEN_HOME_DASH_NOR_BIN);
+    home_dash_runtime_inited = true;
 }
 
 static void func_home_status_icons_init(void)
@@ -334,18 +325,17 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
         return;
     }
 
-    func_home_colon_init();
-    if (gui_set_ram_check(home_colon_runtime, __func__)) {
-        compo_picturebox_set_ram(f_home->pic_clock_colon, home_colon_runtime);
+    os_spiflash_read(home_ui_colon_ram, UI_BUF_HOME_COLON_BIN, UI_LEN_HOME_COLON_BIN);
+    if (gui_set_ram_check(home_ui_colon_ram, __func__)) {
+        compo_picturebox_set_ram(f_home->pic_clock_colon, home_ui_colon_ram);
     }
 
     for (i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
         u8 d = digits[i];
-        u16 size = tbl_home_digit_len[d];
 
-        os_spiflash_read(home_digit_runtime[i], tbl_home_digit_addr[d], size);
-        if (gui_set_ram_check(home_digit_runtime[i], __func__)) {
-            compo_picturebox_set_ram(f_home->pic_clock[i], home_digit_runtime[i]);
+        os_spiflash_read(home_ui_digit_ram[i], tbl_home_digit_addr[d], tbl_home_digit_len[d]);
+        if (gui_set_ram_check(home_ui_digit_ram[i], __func__)) {
+            compo_picturebox_set_ram(f_home->pic_clock[i], home_ui_digit_ram[i]);
         }
     }
 
@@ -363,17 +353,9 @@ static void func_home_tab_icon_update(f_home_t *f_home, u8 idx)
     }
 
     os_spiflash_read(home_icon_runtime[idx], addr, len);
-    compo_picturebox_set_ram(f_home->tabs[idx].pic, home_icon_runtime[idx]);
-}
-
-static void func_home_dash_runtime_init(void)
-{
-    if (home_dash_runtime_inited) {
-        return;
+    if (gui_set_ram_check(home_icon_runtime[idx], __func__)) {
+        compo_picturebox_set_ram(f_home->tabs[idx].pic, home_icon_runtime[idx]);
     }
-    os_spiflash_read(home_dash_runtime_sel, UI_BUF_HOME_DASH_SEL_BIN, UI_LEN_HOME_DASH_SEL_BIN);
-    os_spiflash_read(home_dash_runtime_nor, UI_BUF_HOME_DASH_NOR_BIN, UI_LEN_HOME_DASH_NOR_BIN);
-    home_dash_runtime_inited = true;
 }
 
 static void func_home_tab_dash_update(f_home_t *f_home, u8 idx)
@@ -385,7 +367,9 @@ static void func_home_tab_dash_update(f_home_t *f_home, u8 idx)
         return;
     }
 
-    compo_picturebox_set_ram(f_home->tabs[idx].pic_dash, src);
+    if (gui_set_ram_check((void *)src, __func__)) {
+        compo_picturebox_set_ram(f_home->tabs[idx].pic_dash, src);
+    }
 }
 
 static const char * const tbl_home_tab_label[HOME_TAB_CNT] = {
@@ -449,7 +433,9 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic, tbl_home_tab_pic_id[idx]);
     os_spiflash_read(home_icon_runtime[idx], tbl_home_icon_nor_addr[idx], tbl_home_icon_nor_len[idx]);
-    compo_picturebox_set_ram(pic, home_icon_runtime[idx]);
+    if (gui_set_ram_check(home_icon_runtime[idx], __func__)) {
+        compo_picturebox_set_ram(pic, home_icon_runtime[idx]);
+    }
     compo_picturebox_set_pos(pic, x, HOME_TAB_ICON_Y);
     compo_picturebox_set_size(pic, HOME_TAB_ICON_SIZE, HOME_TAB_ICON_SIZE);
 
@@ -464,7 +450,9 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     pic_dash = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic_dash, tbl_home_tab_dash_id[idx]);
     func_home_dash_runtime_init();
-    compo_picturebox_set_ram(pic_dash, home_dash_runtime_nor);
+    if (gui_set_ram_check(home_dash_runtime_nor, __func__)) {
+        compo_picturebox_set_ram(pic_dash, home_dash_runtime_nor);
+    }
     compo_picturebox_set_pos(pic_dash, x, HOME_TAB_DASH_Y);
     compo_picturebox_set_size(pic_dash, HOME_TAB_DASH_W, HOME_TAB_DASH_H);
 
@@ -534,8 +522,12 @@ static void func_home_button_click(f_home_t *f_home)
 
     switch (id) {
     case COMPO_ID_TAB0_BTN:
-        f_home->tab = HOME_TAB_HEAT;
-        func_home_tab_refresh(f_home);
+        if (func_cb.sta == FUNC_HOME) {
+            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        } else {
+            f_home->tab = HOME_TAB_HEAT;
+            func_home_tab_refresh(f_home);
+        }
         break;
 
     case COMPO_ID_TAB1_BTN:
@@ -607,7 +599,7 @@ compo_form_t *func_home_form_create(void)
     return frm;
 }
 
-static void func_home_process(void)
+void func_home_process(void)
 {
     f_home_t *f_home = (f_home_t *)func_cb.f_cb;
 
@@ -617,7 +609,7 @@ static void func_home_process(void)
     func_process();
 }
 
-static void func_home_message(size_msg_t msg)
+void func_home_message(size_msg_t msg)
 {
     f_home_t *f_home = (f_home_t *)func_cb.f_cb;
 
