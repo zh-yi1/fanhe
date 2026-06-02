@@ -429,6 +429,7 @@ SECTIONS
         *(.disp.compo*)
         __disp_restore_end = .;
         *(.disp.temp_buf)
+        *(.disp.home_ram*)
         __disp_end = .;
     } > disp
     __disp_stack_size = __disp_end - __disp_start;

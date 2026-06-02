@@ -1382,6 +1382,9 @@
 		<Unit filename="functions/func_heartrate.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_home.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_light.c">
 			<Option compilerVar="CC" />
 		</Unit>
