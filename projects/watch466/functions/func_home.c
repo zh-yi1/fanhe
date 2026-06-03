@@ -2,6 +2,7 @@
 #include "func.h"
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
+#include "home_ui_shared.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -129,15 +130,6 @@ typedef struct f_home_t_ {
     home_tab_ui_t tabs[HOME_TAB_CNT];
 } f_home_t;
 
-static u8 home_icon_runtime[HOME_TAB_CNT][HOME_ICON_RAM_SIZE];
-static u8 home_status_bt_runtime[HOME_STATUS_BT_RAM_SIZE];
-static u8 home_status_lock_runtime[HOME_STATUS_LOCK_RAM_SIZE];
-static u8 home_status_bat_runtime[HOME_STATUS_BAT_RAM_SIZE];
-static u8 home_dash_runtime_sel[HOME_DASH_RAM_SIZE];
-static u8 home_dash_runtime_nor[HOME_DASH_RAM_SIZE];
-static bool home_status_icons_inited;
-static bool home_dash_runtime_inited;
-
 static u32 home_countdown_remain_sec;
 static bool home_countdown_running;
 
@@ -205,39 +197,28 @@ static const u16 tbl_home_clock_id[HOME_CLOCK_IDX_CNT] = {
 
 static void func_home_dash_runtime_init(void)
 {
-    if (home_dash_runtime_inited) {
-        return;
-    }
-    os_spiflash_read(home_dash_runtime_sel, UI_BUF_HOME_DASH_SEL_BIN, UI_LEN_HOME_DASH_SEL_BIN);
-    os_spiflash_read(home_dash_runtime_nor, UI_BUF_HOME_DASH_NOR_BIN, UI_LEN_HOME_DASH_NOR_BIN);
-    home_dash_runtime_inited = true;
+    home_ui_shared_dash_init();
 }
 
 static void func_home_status_icons_init(void)
 {
-    if (home_status_icons_inited) {
-        return;
-    }
-    os_spiflash_read(home_status_bt_runtime, UI_BUF_HOME_BLUETOOTH_BIN, UI_LEN_HOME_BLUETOOTH_BIN);
-    os_spiflash_read(home_status_lock_runtime, UI_BUF_HOME_LOCK_BIN, UI_LEN_HOME_LOCK_BIN);
-    os_spiflash_read(home_status_bat_runtime, UI_BUF_HOME_BATTERY_LEVEL_BIN, UI_LEN_HOME_BATTERY_LEVEL_BIN);
-    home_status_icons_inited = true;
+    home_ui_shared_status_init();
 }
 
 static void func_home_status_icons_apply(f_home_t *f_home)
 {
     func_home_status_icons_init();
 
-    if (f_home->pic_bt != NULL && gui_set_ram_check(home_status_bt_runtime, __func__)) {
-        compo_picturebox_set_ram(f_home->pic_bt, home_status_bt_runtime);
+    if (f_home->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
+        compo_picturebox_set_ram(f_home->pic_bt, home_ui_shared_status_bt_ram);
         compo_picturebox_set_size(f_home->pic_bt, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
     }
-    if (f_home->pic_lock != NULL && gui_set_ram_check(home_status_lock_runtime, __func__)) {
-        compo_picturebox_set_ram(f_home->pic_lock, home_status_lock_runtime);
+    if (f_home->pic_lock != NULL && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
     }
-    if (f_home->pic_bat != NULL && gui_set_ram_check(home_status_bat_runtime, __func__)) {
-        compo_picturebox_set_ram(f_home->pic_bat, home_status_bat_runtime);
+    if (f_home->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
+        compo_picturebox_set_ram(f_home->pic_bat, home_ui_shared_status_bat_ram);
         compo_picturebox_set_size(f_home->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
     }
 }
@@ -352,16 +333,16 @@ static void func_home_tab_icon_update(f_home_t *f_home, u8 idx)
         return;
     }
 
-    os_spiflash_read(home_icon_runtime[idx], addr, len);
-    if (gui_set_ram_check(home_icon_runtime[idx], __func__)) {
-        compo_picturebox_set_ram(f_home->tabs[idx].pic, home_icon_runtime[idx]);
+    os_spiflash_read(home_ui_shared_icon_runtime[idx], addr, len);
+    if (gui_set_ram_check(home_ui_shared_icon_runtime[idx], __func__)) {
+        compo_picturebox_set_ram(f_home->tabs[idx].pic, home_ui_shared_icon_runtime[idx]);
     }
 }
 
 static void func_home_tab_dash_update(f_home_t *f_home, u8 idx)
 {
     bool selected = (idx == f_home->tab);
-    const u8 *src = selected ? home_dash_runtime_sel : home_dash_runtime_nor;
+    const u8 *src = selected ? home_ui_shared_dash_runtime_sel : home_ui_shared_dash_runtime_nor;
 
     if (f_home->tabs[idx].pic_dash == NULL) {
         return;
@@ -432,9 +413,9 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
 
     pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic, tbl_home_tab_pic_id[idx]);
-    os_spiflash_read(home_icon_runtime[idx], tbl_home_icon_nor_addr[idx], tbl_home_icon_nor_len[idx]);
-    if (gui_set_ram_check(home_icon_runtime[idx], __func__)) {
-        compo_picturebox_set_ram(pic, home_icon_runtime[idx]);
+    os_spiflash_read(home_ui_shared_icon_runtime[idx], tbl_home_icon_nor_addr[idx], tbl_home_icon_nor_len[idx]);
+    if (gui_set_ram_check(home_ui_shared_icon_runtime[idx], __func__)) {
+        compo_picturebox_set_ram(pic, home_ui_shared_icon_runtime[idx]);
     }
     compo_picturebox_set_pos(pic, x, HOME_TAB_ICON_Y);
     compo_picturebox_set_size(pic, HOME_TAB_ICON_SIZE, HOME_TAB_ICON_SIZE);
@@ -450,8 +431,8 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     pic_dash = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic_dash, tbl_home_tab_dash_id[idx]);
     func_home_dash_runtime_init();
-    if (gui_set_ram_check(home_dash_runtime_nor, __func__)) {
-        compo_picturebox_set_ram(pic_dash, home_dash_runtime_nor);
+    if (gui_set_ram_check(home_ui_shared_dash_runtime_nor, __func__)) {
+        compo_picturebox_set_ram(pic_dash, home_ui_shared_dash_runtime_nor);
     }
     compo_picturebox_set_pos(pic_dash, x, HOME_TAB_DASH_Y);
     compo_picturebox_set_size(pic_dash, HOME_TAB_DASH_W, HOME_TAB_DASH_H);
@@ -531,9 +512,12 @@ static void func_home_button_click(f_home_t *f_home)
         break;
 
     case COMPO_ID_TAB1_BTN:
-        f_home->tab = HOME_TAB_MODE;
-        func_home_tab_refresh(f_home);
-        func_switch_to(FUNC_MENU, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        if (func_cb.sta == FUNC_HOME) {
+            func_switch_to(FUNC_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        } else {
+            f_home->tab = HOME_TAB_MODE;
+            func_home_tab_refresh(f_home);
+        }
         break;
 
     case COMPO_ID_TAB2_BTN:
@@ -651,7 +635,7 @@ void func_home_enter(void)
     func_home_tab_bind(f_home, HOME_TAB_SETUP, COMPO_ID_TAB2_SEL_BG);
 
     func_home_status_icons_apply(f_home);
-    func_home_countdown_set(0, 5);
+    func_home_countdown_set(90, 5);
     func_home_countdown_start();
 
     func_home_tab_refresh(f_home);

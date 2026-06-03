@@ -1388,6 +1388,9 @@
 		<Unit filename="functions/func_home.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/home_ui_shared.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/home_ui_ram.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1395,6 +1398,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_map.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_mode.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_menu.c">

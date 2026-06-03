@@ -2,6 +2,7 @@
 #include "func.h"
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
+#include "home_ui_shared.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -82,12 +83,8 @@ typedef struct f_heat_t_ {
     compo_picturebox_t *pic_bat;
 } f_heat_t;
 
-static u8 heat_status_bt_ram[HOME_STATUS_BT_RAM_SIZE];
-static u8 heat_status_lock_ram[HOME_STATUS_LOCK_RAM_SIZE];
-static u8 heat_status_bat_ram[HOME_STATUS_BAT_RAM_SIZE];
 static u8 heat_temp_digit_ram[HEAT_TEMP_IDX_CNT][HOME_DIGIT_GREY_RAM_MAX_SIZE];
 static u8 heat_temp_degf_ram[HOME_TEMPF_RAM_SIZE];
-static bool heat_status_icons_inited;
 
 static u32 heat_countdown_remain_sec;
 static bool heat_countdown_running;
@@ -127,29 +124,23 @@ static const u16 tbl_heat_temp_id[HEAT_TEMP_IDX_CNT] = {
 
 static void func_heat_status_icons_init(void)
 {
-    if (heat_status_icons_inited) {
-        return;
-    }
-    os_spiflash_read(heat_status_bt_ram, UI_BUF_HOME_BLUETOOTH_BIN, UI_LEN_HOME_BLUETOOTH_BIN);
-    os_spiflash_read(heat_status_lock_ram, UI_BUF_HOME_LOCK_BIN, UI_LEN_HOME_LOCK_BIN);
-    os_spiflash_read(heat_status_bat_ram, UI_BUF_HOME_BATTERY_LEVEL_BIN, UI_LEN_HOME_BATTERY_LEVEL_BIN);
-    heat_status_icons_inited = true;
+    home_ui_shared_status_init();
 }
 
 static void func_heat_status_icons_apply(f_heat_t *f_heat)
 {
     func_heat_status_icons_init();
 
-    if (f_heat->pic_bt != NULL && gui_set_ram_check(heat_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f_heat->pic_bt, heat_status_bt_ram);
+    if (f_heat->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
+        compo_picturebox_set_ram(f_heat->pic_bt, home_ui_shared_status_bt_ram);
         compo_picturebox_set_size(f_heat->pic_bt, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
     }
-    if (f_heat->pic_lock != NULL && gui_set_ram_check(heat_status_lock_ram, __func__)) {
-        compo_picturebox_set_ram(f_heat->pic_lock, heat_status_lock_ram);
+    if (f_heat->pic_lock != NULL && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_heat->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_heat->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
     }
-    if (f_heat->pic_bat != NULL && gui_set_ram_check(heat_status_bat_ram, __func__)) {
-        compo_picturebox_set_ram(f_heat->pic_bat, heat_status_bat_ram);
+    if (f_heat->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
+        compo_picturebox_set_ram(f_heat->pic_bat, home_ui_shared_status_bat_ram);
         compo_picturebox_set_size(f_heat->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
     }
 }

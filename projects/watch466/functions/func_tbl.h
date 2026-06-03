@@ -85,6 +85,7 @@ compo_form_t *func_compo_select_sub_form_create(void);
 compo_form_t *func_debug_info_form_create(void);
 compo_form_t *func_home_form_create(void);
 compo_form_t *func_heat_form_create(void);
+compo_form_t *func_mode_form_create(void);
 compo_form_t * func_smartstack_form_create(void);
 compo_form_t *func_music_form_create(void);
 #if BT_EMIT_EN
@@ -193,6 +194,7 @@ const func_t tbl_func_create[] = {
     {FUNC_DEBUG_INFO,                   func_debug_info_form_create},
     {FUNC_HEAT,                         func_heat_form_create},
     {FUNC_HOME,                         func_home_form_create},
+    {FUNC_MODE,                         func_mode_form_create},
     {FUNC_SMARTSTACK,                   func_smartstack_form_create},
 #if BT_EMIT_EN
     {FUNC_MUSIC_SRC,                    func_music_src_form_create},
@@ -311,6 +313,7 @@ extern void func_charge(void);
 extern void func_debug_info(void);
 extern void func_home(void);
 extern void func_heat(void);
+extern void func_mode(void);
 void func_home_process(void);
 void func_home_message(size_msg_t msg);
 
@@ -429,6 +432,7 @@ const func_t tbl_func_entry[] = {
     {FUNC_DEBUG_INFO,                   func_debug_info},               //DEBUG
     {FUNC_HEAT,                         func_heat},                     //加热页
     {FUNC_HOME,                         func_home},                     //默认主页
+    {FUNC_MODE,                         func_mode},                     //模式页
     {FUNC_SMARTSTACK,                   func_smartstack},               //智能堆栈
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt},
@@ -624,6 +628,12 @@ void func_take_photo_enter(void);
 void func_gif_enter(void);
 void func_heat_enter(void);
 void func_heat_exit(void);
+void func_mode_enter(void);
+void func_mode_exit(void);
+void func_mode_countdown_set(u8 hour, u8 min);
+void func_mode_countdown_start(void);
+void func_mode_countdown_stop(void);
+void func_mode_temp_set_f(u16 temp_f);
 void func_home_enter(void);
 void func_heat_countdown_set(u8 hour, u8 min);
 void func_heat_countdown_start(void);
@@ -702,8 +712,9 @@ const func_t tbl_func_enter[] = {
     {FUNC_SET_SUB_OFF,                  func_set_sub_off_enter},              //设置--关机
     {FUNC_CHARGE,                       func_charge_enter},                   //充电
     {FUNC_DEBUG_INFO,                   func_debug_enter},               //DEBUG
-    {FUNC_HEAT,                         func_heat_enter},                //加热主页
+    {FUNC_HEAT,                         func_heat_enter},                //加热页
     {FUNC_HOME,                         func_home_enter},               //默认主页
+    {FUNC_MODE,                         func_mode_enter},               //模式页
     {FUNC_SMARTSTACK,                   func_smartstack_enter},               //智能堆栈
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt_enter},
@@ -967,8 +978,9 @@ const func_t tbl_func_exit[] = {
     {FUNC_SET_SUB_OFF,                  func_set_sub_off_exit},              //设置--关机
     {FUNC_CHARGE,                       func_charge_exit},                   //充电
     {FUNC_DEBUG_INFO,                   func_debug_info_exit},               //DEBUG
-    {FUNC_HEAT,                         func_heat_exit},                    //加热主页
+    {FUNC_HEAT,                         func_heat_exit},                    //加热页
     {FUNC_HOME,                         func_home_exit},                    //默认主页
+    {FUNC_MODE,                         func_mode_exit},                    //模式页
     {FUNC_SMARTSTACK,                   func_smartstack_exit},               //智能堆栈
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt_exit},

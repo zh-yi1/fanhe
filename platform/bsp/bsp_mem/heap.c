@@ -10,7 +10,12 @@ typedef struct {
     uint32_t free_biggest_size;
 } mem_monitor_t;
 
-extern u32 __dynamic_pool_start, __dynamic_pool_size;
+extern u32 __dynamic_pool_start, __dynamic_pool_end;
+
+static u32 customer_dynamic_pool_size(void)
+{
+    return (u32)&__dynamic_pool_end - (u32)&__dynamic_pool_start;
+}
 
 // clang-format off
 static tlsf_t sys_tlsf;
@@ -29,8 +34,9 @@ void customer_heap_init_do(void *buf, u32 size)
 
 void customer_heap_init(void)
 {
-    u32 size = min((u32)&__dynamic_pool_size, MAX_HEAP_SIZE);
-    printf("dynamic_pool:0x%x, 0x%x, use max size:0x%x\n", &__dynamic_pool_start, &__dynamic_pool_size, size);
+    u32 pool_size = customer_dynamic_pool_size();
+    u32 size = min(pool_size, MAX_HEAP_SIZE);
+    printf("dynamic_pool:0x%x, 0x%x, use max size:0x%x\n", (u32)&__dynamic_pool_start, pool_size, size);
     memset((void *)&__dynamic_pool_start, 0, size);
     customer_heap_init_do((void *)&__dynamic_pool_start, size);
 //    printf("%s end\n", __func__);
@@ -124,6 +130,7 @@ void mem_monitor_run(void)
 
     mem_monitor_t mon = {0};
     tlsf_walk_pool(tlsf_get_pool(sys_tlsf), mem_walker, &mon);
-    printf("### ram inof: use:%d%%, frag:%d%%, free size: 0x%x, used size: 0x%x\n", mon.used_size * 100U / (u32)&__dynamic_pool_size, 100 - (mon.free_biggest_size * 100U / mon.free_size), mon.free_size, mon.used_size);
+    u32 pool_size = customer_dynamic_pool_size();
+    printf("### ram inof: use:%d%%, frag:%d%%, free size: 0x%x, used size: 0x%x\n", pool_size ? mon.used_size * 100U / pool_size : 0, 100 - (mon.free_biggest_size * 100U / mon.free_size), mon.free_size, mon.used_size);
 }
 

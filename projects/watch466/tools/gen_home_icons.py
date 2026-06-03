@@ -18,7 +18,12 @@ DASH_H = 3
 DIGIT_W = 48
 DIGIT_H = 82
 COLON_W = 24
+STATUS_TEMP_DIGIT_W = 28
+STATUS_TEMP_DIGIT_H = 48
+STATUS_TEMPF_W = 36
+STATUS_TEMPF_H = 36
 FG_GREY = (140, 140, 140)
+FG_GREEN = (0, 220, 80)
 ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT / "res" / "home"
 BIN_DIR = ROOT / "Output" / "bin" / "ui" / "home"
@@ -32,6 +37,12 @@ ICON_ITEMS = [
     ("HEAT_ONE.png", "heat"),
     ("MODE_ONE.png", "mode"),
     ("SETUP_ONE.png", "setup"),
+]
+
+MODE_TAB_ITEMS = [
+    ("Pasta.png", "pasta"),
+    ("Chicken.png", "chicken"),
+    ("Warm.png", "warm"),
 ]
 
 STATUS_ITEMS = [
@@ -101,6 +112,82 @@ def png_native_to_gpu(path: Path) -> tuple[bytes, int, int]:
     return bytes(buf), w, h
 
 
+def digit_png_to_gpu_tint_sized(path: Path, fg_rgb, width: int, height: int) -> bytes:
+    im = Image.open(path).convert("RGBA")
+    src_w, src_h = im.size
+    scale = min(width / src_w, height / src_h)
+    new_w = max(1, round(src_w * scale))
+    new_h = max(1, round(src_h * scale))
+    im = im.resize((new_w, new_h), Image.Resampling.NEAREST)
+    canvas = Image.new("RGBA", (width, height), (0, 0, 0, 255))
+    canvas.paste(im, ((width - new_w) // 2, (height - new_h) // 2), im)
+    px = canvas.load()
+    bg = rgba565(*BG_BLACK)
+    fg = rgba565(*fg_rgb)
+    buf = bytearray()
+    buf += struct.pack("<IHH", 0x24150, width, height)
+    for y in range(height):
+        for x in range(width):
+            r, g, b, a = px[x, y]
+            c = bg if a < 32 else fg
+            buf += struct.pack("<H", c)
+    return bytes(buf)
+
+
+def symbol_png_to_gpu_tint_sized(path: Path, fg_rgb, width: int, height: int) -> tuple[bytes, int, int]:
+    im = Image.open(path).convert("RGBA")
+    im = im.resize((width, height), Image.Resampling.LANCZOS)
+    px = im.load()
+    bg = rgba565(*BG_BLACK)
+    fg = rgba565(*fg_rgb)
+    buf = bytearray()
+    buf += struct.pack("<IHH", 0x24150, width, height)
+    for y in range(height):
+        for x in range(width):
+            r, g, b, a = px[x, y]
+            c = bg if a < 32 else fg
+            buf += struct.pack("<H", c)
+    return bytes(buf), width, height
+
+
+def digit_png_to_gpu_tint(path: Path, fg_rgb) -> bytes:
+    im = Image.open(path).convert("RGBA")
+    src_w, src_h = im.size
+    scale = min(DIGIT_W / src_w, DIGIT_H / src_h)
+    new_w = max(1, round(src_w * scale))
+    new_h = max(1, round(src_h * scale))
+    im = im.resize((new_w, new_h), Image.Resampling.NEAREST)
+    canvas = Image.new("RGBA", (DIGIT_W, DIGIT_H), (0, 0, 0, 255))
+    canvas.paste(im, ((DIGIT_W - new_w) // 2, (DIGIT_H - new_h) // 2), im)
+    px = canvas.load()
+    bg = rgba565(*BG_BLACK)
+    fg = rgba565(*fg_rgb)
+    buf = bytearray()
+    buf += struct.pack("<IHH", 0x24150, DIGIT_W, DIGIT_H)
+    for y in range(DIGIT_H):
+        for x in range(DIGIT_W):
+            r, g, b, a = px[x, y]
+            c = bg if a < 32 else fg
+            buf += struct.pack("<H", c)
+    return bytes(buf)
+
+
+def symbol_png_to_gpu_tint(path: Path, fg_rgb) -> tuple[bytes, int, int]:
+    im = Image.open(path).convert("RGBA")
+    w, h = im.size
+    px = im.load()
+    bg = rgba565(*BG_BLACK)
+    fg = rgba565(*fg_rgb)
+    buf = bytearray()
+    buf += struct.pack("<IHH", 0x24150, w, h)
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            c = bg if a < 32 else fg
+            buf += struct.pack("<H", c)
+    return bytes(buf), w, h
+
+
 def digit_png_to_gpu(path: Path) -> bytes:
     im = Image.open(path).convert("RGBA")
     src_w, src_h = im.size
@@ -158,10 +245,15 @@ def cleanup_obsolete_bins() -> None:
     for fname, stem in ICON_ITEMS:
         keep.add(f"{stem}_sel.bin")
         keep.add(f"{stem}_nor.bin")
-    keep.update(["dash_sel.bin", "dash_nor.bin", "colon.bin", "colon_g.bin"])
+    for _, stem in MODE_TAB_ITEMS:
+        keep.add(f"{stem}_sel.bin")
+        keep.add(f"{stem}_nor.bin")
+    keep.update(["dash_sel.bin", "dash_nor.bin", "colon.bin", "colon_g.bin", "degf_gr.bin", "degf_gr_t.bin"])
     for d in range(10):
         keep.add(f"{d}.bin")
         keep.add(f"{d}_g.bin")
+        keep.add(f"{d}_gr.bin")
+        keep.add(f"{d}_gr_t.bin")
     for _, stem in STATUS_ITEMS:
         keep.add(f"{stem}.bin")
     for _, stem in SYMBOL_ITEMS:
@@ -176,12 +268,22 @@ def main():
     ensure_src_layout()
     digit_max_size = 0
     digit_grey_max_size = 0
+    digit_green_max_size = 0
+    digit_green_t_max_size = 0
     colon_size = 0
     colon_grey_size = 0
     status_sizes = {}
     symbol_sizes = {}
 
     for fname, stem in ICON_ITEMS:
+        path = SRC_DIR / fname
+        if not path.exists():
+            raise SystemExit(f"missing {path}")
+        for suffix, bg in (("sel", BG_BLUE), ("nor", BG_BLACK)):
+            data = png_to_gpu(path, ICON_SIZE, ICON_SIZE, bg, FG_WHITE)
+            write_bin(f"{stem}_{suffix}.bin", data, fname)
+
+    for fname, stem in MODE_TAB_ITEMS:
         path = SRC_DIR / fname
         if not path.exists():
             raise SystemExit(f"missing {path}")
@@ -214,6 +316,14 @@ def main():
         write_bin(f"{d}_g.bin", data_g, f"{d}-1.png")
         digit_grey_max_size = max(digit_grey_max_size, len(data_g))
 
+        data_gr = digit_png_to_gpu_tint(path, FG_GREEN)
+        write_bin(f"{d}_gr.bin", data_gr, f"{d}.png (green)")
+        digit_green_max_size = max(digit_green_max_size, len(data_gr))
+
+        data_gr_t = digit_png_to_gpu_tint_sized(path, FG_GREEN, STATUS_TEMP_DIGIT_W, STATUS_TEMP_DIGIT_H)
+        write_bin(f"{d}_gr_t.bin", data_gr_t, f"{d}.png (green small)")
+        digit_green_t_max_size = max(digit_green_t_max_size, len(data_gr_t))
+
     colon_data = colon_to_gpu(FG_WHITE)
     write_bin("colon.bin", colon_data, "(generated white)")
     colon_size = len(colon_data)
@@ -238,10 +348,24 @@ def main():
         write_bin(f"{stem}.bin", data, fname)
         symbol_sizes[stem] = (sw, sh, len(data))
 
+    vector_path = SRC_DIR / "Vector.png"
+    if not vector_path.exists():
+        raise SystemExit(f"missing {vector_path}")
+    degf_gr_data, degf_gr_w, degf_gr_h = symbol_png_to_gpu_tint(vector_path, FG_GREEN)
+    write_bin("degf_gr.bin", degf_gr_data, "Vector.png (green)")
+    symbol_sizes["degf_gr"] = (degf_gr_w, degf_gr_h, len(degf_gr_data))
+
+    degf_gr_t_data, degf_gr_t_w, degf_gr_t_h = symbol_png_to_gpu_tint_sized(
+        vector_path, FG_GREEN, STATUS_TEMPF_W, STATUS_TEMPF_H)
+    write_bin("degf_gr_t.bin", degf_gr_t_data, "Vector.png (green small)")
+    symbol_sizes["degf_gr_t"] = (degf_gr_t_w, degf_gr_t_h, len(degf_gr_t_data))
+
     bt_w, bt_h, _ = status_sizes["bluetooth"]
     lock_w, lock_h, _ = status_sizes["lock"]
     bat_w, bat_h, _ = status_sizes["battery_level"]
     degf_g_w, degf_g_h, degf_g_size = symbol_sizes["degf_g"]
+    degf_gr_w, degf_gr_h, degf_gr_size = symbol_sizes["degf_gr"]
+    degf_gr_t_w, degf_gr_t_h, degf_gr_t_size = symbol_sizes["degf_gr_t"]
 
     OUT_H.write_text(
         "#ifndef _HOME_ICON_RES_H\n"
@@ -258,6 +382,8 @@ def main():
         f"#define HOME_DIGIT_MAX_W                {DIGIT_W}\n"
         f"#define HOME_DIGIT_RAM_MAX_SIZE         {digit_max_size}\n"
         f"#define HOME_DIGIT_GREY_RAM_MAX_SIZE    {digit_grey_max_size}\n"
+        f"#define HOME_DIGIT_GREEN_RAM_MAX_SIZE   {digit_green_max_size}\n"
+        f"#define HOME_DIGIT_GREEN_T_RAM_MAX_SIZE {digit_green_t_max_size}\n"
         f"#define HOME_COLON_W                    {COLON_W}\n"
         f"#define HOME_COLON_H                    {DIGIT_H}\n"
         f"#define HOME_COLON_RAM_SIZE             {colon_size}\n"
@@ -265,6 +391,18 @@ def main():
         f"#define HOME_TEMPF_W                    {degf_g_w}\n"
         f"#define HOME_TEMPF_H                    {degf_g_h}\n"
         f"#define HOME_TEMPF_RAM_SIZE             {degf_g_size}\n\n"
+        f"#define HOME_TEMPF_GR_W                 {degf_gr_w}\n"
+        f"#define HOME_TEMPF_GR_H                 {degf_gr_h}\n"
+        f"#define HOME_TEMPF_GR_RAM_SIZE          {degf_gr_size}\n\n"
+        f"#define HOME_STATUS_TEMP_DIGIT_W        {STATUS_TEMP_DIGIT_W}\n"
+        f"#define HOME_STATUS_TEMP_DIGIT_H        {STATUS_TEMP_DIGIT_H}\n"
+        f"#define HOME_STATUS_TEMPF_W             {STATUS_TEMPF_W}\n"
+        f"#define HOME_STATUS_TEMPF_H             {STATUS_TEMPF_H}\n"
+        f"#define HOME_STATUS_TEMPF_GR_T_RAM_SIZE {degf_gr_t_size}\n\n"
+        f"#define MODE_STATUS_TEMP_DIGIT_W        HOME_STATUS_TEMP_DIGIT_W\n"
+        f"#define MODE_STATUS_TEMP_DIGIT_H        HOME_STATUS_TEMP_DIGIT_H\n"
+        f"#define MODE_STATUS_TEMPF_W             HOME_STATUS_TEMPF_W\n"
+        f"#define MODE_STATUS_TEMPF_H             HOME_STATUS_TEMPF_H\n\n"
         f"#define HOME_STATUS_BT_W                {bt_w}\n"
         f"#define HOME_STATUS_BT_H                {bt_h}\n"
         f"#define HOME_STATUS_LOCK_W              {lock_w}\n"
@@ -279,6 +417,9 @@ def main():
     )
     print("written:", OUT_H)
     cleanup_obsolete_bins()
+    for png in BIN_DIR.glob("*.png"):
+        png.unlink()
+        print(f"removed {png.name} from ui/home (use .bin only for prebuild)")
     print("\nNext: run Output/bin/prebuild.bat, then rebuild and flash ui.bin + app.bin")
 
 
