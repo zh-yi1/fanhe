@@ -36,17 +36,17 @@ compo_form_t *func_bt_ring_form_create(void)
     msg_enqueue(EVT_CALL_NUMBER_UPDATE);
 
     //接听
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_ANSWER_BIN);
+   // btn = compo_button_create_by_image(frm, UI_BUF_CALL_ANSWER_BIN);
     compo_setid(btn, COMPO_ID_BTN_ANSWER);
     compo_button_set_pos(btn, 344, 337);
 
     //挂断
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
+    //btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
     compo_setid(btn, COMPO_ID_BTN_REJECT);
     compo_button_set_pos(btn, 122, 337);
 
     //信息按钮
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_MES_BIN);
+    //btn = compo_button_create_by_image(frm, UI_BUF_CALL_MES_BIN);
     compo_setid(btn, COMPO_ID_BTN_MSG);
     compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 377);
     compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA1); //// 180跟原来的更接近

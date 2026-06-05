@@ -20,11 +20,11 @@ enum {
 
 //图片资源
 static const u32 tbl_body[] = {
-    UI_BUF_DIALPLATE_FISH_BODY1_BIN,
-    UI_BUF_DIALPLATE_FISH_BODY2_BIN,
-    UI_BUF_DIALPLATE_FISH_BODY3_BIN,
-    UI_BUF_DIALPLATE_FISH_BODY4_BIN,
-    UI_BUF_DIALPLATE_FISH_BODY5_BIN,
+    // UI_BUF_DIALPLATE_FISH_BODY1_BIN,
+    // UI_BUF_DIALPLATE_FISH_BODY2_BIN,
+    // UI_BUF_DIALPLATE_FISH_BODY3_BIN,
+    // UI_BUF_DIALPLATE_FISH_BODY4_BIN,
+    // UI_BUF_DIALPLATE_FISH_BODY5_BIN,
 };
 
 #if FISH_SHADOW_EN
@@ -44,14 +44,14 @@ compo_form_t* func_clock_fish_form_create(void)
     compo_form_t* frm = compo_form_create(true);
 
     //新建图像
-    compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_FISH_POOL_BIN);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_picturebox_set_size(pic, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT); //原图适配320的，这里拉伸下
+    // compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_FISH_POOL_BIN);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // compo_picturebox_set_size(pic, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT); //原图适配320的，这里拉伸下
 
-    pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_FISH_PLANT_BIN);
-    area_t area = widget_image_get_size(pic->img);
-    compo_picturebox_set_pos(pic, area.wid >> 1, GUI_SCREEN_HEIGHT - (area.hei >> 1));  //左下角
-    compo_setid(pic, COMPO_ID_PLANT);
+    // pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_FISH_PLANT_BIN);
+    // area_t area = widget_image_get_size(pic->img);
+    // compo_picturebox_set_pos(pic, area.wid >> 1, GUI_SCREEN_HEIGHT - (area.hei >> 1));  //左下角
+    // compo_setid(pic, COMPO_ID_PLANT);
 
     if (func_cb.sta == FUNC_CLOCK) {
         f_clock_t *f_clk = (f_clock_t *)func_cb.f_cb;

@@ -19,18 +19,18 @@ typedef struct f_sport_list_t_ {
 } f_sport_list_t;
 
 static const compo_listbox_item_t tbl_sport_list[] = {
-    {STR_INDOOR_RUN,            UI_BUF_SPORT_BEFORE_EXERCISE_INDOOR_RUNNING_BIN,     .func_sta = FUNC_SPORT_SWITCH},                 //运动
-    {STR_RUN,                   UI_BUF_SPORT_BEFORE_EXERCISE_RUN_BIN,                .func_sta = FUNC_SPORT_SWITCH},
-    {STR_FOOTBALL,              UI_BUF_SPORT_BEFORE_EXERCISE_FOOTBALL_BIN,           .func_sta = FUNC_SPORT_SWITCH},                 //运动
-    {STR_INDOOR_CYCLING,        UI_BUF_SPORT_BEFORE_EXERCISE_INDOOR_CYCLING_BIN,     .func_sta = FUNC_SPORT_SWITCH},                 //运动
-    {STR_OUTDOOR_CYCLING,       UI_BUF_SPORT_BEFORE_EXERCISE_OUTDOOR_CYCLING_BIN,    .func_sta = FUNC_SPORT_SWITCH},                 //运动
-    {STR_SWIM,                  UI_BUF_SPORT_BEFORE_EXERCISE_SWIM_BIN,               .func_sta = FUNC_SPORT_SWITCH},                 //运动
-    {STR_WALK,                  UI_BUF_SPORT_BEFORE_EXERCISE_WALK_BIN,               .func_sta = FUNC_SPORT_SWITCH},
+    // {STR_INDOOR_RUN,            UI_BUF_SPORT_BEFORE_EXERCISE_INDOOR_RUNNING_BIN,     .func_sta = FUNC_SPORT_SWITCH},                 //运动
+    // {STR_RUN,                   UI_BUF_SPORT_BEFORE_EXERCISE_RUN_BIN,                .func_sta = FUNC_SPORT_SWITCH},
+    // {STR_FOOTBALL,              UI_BUF_SPORT_BEFORE_EXERCISE_FOOTBALL_BIN,           .func_sta = FUNC_SPORT_SWITCH},                 //运动
+    // {STR_INDOOR_CYCLING,        UI_BUF_SPORT_BEFORE_EXERCISE_INDOOR_CYCLING_BIN,     .func_sta = FUNC_SPORT_SWITCH},                 //运动
+    // {STR_OUTDOOR_CYCLING,       UI_BUF_SPORT_BEFORE_EXERCISE_OUTDOOR_CYCLING_BIN,    .func_sta = FUNC_SPORT_SWITCH},                 //运动
+    // {STR_SWIM,                  UI_BUF_SPORT_BEFORE_EXERCISE_SWIM_BIN,               .func_sta = FUNC_SPORT_SWITCH},                 //运动
+    // {STR_WALK,                  UI_BUF_SPORT_BEFORE_EXERCISE_WALK_BIN,               .func_sta = FUNC_SPORT_SWITCH},
 };
 
 u8 func_sport_get_str_idx()
 {
-    return tbl_sport_list[sys_cb.sport_idx].str_idx;
+ //   return tbl_sport_list[sys_cb.sport_idx].str_idx;
 }
 
 //创建运动窗体，创建窗体中不要使用功能结构体 func_cb.f_cb
@@ -40,20 +40,20 @@ compo_form_t *func_sport_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_SPORTS]);
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_SPORTS]);
 
-    //新建菜单列表
-    compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_MENU_NORMAL);
-    area_t area = gui_image_get_size(UI_BUF_SPORT_BEFORE_EXERCISE_BG_BIN);
-    compo_listbox_set_item_width(listbox, area.wid);
-    compo_listbox_set(listbox, tbl_sport_list, MENU_LIST_CNT);
-    compo_listbox_set_bgimg(listbox, UI_BUF_SPORT_BEFORE_EXERCISE_BG_BIN);
-    compo_setid(listbox, COMPO_ID_LISTBOX);
+    // //新建菜单列表
+    // compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_MENU_NORMAL);
+    // area_t area = gui_image_get_size(UI_BUF_SPORT_BEFORE_EXERCISE_BG_BIN);
+    // compo_listbox_set_item_width(listbox, area.wid);
+    // compo_listbox_set(listbox, tbl_sport_list, MENU_LIST_CNT);
+    // compo_listbox_set_bgimg(listbox, UI_BUF_SPORT_BEFORE_EXERCISE_BG_BIN);
+    // compo_setid(listbox, COMPO_ID_LISTBOX);
 
-    compo_listbox_set_focus(listbox, 140);
-    compo_listbox_update(listbox);
+    // compo_listbox_set_focus(listbox, 140);
+    // compo_listbox_update(listbox);
 
     return frm;
 }

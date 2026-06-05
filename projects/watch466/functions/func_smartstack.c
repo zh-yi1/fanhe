@@ -112,11 +112,11 @@ static void func_smartstack_sub_heart(compo_cardbox_t *cardbox, u8 icon_offset, 
 static void func_smartstack_sub_sleep(compo_cardbox_t *cardbox, u8 icon_offset, u8 text_offset)
 {
     u8 i;
-    u32 pic[] = {UI_BUF_SLEEP_LIGHT_SLEEP_BIN, UI_BUF_SLEEP_LIGHT_SLEEP_BIN};
+//    u32 pic[] = {UI_BUF_SLEEP_LIGHT_SLEEP_BIN, UI_BUF_SLEEP_LIGHT_SLEEP_BIN};
 
     //icon
     for (i = 0; i < 2; i++) {
-        compo_cardbox_icon_set(cardbox, i + icon_offset, pic[i]);
+//        compo_cardbox_icon_set(cardbox, i + icon_offset, pic[i]);
         compo_cardbox_icon_set_location(cardbox, i + icon_offset, card_icon.x, card_icon.y + card_icon.hei * (i + icon_offset - 1), card_icon.wid, card_icon.hei);
         compo_cardbox_icon_set_visible(cardbox, i + icon_offset, true);
 
@@ -146,20 +146,20 @@ static void func_smartstack_sub_spo2(compo_cardbox_t *cardbox, u8 icon_offset, u
 static void func_smartstack_sub_music(compo_cardbox_t *cardbox, u8 icon_offset, u8 text_offset)
 {
     if (icon_offset < CARD_ICON_COUNT_MAX) {
-        compo_cardbox_icon_set(cardbox, icon_offset, UI_BUF_MUSIC_PREV_BIN);
+  //      compo_cardbox_icon_set(cardbox, icon_offset, UI_BUF_MUSIC_PREV_BIN);
         widget_set_alpha(cardbox->icon[icon_offset], UI_BTN_CLICK_EFFECT_ALPHA1);
         compo_cardbox_icon_set_location(cardbox, icon_offset, card_icon.x, card_icon.y + card_icon.hei, card_icon.wid, card_icon.hei);
         compo_cardbox_icon_set_visible(cardbox, icon_offset, true);
     }
     icon_offset ++;
     if (icon_offset < CARD_ICON_COUNT_MAX) {
-        compo_cardbox_icon_set(cardbox, icon_offset, UI_BUF_MUSIC_PAUSE_BIN);
+  //      compo_cardbox_icon_set(cardbox, icon_offset, UI_BUF_MUSIC_PAUSE_BIN);
         compo_cardbox_icon_set_location(cardbox, icon_offset, 0, card_icon.y + card_icon.hei, card_icon.wid + 10, card_icon.hei + 10);
         compo_cardbox_icon_set_visible(cardbox, icon_offset, true);
     }
     icon_offset ++;
     if (icon_offset < CARD_ICON_COUNT_MAX) {
-        compo_cardbox_icon_set(cardbox, icon_offset, UI_BUF_MUSIC_NEXT_BIN);
+    //    compo_cardbox_icon_set(cardbox, icon_offset, UI_BUF_MUSIC_NEXT_BIN);
         widget_set_alpha(cardbox->icon[icon_offset], UI_BTN_CLICK_EFFECT_ALPHA1);
         compo_cardbox_icon_set_location(cardbox, icon_offset, abs_s(card_icon.x), card_icon.y + card_icon.hei, card_icon.wid, card_icon.hei);
         compo_cardbox_icon_set_visible(cardbox, icon_offset, true);

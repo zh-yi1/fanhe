@@ -72,9 +72,9 @@ compo_form_t *func_clock_butterfly_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     compo_butterfly_res_t btf_res;
-    btf_res.res_body = UI_BUF_DIALPLATE_BUTTERFLY_BODY_BIN;
-    btf_res.res_wing_down = UI_BUF_DIALPLATE_BUTTERFLY_DOWN_BIN;
-    btf_res.res_wing_up = UI_BUF_DIALPLATE_BUTTERFLY_UP_BIN;
+    //btf_res.res_body = UI_BUF_DIALPLATE_BUTTERFLY_BODY_BIN;
+    // btf_res.res_wing_down = UI_BUF_DIALPLATE_BUTTERFLY_DOWN_BIN;
+    // btf_res.res_wing_up = UI_BUF_DIALPLATE_BUTTERFLY_UP_BIN;
 
     compo_butterfly_t *btfly = compo_butterfly_create(frm, &btf_res);
     compo_butterfly_set_pos(btfly, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y + BTF_Y_POS);
@@ -82,10 +82,10 @@ compo_form_t *func_clock_butterfly_form_create(void)
 
     //新建光晕泡泡
     for(u8 i=0;i<BTF_LIGHT_NUM;i++) {
-        compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_BUTTERFLY_LIGHT_BIN);
-        compo_setid(pic, COMPO_ID_L_LIGHT1 + i);
-        compo_picturebox_set_visible(pic, false);
-        widget_set_top(pic->img, true);
+       // compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_BUTTERFLY_LIGHT_BIN);
+        // compo_setid(pic, COMPO_ID_L_LIGHT1 + i);
+        // compo_picturebox_set_visible(pic, false);
+        // widget_set_top(pic->img, true);
     }
 
     //新建文本

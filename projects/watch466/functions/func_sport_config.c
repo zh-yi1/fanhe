@@ -31,10 +31,10 @@ typedef struct sport_disp_butt_item_t_ {
 
 //图片item，创建时遍历一下
 static const sport_disp_butt_item_t tbl_sport_disp_but_item[] = {
-    {UI_BUF_SPORT_EXERCISING_KCAL_BIN,     COMPO_ID_BTN_NUM0,        144,  170},
-    {UI_BUF_SPORT_EXERCISING_KM_BIN,       COMPO_ID_BTN_NUM1,        322, 170},
-    {UI_BUF_SPORT_EXERCISING_STEP_BIN,     COMPO_ID_BTN_NUM2,        144,  312},
-    {UI_BUF_SPORT_EXERCISING_TIME_BIN,     COMPO_ID_BTN_NUM3,        322, 312},
+    // {UI_BUF_SPORT_EXERCISING_KCAL_BIN,     COMPO_ID_BTN_NUM0,        144,  170},
+    // {UI_BUF_SPORT_EXERCISING_KM_BIN,       COMPO_ID_BTN_NUM1,        322, 170},
+    // {UI_BUF_SPORT_EXERCISING_STEP_BIN,     COMPO_ID_BTN_NUM2,        144,  312},
+    // {UI_BUF_SPORT_EXERCISING_TIME_BIN,     COMPO_ID_BTN_NUM3,        322, 312},
 };
 
 

@@ -96,10 +96,10 @@ void func_music_set_play_btn_pic(void)
     compo_arc_t *arc = compo_getobj_byid(COMPO_ID_PLAY_PROC);
     compo_button_t *btn = compo_getobj_byid(COMPO_ID_BTN_PLAY);
     if (msc_cb.pause) {
-        compo_button_set_bgimg(btn, UI_BUF_MUSIC_PLAY_BIN);
-        compo_arc_set_visible(arc, false);
+        // compo_button_set_bgimg(btn, UI_BUF_MUSIC_PLAY_BIN);
+        // compo_arc_set_visible(arc, false);
     } else {
-        compo_button_set_bgimg(btn, UI_BUF_MUSIC_PAUSE_BIN);
+    //    compo_button_set_bgimg(btn, UI_BUF_MUSIC_PAUSE_BIN);
         compo_arc_set_visible(arc, true);
     }
 }
@@ -129,36 +129,36 @@ void func_music_set_vol_btn_pic(void)
     vol_pic = compo_getobj_byid(COMPO_ID_PIC_MUSIC_VOL);
     switch (f_msc->vol){
         case 0:
-            compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME1_BIN);
+            //compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME1_BIN);
             compo_picturebox_set_visible(vol_pic, false);
             break;
 
         case 1 ... 3:
-            compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME1_BIN);
+           // compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME1_BIN);
             compo_picturebox_set_visible(vol_pic, true);
-            compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME1_BIN).wid/2 ,335);
+    //        compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME1_BIN).wid/2 ,335);
             break;
 
         case 4 ... 6:
-            compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME2_BIN);
+           // compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME2_BIN);
             compo_picturebox_set_visible(vol_pic, true);
-            compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME2_BIN).wid/2 ,335);
+           // compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME2_BIN).wid/2 ,335);
 
             break;
         case 7 ... 9:
-            compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME2_BIN);
+       //     compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME2_BIN);
             compo_picturebox_set_visible(vol_pic, true);
-            compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME2_BIN).wid/2 ,335);
+            //compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME2_BIN).wid/2 ,335);
             break;
         case 10 ... 11:
-            compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME2_BIN);
-            compo_picturebox_set_visible(vol_pic, true);
-            compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME2_BIN).wid/2 ,335);
+            // compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME2_BIN);
+            // compo_picturebox_set_visible(vol_pic, true);
+            // compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME2_BIN).wid/2 ,335);
             break;
         case 12 ... 16:
-            compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME2_BIN);
-            compo_picturebox_set_visible(vol_pic, true);
-            compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME2_BIN).wid/2 ,335);
+            // compo_picturebox_set(vol_pic, UI_BUF_MUSIC_VOLUME2_BIN);
+            // compo_picturebox_set_visible(vol_pic, true);
+            // compo_picturebox_set_pos(vol_pic, 110+gui_image_get_size(UI_BUF_MUSIC_VOLUME2_BIN).wid/2 ,335);
             break;
     }
 }
@@ -187,42 +187,42 @@ compo_form_t *func_music_form_create(void)
 
     //新建按钮
     compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PREV_BIN);
-    compo_setid(btn, COMPO_ID_BTN_PREV);
-    compo_button_set_pos(btn, 53, 248);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PREV_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_PREV);
+    // compo_button_set_pos(btn, 53, 248);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PLAY_BIN);
-    compo_setid(btn, COMPO_ID_BTN_PLAY);
-    compo_button_set_pos(btn, 160, 245);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PLAY_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_PLAY);
+    // compo_button_set_pos(btn, 160, 245);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_NEXT_BIN);
-    compo_setid(btn, COMPO_ID_BTN_NEXT);
-    compo_button_set_pos(btn, 267, 248);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_NEXT_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_NEXT);
+    // compo_button_set_pos(btn, 267, 248);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_DOWN_BIN);
-    compo_setid(btn, COMPO_ID_BTN_VOL_DOWN);
-    compo_button_set_pos(btn, 62, 340);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_DOWN_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_VOL_DOWN);
+    // compo_button_set_pos(btn, 62, 340);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_UP_BIN);
-    compo_setid(btn, COMPO_ID_BTN_VOL_UP);
-    compo_button_set_pos(btn, 258, 340);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_UP_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_VOL_UP);
+    // compo_button_set_pos(btn, 258, 340);
 
-    compo_picturebox_t *vol_pic = compo_picturebox_create(frm, UI_BUF_MUSIC_VOLUME1_BIN);
-    compo_setid(vol_pic, COMPO_ID_PIC_MUSIC_VOL);
-    compo_picturebox_set_pos(vol_pic, 110, 335);
-    widget_set_align_center(vol_pic->img, false);
-    compo_picturebox_set_visible(vol_pic, false);
+    // compo_picturebox_t *vol_pic = compo_picturebox_create(frm, UI_BUF_MUSIC_VOLUME1_BIN);
+    // compo_setid(vol_pic, COMPO_ID_PIC_MUSIC_VOL);
+    // compo_picturebox_set_pos(vol_pic, 110, 335);
+    // widget_set_align_center(vol_pic->img, false);
+    // compo_picturebox_set_visible(vol_pic, false);
 
-    //my test
-    compo_arc_t *arc = compo_arc_create(frm);
-    compo_setid(arc, COMPO_ID_PLAY_PROC);
-    compo_arc_set_alpha(arc, 0xff, 0);
-    compo_arc_set_location(arc, 160, 245, 111, 111);
-    compo_arc_set_width(arc, 3);
-    compo_arc_set_rotation(arc, 0);
-    compo_arc_set_angles(arc, 0, 3600);
-    compo_arc_set_color(arc, make_color(241, 64, 202), make_color(241, 64, 202));
-    compo_arc_set_value(arc, 0);
+    // //my test
+    // compo_arc_t *arc = compo_arc_create(frm);
+    // compo_setid(arc, COMPO_ID_PLAY_PROC);
+    // compo_arc_set_alpha(arc, 0xff, 0);
+    // compo_arc_set_location(arc, 160, 245, 111, 111);
+    // compo_arc_set_width(arc, 3);
+    // compo_arc_set_rotation(arc, 0);
+    // compo_arc_set_angles(arc, 0, 3600);
+    // compo_arc_set_color(arc, make_color(241, 64, 202), make_color(241, 64, 202));
+    // compo_arc_set_value(arc, 0);
 
     return frm;
 }

@@ -319,12 +319,12 @@ static void func_clock_sub_card_compo_create(compo_form_t *frm)
     compo_setid(cardbox, COMPO_ID_CARD_MUSIC);
     compo_cardbox_rect_set_color(cardbox, 0, make_color(29, 29, 29));
     compo_cardbox_rect_set_location(cardbox, 0, MUSIC_BG_X, MUSIC_BG_Y, MUSIC_BG_W, MUSIC_BG_H, CARD_R_ORG);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_MUSIC_PREV_BIN);
+    //compo_cardbox_icon_set(cardbox, 0, UI_BUF_MUSIC_PREV_BIN);
     widget_set_alpha(cardbox->icon[0], UI_BTN_CLICK_EFFECT_ALPHA1);
     compo_cardbox_icon_set_location(cardbox, 0, MUSIC_PREV_X, MUSIC_PREV_Y, MUSIC_PREV_W, MUSIC_PREV_H);
-    compo_cardbox_icon_set(cardbox, 1, music_control_status ? UI_BUF_MUSIC_PAUSE_BIN : UI_BUF_MUSIC_PLAY_BIN);   //播放/暂停--------->>>todo
+    //compo_cardbox_icon_set(cardbox, 1, music_control_status ? UI_BUF_MUSIC_PAUSE_BIN : UI_BUF_MUSIC_PLAY_BIN);   //播放/暂停--------->>>todo
     compo_cardbox_icon_set_location(cardbox, 1, MUSIC_PP_X, MUSIC_PP_Y, MUSIC_PP_W, MUSIC_PP_H);
-    compo_cardbox_icon_set(cardbox, 2, UI_BUF_MUSIC_NEXT_BIN);
+   // compo_cardbox_icon_set(cardbox, 2, UI_BUF_MUSIC_NEXT_BIN);
     widget_set_alpha(cardbox->icon[2], UI_BTN_CLICK_EFFECT_ALPHA1);
     compo_cardbox_icon_set_location(cardbox, 2, MUSIC_NEXT_X, MUSIC_NEXT_Y, MUSIC_NEXT_W, MUSIC_NEXT_H);
     //心率
@@ -346,9 +346,9 @@ static void func_clock_sub_card_compo_create(compo_form_t *frm)
     compo_setid(cardbox, COMPO_ID_CARD_SLEEP);
     compo_cardbox_rect_set_color(cardbox, 0, make_color(29, 29, 29));
     compo_cardbox_rect_set_location(cardbox, 0, SLEEP_BG_X, SLEEP_BG_Y, SLEEP_BG_W, SLEEP_BG_H, CARD_R_ORG);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_SLEEP_SLEEP_BIN);
+  //  compo_cardbox_icon_set(cardbox, 0, UI_BUF_SLEEP_SLEEP_BIN);
     compo_cardbox_icon_set_location(cardbox, 0, SLEEP_ICON_DEEP_X, SLEEP_ICON_DEEP_Y, SLEEP_ICON_DEEP_W, SLEEP_ICON_DEEP_H);
-    compo_cardbox_icon_set(cardbox, 1, UI_BUF_SLEEP_LIGHT_SLEEP_BIN);
+  //  compo_cardbox_icon_set(cardbox, 1, UI_BUF_SLEEP_LIGHT_SLEEP_BIN);
     compo_cardbox_icon_set_location(cardbox, 1, SLEEP_ICON_LIGHT_X, SLEEP_ICON_LIGHT_Y, SLEEP_ICON_LIGHT_W, SLEEP_ICON_LIGHT_H);
     compo_cardbox_text_set_font(cardbox, 0, UI_BUF_0FONT_FONT_NUM_24_BIN);
     compo_cardbox_text_set(cardbox, 0, "07:36");    //总时长--------->>>todo

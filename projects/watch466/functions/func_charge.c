@@ -44,40 +44,40 @@ compo_form_t *func_charge_form_create(void)
    //新建窗体和背景
    compo_form_t *frm = compo_form_create(true);
 
-   //新建图像
-   	compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
-	compo_picturebox_cut(pic, sys_cb.charge_idx, CHARGE_CNT);
-	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_1);
+//    //新建图像
+//    	compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
+// 	compo_picturebox_cut(pic, sys_cb.charge_idx, CHARGE_CNT);
+// 	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+// 	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_1);
 
-    pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
-	compo_picturebox_cut(pic, sys_cb.charge_idx + 1, CHARGE_CNT);
-	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 20);//LOWPWR_PERCENT
-	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_2);
+//     pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
+// 	compo_picturebox_cut(pic, sys_cb.charge_idx + 1, CHARGE_CNT);
+// 	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+//     compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 20);//LOWPWR_PERCENT
+// 	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_2);
 
-    pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
-	compo_picturebox_cut(pic, sys_cb.charge_idx + 2, CHARGE_CNT);
-	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-     compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 40);//LOWPWR_PERCENT
-	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_3);
+//     pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
+// 	compo_picturebox_cut(pic, sys_cb.charge_idx + 2, CHARGE_CNT);
+// 	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+//      compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 40);//LOWPWR_PERCENT
+// 	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_3);
 
-    pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
-	compo_picturebox_cut(pic, sys_cb.charge_idx + 3, CHARGE_CNT);
-	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 60);//LOWPWR_PERCENT
-	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_4);
+//     pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
+// 	compo_picturebox_cut(pic, sys_cb.charge_idx + 3, CHARGE_CNT);
+// 	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+//     compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 60);//LOWPWR_PERCENT
+// 	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_4);
 
-    pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
-	compo_picturebox_cut(pic, sys_cb.charge_idx + 4, CHARGE_CNT);
-	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 80);//LOWPWR_PERCENT
-	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_5);
+//     pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_H140_BIN);
+// 	compo_picturebox_cut(pic, sys_cb.charge_idx + 4, CHARGE_CNT);
+// 	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+//     compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 80);//LOWPWR_PERCENT
+// 	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_5);
 
-    pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_FULL_BIN);
-	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 100);//LOWPWR_PERCENT
-	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_FULL);
+//     pic = compo_picturebox_create(frm, UI_BUF_CHARGE_CHARGE_FULL_BIN);
+// 	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+//     compo_picturebox_set_visible(pic, BAT_PERCENT_VALUE >= 100);//LOWPWR_PERCENT
+// 	compo_setid(pic, COMPO_ID_NUM_CHARGE_PERCENT_FULL);
 
    return frm;
 }

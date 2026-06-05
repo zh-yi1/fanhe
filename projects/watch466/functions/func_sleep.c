@@ -49,7 +49,7 @@ compo_form_t *func_sleep_form_create(void)
 
     //新建窗体和背景
     compo_form_t *frm = compo_form_create(true);
-	compo_form_add_image(frm, UI_BUF_SLEEP_SLEEP_BIN, GUI_SCREEN_CENTER_X, 173);
+//	compo_form_add_image(frm, UI_BUF_SLEEP_SLEEP_BIN, GUI_SCREEN_CENTER_X, 173);
 
     //设置标题栏
     compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
@@ -57,7 +57,7 @@ compo_form_t *func_sleep_form_create(void)
     compo_form_set_title(frm, i18n[STR_SLEEP]);
 
     //今日深度睡眠时长
-    compo_form_add_image(frm, UI_BUF_SLEEP_DEEP_ALEEP_BIN, 131, 282);
+//    compo_form_add_image(frm, UI_BUF_SLEEP_DEEP_ALEEP_BIN, 131, 282);
     compo = (component_t *)compo_textbox_create(frm, TODAY_SLEEP_TIME_TXT_MAX);
     compo_textbox_set_font((compo_textbox_t *)compo, UI_BUF_0FONT_FONT_ASC_BIN);
     compo_setid(compo, COMPO_ID_TEXT_DEEP_TIME_HOUR);
@@ -83,7 +83,7 @@ compo_form_t *func_sleep_form_create(void)
     compo_textbox_set((compo_textbox_t *)compo, buf);
 
     //今日浅睡睡眠时长
-    compo_form_add_image(frm, UI_BUF_SLEEP_LIGHT_SLEEP_BIN, 335, 282);
+//    compo_form_add_image(frm, UI_BUF_SLEEP_LIGHT_SLEEP_BIN, 335, 282);
     compo = (component_t *)compo_textbox_create(frm, TODAY_SLEEP_TIME_TXT_MAX);
     compo_textbox_set_font((compo_textbox_t *)compo, UI_BUF_0FONT_FONT_ASC_BIN);
     compo_setid(compo, COMPO_ID_TEXT_LIGHT_TIME_HOUR);
@@ -109,7 +109,7 @@ compo_form_t *func_sleep_form_create(void)
     compo_textbox_set((compo_textbox_t *)compo, buf);
 
     //睡眠日总时长详情
-    compo_form_add_image(frm, UI_BUF_SLEEP_CHART_BG_BIN, GUI_SCREEN_CENTER_X, 650);
+//    compo_form_add_image(frm, UI_BUF_SLEEP_CHART_BG_BIN, GUI_SCREEN_CENTER_X, 650);
 #if (!FUNC_SLEEP_SIMULATE_DATA_EN)
     uint16_t total_sleep_time[2] = {0};
 #endif

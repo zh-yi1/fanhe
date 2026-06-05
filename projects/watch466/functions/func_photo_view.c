@@ -27,7 +27,7 @@ typedef struct f_photo_view_t_{
 } f_photo_view_t;
 
 const jpg_list_t jpg_list[] = {
-    [0] = {UI_BUF_JPG_1_JPG, UI_LEN_JPG_1_JPG},
+//    [0] = {UI_BUF_JPG_1_JPG, UI_LEN_JPG_1_JPG},
 //    [1] = {UI_BUF_JPG_2_JPG, UI_LEN_JPG_2_JPG},
 //    [2] = {UI_BUF_JPG_3_JPG, UI_LEN_JPG_3_JPG},
 };

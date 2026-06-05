@@ -38,13 +38,13 @@ static void func_flashlight_bg_idx_save(u8 idx)
 
 /* ui.bin 内由 PNG 转成的 bin，地址见 ui.h（UI_BUF_FLASHLIGHT_BG_*） */
 static const u32 tbl_flashlight_bg_res[FLASHLIGHT_BG_CNT] = {
-    UI_BUF_FLASHLIGHT_BLUE_BIN,
-    UI_BUF_FLASHLIGHT_GREEN_BIN,
-    UI_BUF_FLASHLIGHT_ORANGE_BIN,
-    UI_BUF_FLASHLIGHT_PURPLE_BIN,
-    UI_BUF_FLASHLIGHT_RED_BIN,
-    UI_BUF_FLASHLIGHT_WHITE_BIN,
-    UI_BUF_FLASHLIGHT_YELLOW_BIN,
+    // UI_BUF_FLASHLIGHT_BLUE_BIN,
+    // UI_BUF_FLASHLIGHT_GREEN_BIN,
+    // UI_BUF_FLASHLIGHT_ORANGE_BIN,
+    // UI_BUF_FLASHLIGHT_PURPLE_BIN,
+    // UI_BUF_FLASHLIGHT_RED_BIN,
+    // UI_BUF_FLASHLIGHT_WHITE_BIN,
+    // UI_BUF_FLASHLIGHT_YELLOW_BIN,
 };
 
 static void func_flashlight_bg_show(f_flashlight_t *fst)

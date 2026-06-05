@@ -42,12 +42,12 @@ static u8  dropdown_brightness_pic_idx;
 #define DROPDOWN_LIGHT_LEVEL_MAX        6       /* 6 张亮度图对应 6 档背光 */
 
 static const u32 tbl_dropdown_brightness_pic[DROPDOWN_BRIGHTNESS_PIC_CNT] = {
-    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_ONE_BIN,
-    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_TWO_BIN,
-    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_THREE_BIN,
-    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_FOUR_BIN,
-    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_FIVE_BIN,
-    UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_SIX_BIN
+    // UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_ONE_BIN,
+    // UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_TWO_BIN,
+    // UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_THREE_BIN,
+    // UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_FOUR_BIN,
+    // UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_FIVE_BIN,
+    // UI_BUF_DROPDOWN_BRIGHTNESS_ADJUSTMENT_SIX_BIN
 };
 
 static void dropdown_brightness_icon_show(u8 idx)
@@ -103,22 +103,22 @@ static void dropdown_brightness_icon_next(void)
 
 static u32 dropdown_battery_icon_addr(void)
 {
-    switch (sys_cb.vbat_percent) {
-    case 1 ... 16:
-        return UI_BUF_DROPDOWN_POWER1_BIN;
-    case 17 ... 32:
-        return UI_BUF_DROPDOWN_POWER2_BIN;
-    case 33 ... 48:
-        return UI_BUF_DROPDOWN_POWER3_BIN;
-    case 49 ... 64:
-        return UI_BUF_DROPDOWN_POWER4_BIN;
-    case 65 ... 80:
-        return UI_BUF_DROPDOWN_POWER5_BIN;
-    case 81 ... 100:
-        return UI_BUF_DROPDOWN_POWER6_BIN;
-    default:
-        return UI_BUF_DROPDOWN_POWER6_BIN;
-    }
+    // switch (sys_cb.vbat_percent) {
+    // case 1 ... 16:
+    //     return UI_BUF_DROPDOWN_POWER1_BIN;
+    // case 17 ... 32:
+    //     return UI_BUF_DROPDOWN_POWER2_BIN;
+    // case 33 ... 48:
+    //     return UI_BUF_DROPDOWN_POWER3_BIN;
+    // case 49 ... 64:
+    //     return UI_BUF_DROPDOWN_POWER4_BIN;
+    // case 65 ... 80:
+    //     return UI_BUF_DROPDOWN_POWER5_BIN;
+    // case 81 ... 100:
+    //     return UI_BUF_DROPDOWN_POWER6_BIN;
+    // default:
+    //     return UI_BUF_DROPDOWN_POWER6_BIN;
+    // }
 }
 
 static void dropdown_center_icons_create(compo_form_t *frm)
@@ -138,20 +138,20 @@ static void dropdown_center_icons_create(compo_form_t *frm)
 
 static void dropdown_center_icons_refresh(void)
 {
-    u8 ble_now = ble_is_connect() ? 1 : 0;
+    // u8 ble_now = ble_is_connect() ? 1 : 0;
 
-    if (dropdown_center_pic_bat == NULL) {
-        return;
-    }
-    if (dropdown_center_pic_bt != NULL && ble_now != dropdown_last_ble) {
-        dropdown_last_ble = ble_now;
-        compo_picturebox_set(dropdown_center_pic_bt,
-                             ble_now ? UI_BUF_DROPDOWN_CONNECT_ON_BIN : UI_BUF_DROPDOWN_CONNECT_OFF_BIN);
-    }
-    if (sys_cb.vbat_percent != dropdown_last_vbat) {
-        dropdown_last_vbat = sys_cb.vbat_percent;
-        compo_picturebox_set(dropdown_center_pic_bat, dropdown_battery_icon_addr());
-    }
+    // if (dropdown_center_pic_bat == NULL) {
+    //     return;
+    // }
+    // if (dropdown_center_pic_bt != NULL && ble_now != dropdown_last_ble) {
+    //     dropdown_last_ble = ble_now;
+    //     compo_picturebox_set(dropdown_center_pic_bt,
+    //                          ble_now ? UI_BUF_DROPDOWN_CONNECT_ON_BIN : UI_BUF_DROPDOWN_CONNECT_OFF_BIN);
+    // }
+    // if (sys_cb.vbat_percent != dropdown_last_vbat) {
+    //     dropdown_last_vbat = sys_cb.vbat_percent;
+    //     compo_picturebox_set(dropdown_center_pic_bat, dropdown_battery_icon_addr());
+    // }
 }
 
 static void dropdown_center_icons_clear(void)
@@ -177,39 +177,39 @@ static void func_clock_sub_dropdown_form_create(void)
         const s16 cx = GUI_SCREEN_CENTER_X;
         const s16 cy = GUI_SCREEN_CENTER_Y;
 
-        compo_button_t *btn_volume = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_VOLUME_BIN);
-        compo_setid(btn_volume, COMPO_ID_DROPDOWN_VOLUME);
-        compo_button_set_pos(btn_volume, cx + (s16)(((s32)rr * 0)   / 128), cy + (s16)(((s32)rr * -128) / 128));
-        compo_button_set_size(btn_volume, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
-        compo_button_set_alpha(btn_volume, MENU_DROPDOWN_ALPHA);
+        // compo_button_t *btn_volume = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_VOLUME_BIN);
+        // compo_setid(btn_volume, COMPO_ID_DROPDOWN_VOLUME);
+        // compo_button_set_pos(btn_volume, cx + (s16)(((s32)rr * 0)   / 128), cy + (s16)(((s32)rr * -128) / 128));
+        // compo_button_set_size(btn_volume, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+        // compo_button_set_alpha(btn_volume, MENU_DROPDOWN_ALPHA);
 
-        compo_button_t *btn_delete = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_DELETE_BIN);
-        compo_setid(btn_delete, COMPO_ID_DROPDOWN_DELETE);
-        compo_button_set_pos(btn_delete, cx + (s16)(((s32)rr * 122) / 128), cy + (s16)(((s32)rr * -40)  / 128));
-        compo_button_set_size(btn_delete, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
-        compo_button_set_alpha(btn_delete, MENU_DROPDOWN_ALPHA);
+        // compo_button_t *btn_delete = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_DELETE_BIN);
+        // compo_setid(btn_delete, COMPO_ID_DROPDOWN_DELETE);
+        // compo_button_set_pos(btn_delete, cx + (s16)(((s32)rr * 122) / 128), cy + (s16)(((s32)rr * -40)  / 128));
+        // compo_button_set_size(btn_delete, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+        // compo_button_set_alpha(btn_delete, MENU_DROPDOWN_ALPHA);
 
-        compo_button_t *btn_bluetooth = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_BLUETOOTH_BIN);
-        compo_setid(btn_bluetooth, COMPO_ID_DROPDOWN_BLUETOOTH);
-        compo_button_set_pos(btn_bluetooth, cx + (s16)(((s32)rr * 75) / 128), cy + (s16)(((s32)rr * 104) / 128));
-        compo_button_set_size(btn_bluetooth, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
-        compo_button_set_alpha(btn_bluetooth, MENU_DROPDOWN_ALPHA);
+        // compo_button_t *btn_bluetooth = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_BLUETOOTH_BIN);
+        // compo_setid(btn_bluetooth, COMPO_ID_DROPDOWN_BLUETOOTH);
+        // compo_button_set_pos(btn_bluetooth, cx + (s16)(((s32)rr * 75) / 128), cy + (s16)(((s32)rr * 104) / 128));
+        // compo_button_set_size(btn_bluetooth, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+        // compo_button_set_alpha(btn_bluetooth, MENU_DROPDOWN_ALPHA);
 
-        dropdown_btn_brightness = compo_button_create_by_image(frm,
-            tbl_dropdown_brightness_pic[0]);
-        compo_setid(dropdown_btn_brightness, COMPO_ID_DROPDOWN_BRIGHTNESS);
-        compo_button_set_pos(dropdown_btn_brightness,
-            cx + (s16)(((s32)rr * -75) / 128), cy + (s16)(((s32)rr * 104) / 128));
-        compo_button_set_size(dropdown_btn_brightness,
-            MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
-        compo_button_set_alpha(dropdown_btn_brightness, MENU_DROPDOWN_ALPHA);
-        dropdown_brightness_icon_show(dropdown_brightness_level_to_pic(sys_cb.light_level));
+        // dropdown_btn_brightness = compo_button_create_by_image(frm,
+        //     tbl_dropdown_brightness_pic[0]);
+        // compo_setid(dropdown_btn_brightness, COMPO_ID_DROPDOWN_BRIGHTNESS);
+        // compo_button_set_pos(dropdown_btn_brightness,
+        //     cx + (s16)(((s32)rr * -75) / 128), cy + (s16)(((s32)rr * 104) / 128));
+        // compo_button_set_size(dropdown_btn_brightness,
+        //     MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+        // compo_button_set_alpha(dropdown_btn_brightness, MENU_DROPDOWN_ALPHA);
+        // dropdown_brightness_icon_show(dropdown_brightness_level_to_pic(sys_cb.light_level));
 
-        compo_button_t *btn_flashlight = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_FLASHLIGHT_BIN);
-        compo_setid(btn_flashlight, COMPO_ID_DROPDOWN_FLASHLIGHT);
-        compo_button_set_pos(btn_flashlight, cx + (s16)(((s32)rr * -122) / 128), cy + (s16)(((s32)rr * -40) / 128));
-        compo_button_set_size(btn_flashlight, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
-        compo_button_set_alpha(btn_flashlight, MENU_DROPDOWN_ALPHA);
+        // compo_button_t *btn_flashlight = compo_button_create_by_image(frm, UI_BUF_DROPDOWN_FLASHLIGHT_BIN);
+        // compo_setid(btn_flashlight, COMPO_ID_DROPDOWN_FLASHLIGHT);
+        // compo_button_set_pos(btn_flashlight, cx + (s16)(((s32)rr * -122) / 128), cy + (s16)(((s32)rr * -40) / 128));
+        // compo_button_set_size(btn_flashlight, MENU_DROPDOWN_RING_BTN_WH, MENU_DROPDOWN_RING_BTN_WH);
+        // compo_button_set_alpha(btn_flashlight, MENU_DROPDOWN_ALPHA);
     }
 
     /* 中心：蓝牙连接态 + 电量（叠在环内，最后创建保证在上层） */

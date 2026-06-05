@@ -68,27 +68,27 @@ static void func_menu_sub_list_battery_pic_update(void)
         return;
     }
     switch(sys_cb.vbat_percent){
-        case 1 ... 16:
-            compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER1_BIN);
-            break;
-        case 17 ... 32:
-            compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER2_BIN);
-            break;
-        case 33 ... 48:
-            compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER3_BIN);
-            break;
-        case 49 ... 64:
-            compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER4_BIN);
-            break;
-        case 65 ... 80:
-            compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER5_BIN);
-            break;
-        case 81 ... 100:
-            compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER6_BIN);
-            break;
-        default:
-            compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER6_BIN);
-            break;
+        // case 1 ... 16:
+        //     compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER1_BIN);
+        //     break;
+        // case 17 ... 32:
+        //     compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER2_BIN);
+        //     break;
+        // case 33 ... 48:
+        //     compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER3_BIN);
+        //     break;
+        // case 49 ... 64:
+        //     compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER4_BIN);
+        //     break;
+        // case 65 ... 80:
+        //     compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER5_BIN);
+        //     break;
+        // case 81 ... 100:
+        //     compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER6_BIN);
+        //     break;
+        // default:
+        //     compo_form_set_title_icon(func_cb.frm_main, UI_BUF_DROPDOWN_POWER6_BIN);
+        //     break;
     }
 }
 

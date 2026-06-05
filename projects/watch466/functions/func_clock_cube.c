@@ -22,12 +22,12 @@
 
 //立方体图标列表(固定6项)
 static const compo_cube_item_t tbl_menu_cube[] = {
-    {UI_BUF_DIALPLATE_CUBE_CALL_BIN,             FUNC_CALL},
-    {UI_BUF_DIALPLATE_CUBE_HEART_RATE_BIN,       FUNC_HEARTRATE},
-    {UI_BUF_DIALPLATE_CUBE_MUSIC_BIN,            FUNC_BT},
-    {UI_BUF_DIALPLATE_CUBE_SLEEP_BIN,            FUNC_SLEEP},
-    {UI_BUF_DIALPLATE_CUBE_SPORT_BIN,            FUNC_SPORT},
-    {UI_BUF_DIALPLATE_CUBE_STEP_BIN,             FUNC_SLEEP},
+//    {UI_BUF_DIALPLATE_CUBE_CALL_BIN,             FUNC_CALL},
+    // {UI_BUF_DIALPLATE_CUBE_HEART_RATE_BIN,       FUNC_HEARTRATE},
+    // {UI_BUF_DIALPLATE_CUBE_MUSIC_BIN,            FUNC_BT},
+    // {UI_BUF_DIALPLATE_CUBE_SLEEP_BIN,            FUNC_SLEEP},
+    // {UI_BUF_DIALPLATE_CUBE_SPORT_BIN,            FUNC_SPORT},
+    // {UI_BUF_DIALPLATE_CUBE_STEP_BIN,             FUNC_SLEEP},
 };
 
 enum{
@@ -72,8 +72,8 @@ compo_form_t *func_clock_cube_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(true);       //菜单一般创建在底层
 
-    compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_CUBE_BG_BIN);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y + 20);
+    // compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_CUBE_BG_BIN);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y + 20);
 
     //创建立方体菜单
     compo_cube_t *cube = compo_cube_create(frm, CUBE_RADIUS, tbl_menu_cube, CUBE_ITEM_CNT);
