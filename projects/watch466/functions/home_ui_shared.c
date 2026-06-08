@@ -27,7 +27,7 @@ void home_ui_shared_dash_init(void)
     if (home_ui_shared_dash_inited) {
         return;
     }
-    os_spiflash_read(home_ui_shared_dash_runtime_sel, UI_BUF_HOME_DASH_SEL_BIN, UI_LEN_HOME_DASH_SEL_BIN);
-    os_spiflash_read(home_ui_shared_dash_runtime_nor, UI_BUF_HOME_DASH_NOR_BIN, UI_LEN_HOME_DASH_NOR_BIN);
+    os_spiflash_read(home_ui_shared_dash_runtime_sel, UI_BUF_HOME_WHILE_LINE_BIN, UI_LEN_HOME_WHILE_LINE_BIN);
+    os_spiflash_read(home_ui_shared_dash_runtime_nor, UI_BUF_HOME_BLUE_LINE_BIN, UI_LEN_HOME_BLUE_LINE_BIN);
     home_ui_shared_dash_inited = true;
 }

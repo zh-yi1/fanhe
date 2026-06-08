@@ -16,10 +16,6 @@
 #define HOME_NAV_ICON_MAX_H             28
 #define HOME_NAV_ICON_RAM_MAX_SIZE      1360
 
-#define HOME_TAB_BG_W                   80
-#define HOME_TAB_BG_H                   65
-#define HOME_TAB_BG_RAM_SIZE            (8 + HOME_TAB_BG_W * HOME_TAB_BG_H * 2)
-
 #define HOME_DASH_RAM_W                 30
 #define HOME_DASH_RAM_H                 2
 #define HOME_DASH_RAM_SIZE              (8 + HOME_DASH_RAM_W * HOME_DASH_RAM_H * 2)
@@ -30,7 +26,7 @@
 #define HOME_DIGIT_RAM_MAX_SIZE         7880
 #define HOME_DIGIT_GREY_RAM_MAX_SIZE    7880
 #define HOME_DIGIT_GREEN_RAM_MAX_SIZE   7880
-#define HOME_DIGIT_GREEN_T_RAM_MAX_SIZE 2696
+#define HOME_DIGIT_GREEN_T_RAM_MAX_SIZE 2626
 #define HOME_COLON_W                    24
 #define HOME_COLON_H                    82
 #define HOME_COLON_RAM_SIZE             3944
@@ -50,11 +46,6 @@
 #define HOME_STATUS_TEMPF_H             36
 #define HOME_STATUS_TEMPF_GR_T_RAM_SIZE 2600
 
-#define MODE_STATUS_TEMP_DIGIT_W        HOME_STATUS_TEMP_DIGIT_W
-#define MODE_STATUS_TEMP_DIGIT_H        HOME_STATUS_TEMP_DIGIT_H
-#define MODE_STATUS_TEMPF_W             HOME_STATUS_TEMPF_W
-#define MODE_STATUS_TEMPF_H             HOME_STATUS_TEMPF_H
-
 #define HOME_STATUS_BT_W                10
 #define HOME_STATUS_BT_H                16
 #define HOME_STATUS_LOCK_W              13
@@ -65,17 +56,16 @@
 #define HOME_STATUS_LOCK_RAM_SIZE       (8 + HOME_STATUS_LOCK_W * HOME_STATUS_LOCK_H * 2)
 #define HOME_STATUS_BAT_RAM_SIZE        (8 + HOME_STATUS_BAT_W * HOME_STATUS_BAT_H * 2)
 
+#define MODE_STATUS_TEMP_DIGIT_W        HOME_STATUS_TEMP_DIGIT_W
+#define MODE_STATUS_TEMP_DIGIT_H        HOME_STATUS_TEMP_DIGIT_H
+#define MODE_STATUS_TEMPF_W             HOME_STATUS_TEMPF_W
+#define MODE_STATUS_TEMPF_H             HOME_STATUS_TEMPF_H
+
 /* func_heat.c: w0x=白字时, b0x=灰字分/温度, wbx=冒号, bhx=灰°F */
 #define HEAT_W_DIGIT_MAX_H              61
 #define HEAT_B_DIGIT_MAX_H              61
 #define HEAT_W_DIGIT_RAM_MAX_SIZE       4522
 #define HEAT_B_DIGIT_RAM_MAX_SIZE       4522
-#define HEAT_WBX_W                      9
-#define HEAT_WBX_H                      61
-#define HEAT_WBX_RAM_SIZE               1106
-#define HEAT_BHX_W                      50
-#define HEAT_BHX_H                      49
-#define HEAT_BHX_RAM_SIZE               4908
 #define HEAT_W0X_W                     37
 #define HEAT_W0X_H                     61
 #define HEAT_W1X_W                     7
@@ -116,5 +106,55 @@
 #define HEAT_B8X_H                     61
 #define HEAT_B9X_W                     37
 #define HEAT_B9X_H                     61
+#define HEAT_WBX_W                      9
+#define HEAT_WBX_H                      61
+#define HEAT_WBX_RAM_SIZE               1106
+#define HEAT_BHX_W                      50
+#define HEAT_BHX_H                      49
+#define HEAT_BHX_RAM_SIZE               4908
+
+/* Mode tab icons/lines (tools/gen_mode_icons.py) */
+#define MODE_TAB_PASTA_W                 38
+#define MODE_TAB_PASTA_H                 29
+#define MODE_TAB_CHICKEN_W               29
+#define MODE_TAB_CHICKEN_H               29
+#define MODE_TAB_INSULATION_W            28
+#define MODE_TAB_INSULATION_H            29
+#define MODE_TAB_ICON_MAX_H             29
+#define MODE_TAB_ICON_RAM_MAX_SIZE       2212
+#define MODE_TAB_LINE_W                  30
+#define MODE_TAB_LINE_H                  2
+#define MODE_TAB_LINE_RAM_SIZE           128
+
+/* Mode status green temp g0..g9 + gh/gs (tools/gen_mode_icons.py) */
+#define MODE_G_DIGIT_MAX_H              18
+#define MODE_G_DIGIT_RAM_MAX_SIZE       458
+#define MODE_G0_W                      11
+#define MODE_G0_H                      18
+#define MODE_G1_W                      3
+#define MODE_G1_H                      17
+#define MODE_G2_W                      11
+#define MODE_G2_H                      18
+#define MODE_G3_W                      11
+#define MODE_G3_H                      18
+#define MODE_G4_W                      11
+#define MODE_G4_H                      17
+#define MODE_G5_W                      11
+#define MODE_G5_H                      18
+#define MODE_G6_W                      11
+#define MODE_G6_H                      18
+#define MODE_G7_W                      10
+#define MODE_G7_H                      17
+#define MODE_G8_W                      11
+#define MODE_G8_H                      18
+#define MODE_G9_W                      11
+#define MODE_G9_H                      18
+#define MODE_GH_W                       15
+#define MODE_GH_H                       15
+#define MODE_GH_RAM_SIZE                458
+#define MODE_GS_W                       16
+#define MODE_GS_H                       15
+#define MODE_GS_RAM_SIZE                488
+#define MODE_G_SYM_RAM_MAX_SIZE         488
 
 #endif

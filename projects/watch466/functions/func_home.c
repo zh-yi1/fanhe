@@ -75,12 +75,12 @@
 #error "Missing setup_sel.bin: run gen_home_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_DASH_SEL_BIN
-#error "Missing dash_sel.bin: add ui/home/while_line.png and run gen_home_icons.py + prebuild.bat"
+#ifndef UI_BUF_HOME_WHILE_LINE_BIN
+#error "Missing while_line.bin: add ui/home/while_line.png and run gen_mode_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_DASH_NOR_BIN
-#error "Missing dash_nor.bin: add ui/home/blue_line.png and run gen_home_icons.py + prebuild.bat"
+#ifndef UI_BUF_HOME_BLUE_LINE_BIN
+#error "Missing blue_line.bin: add ui/home/blue_line.png and run gen_mode_icons.py + prebuild.bat"
 #endif
 
 #define HOME_COLOR_BLUE                 make_color(4, 109, 217)

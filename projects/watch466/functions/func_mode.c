@@ -1,4 +1,4 @@
-#include "include.h"
+﻿#include "include.h"
 #include "func.h"
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
@@ -12,30 +12,78 @@
 
 /*
  * Mode 页：顶栏时间 + 绿色温度 + 状态图标；中部白色 HH:MM 倒计时；底部 Pasta/Chicken/Warm Tab。
- * Tab 预设：Pasta 194°F/1:00，Chicken 212°F/1:00，Warm 120°F/1:00。
- * 全部 ui/home/*.bin 为 GPU 0x24150：Flash->RAM->set_ram。
+ *
+ * 底部 Tab 图标（ui/home PNG -> 同名 .bin -> ui.bin）：
+ *   pasta.png / chicken.png / insulation.png
+ * 底部横线：
+ *   while_line.png（选中）、blue_line.png（未选中）
+ * 顶部绿色温度：g0.png..g9.png + gh.png（°F）-> 同名 .bin -> ui.bin。
+ * GPU 0x24150：os_spiflash_read + compo_picturebox_set_ram。
  */
 #define UI_MODE_PLACEHOLDER               UI_BUF_ICON_ACTIVITY_BIN
 #define MODE_COLOR_BLUE                   make_color(4, 109, 217)
+#define MODE_TAB_ICON_BG_BLACK            0x0000
 
-#ifndef UI_BUF_HOME_PASTA_SEL_BIN
-#error "Run tools/gen_home_icons.py then Output/bin/prebuild.bat to refresh ui.h"
+#ifndef UI_BUF_HOME_PASTA_BIN
+#error "Missing pasta.bin: add ui/home/pasta.png and run gen_mode_icons.py + prebuild.bat"
 #endif
 
+#ifndef UI_BUF_HOME_CHICKEN_BIN
+#error "Missing chicken.bin: add ui/home/chicken.png and run gen_mode_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_INSULATION_BIN
+#error "Missing insulation.bin: add ui/home/insulation.png and run gen_mode_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_WHILE_LINE_BIN
+#error "Missing while_line.bin: add ui/home/while_line.png and run gen_mode_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BLUE_LINE_BIN
+#error "Missing blue_line.bin: add ui/home/blue_line.png and run gen_mode_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_G0_BIN
+#error "Missing g0.bin: add ui/home/g0.png..g9.png, gh.png and run gen_mode_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_GH_BIN
+#error "Missing gh.bin: add ui/home/gh.png and run gen_mode_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_0_BIN
+#error "Missing 0.bin: add res/home/0.png..9.png and run gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_COLON_BIN
+#error "Missing colon.bin: run gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BLUETOOTH_BIN
+#error "Missing bluetooth.bin: add res/home/bluetooth.png and run gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_LOCK_BIN
+#error "Missing lock.bin: add res/home/lock.png and run gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
+#error "Missing battery_level.bin: add res/home/battery_level.png and run gen_home_icons.py + prebuild.bat"
+#endif
 
 #define MODE_TAB_BTN_W                    118
 #define MODE_TAB_BTN_H                    96
 #define MODE_TAB_BTN_R                    18
 #define MODE_TAB_BTN_R_IN                 16
 #define MODE_TAB_BTN_Y                    390
-#define MODE_TAB_ICON_SIZE                40
 #define MODE_TAB_PAD_TOP                  12
 #define MODE_TAB_PAD_BOTTOM               10
 #define MODE_TAB_PAD_MID                  8
 #define MODE_TAB_FONT_H                   11
-#define MODE_TAB_ICON_Y                   (MODE_TAB_BTN_Y - MODE_TAB_BTN_H / 2 + MODE_TAB_PAD_TOP + MODE_TAB_ICON_SIZE / 2)
-#define MODE_TAB_LABEL_Y                  (MODE_TAB_ICON_Y + MODE_TAB_ICON_SIZE / 2 + MODE_TAB_PAD_MID + MODE_TAB_FONT_H / 2)
-#define MODE_TAB_DASH_Y                   (MODE_TAB_BTN_Y + MODE_TAB_BTN_H / 2 - MODE_TAB_PAD_BOTTOM - HOME_DASH_RAM_H / 2)
+#define MODE_TAB_ICON_Y                   (MODE_TAB_BTN_Y - MODE_TAB_BTN_H / 2 + MODE_TAB_PAD_TOP + MODE_TAB_ICON_MAX_H / 2)
+#define MODE_TAB_LABEL_Y                  (MODE_TAB_ICON_Y + MODE_TAB_ICON_MAX_H / 2 + MODE_TAB_PAD_MID + MODE_TAB_FONT_H / 2)
+#define MODE_TAB_DASH_Y                   (MODE_TAB_BTN_Y + MODE_TAB_BTN_H / 2 - MODE_TAB_PAD_BOTTOM - MODE_TAB_LINE_H / 2)
 #define MODE_TAB_X0                       87
 #define MODE_TAB_X1                       233
 #define MODE_TAB_X2                       379
@@ -51,8 +99,9 @@
 #define MODE_TIMER_Y                      195
 #define MODE_DIGIT_GAP                    4
 #define MODE_STATUS_TEMP_Y                48
-#define MODE_STATUS_TEMP_GAP              2
-#define MODE_STATUS_TEMP_SYMBOL_GAP       2
+#define MODE_STATUS_TEMP_DIGIT_GAP        1
+#define MODE_STATUS_TEMP_SYMBOL_GAP       1
+#define MODE_STATUS_TEMP_CENTER_OFFSET    (-20)
 
 enum {
     MODE_TIMER_IDX_H10 = 0,
@@ -72,7 +121,7 @@ enum {
 enum {
     MODE_TAB_PASTA = 0,
     MODE_TAB_CHICKEN,
-    MODE_TAB_WARM,
+    MODE_TAB_INSULATION,
     MODE_TAB_CNT,
 };
 
@@ -143,11 +192,33 @@ typedef struct f_mode_t_ {
     mode_tab_ui_t tabs[MODE_TAB_CNT];
 } f_mode_t;
 
-static u8 mode_status_temp_digit_ram[MODE_TEMP_IDX_CNT][HOME_DIGIT_GREEN_T_RAM_MAX_SIZE];
-static u8 mode_status_degf_gr_ram[HOME_STATUS_TEMPF_GR_T_RAM_SIZE];
+static u8 mode_status_temp_digit_ram[MODE_TEMP_IDX_CNT][MODE_G_DIGIT_RAM_MAX_SIZE];
+static u8 mode_status_gh_ram[MODE_GH_RAM_SIZE];
 
 static u32 mode_countdown_remain_sec;
 static bool mode_countdown_running;
+
+static const u32 tbl_mode_g_digit_addr[10] = {
+    UI_BUF_HOME_G0_BIN, UI_BUF_HOME_G1_BIN, UI_BUF_HOME_G2_BIN, UI_BUF_HOME_G3_BIN,
+    UI_BUF_HOME_G4_BIN, UI_BUF_HOME_G5_BIN, UI_BUF_HOME_G6_BIN, UI_BUF_HOME_G7_BIN,
+    UI_BUF_HOME_G8_BIN, UI_BUF_HOME_G9_BIN,
+};
+
+static const u16 tbl_mode_g_digit_len[10] = {
+    UI_LEN_HOME_G0_BIN, UI_LEN_HOME_G1_BIN, UI_LEN_HOME_G2_BIN, UI_LEN_HOME_G3_BIN,
+    UI_LEN_HOME_G4_BIN, UI_LEN_HOME_G5_BIN, UI_LEN_HOME_G6_BIN, UI_LEN_HOME_G7_BIN,
+    UI_LEN_HOME_G8_BIN, UI_LEN_HOME_G9_BIN,
+};
+
+static const u16 tbl_mode_g_digit_w[10] = {
+    MODE_G0_W, MODE_G1_W, MODE_G2_W, MODE_G3_W, MODE_G4_W,
+    MODE_G5_W, MODE_G6_W, MODE_G7_W, MODE_G8_W, MODE_G9_W,
+};
+
+static const u16 tbl_mode_g_digit_h[10] = {
+    MODE_G0_H, MODE_G1_H, MODE_G2_H, MODE_G3_H, MODE_G4_H,
+    MODE_G5_H, MODE_G6_H, MODE_G7_H, MODE_G8_H, MODE_G9_H,
+};
 
 static const u32 tbl_mode_digit_white_addr[10] = {
     UI_BUF_HOME_0_BIN, UI_BUF_HOME_1_BIN, UI_BUF_HOME_2_BIN, UI_BUF_HOME_3_BIN,
@@ -165,28 +236,28 @@ static const u16 tbl_mode_digit_white_len[10] = {
 
 
 
-static const u32 tbl_mode_icon_sel_addr[MODE_TAB_CNT] = {
-    UI_BUF_HOME_PASTA_SEL_BIN,
-    UI_BUF_HOME_CHICKEN_SEL_BIN,
-    UI_BUF_HOME_WARM_SEL_BIN,
+static const u32 tbl_mode_icon_addr[MODE_TAB_CNT] = {
+    UI_BUF_HOME_PASTA_BIN,
+    UI_BUF_HOME_CHICKEN_BIN,
+    UI_BUF_HOME_INSULATION_BIN,
 };
 
-static const u32 tbl_mode_icon_nor_addr[MODE_TAB_CNT] = {
-    UI_BUF_HOME_PASTA_NOR_BIN,
-    UI_BUF_HOME_CHICKEN_NOR_BIN,
-    UI_BUF_HOME_WARM_NOR_BIN,
+static const u16 tbl_mode_icon_len[MODE_TAB_CNT] = {
+    UI_LEN_HOME_PASTA_BIN,
+    UI_LEN_HOME_CHICKEN_BIN,
+    UI_LEN_HOME_INSULATION_BIN,
 };
 
-static const u16 tbl_mode_icon_sel_len[MODE_TAB_CNT] = {
-    UI_LEN_HOME_PASTA_SEL_BIN,
-    UI_LEN_HOME_CHICKEN_SEL_BIN,
-    UI_LEN_HOME_WARM_SEL_BIN,
+static const u16 tbl_mode_icon_w[MODE_TAB_CNT] = {
+    MODE_TAB_PASTA_W,
+    MODE_TAB_CHICKEN_W,
+    MODE_TAB_INSULATION_W,
 };
 
-static const u16 tbl_mode_icon_nor_len[MODE_TAB_CNT] = {
-    UI_LEN_HOME_PASTA_NOR_BIN,
-    UI_LEN_HOME_CHICKEN_NOR_BIN,
-    UI_LEN_HOME_WARM_NOR_BIN,
+static const u16 tbl_mode_icon_h[MODE_TAB_CNT] = {
+    MODE_TAB_PASTA_H,
+    MODE_TAB_CHICKEN_H,
+    MODE_TAB_INSULATION_H,
 };
 
 static const u16 tbl_mode_tab_pic_id[MODE_TAB_CNT] = {
@@ -230,11 +301,11 @@ typedef struct {
     u8 min;
 } mode_tab_preset_t;
 
-/* 底部 Tab 选中时对应的固定温度(°F)与倒计时 */
+/* 底部 Tab 选中时的固定温度(°F)与倒计时 */
 static const mode_tab_preset_t tbl_mode_tab_preset[MODE_TAB_CNT] = {
-    {194, 1, 0},   /* Pasta   */
-    {212, 1, 0},   /* Chicken */
-    {120, 1, 0},   /* Warm    */
+    {194, 1, 0},   /* Pasta       */
+    {212, 1, 0},   /* Chicken     */
+    {120, 1, 0},   /* Insulation  */
 };
 
 static void func_mode_status_temp_update(f_mode_t *f_mode, u16 temp_f);
@@ -245,6 +316,54 @@ static void func_mode_tab_preset_apply(f_mode_t *f_mode, u8 tab);
 static void func_mode_dash_runtime_init(void)
 {
     home_ui_shared_dash_init();
+}
+
+static bool func_mode_gpu_ram_set(u8 *ram, u16 buf_size, u16 data_len, compo_picturebox_t *pic)
+{
+    u16 need;
+
+    if (ram == NULL || data_len == 0 || data_len > buf_size) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+
+    if (!gui_set_ram_check(ram, __func__)) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+
+    need = (u16)(8 + (u32)GET_LE16(&ram[4]) * GET_LE16(&ram[6]) * 2);
+    if (need > data_len || need > buf_size) {
+        printf("%s: len mismatch need %u data %u buf %u\n", __func__, need, data_len, buf_size);
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+
+    if (pic != NULL) {
+        compo_picturebox_set_ram(pic, ram);
+        compo_picturebox_set_visible(pic, true);
+    }
+    return true;
+}
+
+static bool func_mode_gpu_flash_to_ram(u8 *ram, u16 buf_size, u32 flash_addr, u16 flash_len,
+                                       compo_picturebox_t *pic)
+{
+    if (ram == NULL || flash_len == 0 || flash_len > buf_size) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+
+    os_spiflash_read(ram, flash_addr, flash_len);
+    return func_mode_gpu_ram_set(ram, buf_size, flash_len, pic);
 }
 
 static void func_mode_status_icons_init(void)
@@ -259,14 +378,23 @@ static void func_mode_status_icons_apply(f_mode_t *f_mode)
     if (f_mode->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         compo_picturebox_set_ram(f_mode->pic_bt, home_ui_shared_status_bt_ram);
         compo_picturebox_set_size(f_mode->pic_bt, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
+        compo_picturebox_set_visible(f_mode->pic_bt, true);
+    } else if (f_mode->pic_bt != NULL) {
+        compo_picturebox_set_visible(f_mode->pic_bt, false);
     }
     if (f_mode->pic_lock != NULL && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
         compo_picturebox_set_ram(f_mode->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_mode->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_mode->pic_lock, true);
+    } else if (f_mode->pic_lock != NULL) {
+        compo_picturebox_set_visible(f_mode->pic_lock, false);
     }
     if (f_mode->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         compo_picturebox_set_ram(f_mode->pic_bat, home_ui_shared_status_bat_ram);
         compo_picturebox_set_size(f_mode->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+        compo_picturebox_set_visible(f_mode->pic_bat, true);
+    } else if (f_mode->pic_bat != NULL) {
+        compo_picturebox_set_visible(f_mode->pic_bat, false);
     }
 }
 
@@ -333,32 +461,46 @@ static void func_mode_time_str_ampm(char *buf, u16 buf_len, tm_t *tm)
     snprintf(buf, buf_len, "%d:%02d %s", hour, tm->min, ap);
 }
 
-static void func_mode_status_temp_layout(f_mode_t *f_mode)
+static void func_mode_status_temp_layout(f_mode_t *f_mode, u16 temp_f)
 {
+    u8 digits[MODE_TEMP_IDX_CNT];
     u16 total;
     s16 x;
     u8 i;
 
-    total = MODE_STATUS_TEMP_DIGIT_W * MODE_TEMP_IDX_CNT
-          + MODE_STATUS_TEMP_GAP * (MODE_TEMP_IDX_CNT - 1)
-          + MODE_STATUS_TEMP_SYMBOL_GAP + MODE_STATUS_TEMPF_W;
-    x = GUI_SCREEN_CENTER_X - (s16)(total / 2) - 20;
+    if (temp_f > 999) {
+        temp_f = 999;
+    }
+
+    digits[MODE_TEMP_IDX_H] = (u8)(temp_f / 100);
+    digits[MODE_TEMP_IDX_T10] = (u8)((temp_f / 10) % 10);
+    digits[MODE_TEMP_IDX_T1] = (u8)(temp_f % 10);
+
+    total = MODE_GH_W;
+    for (i = 0; i < MODE_TEMP_IDX_CNT; i++) {
+        total += tbl_mode_g_digit_w[digits[i]];
+        if (i > 0) {
+            total += MODE_STATUS_TEMP_DIGIT_GAP;
+        }
+    }
+    total += MODE_STATUS_TEMP_SYMBOL_GAP;
+    x = GUI_SCREEN_CENTER_X - (s16)(total / 2) + MODE_STATUS_TEMP_CENTER_OFFSET;
 
     for (i = 0; i < MODE_TEMP_IDX_CNT; i++) {
-        s16 cx = x + (s16)(MODE_STATUS_TEMP_DIGIT_W / 2);
+        u8 d = digits[i];
+        s16 cx = x + (s16)(tbl_mode_g_digit_w[d] / 2);
 
         compo_picturebox_set_pos(f_mode->pic_status_temp[i], cx, MODE_STATUS_TEMP_Y);
         compo_picturebox_set_size(f_mode->pic_status_temp[i],
-                                 MODE_STATUS_TEMP_DIGIT_W, MODE_STATUS_TEMP_DIGIT_H);
-        x += MODE_STATUS_TEMP_DIGIT_W + MODE_STATUS_TEMP_GAP;
+                                 tbl_mode_g_digit_w[d], tbl_mode_g_digit_h[d]);
+        x += tbl_mode_g_digit_w[d] + MODE_STATUS_TEMP_DIGIT_GAP;
     }
 
     if (f_mode->pic_status_temp_degf != NULL) {
-        s16 cx = x + (s16)(MODE_STATUS_TEMPF_W / 2);
+        s16 cx = x + MODE_STATUS_TEMP_SYMBOL_GAP + (s16)(MODE_GH_W / 2);
 
         compo_picturebox_set_pos(f_mode->pic_status_temp_degf, cx, MODE_STATUS_TEMP_Y);
-        compo_picturebox_set_size(f_mode->pic_status_temp_degf,
-                                  MODE_STATUS_TEMPF_W, MODE_STATUS_TEMPF_H);
+        compo_picturebox_set_size(f_mode->pic_status_temp_degf, MODE_GH_W, MODE_GH_H);
     }
 }
 
@@ -375,22 +517,26 @@ static void func_mode_status_temp_update(f_mode_t *f_mode, u16 temp_f)
     digits[MODE_TEMP_IDX_T10] = (u8)((temp_f / 10) % 10);
     digits[MODE_TEMP_IDX_T1] = (u8)(temp_f % 10);
 
-    os_spiflash_read(mode_status_degf_gr_ram, UI_BUF_HOME_DEGF_GR_T_BIN, UI_LEN_HOME_DEGF_GR_T_BIN);
-    if (f_mode->pic_status_temp_degf != NULL && gui_set_ram_check(mode_status_degf_gr_ram, __func__)) {
-        compo_picturebox_set_ram(f_mode->pic_status_temp_degf, mode_status_degf_gr_ram);
+    if (f_mode->pic_status_temp_degf != NULL) {
+        if (func_mode_gpu_flash_to_ram(mode_status_gh_ram, MODE_GH_RAM_SIZE,
+                                        UI_BUF_HOME_GH_BIN, UI_LEN_HOME_GH_BIN,
+                                        f_mode->pic_status_temp_degf)) {
+            compo_picturebox_set_size(f_mode->pic_status_temp_degf, MODE_GH_W, MODE_GH_H);
+        }
     }
 
     for (i = 0; i < MODE_TEMP_IDX_CNT; i++) {
         u8 d = digits[i];
 
-        // os_spiflash_read(mode_status_temp_digit_ram[i],
-        //                  tbl_mode_digit_green_addr[d], tbl_mode_digit_green_len[d]);
-        if (gui_set_ram_check(mode_status_temp_digit_ram[i], __func__)) {
-            compo_picturebox_set_ram(f_mode->pic_status_temp[i], mode_status_temp_digit_ram[i]);
+        if (func_mode_gpu_flash_to_ram(mode_status_temp_digit_ram[i], MODE_G_DIGIT_RAM_MAX_SIZE,
+                                       tbl_mode_g_digit_addr[d], tbl_mode_g_digit_len[d],
+                                       f_mode->pic_status_temp[i])) {
+            compo_picturebox_set_size(f_mode->pic_status_temp[i],
+                                      tbl_mode_g_digit_w[d], tbl_mode_g_digit_h[d]);
         }
     }
 
-    func_mode_status_temp_layout(f_mode);
+    func_mode_status_temp_layout(f_mode, temp_f);
 }
 
 static void func_mode_timer_layout(f_mode_t *f_mode)
@@ -435,17 +581,19 @@ static void func_mode_timer_update(f_mode_t *f_mode, u8 hour, u8 min)
     }
     f_mode->last_timer_key = timer_key;
 
-    os_spiflash_read(home_ui_colon_ram, UI_BUF_HOME_COLON_BIN, UI_LEN_HOME_COLON_BIN);
-    if (gui_set_ram_check(home_ui_colon_ram, __func__)) {
-        compo_picturebox_set_ram(f_mode->pic_timer_colon, home_ui_colon_ram);
+    if (func_mode_gpu_flash_to_ram(home_ui_colon_ram, HOME_COLON_RAM_SIZE,
+                                   UI_BUF_HOME_COLON_BIN, UI_LEN_HOME_COLON_BIN,
+                                   f_mode->pic_timer_colon)) {
+        compo_picturebox_set_size(f_mode->pic_timer_colon, HOME_COLON_W, HOME_COLON_H);
     }
 
     for (i = 0; i < MODE_TIMER_IDX_CNT; i++) {
         u8 d = digits[i];
 
-        os_spiflash_read(home_ui_digit_ram[i], tbl_mode_digit_white_addr[d], tbl_mode_digit_white_len[d]);
-        if (gui_set_ram_check(home_ui_digit_ram[i], __func__)) {
-            compo_picturebox_set_ram(f_mode->pic_timer[i], home_ui_digit_ram[i]);
+        if (func_mode_gpu_flash_to_ram(home_ui_digit_ram[i], HOME_DIGIT_RAM_MAX_SIZE,
+                                       tbl_mode_digit_white_addr[d], tbl_mode_digit_white_len[d],
+                                       f_mode->pic_timer[i])) {
+            compo_picturebox_set_size(f_mode->pic_timer[i], HOME_DIGIT_W, HOME_DIGIT_H);
         }
     }
 
@@ -497,19 +645,39 @@ static compo_shape_t *func_mode_shape_create(compo_form_t *frm, u16 id, s16 x, s
     return shape;
 }
 
+static void func_mode_tab_icon_ram_apply(u8 *ram, u16 len, bool selected)
+{
+    u16 i;
+    u16 pix_cnt;
+
+    if (!selected || len <= 8) {
+        return;
+    }
+
+    pix_cnt = (len - 8) / 2;
+    for (i = 0; i < pix_cnt; i++) {
+        u8 *px = &ram[8 + i * 2];
+
+        if (GET_LE16(px) == MODE_TAB_ICON_BG_BLACK) {
+            PUT_LE16(px, MODE_COLOR_BLUE);
+        }
+    }
+}
+
 static void func_mode_tab_icon_update(f_mode_t *f_mode, u8 idx)
 {
     bool selected = (idx == f_mode->tab);
-    u32 addr = selected ? tbl_mode_icon_sel_addr[idx] : tbl_mode_icon_nor_addr[idx];
-    u16 len = selected ? tbl_mode_icon_sel_len[idx] : tbl_mode_icon_nor_len[idx];
 
     if (f_mode->tabs[idx].pic == NULL) {
         return;
     }
 
-    os_spiflash_read(home_ui_shared_icon_runtime[idx], addr, len);
-    if (gui_set_ram_check(home_ui_shared_icon_runtime[idx], __func__)) {
-        compo_picturebox_set_ram(f_mode->tabs[idx].pic, home_ui_shared_icon_runtime[idx]);
+    os_spiflash_read(home_ui_shared_icon_runtime[idx], tbl_mode_icon_addr[idx], tbl_mode_icon_len[idx]);
+    func_mode_tab_icon_ram_apply(home_ui_shared_icon_runtime[idx], tbl_mode_icon_len[idx], selected);
+    if (func_mode_gpu_ram_set(home_ui_shared_icon_runtime[idx], HOME_ICON_RAM_SIZE,
+                              tbl_mode_icon_len[idx], f_mode->tabs[idx].pic)) {
+        compo_picturebox_set_size(f_mode->tabs[idx].pic,
+                                  tbl_mode_icon_w[idx], tbl_mode_icon_h[idx]);
     }
 }
 
@@ -524,6 +692,7 @@ static void func_mode_tab_dash_update(f_mode_t *f_mode, u8 idx)
 
     if (gui_set_ram_check((void *)src, __func__)) {
         compo_picturebox_set_ram(f_mode->tabs[idx].pic_dash, src);
+        compo_picturebox_set_size(f_mode->tabs[idx].pic_dash, MODE_TAB_LINE_W, MODE_TAB_LINE_H);
     }
 }
 
@@ -546,12 +715,13 @@ static void func_mode_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic, tbl_mode_tab_pic_id[idx]);
-    os_spiflash_read(home_ui_shared_icon_runtime[idx], tbl_mode_icon_nor_addr[idx], tbl_mode_icon_nor_len[idx]);
-    if (gui_set_ram_check(home_ui_shared_icon_runtime[idx], __func__)) {
-        compo_picturebox_set_ram(pic, home_ui_shared_icon_runtime[idx]);
+    compo_picturebox_set_visible(pic, false);
+    os_spiflash_read(home_ui_shared_icon_runtime[idx], tbl_mode_icon_addr[idx], tbl_mode_icon_len[idx]);
+    if (func_mode_gpu_flash_to_ram(home_ui_shared_icon_runtime[idx], HOME_ICON_RAM_SIZE,
+                                   tbl_mode_icon_addr[idx], tbl_mode_icon_len[idx], pic)) {
+        compo_picturebox_set_size(pic, tbl_mode_icon_w[idx], tbl_mode_icon_h[idx]);
     }
     compo_picturebox_set_pos(pic, x, MODE_TAB_ICON_Y);
-    compo_picturebox_set_size(pic, MODE_TAB_ICON_SIZE, MODE_TAB_ICON_SIZE);
 
     txt = compo_textbox_create(frm, 8);
     compo_setid(txt, id_base + 4);
@@ -563,12 +733,14 @@ static void func_mode_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
 
     pic_dash = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic_dash, tbl_mode_tab_dash_id[idx]);
+    compo_picturebox_set_visible(pic_dash, false);
     func_mode_dash_runtime_init();
     if (gui_set_ram_check(home_ui_shared_dash_runtime_nor, __func__)) {
         compo_picturebox_set_ram(pic_dash, home_ui_shared_dash_runtime_nor);
+        compo_picturebox_set_visible(pic_dash, true);
     }
     compo_picturebox_set_pos(pic_dash, x, MODE_TAB_DASH_Y);
-    compo_picturebox_set_size(pic_dash, HOME_DASH_RAM_W, HOME_DASH_RAM_H);
+    compo_picturebox_set_size(pic_dash, MODE_TAB_LINE_W, MODE_TAB_LINE_H);
 
     btn = compo_button_create(frm);
     compo_setid(btn, id_base + 3);
@@ -637,8 +809,8 @@ static void func_mode_button_click(f_mode_t *f_mode)
         break;
 
     case COMPO_ID_TAB2_BTN:
-        f_mode->tab = MODE_TAB_WARM;
-        func_mode_tab_preset_apply(f_mode, MODE_TAB_WARM);
+        f_mode->tab = MODE_TAB_INSULATION;
+        func_mode_tab_preset_apply(f_mode, MODE_TAB_INSULATION);
         func_mode_tab_refresh(f_mode);
         break;
 
@@ -666,39 +838,46 @@ compo_form_t *func_mode_form_create(void)
     for (i = 0; i < MODE_TEMP_IDX_CNT; i++) {
         pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
         compo_setid(pic, tbl_mode_status_temp_id[i]);
+        compo_picturebox_set_visible(pic, false);
         compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, MODE_STATUS_TEMP_Y);
-        compo_picturebox_set_size(pic, MODE_STATUS_TEMP_DIGIT_W, MODE_STATUS_TEMP_DIGIT_H);
+        compo_picturebox_set_size(pic, MODE_G0_W, MODE_G_DIGIT_MAX_H);
     }
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_STATUS_TEMPF);
+    compo_picturebox_set_visible(pic, false);
     compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, MODE_STATUS_TEMP_Y);
-    compo_picturebox_set_size(pic, MODE_STATUS_TEMPF_W, MODE_STATUS_TEMPF_H);
+    compo_picturebox_set_size(pic, MODE_GH_W, MODE_GH_H);
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_BT);
+    compo_picturebox_set_visible(pic, false);
     compo_picturebox_set_pos(pic, MODE_STATUS_BT_X, MODE_STATUS_Y);
     compo_picturebox_set_size(pic, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_LOCK);
+    compo_picturebox_set_visible(pic, false);
     compo_picturebox_set_pos(pic, MODE_STATUS_LOCK_X, MODE_STATUS_Y);
     compo_picturebox_set_size(pic, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_BAT);
+    compo_picturebox_set_visible(pic, false);
     compo_picturebox_set_pos(pic, MODE_STATUS_BAT_X, MODE_STATUS_Y);
     compo_picturebox_set_size(pic, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
 
     for (i = 0; i < MODE_TIMER_IDX_CNT; i++) {
         pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
         compo_setid(pic, tbl_mode_timer_id[i]);
+        compo_picturebox_set_visible(pic, false);
         compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, MODE_TIMER_Y);
         compo_picturebox_set_size(pic, HOME_DIGIT_MAX_W, HOME_DIGIT_H);
     }
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_TIMER_COLON);
+    compo_picturebox_set_visible(pic, false);
     compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, MODE_TIMER_Y);
     compo_picturebox_set_size(pic, HOME_COLON_W, HOME_COLON_H);
 
@@ -706,8 +885,8 @@ compo_form_t *func_mode_form_create(void)
                          tbl_mode_tab_label[MODE_TAB_PASTA], tbl_mode_tab_x[MODE_TAB_PASTA]);
     func_mode_tab_create(frm, MODE_TAB_CHICKEN, COMPO_ID_TAB1_SEL_BG,
                          tbl_mode_tab_label[MODE_TAB_CHICKEN], tbl_mode_tab_x[MODE_TAB_CHICKEN]);
-    func_mode_tab_create(frm, MODE_TAB_WARM, COMPO_ID_TAB2_SEL_BG,
-                         tbl_mode_tab_label[MODE_TAB_WARM], tbl_mode_tab_x[MODE_TAB_WARM]);
+    func_mode_tab_create(frm, MODE_TAB_INSULATION, COMPO_ID_TAB2_SEL_BG,
+                         tbl_mode_tab_label[MODE_TAB_INSULATION], tbl_mode_tab_x[MODE_TAB_INSULATION]);
 
     return frm;
 }
@@ -766,7 +945,7 @@ void func_mode_enter(void)
 
     func_mode_tab_bind(f_mode, MODE_TAB_PASTA, COMPO_ID_TAB0_SEL_BG);
     func_mode_tab_bind(f_mode, MODE_TAB_CHICKEN, COMPO_ID_TAB1_SEL_BG);
-    func_mode_tab_bind(f_mode, MODE_TAB_WARM, COMPO_ID_TAB2_SEL_BG);
+    func_mode_tab_bind(f_mode, MODE_TAB_INSULATION, COMPO_ID_TAB2_SEL_BG);
 
     func_mode_status_icons_apply(f_mode);
     func_mode_tab_preset_apply(f_mode, f_mode->tab);
