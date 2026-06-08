@@ -48,17 +48,47 @@ NATIVE_DIGIT_ITEMS = [
     "bhx.png",
 ]
 
+TIME_ICON_ITEMS = (
+    *(f"{d}m.png" for d in range(10)),
+    "colonm.png",
+    "AMm.png",
+    "PMm.png",
+)
+
 
 def rgba565(r: int, g: int, b: int) -> int:
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+
+
+MODE_SRC_PNGS = frozenset(
+    (
+        "pasta.png",
+        "chicken.png",
+        "insulation.png",
+        "Warm.png",
+        "warm.png",
+        "while_line.png",
+        "blue_line.png",
+        *(f"g{d}.png" for d in range(10)),
+        "gh.png",
+        "gs.png",
+    )
+)
 
 
 def ensure_src_layout() -> None:
     SRC_DIR.mkdir(parents=True, exist_ok=True)
     BIN_DIR.mkdir(parents=True, exist_ok=True)
     if any(SRC_DIR.glob("*.png")):
-        for png in BIN_DIR.glob("*.png"):
-            png.unlink()
+        for png in sorted(BIN_DIR.glob("*.png")):
+            dest = SRC_DIR / png.name
+            if png.name in TIME_ICON_ITEMS or png.name in MODE_SRC_PNGS:
+                if not dest.exists():
+                    shutil.move(str(png), str(dest))
+                    print(f"moved png {png.name} -> res/home")
+            else:
+                png.unlink()
+                print(f"removed stale png from ui/home: {png.name}")
         return
     moved = 0
     for png in sorted(BIN_DIR.glob("*.png")):
@@ -170,11 +200,50 @@ def require_src(name: str) -> Path:
     return path
 
 
-def cleanup_obsolete_bins(keep: set[str]) -> None:
-    for path in BIN_DIR.glob("*.bin"):
-        if path.name not in keep:
+def require_time_src(name: str) -> Path:
+    for base in (BIN_DIR, SRC_DIR):
+        path = base / name
+        if path.exists():
+            return path
+    raise SystemExit(f"missing {name} (put it in Output/bin/ui/home/ or res/home/)")
+
+
+OBSOLETE_BINS = (
+    "blue_bj.bin",
+    "pasta_sel.bin",
+    "pasta_nor.bin",
+    "chicken_sel.bin",
+    "chicken_nor.bin",
+    "warm_sel.bin",
+    "warm_nor.bin",
+    "dash_sel.bin",
+    "dash_nor.bin",
+)
+
+
+def cleanup_obsolete_bins() -> None:
+    for name in OBSOLETE_BINS:
+        path = BIN_DIR / name
+        if path.exists():
             path.unlink()
-            print(f"removed obsolete {path.name}")
+            print(f"removed obsolete {name}")
+
+
+def remove_png_from_bin_dir() -> None:
+    for png in sorted(BIN_DIR.glob("*.png")):
+        png.unlink()
+        print(f"removed png from ui/home: {png.name}")
+
+
+def preserve_mode_blocks(existing: str) -> str:
+    marker = "/* Mode tab icons/lines (tools/gen_mode_icons.py) */"
+    idx = existing.find(marker)
+    if idx < 0:
+        return ""
+    end = existing.rfind("#endif")
+    if end < 0 or end <= idx:
+        return ""
+    return existing[idx:end].rstrip() + "\n\n"
 
 
 def main() -> None:
@@ -187,6 +256,7 @@ def main() -> None:
     dash_w = 30
     dash_h = 2
     heat_sizes: dict[str, tuple[int, int, int]] = {}
+    time_sizes: dict[str, tuple[int, int, int]] = {}
 
     for fname, stem in NAV_ICON_ITEMS:
         path = require_src(fname)
@@ -236,7 +306,16 @@ def main() -> None:
         keep.add(out_name)
         status_sizes[stem] = (w, h, len(data))
 
-    cleanup_obsolete_bins(keep)
+    for fname in TIME_ICON_ITEMS:
+        path = require_time_src(fname)
+        data, w, h = png_native_to_gpu(path)
+        out_name = Path(fname).stem + ".bin"
+        write_bin(out_name, data, fname)
+        keep.add(out_name)
+        time_sizes[Path(fname).stem] = (w, h, len(data))
+
+    cleanup_obsolete_bins()
+    remove_png_from_bin_dir()
 
     bt_w, bt_h, _ = status_sizes["bluetooth"]
     lock_w, lock_h, _ = status_sizes["lock"]
@@ -273,6 +352,39 @@ def main() -> None:
             f"#define HEAT_BHX_H                      {h}\n"
             f"#define HEAT_BHX_RAM_SIZE               {sz}\n"
         )
+
+    time_digit_max_bytes = max((time_sizes[f"{d}m"][2] for d in range(10)), default=416)
+    time_digit_max_h = max((time_sizes[f"{d}m"][1] for d in range(10)), default=17)
+    colonm_w, colonm_h, colonm_sz = time_sizes.get("colonm", (4, 12, 104))
+    amm_w, amm_h, amm_sz = time_sizes.get("AMm", (19, 10, 388))
+    pmm_w, pmm_h, pmm_sz = time_sizes.get("PMm", (17, 10, 348))
+    ampm_max_bytes = max(amm_sz, pmm_sz)
+
+    time_detail = [
+        "/* Top-left RTC 0m..9m + colonm + AMm/PMm (tools/gen_home_icons.py) */",
+        "#define HOME_TOP_TIME_DIGIT_SLOTS           4",
+        f"#define HOME_TOP_TIME_DIGIT_RAM_MAX_SIZE    {time_digit_max_bytes}",
+        f"#define HOME_TOP_TIME_DIGIT_MAX_H           {time_digit_max_h}",
+    ]
+    for d in range(10):
+        w, h, _ = time_sizes[f"{d}m"]
+        time_detail.append(f"#define HOME_TOP_TIME_{d}M_W                {w}")
+        time_detail.append(f"#define HOME_TOP_TIME_{d}M_H                {h}")
+    time_detail.extend([
+        f"#define HOME_TOP_TIME_COLONM_W              {colonm_w}",
+        f"#define HOME_TOP_TIME_COLONM_H              {colonm_h}",
+        f"#define HOME_TOP_TIME_COLONM_RAM_SIZE       {colonm_sz}",
+        f"#define HOME_TOP_TIME_AMM_W                 {amm_w}",
+        f"#define HOME_TOP_TIME_AMM_H                 {amm_h}",
+        f"#define HOME_TOP_TIME_PMM_W                 {pmm_w}",
+        f"#define HOME_TOP_TIME_PMM_H                 {pmm_h}",
+        f"#define HOME_TOP_TIME_AMPM_RAM_MAX_SIZE     {ampm_max_bytes}",
+        "",
+    ])
+    time_block = "\n".join(time_detail)
+
+    existing_h = OUT_H.read_text(encoding="utf-8") if OUT_H.exists() else ""
+    mode_blocks = preserve_mode_blocks(existing_h)
 
     OUT_H.write_text(
         "\n".join(
@@ -347,6 +459,8 @@ def main() -> None:
                 f"#define HEAT_B_DIGIT_RAM_MAX_SIZE       {heat_b_digit_max}",
                 heat_detail.rstrip(),
                 "",
+                time_block,
+                mode_blocks,
                 "#endif",
                 "",
             ]

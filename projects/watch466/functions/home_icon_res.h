@@ -113,6 +113,39 @@
 #define HEAT_BHX_H                      49
 #define HEAT_BHX_RAM_SIZE               4908
 
+/* Top-left RTC 0m..9m + colonm + AMm/PMm (tools/gen_home_icons.py) */
+#define HOME_TOP_TIME_DIGIT_SLOTS           4
+#define HOME_TOP_TIME_DIGIT_RAM_MAX_SIZE    416
+#define HOME_TOP_TIME_DIGIT_MAX_H           17
+#define HOME_TOP_TIME_0M_W                12
+#define HOME_TOP_TIME_0M_H                17
+#define HOME_TOP_TIME_1M_W                7
+#define HOME_TOP_TIME_1M_H                16
+#define HOME_TOP_TIME_2M_W                11
+#define HOME_TOP_TIME_2M_H                17
+#define HOME_TOP_TIME_3M_W                11
+#define HOME_TOP_TIME_3M_H                17
+#define HOME_TOP_TIME_4M_W                12
+#define HOME_TOP_TIME_4M_H                16
+#define HOME_TOP_TIME_5M_W                11
+#define HOME_TOP_TIME_5M_H                16
+#define HOME_TOP_TIME_6M_W                11
+#define HOME_TOP_TIME_6M_H                16
+#define HOME_TOP_TIME_7M_W                11
+#define HOME_TOP_TIME_7M_H                16
+#define HOME_TOP_TIME_8M_W                11
+#define HOME_TOP_TIME_8M_H                17
+#define HOME_TOP_TIME_9M_W                12
+#define HOME_TOP_TIME_9M_H                17
+#define HOME_TOP_TIME_COLONM_W              4
+#define HOME_TOP_TIME_COLONM_H              12
+#define HOME_TOP_TIME_COLONM_RAM_SIZE       104
+#define HOME_TOP_TIME_AMM_W                 19
+#define HOME_TOP_TIME_AMM_H                 10
+#define HOME_TOP_TIME_PMM_W                 17
+#define HOME_TOP_TIME_PMM_H                 10
+#define HOME_TOP_TIME_AMPM_RAM_MAX_SIZE     388
+
 /* Mode tab icons/lines (tools/gen_mode_icons.py) */
 #define MODE_TAB_PASTA_W                 38
 #define MODE_TAB_PASTA_H                 29
@@ -128,7 +161,7 @@
 
 /* Mode status green temp g0..g9 + gh/gs (tools/gen_mode_icons.py) */
 #define MODE_G_DIGIT_MAX_H              18
-#define MODE_G_DIGIT_RAM_MAX_SIZE       458
+#define MODE_G_DIGIT_RAM_MAX_SIZE       404
 #define MODE_G0_W                      11
 #define MODE_G0_H                      18
 #define MODE_G1_W                      3
@@ -156,5 +189,6 @@
 #define MODE_GS_H                       15
 #define MODE_GS_RAM_SIZE                488
 #define MODE_G_SYM_RAM_MAX_SIZE         488
+
 
 #endif

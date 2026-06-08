@@ -1391,6 +1391,9 @@
 		<Unit filename="functions/home_ui_shared.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/home_top_time.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/home_ui_ram.c">
 			<Option compilerVar="CC" />
 		</Unit>

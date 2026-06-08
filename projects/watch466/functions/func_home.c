@@ -3,6 +3,7 @@
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
+#include "home_top_time.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -13,6 +14,9 @@
 /*
  * Home 位图：tools/gen_home_icons.py -> Output/bin/ui/home/*.bin -> prebuild -> ui.bin
  * 全部 home/*.bin 为 GPU 格式(0x24150)：必须 os_spiflash_read + set_ram，不可 set 直引 Flash。
+ *
+ * 左上角 RTC：0m.png..9m.png、colonm.png、AMm.png、PMm.png -> 同名 .bin -> ui.bin
+ *   home_top_time.c：os_spiflash_read + compo_picturebox_set_ram
  *
  * 中部倒计时 HH:MM（4 位数字 + 冒号）：
  *   PNG 源：Output/bin/ui/home/0.png..9.png、colon.png
@@ -25,9 +29,8 @@
  *   RAM：home_ui_shared_status_*_ram -> home_ui_shared_status_init() + func_home_status_icons_apply()
  *
  * 底部导航 Tab（HEAT / MODE / SETUP）：
- *   图标：*.bin（未选中透明填黑）/ *_sel.bin（选中透明填蓝，与背景同色）
- *   选中：蓝色圆角 shape 铺满 + 白底线；未选中：灰框 + 蓝底线
- *   勿用 blue_bj picturebox（会触发 ab_malloc C4A3）
+ *   选中：蓝底 + 白框 + 白底线 + 白图标（*_sel.bin）
+ *   未选中：黑底 + 白框 + 蓝底线 + 白图标（*.bin）
  */
 #define UI_HOME_ICON_PLACEHOLDER          UI_BUF_ICON_ACTIVITY_BIN
 
@@ -84,20 +87,19 @@
 #endif
 
 #define HOME_COLOR_BLUE                 make_color(4, 109, 217)
-#define HOME_COLOR_BORDER_GREY          make_color(120, 120, 120)
 
 #define HOME_TAB_BTN_W                  118
 #define HOME_TAB_BTN_H                  96
+#define HOME_TAB_BTN_R                  16
+#define HOME_TAB_BTN_R_IN               14
 #define HOME_TAB_BTN_Y                  390
 #define HOME_TAB_PAD_TOP                12
 #define HOME_TAB_PAD_BOTTOM             10
 #define HOME_TAB_PAD_MID                6
 #define HOME_TAB_FONT_H                 8
+#define HOME_TAB_LINE_H                 3
 #define HOME_TAB_ICON_Y                 (HOME_TAB_BTN_Y - HOME_TAB_BTN_H / 2 + HOME_TAB_PAD_TOP + HOME_NAV_ICON_MAX_H / 2)
 #define HOME_TAB_LABEL_Y                (HOME_TAB_ICON_Y + HOME_NAV_ICON_MAX_H / 2 + HOME_TAB_PAD_MID + HOME_TAB_FONT_H / 2)
-#define HOME_TAB_BG_Y                   HOME_TAB_BTN_Y
-#define HOME_TAB_BG_R                   16
-#define HOME_TAB_LINE_H                 3
 #define HOME_TAB_DASH_Y                 (HOME_TAB_BTN_Y + HOME_TAB_BTN_H / 2 - HOME_TAB_PAD_BOTTOM - HOME_TAB_LINE_H / 2)
 #define HOME_TAB_DASH_W                 HOME_DASH_RAM_W
 #define HOME_TAB_X0                     87
@@ -130,7 +132,12 @@ enum {
 };
 
 enum {
-    COMPO_ID_TXT_TOP_TIME = 1,
+    COMPO_ID_PIC_TOP_TIME_H10 = 1,
+    COMPO_ID_PIC_TOP_TIME_H1,
+    COMPO_ID_PIC_TOP_TIME_COLON,
+    COMPO_ID_PIC_TOP_TIME_M10,
+    COMPO_ID_PIC_TOP_TIME_M1,
+    COMPO_ID_PIC_TOP_TIME_AMPM,
     COMPO_ID_PIC_CLOCK_H10,
     COMPO_ID_PIC_CLOCK_H1,
     COMPO_ID_PIC_CLOCK_COLON,
@@ -139,8 +146,7 @@ enum {
     COMPO_ID_PIC_BT,
     COMPO_ID_PIC_LOCK,
     COMPO_ID_PIC_BAT,
-    COMPO_ID_TAB_BG,
-
+    COMPO_ID_TAB0_SEL_BG,
     COMPO_ID_TAB0_BORDER_OUT,
     COMPO_ID_TAB0_BORDER_IN,
     COMPO_ID_TAB0_BTN,
@@ -148,6 +154,7 @@ enum {
     COMPO_ID_TAB0_LINE,
     COMPO_ID_TAB0_PIC,
 
+    COMPO_ID_TAB1_SEL_BG,
     COMPO_ID_TAB1_BORDER_OUT,
     COMPO_ID_TAB1_BORDER_IN,
     COMPO_ID_TAB1_BTN,
@@ -155,6 +162,7 @@ enum {
     COMPO_ID_TAB1_LINE,
     COMPO_ID_TAB1_PIC,
 
+    COMPO_ID_TAB2_SEL_BG,
     COMPO_ID_TAB2_BORDER_OUT,
     COMPO_ID_TAB2_BORDER_IN,
     COMPO_ID_TAB2_BTN,
@@ -164,6 +172,7 @@ enum {
 };
 
 typedef struct home_tab_ui_t_ {
+    compo_shape_t *sel_bg;
     compo_shape_t *border_out;
     compo_shape_t *border_in;
     compo_shape_t *line;
@@ -177,13 +186,12 @@ typedef struct f_home_t_ {
     u8 last_top_min;
     u8 last_top_sec;
     u16 last_cd_total_min;
-    compo_textbox_t *txt_top_time;
+    home_top_time_ui_t top_time;
     compo_picturebox_t *pic_clock[HOME_CLOCK_IDX_CNT];
     compo_picturebox_t *pic_clock_colon;
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_lock;
     compo_picturebox_t *pic_bat;
-    compo_shape_t *tab_bg;
     home_tab_ui_t tabs[HOME_TAB_CNT];
 } f_home_t;
 
@@ -255,18 +263,6 @@ static const u16 tbl_home_tab_dash_id[HOME_TAB_CNT] = {
     COMPO_ID_TAB0_LINE,
     COMPO_ID_TAB1_LINE,
     COMPO_ID_TAB2_LINE,
-};
-
-static const u16 tbl_home_tab_border_out_id[HOME_TAB_CNT] = {
-    COMPO_ID_TAB0_BORDER_OUT,
-    COMPO_ID_TAB1_BORDER_OUT,
-    COMPO_ID_TAB2_BORDER_OUT,
-};
-
-static const u16 tbl_home_tab_border_in_id[HOME_TAB_CNT] = {
-    COMPO_ID_TAB0_BORDER_IN,
-    COMPO_ID_TAB1_BORDER_IN,
-    COMPO_ID_TAB2_BORDER_IN,
 };
 
 static const u16 tbl_home_clock_id[HOME_CLOCK_IDX_CNT] = {
@@ -441,53 +437,17 @@ static const s16 tbl_home_tab_x[HOME_TAB_CNT] = {
     HOME_TAB_X2,
 };
 
-static void func_home_time_str_ampm(char *buf, u16 buf_len, tm_t *tm)
-{
-    u8 hour = tm->hour;
-    const char *ap = "AM";
-
-    if (hour >= 12) {
-        ap = "PM";
-        if (hour > 12) {
-            hour -= 12;
-        }
-    }
-    if (hour == 0) {
-        hour = 12;
-    }
-    snprintf(buf, buf_len, "%d:%02d %s", hour, tm->min, ap);
-}
-
-static compo_shape_t *func_home_tab_bg_create(compo_form_t *frm)
+static compo_shape_t *func_home_shape_create(compo_form_t *frm, u16 id, s16 x, s16 y,
+                                              s16 w, s16 h, u16 color, u16 radius)
 {
     compo_shape_t *shape = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
 
-    compo_setid(shape, COMPO_ID_TAB_BG);
-    compo_shape_set_location(shape, tbl_home_tab_x[HOME_TAB_HEAT], HOME_TAB_BG_Y,
-                             HOME_TAB_BTN_W, HOME_TAB_BTN_H);
-    compo_shape_set_color(shape, HOME_COLOR_BLUE);
-    compo_shape_set_radius(shape, HOME_TAB_BG_R);
-    compo_shape_set_visible(shape, true);
+    compo_setid(shape, id);
+    compo_shape_set_location(shape, x, y, w, h);
+    compo_shape_set_color(shape, color);
+    compo_shape_set_radius(shape, radius);
+    compo_shape_set_visible(shape, false);
     return shape;
-}
-
-static void func_home_tab_border_create(compo_form_t *frm, u8 idx, s16 x)
-{
-    compo_shape_t *border_out;
-    compo_shape_t *border_in;
-
-    border_out = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
-    compo_setid(border_out, tbl_home_tab_border_out_id[idx]);
-    compo_shape_set_location(border_out, x, HOME_TAB_BTN_Y, HOME_TAB_BTN_W, HOME_TAB_BTN_H);
-    compo_shape_set_color(border_out, HOME_COLOR_BORDER_GREY);
-    compo_shape_set_radius(border_out, HOME_TAB_BG_R);
-
-    border_in = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
-    compo_setid(border_in, tbl_home_tab_border_in_id[idx]);
-    compo_shape_set_location(border_in, x, HOME_TAB_BTN_Y,
-                            HOME_TAB_BTN_W - 4, HOME_TAB_BTN_H - 4);
-    compo_shape_set_color(border_in, COLOR_BLACK);
-    compo_shape_set_radius(border_in, HOME_TAB_BG_R - 2);
 }
 
 static compo_shape_t *func_home_tab_line_create(compo_form_t *frm, u16 id, s16 x)
@@ -507,7 +467,12 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     compo_button_t *btn;
     compo_textbox_t *txt;
 
-    func_home_tab_border_create(frm, idx, x);
+    func_home_shape_create(frm, id_base + 0, x, HOME_TAB_BTN_Y,
+                           HOME_TAB_BTN_W, HOME_TAB_BTN_H, HOME_COLOR_BLUE, HOME_TAB_BTN_R);
+    func_home_shape_create(frm, id_base + 1, x, HOME_TAB_BTN_Y,
+                           HOME_TAB_BTN_W, HOME_TAB_BTN_H, COLOR_WHITE, HOME_TAB_BTN_R);
+    func_home_shape_create(frm, id_base + 2, x, HOME_TAB_BTN_Y,
+                           HOME_TAB_BTN_W - 4, HOME_TAB_BTN_H - 4, COLOR_BLACK, HOME_TAB_BTN_R_IN);
 
     pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic, tbl_home_tab_pic_id[idx]);
@@ -519,7 +484,7 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     compo_picturebox_set_size(pic, tbl_home_nav_icon_w[idx], tbl_home_nav_icon_h[idx]);
 
     txt = compo_textbox_create(frm, 8);
-    compo_setid(txt, id_base + 1);
+    compo_setid(txt, id_base + 4);
     compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
     compo_textbox_set_pos(txt, x, HOME_TAB_LABEL_Y);
     compo_textbox_set_align_center(txt, true);
@@ -529,7 +494,7 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     func_home_tab_line_create(frm, tbl_home_tab_dash_id[idx], x);
 
     btn = compo_button_create(frm);
-    compo_setid(btn, id_base);
+    compo_setid(btn, id_base + 3);
     compo_button_set_location(btn, x, HOME_TAB_BTN_Y, HOME_TAB_BTN_W, HOME_TAB_BTN_H);
 }
 
@@ -537,28 +502,24 @@ static void func_home_tab_bind(f_home_t *f_home, u8 idx, u16 id_base)
 {
     home_tab_ui_t *tab = &f_home->tabs[idx];
 
-    tab->border_out = compo_getobj_byid(tbl_home_tab_border_out_id[idx]);
-    tab->border_in = compo_getobj_byid(tbl_home_tab_border_in_id[idx]);
+    tab->sel_bg = compo_getobj_byid(id_base + 0);
+    tab->border_out = compo_getobj_byid(id_base + 1);
+    tab->border_in = compo_getobj_byid(id_base + 2);
     tab->line = compo_getobj_byid(tbl_home_tab_dash_id[idx]);
     tab->pic = compo_getobj_byid(tbl_home_tab_pic_id[idx]);
-    tab->btn = compo_getobj_byid(id_base);
-    tab->label = compo_getobj_byid(id_base + 1);
+    tab->btn = compo_getobj_byid(id_base + 3);
+    tab->label = compo_getobj_byid(id_base + 4);
 }
 
 static void func_home_tab_refresh(f_home_t *f_home)
 {
     u8 i;
 
-    if (f_home->tab_bg != NULL) {
-        compo_shape_set_location(f_home->tab_bg, tbl_home_tab_x[f_home->tab], HOME_TAB_BG_Y,
-                                 HOME_TAB_BTN_W, HOME_TAB_BTN_H);
-        compo_shape_set_visible(f_home->tab_bg, true);
-    }
-
     for (i = 0; i < HOME_TAB_CNT; i++) {
         home_tab_ui_t *tab = &f_home->tabs[i];
         bool selected = (i == f_home->tab);
 
+        compo_shape_set_visible(tab->sel_bg, selected);
         compo_shape_set_visible(tab->border_out, !selected);
         compo_shape_set_visible(tab->border_in, !selected);
         func_home_tab_icon_update(f_home, i);
@@ -568,14 +529,12 @@ static void func_home_tab_refresh(f_home_t *f_home)
 
 static void func_home_status_refresh(f_home_t *f_home)
 {
-    char str[16];
     tm_t tm = rtc_clock_get();
 
     if (f_home->last_top_min != tm.min || f_home->last_top_sec != tm.sec) {
         f_home->last_top_min = tm.min;
         f_home->last_top_sec = tm.sec;
-        func_home_time_str_ampm(str, sizeof(str), &tm);
-        compo_textbox_set(f_home->txt_top_time, str);
+        home_top_time_refresh(&f_home->top_time, &tm);
         func_home_countdown_tick();
     }
 
@@ -629,17 +588,12 @@ static void func_home_button_click(f_home_t *f_home)
 compo_form_t *func_home_form_create(void)
 {
     compo_form_t *frm = compo_form_create(true);
-    compo_textbox_t *txt;
     compo_picturebox_t *pic;
-    char str[16];
-    tm_t tm = rtc_clock_get();
 
-    func_home_time_str_ampm(str, sizeof(str), &tm);
-    txt = compo_textbox_create(frm, 16);
-    compo_setid(txt, COMPO_ID_TXT_TOP_TIME);
-    compo_textbox_set_pos(txt, 78, 48);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, str);
+    home_top_time_create(frm, UI_HOME_ICON_PLACEHOLDER,
+                         COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
+                         COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
+                         COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
 
     pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_BT);
@@ -668,13 +622,11 @@ compo_form_t *func_home_form_create(void)
     compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, HOME_CLOCK_Y);
     compo_picturebox_set_size(pic, HOME_COLON_W, HOME_COLON_H);
 
-    func_home_tab_bg_create(frm);
-
-    func_home_tab_create(frm, HOME_TAB_HEAT, COMPO_ID_TAB0_BTN,
+    func_home_tab_create(frm, HOME_TAB_HEAT, COMPO_ID_TAB0_SEL_BG,
                          tbl_home_tab_label[HOME_TAB_HEAT], tbl_home_tab_x[HOME_TAB_HEAT]);
-    func_home_tab_create(frm, HOME_TAB_MODE, COMPO_ID_TAB1_BTN,
+    func_home_tab_create(frm, HOME_TAB_MODE, COMPO_ID_TAB1_SEL_BG,
                          tbl_home_tab_label[HOME_TAB_MODE], tbl_home_tab_x[HOME_TAB_MODE]);
-    func_home_tab_create(frm, HOME_TAB_SETUP, COMPO_ID_TAB2_BTN,
+    func_home_tab_create(frm, HOME_TAB_SETUP, COMPO_ID_TAB2_SEL_BG,
                          tbl_home_tab_label[HOME_TAB_SETUP], tbl_home_tab_x[HOME_TAB_SETUP]);
 
     return frm;
@@ -718,7 +670,13 @@ void func_home_enter(void)
     f_home->last_top_sec = 0xff;
     f_home->last_cd_total_min = 0xffff;
 
-    f_home->txt_top_time = compo_getobj_byid(COMPO_ID_TXT_TOP_TIME);
+    home_top_time_bind(&f_home->top_time, COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
+                       COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
+                       COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
+    {
+        tm_t tm = rtc_clock_get();
+        home_top_time_refresh(&f_home->top_time, &tm);
+    }
     for (u8 i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
         f_home->pic_clock[i] = compo_getobj_byid(tbl_home_clock_id[i]);
     }
@@ -726,10 +684,9 @@ void func_home_enter(void)
     f_home->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
     f_home->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
     f_home->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
-    f_home->tab_bg = compo_getobj_byid(COMPO_ID_TAB_BG);
-    func_home_tab_bind(f_home, HOME_TAB_HEAT, COMPO_ID_TAB0_BTN);
-    func_home_tab_bind(f_home, HOME_TAB_MODE, COMPO_ID_TAB1_BTN);
-    func_home_tab_bind(f_home, HOME_TAB_SETUP, COMPO_ID_TAB2_BTN);
+    func_home_tab_bind(f_home, HOME_TAB_HEAT, COMPO_ID_TAB0_SEL_BG);
+    func_home_tab_bind(f_home, HOME_TAB_MODE, COMPO_ID_TAB1_SEL_BG);
+    func_home_tab_bind(f_home, HOME_TAB_SETUP, COMPO_ID_TAB2_SEL_BG);
 
     func_home_status_icons_apply(f_home);
     func_home_countdown_set(90, 5);

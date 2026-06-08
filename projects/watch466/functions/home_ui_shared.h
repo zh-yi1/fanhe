@@ -12,6 +12,9 @@ extern u8 home_ui_shared_status_lock_ram[HOME_STATUS_LOCK_RAM_SIZE];
 extern u8 home_ui_shared_status_bat_ram[HOME_STATUS_BAT_RAM_SIZE];
 extern u8 home_ui_shared_dash_runtime_sel[HOME_DASH_RAM_SIZE];
 extern u8 home_ui_shared_dash_runtime_nor[HOME_DASH_RAM_SIZE];
+extern u8 home_ui_shared_top_time_digit_ram[HOME_TOP_TIME_DIGIT_SLOTS][HOME_TOP_TIME_DIGIT_RAM_MAX_SIZE];
+extern u8 home_ui_shared_top_time_colon_ram[HOME_TOP_TIME_COLONM_RAM_SIZE];
+extern u8 home_ui_shared_top_time_ampm_ram[HOME_TOP_TIME_AMPM_RAM_MAX_SIZE];
 extern bool home_ui_shared_status_inited;
 extern bool home_ui_shared_dash_inited;
 

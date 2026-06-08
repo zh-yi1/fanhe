@@ -3,6 +3,7 @@
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
+#include "home_top_time.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -18,6 +19,7 @@
  * 底部横线：
  *   while_line.png（选中）、blue_line.png（未选中）
  * 顶部绿色温度：g0.png..g9.png + gh.png（°F）-> 同名 .bin -> ui.bin。
+ * 左上 RTC：0m..9m + colonm + AMm/PMm -> ui.bin（home_top_time.c）。
  * GPU 0x24150：os_spiflash_read + compo_picturebox_set_ram。
  */
 #define UI_MODE_PLACEHOLDER               UI_BUF_ICON_ACTIVITY_BIN
@@ -89,7 +91,6 @@
 #define MODE_TAB_X2                       379
 
 #define MODE_STATUS_Y                     48
-#define MODE_STATUS_TIME_X                78
 #define MODE_STATUS_RIGHT_MARGIN          24
 #define MODE_STATUS_GAP                   10
 #define MODE_STATUS_BAT_X                 (GUI_SCREEN_WIDTH - MODE_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
@@ -99,8 +100,9 @@
 #define MODE_TIMER_Y                      195
 #define MODE_DIGIT_GAP                    4
 #define MODE_STATUS_TEMP_Y                48
-#define MODE_STATUS_TEMP_DIGIT_GAP        1
-#define MODE_STATUS_TEMP_SYMBOL_GAP       1
+#define MODE_STATUS_TEMP_DIGIT_GAP        3
+#define MODE_STATUS_TEMP_NARROW_EXTRA     7   /* 含数字 1 等窄字时加宽（如 212 的 21） */
+#define MODE_STATUS_TEMP_SYMBOL_GAP       3
 #define MODE_STATUS_TEMP_CENTER_OFFSET    (-20)
 
 enum {
@@ -126,7 +128,12 @@ enum {
 };
 
 enum {
-    COMPO_ID_TXT_TOP_TIME = 1,
+    COMPO_ID_PIC_TOP_TIME_H10 = 1,
+    COMPO_ID_PIC_TOP_TIME_H1,
+    COMPO_ID_PIC_TOP_TIME_COLON,
+    COMPO_ID_PIC_TOP_TIME_M10,
+    COMPO_ID_PIC_TOP_TIME_M1,
+    COMPO_ID_PIC_TOP_TIME_AMPM,
     COMPO_ID_PIC_STATUS_TEMP_H,
     COMPO_ID_PIC_STATUS_TEMP_T10,
     COMPO_ID_PIC_STATUS_TEMP_T1,
@@ -181,7 +188,7 @@ typedef struct f_mode_t_ {
     u8 last_top_sec;
     u16 last_timer_key;
     u16 last_temp_f;
-    compo_textbox_t *txt_top_time;
+    home_top_time_ui_t top_time;
     compo_picturebox_t *pic_status_temp[MODE_TEMP_IDX_CNT];
     compo_picturebox_t *pic_status_temp_degf;
     compo_picturebox_t *pic_timer[MODE_TIMER_IDX_CNT];
@@ -444,21 +451,27 @@ static void func_mode_countdown_tick(void)
     }
 }
 
-static void func_mode_time_str_ampm(char *buf, u16 buf_len, tm_t *tm)
+static void func_mode_status_refresh(f_mode_t *f_mode)
 {
-    u8 hour = tm->hour;
-    const char *ap = "AM";
+    tm_t tm = rtc_clock_get();
 
-    if (hour >= 12) {
-        ap = "PM";
-        if (hour > 12) {
-            hour -= 12;
-        }
+    if (f_mode->last_top_min != tm.min || f_mode->last_top_sec != tm.sec) {
+        f_mode->last_top_min = tm.min;
+        f_mode->last_top_sec = tm.sec;
+        home_top_time_refresh(&f_mode->top_time, &tm);
+        func_mode_countdown_tick();
+        func_mode_display_refresh(f_mode);
     }
-    if (hour == 0) {
-        hour = 12;
+}
+
+static u16 func_mode_g_digit_gap(u8 d0, u8 d1)
+{
+    u16 gap = MODE_STATUS_TEMP_DIGIT_GAP;
+
+    if (d0 == 1 || d1 == 1 || tbl_mode_g_digit_w[d0] <= MODE_G1_W || tbl_mode_g_digit_w[d1] <= MODE_G1_W) {
+        gap += MODE_STATUS_TEMP_NARROW_EXTRA;
     }
-    snprintf(buf, buf_len, "%d:%02d %s", hour, tm->min, ap);
+    return gap;
 }
 
 static void func_mode_status_temp_layout(f_mode_t *f_mode, u16 temp_f)
@@ -480,7 +493,7 @@ static void func_mode_status_temp_layout(f_mode_t *f_mode, u16 temp_f)
     for (i = 0; i < MODE_TEMP_IDX_CNT; i++) {
         total += tbl_mode_g_digit_w[digits[i]];
         if (i > 0) {
-            total += MODE_STATUS_TEMP_DIGIT_GAP;
+            total += func_mode_g_digit_gap(digits[i - 1], digits[i]);
         }
     }
     total += MODE_STATUS_TEMP_SYMBOL_GAP;
@@ -493,7 +506,11 @@ static void func_mode_status_temp_layout(f_mode_t *f_mode, u16 temp_f)
         compo_picturebox_set_pos(f_mode->pic_status_temp[i], cx, MODE_STATUS_TEMP_Y);
         compo_picturebox_set_size(f_mode->pic_status_temp[i],
                                  tbl_mode_g_digit_w[d], tbl_mode_g_digit_h[d]);
-        x += tbl_mode_g_digit_w[d] + MODE_STATUS_TEMP_DIGIT_GAP;
+        if (i + 1 < MODE_TEMP_IDX_CNT) {
+            x += tbl_mode_g_digit_w[d] + func_mode_g_digit_gap(d, digits[i + 1]);
+        } else {
+            x += tbl_mode_g_digit_w[d];
+        }
     }
 
     if (f_mode->pic_status_temp_degf != NULL) {
@@ -776,21 +793,6 @@ static void func_mode_tab_refresh(f_mode_t *f_mode)
     }
 }
 
-static void func_mode_status_refresh(f_mode_t *f_mode)
-{
-    char str[16];
-    tm_t tm = rtc_clock_get();
-
-    if (f_mode->last_top_min != tm.min || f_mode->last_top_sec != tm.sec) {
-        f_mode->last_top_min = tm.min;
-        f_mode->last_top_sec = tm.sec;
-        func_mode_time_str_ampm(str, sizeof(str), &tm);
-        compo_textbox_set(f_mode->txt_top_time, str);
-        func_mode_countdown_tick();
-        func_mode_display_refresh(f_mode);
-    }
-}
-
 static void func_mode_button_click(f_mode_t *f_mode)
 {
     int id = compo_get_button_id();
@@ -822,18 +824,13 @@ static void func_mode_button_click(f_mode_t *f_mode)
 compo_form_t *func_mode_form_create(void)
 {
     compo_form_t *frm = compo_form_create(true);
-    compo_textbox_t *txt;
     compo_picturebox_t *pic;
-    char str[16];
-    tm_t tm = rtc_clock_get();
     u8 i;
 
-    func_mode_time_str_ampm(str, sizeof(str), &tm);
-    txt = compo_textbox_create(frm, 16);
-    compo_setid(txt, COMPO_ID_TXT_TOP_TIME);
-    compo_textbox_set_pos(txt, MODE_STATUS_TIME_X, MODE_STATUS_Y);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, str);
+    home_top_time_create(frm, UI_MODE_PLACEHOLDER,
+                         COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
+                         COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
+                         COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
 
     for (i = 0; i < MODE_TEMP_IDX_CNT; i++) {
         pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
@@ -930,7 +927,13 @@ void func_mode_enter(void)
     f_mode->last_timer_key = 0xffff;
     f_mode->last_temp_f = 0xffff;
 
-    f_mode->txt_top_time = compo_getobj_byid(COMPO_ID_TXT_TOP_TIME);
+    home_top_time_bind(&f_mode->top_time, COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
+                       COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
+                       COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
+    {
+        tm_t tm = rtc_clock_get();
+        home_top_time_refresh(&f_mode->top_time, &tm);
+    }
     for (u8 i = 0; i < MODE_TEMP_IDX_CNT; i++) {
         f_mode->pic_status_temp[i] = compo_getobj_byid(tbl_mode_status_temp_id[i]);
     }

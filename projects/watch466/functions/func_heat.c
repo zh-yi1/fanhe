@@ -3,6 +3,7 @@
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
+#include "home_top_time.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -12,7 +13,7 @@
 
 /*
  * Heat 页 UI（参照设计图）：
- *   左上：RTC 时间文字
+ *   左上：RTC 图标（0m..9m + colonm + AMm/PMm -> ui.bin，home_top_time.c）
  *   右上：bluetooth.bin / lock.bin / battery_level.bin
  *   中部倒计时：w0x.bin..w9x.bin（白字时）+ wbx.bin（冒号）+ b0x.bin..b9x.bin（灰字分）
  *   下部温度：b0x.bin..b9x.bin（灰字）+ bhx.bin（灰 °F）
@@ -80,7 +81,12 @@ enum {
 };
 
 enum {
-    COMPO_ID_TXT_TOP_TIME = 1,
+    COMPO_ID_PIC_TOP_TIME_H10 = 1,
+    COMPO_ID_PIC_TOP_TIME_H1,
+    COMPO_ID_PIC_TOP_TIME_COLON,
+    COMPO_ID_PIC_TOP_TIME_M10,
+    COMPO_ID_PIC_TOP_TIME_M1,
+    COMPO_ID_PIC_TOP_TIME_AMPM,
     COMPO_ID_PIC_TIMER_H10,
     COMPO_ID_PIC_TIMER_H1,
     COMPO_ID_PIC_TIMER_COLON,
@@ -100,7 +106,7 @@ typedef struct f_heat_t_ {
     u8 last_top_sec;
     u16 last_timer_key;
     u16 last_temp_f;
-    compo_textbox_t *txt_top_time;
+    home_top_time_ui_t top_time;
     compo_picturebox_t *pic_timer[HEAT_TIMER_IDX_CNT];
     compo_picturebox_t *pic_timer_colon;
     compo_picturebox_t *pic_temp[HEAT_TEMP_IDX_CNT];
@@ -159,6 +165,8 @@ static const u16 tbl_heat_timer_id[HEAT_TIMER_IDX_CNT] = {
 static const u16 tbl_heat_temp_id[HEAT_TEMP_IDX_CNT] = {
     COMPO_ID_PIC_TEMP_H, COMPO_ID_PIC_TEMP_T10, COMPO_ID_PIC_TEMP_T1,
 };
+
+static void func_heat_display_refresh(f_heat_t *f_heat);
 
 static void func_heat_status_icons_init(void)
 {
@@ -328,21 +336,17 @@ static void func_heat_countdown_tick(void)
     }
 }
 
-static void func_heat_time_str_ampm(char *buf, u16 buf_len, tm_t *tm)
+static void func_heat_status_refresh(f_heat_t *f_heat)
 {
-    u8 hour = tm->hour;
-    const char *ap = "AM";
+    tm_t tm = rtc_clock_get();
 
-    if (hour >= 12) {
-        ap = "PM";
-        if (hour > 12) {
-            hour -= 12;
-        }
+    if (f_heat->last_top_min != tm.min || f_heat->last_top_sec != tm.sec) {
+        f_heat->last_top_min = tm.min;
+        f_heat->last_top_sec = tm.sec;
+        home_top_time_refresh(&f_heat->top_time, &tm);
+        func_heat_countdown_tick();
+        func_heat_display_refresh(f_heat);
     }
-    if (hour == 0) {
-        hour = 12;
-    }
-    snprintf(buf, buf_len, "%d:%02d %s", hour, tm->min, ap);
 }
 
 static void func_heat_timer_layout(f_heat_t *f_heat, u8 hour, u8 min)
@@ -438,36 +442,16 @@ static void func_heat_display_refresh(f_heat_t *f_heat)
     func_heat_temp_update(f_heat, f_heat->last_temp_f);
 }
 
-static void func_heat_status_refresh(f_heat_t *f_heat)
-{
-    char str[16];
-    tm_t tm = rtc_clock_get();
-
-    if (f_heat->last_top_min != tm.min || f_heat->last_top_sec != tm.sec) {
-        f_heat->last_top_min = tm.min;
-        f_heat->last_top_sec = tm.sec;
-        func_heat_time_str_ampm(str, sizeof(str), &tm);
-        compo_textbox_set(f_heat->txt_top_time, str);
-        func_heat_countdown_tick();
-        func_heat_display_refresh(f_heat);
-    }
-}
-
 compo_form_t *func_heat_form_create(void)
 {
     compo_form_t *frm = compo_form_create(true);
-    compo_textbox_t *txt;
     compo_picturebox_t *pic;
-    char str[16];
-    tm_t tm = rtc_clock_get();
     u8 i;
 
-    func_heat_time_str_ampm(str, sizeof(str), &tm);
-    txt = compo_textbox_create(frm, 16);
-    compo_setid(txt, COMPO_ID_TXT_TOP_TIME);
-    compo_textbox_set_pos(txt, 78, 48);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, str);
+    home_top_time_create(frm, UI_HEAT_PLACEHOLDER,
+                         COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
+                         COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
+                         COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
 
     pic = compo_picturebox_create(frm, UI_HEAT_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_BT);
@@ -543,7 +527,13 @@ void func_heat_enter(void)
     f_heat->last_timer_key = 0xffff;
     f_heat->last_temp_f = 0xffff;
 
-    f_heat->txt_top_time = compo_getobj_byid(COMPO_ID_TXT_TOP_TIME);
+    home_top_time_bind(&f_heat->top_time, COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
+                       COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
+                       COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
+    {
+        tm_t tm = rtc_clock_get();
+        home_top_time_refresh(&f_heat->top_time, &tm);
+    }
     for (u8 i = 0; i < HEAT_TIMER_IDX_CNT; i++) {
         f_heat->pic_timer[i] = compo_getobj_byid(tbl_heat_timer_id[i]);
     }
