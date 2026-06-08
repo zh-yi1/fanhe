@@ -79,7 +79,10 @@ bool keep_ram_tbl_load(void);
 
 //以下缓存大小一般情况下不需要修改
 #define GUI_ELE_BUF_SIZE    (4096 + 1536 + 7168 * FUNC_GAME_TETRIS_EN) //element缓存
-#define GUI_WGT_BUF_SIZE    (13748 + 2636 + 2048 * FUNC_GAME_TETRIS_EN)   //widget缓存
+#ifndef GUI_WGT_BUF_EXTRA
+#define GUI_WGT_BUF_EXTRA   0
+#endif
+#define GUI_WGT_BUF_SIZE    (13748 + 2636 + 2048 * FUNC_GAME_TETRIS_EN + GUI_WGT_BUF_EXTRA)   //widget缓存
 
 #define GUI_MAXSIZE_TEMPBUF             0x6000                  //中间临时计算缓存32k
 #define GUI_MAXSIZE_TEMPBUF2            0x2000                  //中间计算缓存2

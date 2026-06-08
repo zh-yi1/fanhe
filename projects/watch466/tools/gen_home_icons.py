@@ -2,7 +2,18 @@
 """Generate ui/home GPU bins for ui.bin (UI resource flash).
 
 All Home/Heat page bitmaps are written to Output/bin/ui/home/*.bin and packed by prebuild.
-PNG sources live in res/home/ (kept out of ui/ to avoid duplicate packing).
+
+Clock digits (middle HH:MM countdown on func_home.c):
+  Place 0.png..9.png and colon.png in Output/bin/ui/home/ (or res/home/).
+  This script converts them to 0.bin..9.bin and colon.bin (GPU 0x24150 format).
+
+Status icons (top-right on func_home.c):
+  Place bluetooth.png, lock.png, battery_level.png in Output/bin/ui/home/ (or res/home/).
+  Converts to bluetooth.bin, lock.bin, battery_level.bin for ui.bin.
+
+Bottom nav tabs (func_home.c):
+  heat.png, mode.png, setting.png -> heat.bin, mode.bin, setup.bin
+  blue_bj.png -> selected tab background; while_line.png / blue_line.png -> dash_sel/nor.bin
 
 After running this script, run Output/bin/prebuild.bat to refresh ui.h.
 """
@@ -33,10 +44,10 @@ BG_BLUE = (4, 109, 217)
 BG_BLACK = (0, 0, 0)
 FG_WHITE = (255, 255, 255)
 
-ICON_ITEMS = [
-    ("HEAT_ONE.png", "heat"),
-    ("MODE_ONE.png", "mode"),
-    ("SETUP_ONE.png", "setup"),
+NAV_TAB_ITEMS = [
+    ("heat.png", "heat"),
+    ("mode.png", "mode"),
+    ("setting.png", "setup"),
 ]
 
 MODE_TAB_ITEMS = [
@@ -54,6 +65,14 @@ STATUS_ITEMS = [
 SYMBOL_ITEMS = [
     ("Vector.png", "degf_w"),
     ("Vector-1.png", "degf_g"),
+]
+
+CLOCK_PNG_NAMES = [f"{d}.png" for d in range(10)] + ["colon.png"]
+STATUS_PNG_NAMES = [fname for fname, _ in STATUS_ITEMS]
+TAB_NAV_PNG_NAMES = [fname for fname, _ in NAV_TAB_ITEMS] + [
+    "blue_bj.png",
+    "while_line.png",
+    "blue_line.png",
 ]
 
 
@@ -74,6 +93,33 @@ def ensure_src_layout() -> None:
         moved += 1
     if moved:
         print(f"moved {moved} png(s) from ui/home -> res/home")
+
+
+def sync_pngs_from_ui_home(names: list[str], label: str) -> None:
+    """Copy PNG dropped in ui/home into res/home before conversion/cleanup."""
+    synced = 0
+    for name in names:
+        src_ui = BIN_DIR / name
+        if not src_ui.exists():
+            continue
+        dst = SRC_DIR / name
+        SRC_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src_ui, dst)
+        synced += 1
+    if synced:
+        print(f"synced {synced} {label} png(s) from ui/home -> res/home")
+
+
+def sync_clock_pngs_from_ui_home() -> None:
+    sync_pngs_from_ui_home(CLOCK_PNG_NAMES, "clock")
+
+
+def sync_status_pngs_from_ui_home() -> None:
+    sync_pngs_from_ui_home(STATUS_PNG_NAMES, "status")
+
+
+def sync_tab_nav_pngs_from_ui_home() -> None:
+    sync_pngs_from_ui_home(TAB_NAV_PNG_NAMES, "tab nav")
 
 
 def png_to_gpu(path: Path, width: int, height: int, bg_rgb, fg_rgb=None) -> bytes:
@@ -97,11 +143,11 @@ def png_to_gpu(path: Path, width: int, height: int, bg_rgb, fg_rgb=None) -> byte
     return bytes(buf)
 
 
-def png_native_to_gpu(path: Path) -> tuple[bytes, int, int]:
+def png_native_to_gpu(path: Path, bg_rgb=BG_BLACK) -> tuple[bytes, int, int]:
     im = Image.open(path).convert("RGBA")
     w, h = im.size
     px = im.load()
-    bg = rgba565(*BG_BLACK)
+    bg = rgba565(*bg_rgb)
     buf = bytearray()
     buf += struct.pack("<IHH", 0x24150, w, h)
     for y in range(h):
@@ -209,6 +255,27 @@ def digit_png_to_gpu(path: Path) -> bytes:
     return bytes(buf)
 
 
+def colon_png_to_gpu(path: Path) -> bytes:
+    im = Image.open(path).convert("RGBA")
+    src_w, src_h = im.size
+    scale = min(COLON_W / src_w, DIGIT_H / src_h)
+    new_w = max(1, round(src_w * scale))
+    new_h = max(1, round(src_h * scale))
+    im = im.resize((new_w, new_h), Image.Resampling.NEAREST)
+    canvas = Image.new("RGBA", (COLON_W, DIGIT_H), (0, 0, 0, 255))
+    canvas.paste(im, ((COLON_W - new_w) // 2, (DIGIT_H - new_h) // 2), im)
+    px = canvas.load()
+    bg = rgba565(*BG_BLACK)
+    buf = bytearray()
+    buf += struct.pack("<IHH", 0x24150, COLON_W, DIGIT_H)
+    for y in range(DIGIT_H):
+        for x in range(COLON_W):
+            r, g, b, a = px[x, y]
+            c = bg if a < 32 else rgba565(r, g, b)
+            buf += struct.pack("<H", c)
+    return bytes(buf)
+
+
 def colon_to_gpu(fg_rgb) -> bytes:
     im = Image.new("RGBA", (COLON_W, DIGIT_H), (0, 0, 0, 255))
     draw = ImageDraw.Draw(im)
@@ -242,13 +309,16 @@ def write_bin(name: str, data: bytes, src: str) -> None:
 
 def cleanup_obsolete_bins() -> None:
     keep = set()
-    for fname, stem in ICON_ITEMS:
+    for _, stem in NAV_TAB_ITEMS:
+        keep.add(f"{stem}.bin")
         keep.add(f"{stem}_sel.bin")
-        keep.add(f"{stem}_nor.bin")
     for _, stem in MODE_TAB_ITEMS:
         keep.add(f"{stem}_sel.bin")
         keep.add(f"{stem}_nor.bin")
-    keep.update(["dash_sel.bin", "dash_nor.bin", "colon.bin", "colon_g.bin", "degf_gr.bin", "degf_gr_t.bin"])
+    keep.update([
+        "blue_bj.bin", "dash_sel.bin", "dash_nor.bin",
+        "colon.bin", "colon_g.bin", "degf_gr.bin", "degf_gr_t.bin",
+    ])
     for d in range(10):
         keep.add(f"{d}.bin")
         keep.add(f"{d}_g.bin")
@@ -265,6 +335,11 @@ def cleanup_obsolete_bins() -> None:
 
 
 def main():
+    SRC_DIR.mkdir(parents=True, exist_ok=True)
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
+    sync_clock_pngs_from_ui_home()
+    sync_status_pngs_from_ui_home()
+    sync_tab_nav_pngs_from_ui_home()
     ensure_src_layout()
     digit_max_size = 0
     digit_grey_max_size = 0
@@ -272,16 +347,37 @@ def main():
     digit_green_t_max_size = 0
     colon_size = 0
     colon_grey_size = 0
+    nav_sizes = {}
+    nav_icon_max_size = 0
     status_sizes = {}
     symbol_sizes = {}
 
-    for fname, stem in ICON_ITEMS:
+    for fname, stem in NAV_TAB_ITEMS:
         path = SRC_DIR / fname
         if not path.exists():
             raise SystemExit(f"missing {path}")
-        for suffix, bg in (("sel", BG_BLUE), ("nor", BG_BLACK)):
-            data = png_to_gpu(path, ICON_SIZE, ICON_SIZE, bg, FG_WHITE)
-            write_bin(f"{stem}_{suffix}.bin", data, fname)
+        data_nor, sw, sh = png_native_to_gpu(path, BG_BLACK)
+        data_sel, _, _ = png_native_to_gpu(path, BG_BLUE)
+        write_bin(f"{stem}.bin", data_nor, f"{fname} (nor/black)")
+        write_bin(f"{stem}_sel.bin", data_sel, f"{fname} (sel/blue)")
+        nav_sizes[stem] = (sw, sh, len(data_nor))
+        nav_icon_max_size = max(nav_icon_max_size, len(data_nor), len(data_sel))
+
+    blue_bj_path = SRC_DIR / "blue_bj.png"
+    if not blue_bj_path.exists():
+        raise SystemExit(f"missing {blue_bj_path}")
+    tab_bg_data, tab_bg_w, tab_bg_h = png_native_to_gpu(blue_bj_path)
+    write_bin("blue_bj.bin", tab_bg_data, "blue_bj.png")
+
+    for src_name, out_name in (
+        ("while_line.png", "dash_sel.bin"),
+        ("blue_line.png", "dash_nor.bin"),
+    ):
+        path = SRC_DIR / src_name
+        if not path.exists():
+            raise SystemExit(f"missing {path}")
+        data, dash_w, dash_h = png_native_to_gpu(path)
+        write_bin(out_name, data, src_name)
 
     for fname, stem in MODE_TAB_ITEMS:
         path = SRC_DIR / fname
@@ -290,16 +386,6 @@ def main():
         for suffix, bg in (("sel", BG_BLUE), ("nor", BG_BLACK)):
             data = png_to_gpu(path, ICON_SIZE, ICON_SIZE, bg, FG_WHITE)
             write_bin(f"{stem}_{suffix}.bin", data, fname)
-
-    for src_name, out_name in (
-        ("dash_white.png", "dash_sel.bin"),
-        ("dash_blue.png", "dash_nor.bin"),
-    ):
-        path = SRC_DIR / src_name
-        if not path.exists():
-            raise SystemExit(f"missing {path}")
-        data = png_to_gpu(path, DASH_W, DASH_H, BG_BLACK, None)
-        write_bin(out_name, data, src_name)
 
     for d in range(10):
         path = SRC_DIR / f"{d}.png"
@@ -324,8 +410,13 @@ def main():
         write_bin(f"{d}_gr_t.bin", data_gr_t, f"{d}.png (green small)")
         digit_green_t_max_size = max(digit_green_t_max_size, len(data_gr_t))
 
-    colon_data = colon_to_gpu(FG_WHITE)
-    write_bin("colon.bin", colon_data, "(generated white)")
+    colon_path = SRC_DIR / "colon.png"
+    if colon_path.exists():
+        colon_data = colon_png_to_gpu(colon_path)
+        write_bin("colon.bin", colon_data, "colon.png")
+    else:
+        colon_data = colon_to_gpu(FG_WHITE)
+        write_bin("colon.bin", colon_data, "(generated white)")
     colon_size = len(colon_data)
 
     colon_grey_data = colon_to_gpu(FG_GREY)
@@ -360,6 +451,10 @@ def main():
     write_bin("degf_gr_t.bin", degf_gr_t_data, "Vector.png (green small)")
     symbol_sizes["degf_gr_t"] = (degf_gr_t_w, degf_gr_t_h, len(degf_gr_t_data))
 
+    heat_w, heat_h, _ = nav_sizes["heat"]
+    mode_w, mode_h, _ = nav_sizes["mode"]
+    setup_w, setup_h, _ = nav_sizes["setup"]
+    nav_icon_max_h = max(heat_h, mode_h, setup_h)
     bt_w, bt_h, _ = status_sizes["bluetooth"]
     lock_w, lock_h, _ = status_sizes["lock"]
     bat_w, bat_h, _ = status_sizes["battery_level"]
@@ -374,8 +469,19 @@ def main():
         f"#define HOME_ICON_RAM_W                 {ICON_SIZE}\n"
         f"#define HOME_ICON_RAM_H                 {ICON_SIZE}\n"
         f"#define HOME_ICON_RAM_SIZE              (8 + HOME_ICON_RAM_W * HOME_ICON_RAM_H * 2)\n\n"
-        f"#define HOME_DASH_RAM_W                 {DASH_W}\n"
-        f"#define HOME_DASH_RAM_H                 {DASH_H}\n"
+        f"#define HOME_NAV_HEAT_W                 {heat_w}\n"
+        f"#define HOME_NAV_HEAT_H                 {heat_h}\n"
+        f"#define HOME_NAV_MODE_W                 {mode_w}\n"
+        f"#define HOME_NAV_MODE_H                 {mode_h}\n"
+        f"#define HOME_NAV_SETUP_W                {setup_w}\n"
+        f"#define HOME_NAV_SETUP_H                {setup_h}\n"
+        f"#define HOME_NAV_ICON_MAX_H             {nav_icon_max_h}\n"
+        f"#define HOME_NAV_ICON_RAM_MAX_SIZE      {nav_icon_max_size}\n\n"
+        f"#define HOME_TAB_BG_W                   {tab_bg_w}\n"
+        f"#define HOME_TAB_BG_H                   {tab_bg_h}\n"
+        f"#define HOME_TAB_BG_RAM_SIZE            (8 + HOME_TAB_BG_W * HOME_TAB_BG_H * 2)\n\n"
+        f"#define HOME_DASH_RAM_W                 {dash_w}\n"
+        f"#define HOME_DASH_RAM_H                 {dash_h}\n"
         f"#define HOME_DASH_RAM_SIZE              (8 + HOME_DASH_RAM_W * HOME_DASH_RAM_H * 2)\n\n"
         f"#define HOME_DIGIT_W                    {DIGIT_W}\n"
         f"#define HOME_DIGIT_H                    {DIGIT_H}\n"

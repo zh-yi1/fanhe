@@ -1,6 +1,7 @@
 #include "include.h"
 #include "home_ui_shared.h"
 
+/* 保留在 sram BSS（勿放 .disp.home_ram，disp 仅 96KB 已满）；Home/Mode 互斥共用 icon 槽 */
 u8 home_ui_shared_icon_runtime[HOME_UI_SHARED_TAB_CNT][HOME_ICON_RAM_SIZE];
 u8 home_ui_shared_status_bt_ram[HOME_STATUS_BT_RAM_SIZE];
 u8 home_ui_shared_status_lock_ram[HOME_STATUS_LOCK_RAM_SIZE];

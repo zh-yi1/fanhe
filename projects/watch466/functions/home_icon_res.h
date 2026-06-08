@@ -7,8 +7,21 @@
 #define HOME_ICON_RAM_H                 52
 #define HOME_ICON_RAM_SIZE              (8 + HOME_ICON_RAM_W * HOME_ICON_RAM_H * 2)
 
-#define HOME_DASH_RAM_W                 40
-#define HOME_DASH_RAM_H                 3
+#define HOME_NAV_HEAT_W                 24
+#define HOME_NAV_HEAT_H                 28
+#define HOME_NAV_MODE_W                 26
+#define HOME_NAV_MODE_H                 20
+#define HOME_NAV_SETUP_W                26
+#define HOME_NAV_SETUP_H                26
+#define HOME_NAV_ICON_MAX_H             28
+#define HOME_NAV_ICON_RAM_MAX_SIZE      1360
+
+#define HOME_TAB_BG_W                   80
+#define HOME_TAB_BG_H                   65
+#define HOME_TAB_BG_RAM_SIZE            (8 + HOME_TAB_BG_W * HOME_TAB_BG_H * 2)
+
+#define HOME_DASH_RAM_W                 30
+#define HOME_DASH_RAM_H                 2
 #define HOME_DASH_RAM_SIZE              (8 + HOME_DASH_RAM_W * HOME_DASH_RAM_H * 2)
 
 #define HOME_DIGIT_W                    48
@@ -42,12 +55,12 @@
 #define MODE_STATUS_TEMPF_W             HOME_STATUS_TEMPF_W
 #define MODE_STATUS_TEMPF_H             HOME_STATUS_TEMPF_H
 
-#define HOME_STATUS_BT_W                13
-#define HOME_STATUS_BT_H                21
-#define HOME_STATUS_LOCK_W              17
-#define HOME_STATUS_LOCK_H              21
-#define HOME_STATUS_BAT_W               51
-#define HOME_STATUS_BAT_H               20
+#define HOME_STATUS_BT_W                10
+#define HOME_STATUS_BT_H                16
+#define HOME_STATUS_LOCK_W              13
+#define HOME_STATUS_LOCK_H              16
+#define HOME_STATUS_BAT_W               38
+#define HOME_STATUS_BAT_H               16
 #define HOME_STATUS_BT_RAM_SIZE         (8 + HOME_STATUS_BT_W * HOME_STATUS_BT_H * 2)
 #define HOME_STATUS_LOCK_RAM_SIZE       (8 + HOME_STATUS_LOCK_W * HOME_STATUS_LOCK_H * 2)
 #define HOME_STATUS_BAT_RAM_SIZE        (8 + HOME_STATUS_BAT_W * HOME_STATUS_BAT_H * 2)
