@@ -11,17 +11,42 @@
 #endif
 
 /*
- * 中部 HH:MM 倒计时（时=白字，分=灰字）；下部温度 xxx°F 用 ui/home 灰色七段 + degf_g.bin。
- * GPU 0x24150：Flash -> RAM -> compo_picturebox_set_ram。
+ * Heat 页 UI（参照设计图）：
+ *   左上：RTC 时间文字
+ *   右上：bluetooth.bin / lock.bin / battery_level.bin
+ *   中部倒计时：w0x.bin..w9x.bin（白字时）+ wbx.bin（冒号）+ b0x.bin..b9x.bin（灰字分）
+ *   下部温度：b0x.bin..b9x.bin（灰字）+ bhx.bin（灰 °F）
+ * PNG 放 Output/bin/ui/home/，运行 gen_home_icons.py -> prebuild -> ui.bin
+ * GPU 0x24150：os_spiflash_read + compo_picturebox_set_ram
  */
 #define UI_HEAT_PLACEHOLDER               UI_BUF_ICON_ACTIVITY_BIN
 
-#ifndef UI_BUF_HOME_0_G_BIN
-#error "Run tools/gen_home_icons.py then Output/bin/prebuild.bat to refresh ui.h"
+#ifndef UI_BUF_HOME_W0X_BIN
+#error "Missing w0x.bin: add ui/home/w0x.png..w9x.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_DEGF_G_BIN
-#error "Run tools/gen_home_icons.py then Output/bin/prebuild.bat to pack degf_g.bin"
+#ifndef UI_BUF_HOME_B0X_BIN
+#error "Missing b0x.bin: add ui/home/b0x.png..b9x.png and run gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_WBX_BIN
+#error "Missing wbx.bin: add ui/home/wbx.png and run gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BHX_BIN
+#error "Missing bhx.bin: add ui/home/bhx.png and run gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BLUETOOTH_BIN
+#error "Missing bluetooth.bin: add ui/home/bluetooth.png and run gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_LOCK_BIN
+#error "Missing lock.bin: add ui/home/lock.png and run gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
+#error "Missing battery_level.bin: add ui/home/battery_level.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
 #define HEAT_STATUS_Y                     48
@@ -33,7 +58,9 @@
 
 #define HEAT_TIMER_Y                      195
 #define HEAT_TEMP_Y                       305
-#define HEAT_DIGIT_GAP                    4
+#define HEAT_TIMER_PAIR_GAP               10  /* 时/分各位数字之间 */
+#define HEAT_TIMER_PAIR_NARROW_EXTRA      8   /* 含数字 1 等窄字时加宽（如 01） */
+#define HEAT_TIMER_COLON_GAP              10  /* 时与分之间（冒号两侧） */
 #define HEAT_TEMP_DIGIT_GAP               4
 #define HEAT_TEMP_SYMBOL_GAP              6
 
@@ -83,34 +110,45 @@ typedef struct f_heat_t_ {
     compo_picturebox_t *pic_bat;
 } f_heat_t;
 
-static u8 heat_temp_digit_ram[HEAT_TEMP_IDX_CNT][HOME_DIGIT_GREY_RAM_MAX_SIZE];
-static u8 heat_temp_degf_ram[HOME_TEMPF_RAM_SIZE];
+static u8 heat_colon_ram[HEAT_WBX_RAM_SIZE];
+static u8 heat_temp_digit_ram[HEAT_TEMP_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
+static u8 heat_temp_degf_ram[HEAT_BHX_RAM_SIZE];
 
 static u32 heat_countdown_remain_sec;
 static bool heat_countdown_running;
 
-static const u32 tbl_heat_digit_white_addr[10] = {
-    UI_BUF_HOME_0_BIN, UI_BUF_HOME_1_BIN, UI_BUF_HOME_2_BIN, UI_BUF_HOME_3_BIN,
-    UI_BUF_HOME_4_BIN, UI_BUF_HOME_5_BIN, UI_BUF_HOME_6_BIN, UI_BUF_HOME_7_BIN,
-    UI_BUF_HOME_8_BIN, UI_BUF_HOME_9_BIN,
+static const u32 tbl_heat_w_digit_addr[10] = {
+    UI_BUF_HOME_W0X_BIN, UI_BUF_HOME_W1X_BIN, UI_BUF_HOME_W2X_BIN, UI_BUF_HOME_W3X_BIN,
+    UI_BUF_HOME_W4X_BIN, UI_BUF_HOME_W5X_BIN, UI_BUF_HOME_W6X_BIN, UI_BUF_HOME_W7X_BIN,
+    UI_BUF_HOME_W8X_BIN, UI_BUF_HOME_W9X_BIN,
 };
 
-static const u32 tbl_heat_digit_grey_addr[10] = {
-    UI_BUF_HOME_0_G_BIN, UI_BUF_HOME_1_G_BIN, UI_BUF_HOME_2_G_BIN, UI_BUF_HOME_3_G_BIN,
-    UI_BUF_HOME_4_G_BIN, UI_BUF_HOME_5_G_BIN, UI_BUF_HOME_6_G_BIN, UI_BUF_HOME_7_G_BIN,
-    UI_BUF_HOME_8_G_BIN, UI_BUF_HOME_9_G_BIN,
+static const u32 tbl_heat_b_digit_addr[10] = {
+    UI_BUF_HOME_B0X_BIN, UI_BUF_HOME_B1X_BIN, UI_BUF_HOME_B2X_BIN, UI_BUF_HOME_B3X_BIN,
+    UI_BUF_HOME_B4X_BIN, UI_BUF_HOME_B5X_BIN, UI_BUF_HOME_B6X_BIN, UI_BUF_HOME_B7X_BIN,
+    UI_BUF_HOME_B8X_BIN, UI_BUF_HOME_B9X_BIN,
 };
 
-static const u16 tbl_heat_digit_white_len[10] = {
-    UI_LEN_HOME_0_BIN, UI_LEN_HOME_1_BIN, UI_LEN_HOME_2_BIN, UI_LEN_HOME_3_BIN,
-    UI_LEN_HOME_4_BIN, UI_LEN_HOME_5_BIN, UI_LEN_HOME_6_BIN, UI_LEN_HOME_7_BIN,
-    UI_LEN_HOME_8_BIN, UI_LEN_HOME_9_BIN,
+static const u16 tbl_heat_w_digit_len[10] = {
+    UI_LEN_HOME_W0X_BIN, UI_LEN_HOME_W1X_BIN, UI_LEN_HOME_W2X_BIN, UI_LEN_HOME_W3X_BIN,
+    UI_LEN_HOME_W4X_BIN, UI_LEN_HOME_W5X_BIN, UI_LEN_HOME_W6X_BIN, UI_LEN_HOME_W7X_BIN,
+    UI_LEN_HOME_W8X_BIN, UI_LEN_HOME_W9X_BIN,
 };
 
-static const u16 tbl_heat_digit_grey_len[10] = {
-    UI_LEN_HOME_0_G_BIN, UI_LEN_HOME_1_G_BIN, UI_LEN_HOME_2_G_BIN, UI_LEN_HOME_3_G_BIN,
-    UI_LEN_HOME_4_G_BIN, UI_LEN_HOME_5_G_BIN, UI_LEN_HOME_6_G_BIN, UI_LEN_HOME_7_G_BIN,
-    UI_LEN_HOME_8_G_BIN, UI_LEN_HOME_9_G_BIN,
+static const u16 tbl_heat_b_digit_len[10] = {
+    UI_LEN_HOME_B0X_BIN, UI_LEN_HOME_B1X_BIN, UI_LEN_HOME_B2X_BIN, UI_LEN_HOME_B3X_BIN,
+    UI_LEN_HOME_B4X_BIN, UI_LEN_HOME_B5X_BIN, UI_LEN_HOME_B6X_BIN, UI_LEN_HOME_B7X_BIN,
+    UI_LEN_HOME_B8X_BIN, UI_LEN_HOME_B9X_BIN,
+};
+
+static const u16 tbl_heat_w_digit_w[10] = {
+    HEAT_W0X_W, HEAT_W1X_W, HEAT_W2X_W, HEAT_W3X_W, HEAT_W4X_W,
+    HEAT_W5X_W, HEAT_W6X_W, HEAT_W7X_W, HEAT_W8X_W, HEAT_W9X_W,
+};
+
+static const u16 tbl_heat_b_digit_w[10] = {
+    HEAT_B0X_W, HEAT_B1X_W, HEAT_B2X_W, HEAT_B3X_W, HEAT_B4X_W,
+    HEAT_B5X_W, HEAT_B6X_W, HEAT_B7X_W, HEAT_B8X_W, HEAT_B9X_W,
 };
 
 static const u16 tbl_heat_timer_id[HEAT_TIMER_IDX_CNT] = {
@@ -171,30 +209,69 @@ u32 func_heat_countdown_remain_sec(void)
     return heat_countdown_remain_sec;
 }
 
-static void func_heat_temp_layout(f_heat_t *f_heat)
+static u16 func_heat_timer_pair_gap(const u16 *tbl_w, u8 d0, u8 d1)
+{
+    u16 gap = HEAT_TIMER_PAIR_GAP;
+
+    if (d0 == 1 || d1 == 1 || tbl_w[d0] <= HEAT_W1X_W || tbl_w[d1] <= HEAT_W1X_W) {
+        gap += HEAT_TIMER_PAIR_NARROW_EXTRA;
+    }
+    return gap;
+}
+
+static u16 func_heat_timer_total_w(u8 hour, u8 min)
+{
+    u8 w_digits[2] = { hour / 10, hour % 10 };
+    u8 b_digits[2] = { min / 10, min % 10 };
+    u16 h_pair_gap = func_heat_timer_pair_gap(tbl_heat_w_digit_w, w_digits[0], w_digits[1]);
+    u16 m_pair_gap = func_heat_timer_pair_gap(tbl_heat_b_digit_w, b_digits[0], b_digits[1]);
+
+    return tbl_heat_w_digit_w[w_digits[0]] + h_pair_gap
+         + tbl_heat_w_digit_w[w_digits[1]] + HEAT_TIMER_COLON_GAP
+         + HEAT_WBX_W + HEAT_TIMER_COLON_GAP
+         + tbl_heat_b_digit_w[b_digits[0]] + m_pair_gap
+         + tbl_heat_b_digit_w[b_digits[1]];
+}
+
+static u16 func_heat_temp_total_w(u8 digits[HEAT_TEMP_IDX_CNT])
+{
+    u16 total = 0;
+    u8 i;
+
+    for (i = 0; i < HEAT_TEMP_IDX_CNT; i++) {
+        total += tbl_heat_b_digit_w[digits[i]];
+        if (i + 1 < HEAT_TEMP_IDX_CNT) {
+            total += HEAT_TEMP_DIGIT_GAP;
+        }
+    }
+    total += HEAT_TEMP_SYMBOL_GAP + HEAT_BHX_W;
+    return total;
+}
+
+static void func_heat_temp_layout(f_heat_t *f_heat, u8 digits[HEAT_TEMP_IDX_CNT])
 {
     u16 total;
     s16 x;
     u8 i;
 
-    total = HOME_DIGIT_W * HEAT_TEMP_IDX_CNT
-          + HEAT_TEMP_DIGIT_GAP * (HEAT_TEMP_IDX_CNT - 1)
-          + HEAT_TEMP_SYMBOL_GAP + HOME_TEMPF_W;
+    total = func_heat_temp_total_w(digits);
     x = GUI_SCREEN_CENTER_X - (s16)(total / 2);
 
     for (i = 0; i < HEAT_TEMP_IDX_CNT; i++) {
-        s16 cx = x + (s16)(HOME_DIGIT_W / 2);
+        u8 d = digits[i];
+        u16 w = tbl_heat_b_digit_w[d];
+        s16 cx = x + (s16)(w / 2);
 
         compo_picturebox_set_pos(f_heat->pic_temp[i], cx, HEAT_TEMP_Y);
-        compo_picturebox_set_size(f_heat->pic_temp[i], HOME_DIGIT_W, HOME_DIGIT_H);
-        x += HOME_DIGIT_W + HEAT_TEMP_DIGIT_GAP;
+        compo_picturebox_set_size(f_heat->pic_temp[i], w, HEAT_B_DIGIT_MAX_H);
+        x += w + HEAT_TEMP_DIGIT_GAP;
     }
 
     if (f_heat->pic_temp_degf != NULL) {
-        s16 cx = x + (s16)(HOME_TEMPF_W / 2);
+        s16 cx = x + HEAT_TEMP_SYMBOL_GAP + (s16)(HEAT_BHX_W / 2);
 
         compo_picturebox_set_pos(f_heat->pic_temp_degf, cx, HEAT_TEMP_Y);
-        compo_picturebox_set_size(f_heat->pic_temp_degf, HOME_TEMPF_W, HOME_TEMPF_H);
+        compo_picturebox_set_size(f_heat->pic_temp_degf, HEAT_BHX_W, HEAT_BHX_H);
     }
 }
 
@@ -215,7 +292,7 @@ static void func_heat_temp_update(f_heat_t *f_heat, u16 temp_f)
     digits[HEAT_TEMP_IDX_T10] = (u8)((temp_f / 10) % 10);
     digits[HEAT_TEMP_IDX_T1] = (u8)(temp_f % 10);
 
-    os_spiflash_read(heat_temp_degf_ram, UI_BUF_HOME_DEGF_G_BIN, UI_LEN_HOME_DEGF_G_BIN);
+    os_spiflash_read(heat_temp_degf_ram, UI_BUF_HOME_BHX_BIN, UI_LEN_HOME_BHX_BIN);
     if (f_heat->pic_temp_degf != NULL && gui_set_ram_check(heat_temp_degf_ram, __func__)) {
         compo_picturebox_set_ram(f_heat->pic_temp_degf, heat_temp_degf_ram);
     }
@@ -223,13 +300,13 @@ static void func_heat_temp_update(f_heat_t *f_heat, u16 temp_f)
     for (i = 0; i < HEAT_TEMP_IDX_CNT; i++) {
         u8 d = digits[i];
 
-        os_spiflash_read(heat_temp_digit_ram[i], tbl_heat_digit_grey_addr[d], tbl_heat_digit_grey_len[d]);
+        os_spiflash_read(heat_temp_digit_ram[i], tbl_heat_b_digit_addr[d], tbl_heat_b_digit_len[d]);
         if (gui_set_ram_check(heat_temp_digit_ram[i], __func__)) {
             compo_picturebox_set_ram(f_heat->pic_temp[i], heat_temp_digit_ram[i]);
         }
     }
 
-    func_heat_temp_layout(f_heat);
+    func_heat_temp_layout(f_heat, digits);
 }
 
 void func_heat_temp_set_f(u16 temp_f)
@@ -268,28 +345,47 @@ static void func_heat_time_str_ampm(char *buf, u16 buf_len, tm_t *tm)
     snprintf(buf, buf_len, "%d:%02d %s", hour, tm->min, ap);
 }
 
-static void func_heat_timer_layout(f_heat_t *f_heat)
+static void func_heat_timer_layout(f_heat_t *f_heat, u8 hour, u8 min)
 {
+    u8 w_digits[2] = { hour / 10, hour % 10 };
+    u8 b_digits[2] = { min / 10, min % 10 };
+    u16 h_pair_gap = func_heat_timer_pair_gap(tbl_heat_w_digit_w, w_digits[0], w_digits[1]);
+    u16 m_pair_gap = func_heat_timer_pair_gap(tbl_heat_b_digit_w, b_digits[0], b_digits[1]);
     u16 total;
     s16 x;
     u8 i;
 
-    total = HOME_DIGIT_W + HEAT_DIGIT_GAP + HOME_DIGIT_W + HEAT_DIGIT_GAP
-          + HOME_COLON_W + HEAT_DIGIT_GAP + HOME_DIGIT_W + HEAT_DIGIT_GAP
-          + HOME_DIGIT_W;
+    total = func_heat_timer_total_w(hour, min);
     x = GUI_SCREEN_CENTER_X - (s16)(total / 2);
 
-    for (i = 0; i < HEAT_TIMER_IDX_CNT; i++) {
-        s16 cx = x + (s16)(HOME_DIGIT_W / 2);
+    for (i = 0; i < 2; i++) {
+        u8 d = w_digits[i];
+        u16 w = tbl_heat_w_digit_w[d];
+        s16 cx = x + (s16)(w / 2);
 
         compo_picturebox_set_pos(f_heat->pic_timer[i], cx, HEAT_TIMER_Y);
-        compo_picturebox_set_size(f_heat->pic_timer[i], HOME_DIGIT_W, HOME_DIGIT_H);
-        x += HOME_DIGIT_W + HEAT_DIGIT_GAP;
-        if (i == HEAT_TIMER_IDX_H1) {
-            cx = x + (s16)(HOME_COLON_W / 2);
-            compo_picturebox_set_pos(f_heat->pic_timer_colon, cx, HEAT_TIMER_Y);
-            compo_picturebox_set_size(f_heat->pic_timer_colon, HOME_COLON_W, HOME_COLON_H);
-            x += HOME_COLON_W + HEAT_DIGIT_GAP;
+        compo_picturebox_set_size(f_heat->pic_timer[i], w, HEAT_W_DIGIT_MAX_H);
+        x += w + ((i == 0) ? h_pair_gap : HEAT_TIMER_COLON_GAP);
+    }
+
+    {
+        s16 cx = x + (s16)(HEAT_WBX_W / 2);
+
+        compo_picturebox_set_pos(f_heat->pic_timer_colon, cx, HEAT_TIMER_Y);
+        compo_picturebox_set_size(f_heat->pic_timer_colon, HEAT_WBX_W, HEAT_WBX_H);
+        x += HEAT_WBX_W + HEAT_TIMER_COLON_GAP;
+    }
+
+    for (i = 0; i < 2; i++) {
+        u8 d = b_digits[i];
+        u16 w = tbl_heat_b_digit_w[d];
+        s16 cx = x + (s16)(w / 2);
+
+        compo_picturebox_set_pos(f_heat->pic_timer[i + 2], cx, HEAT_TIMER_Y);
+        compo_picturebox_set_size(f_heat->pic_timer[i + 2], w, HEAT_B_DIGIT_MAX_H);
+        x += w;
+        if (i == 0) {
+            x += m_pair_gap;
         }
     }
 }
@@ -310,16 +406,16 @@ static void func_heat_timer_update(f_heat_t *f_heat, u8 hour, u8 min)
     }
     f_heat->last_timer_key = timer_key;
 
-    os_spiflash_read(home_ui_colon_ram, UI_BUF_HOME_COLON_G_BIN, UI_LEN_HOME_COLON_G_BIN);
-    if (gui_set_ram_check(home_ui_colon_ram, __func__)) {
-        compo_picturebox_set_ram(f_heat->pic_timer_colon, home_ui_colon_ram);
+    os_spiflash_read(heat_colon_ram, UI_BUF_HOME_WBX_BIN, UI_LEN_HOME_WBX_BIN);
+    if (gui_set_ram_check(heat_colon_ram, __func__)) {
+        compo_picturebox_set_ram(f_heat->pic_timer_colon, heat_colon_ram);
     }
 
     for (i = 0; i < HEAT_TIMER_IDX_CNT; i++) {
         u8 d = digits[i];
         bool white = (i <= HEAT_TIMER_IDX_H1);
-        u32 addr = white ? tbl_heat_digit_white_addr[d] : tbl_heat_digit_grey_addr[d];
-        u16 len = white ? tbl_heat_digit_white_len[d] : tbl_heat_digit_grey_len[d];
+        u32 addr = white ? tbl_heat_w_digit_addr[d] : tbl_heat_b_digit_addr[d];
+        u16 len = white ? tbl_heat_w_digit_len[d] : tbl_heat_b_digit_len[d];
 
         os_spiflash_read(home_ui_digit_ram[i], addr, len);
         if (gui_set_ram_check(home_ui_digit_ram[i], __func__)) {
@@ -327,7 +423,7 @@ static void func_heat_timer_update(f_heat_t *f_heat, u8 hour, u8 min)
         }
     }
 
-    func_heat_timer_layout(f_heat);
+    func_heat_timer_layout(f_heat, hour, min);
 }
 
 static void func_heat_display_refresh(f_heat_t *f_heat)
@@ -392,25 +488,25 @@ compo_form_t *func_heat_form_create(void)
         pic = compo_picturebox_create(frm, UI_HEAT_PLACEHOLDER);
         compo_setid(pic, tbl_heat_timer_id[i]);
         compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, HEAT_TIMER_Y);
-        compo_picturebox_set_size(pic, HOME_DIGIT_MAX_W, HOME_DIGIT_H);
+        compo_picturebox_set_size(pic, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
     }
 
     pic = compo_picturebox_create(frm, UI_HEAT_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_TIMER_COLON);
     compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, HEAT_TIMER_Y);
-    compo_picturebox_set_size(pic, HOME_COLON_W, HOME_COLON_H);
+    compo_picturebox_set_size(pic, HEAT_WBX_W, HEAT_WBX_H);
 
     for (i = 0; i < HEAT_TEMP_IDX_CNT; i++) {
         pic = compo_picturebox_create(frm, UI_HEAT_PLACEHOLDER);
         compo_setid(pic, tbl_heat_temp_id[i]);
         compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, HEAT_TEMP_Y);
-        compo_picturebox_set_size(pic, HOME_DIGIT_MAX_W, HOME_DIGIT_H);
+        compo_picturebox_set_size(pic, HEAT_B0X_W, HEAT_B_DIGIT_MAX_H);
     }
 
     pic = compo_picturebox_create(frm, UI_HEAT_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_TEMPF);
     compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, HEAT_TEMP_Y);
-    compo_picturebox_set_size(pic, HOME_TEMPF_W, HOME_TEMPF_H);
+    compo_picturebox_set_size(pic, HEAT_BHX_W, HEAT_BHX_H);
 
     return frm;
 }

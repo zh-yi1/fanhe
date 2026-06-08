@@ -22,9 +22,6 @@
 #error "Run tools/gen_home_icons.py then Output/bin/prebuild.bat to refresh ui.h"
 #endif
 
-#ifndef UI_BUF_HOME_0_GR_T_BIN
-#error "Run tools/gen_home_icons.py to generate small green digit bins"
-#endif
 
 #define MODE_TAB_BTN_W                    118
 #define MODE_TAB_BTN_H                    96
@@ -158,11 +155,7 @@ static const u32 tbl_mode_digit_white_addr[10] = {
     UI_BUF_HOME_8_BIN, UI_BUF_HOME_9_BIN,
 };
 
-static const u32 tbl_mode_digit_green_addr[10] = {
-    UI_BUF_HOME_0_GR_T_BIN, UI_BUF_HOME_1_GR_T_BIN, UI_BUF_HOME_2_GR_T_BIN, UI_BUF_HOME_3_GR_T_BIN,
-    UI_BUF_HOME_4_GR_T_BIN, UI_BUF_HOME_5_GR_T_BIN, UI_BUF_HOME_6_GR_T_BIN, UI_BUF_HOME_7_GR_T_BIN,
-    UI_BUF_HOME_8_GR_T_BIN, UI_BUF_HOME_9_GR_T_BIN,
-};
+
 
 static const u16 tbl_mode_digit_white_len[10] = {
     UI_LEN_HOME_0_BIN, UI_LEN_HOME_1_BIN, UI_LEN_HOME_2_BIN, UI_LEN_HOME_3_BIN,
@@ -170,11 +163,7 @@ static const u16 tbl_mode_digit_white_len[10] = {
     UI_LEN_HOME_8_BIN, UI_LEN_HOME_9_BIN,
 };
 
-static const u16 tbl_mode_digit_green_len[10] = {
-    UI_LEN_HOME_0_GR_T_BIN, UI_LEN_HOME_1_GR_T_BIN, UI_LEN_HOME_2_GR_T_BIN, UI_LEN_HOME_3_GR_T_BIN,
-    UI_LEN_HOME_4_GR_T_BIN, UI_LEN_HOME_5_GR_T_BIN, UI_LEN_HOME_6_GR_T_BIN, UI_LEN_HOME_7_GR_T_BIN,
-    UI_LEN_HOME_8_GR_T_BIN, UI_LEN_HOME_9_GR_T_BIN,
-};
+
 
 static const u32 tbl_mode_icon_sel_addr[MODE_TAB_CNT] = {
     UI_BUF_HOME_PASTA_SEL_BIN,
@@ -394,8 +383,8 @@ static void func_mode_status_temp_update(f_mode_t *f_mode, u16 temp_f)
     for (i = 0; i < MODE_TEMP_IDX_CNT; i++) {
         u8 d = digits[i];
 
-        os_spiflash_read(mode_status_temp_digit_ram[i],
-                         tbl_mode_digit_green_addr[d], tbl_mode_digit_green_len[d]);
+        // os_spiflash_read(mode_status_temp_digit_ram[i],
+        //                  tbl_mode_digit_green_addr[d], tbl_mode_digit_green_len[d]);
         if (gui_set_ram_check(mode_status_temp_digit_ram[i], __func__)) {
             compo_picturebox_set_ram(f_mode->pic_status_temp[i], mode_status_temp_digit_ram[i]);
         }

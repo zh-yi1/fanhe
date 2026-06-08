@@ -65,4 +65,56 @@
 #define HOME_STATUS_LOCK_RAM_SIZE       (8 + HOME_STATUS_LOCK_W * HOME_STATUS_LOCK_H * 2)
 #define HOME_STATUS_BAT_RAM_SIZE        (8 + HOME_STATUS_BAT_W * HOME_STATUS_BAT_H * 2)
 
+/* func_heat.c: w0x=白字时, b0x=灰字分/温度, wbx=冒号, bhx=灰°F */
+#define HEAT_W_DIGIT_MAX_H              61
+#define HEAT_B_DIGIT_MAX_H              61
+#define HEAT_W_DIGIT_RAM_MAX_SIZE       4522
+#define HEAT_B_DIGIT_RAM_MAX_SIZE       4522
+#define HEAT_WBX_W                      9
+#define HEAT_WBX_H                      61
+#define HEAT_WBX_RAM_SIZE               1106
+#define HEAT_BHX_W                      50
+#define HEAT_BHX_H                      49
+#define HEAT_BHX_RAM_SIZE               4908
+#define HEAT_W0X_W                     37
+#define HEAT_W0X_H                     61
+#define HEAT_W1X_W                     7
+#define HEAT_W1X_H                     59
+#define HEAT_W2X_W                     37
+#define HEAT_W2X_H                     61
+#define HEAT_W3X_W                     36
+#define HEAT_W3X_H                     61
+#define HEAT_W4X_W                     37
+#define HEAT_W4X_H                     59
+#define HEAT_W5X_W                     37
+#define HEAT_W5X_H                     61
+#define HEAT_W6X_W                     37
+#define HEAT_W6X_H                     61
+#define HEAT_W7X_W                     36
+#define HEAT_W7X_H                     60
+#define HEAT_W8X_W                     37
+#define HEAT_W8X_H                     61
+#define HEAT_W9X_W                     37
+#define HEAT_W9X_H                     61
+#define HEAT_B0X_W                     37
+#define HEAT_B0X_H                     61
+#define HEAT_B1X_W                     7
+#define HEAT_B1X_H                     59
+#define HEAT_B2X_W                     37
+#define HEAT_B2X_H                     61
+#define HEAT_B3X_W                     36
+#define HEAT_B3X_H                     61
+#define HEAT_B4X_W                     37
+#define HEAT_B4X_H                     59
+#define HEAT_B5X_W                     37
+#define HEAT_B5X_H                     61
+#define HEAT_B6X_W                     37
+#define HEAT_B6X_H                     61
+#define HEAT_B7X_W                     36
+#define HEAT_B7X_H                     60
+#define HEAT_B8X_W                     37
+#define HEAT_B8X_H                     61
+#define HEAT_B9X_W                     37
+#define HEAT_B9X_H                     61
+
 #endif
