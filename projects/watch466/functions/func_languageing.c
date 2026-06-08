@@ -11,7 +11,7 @@
 
 /*
  * Language 页：返回 + 标题 + 状态栏；English / Deutsch / Italiano / Français 列表。
- * 图标：left、right + 状态栏 bluetooth/lock/battery_level
+ * PT8028：TCH3 模式键循环选中；TCH4 OK 确认语言；TCH5 开关返回 Setup。
  */
 #define UI_LANG_PLACEHOLDER               UI_BUF_ICON_ACTIVITY_BIN
 
@@ -76,6 +76,9 @@ enum {
 #define LANG_ROW_ARROW_X                  (GUI_SCREEN_WIDTH - 24 - LANG_RIGHT_W / 2)
 #define LANG_ROW_TEXT_RIGHT               (LANG_ROW_ARROW_X - LANG_RIGHT_W / 2 - 12)
 #define LANG_ROW_LABEL_W                  (LANG_ROW_TEXT_RIGHT - LANG_ROW_TEXT_LEFT)
+
+#define LANG_MSG_OK                       KU_BACK
+#define LANG_MSG_POWER                    (KEY_RIGHT | KEY_SHORT_UP)
 
 enum {
     COMPO_ID_PIC_BACK = 1,
@@ -301,6 +304,32 @@ static void func_languageing_row_focus_refresh(f_languageing_t *f_lang)
     }
 }
 
+static void func_languageing_row_select_next(f_languageing_t *f_lang)
+{
+    if (f_lang == NULL) {
+        return;
+    }
+    f_lang->focus = (u8)((f_lang->focus + 1) % LANG_ROW_CNT);
+    func_languageing_row_focus_refresh(f_lang);
+}
+
+static void func_languageing_confirm(f_languageing_t *f_lang)
+{
+    if (f_lang == NULL || f_lang->focus >= LANG_ROW_CNT) {
+        return;
+    }
+    sys_cb.lang_id = f_lang->focus;
+    param_lang_id_write();
+    lang_select(sys_cb.lang_id);
+    func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
+static void func_languageing_power_key(f_languageing_t *f_lang)
+{
+    (void)f_lang;
+    func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
 static void func_languageing_row_create(compo_form_t *frm, u8 idx)
 {
     compo_picturebox_t *pic;
@@ -460,6 +489,18 @@ static void func_languageing_message(size_msg_t msg)
         }
         break;
 
+    case KU_MODE:
+        func_languageing_row_select_next(f_lang);
+        break;
+
+    case LANG_MSG_OK:
+        func_languageing_confirm(f_lang);
+        break;
+
+    case LANG_MSG_POWER:
+        func_languageing_power_key(f_lang);
+        break;
+
     default:
         func_message(msg);
         break;
@@ -475,7 +516,11 @@ void func_languageing_enter(void)
     func_cb.frm_main = func_languageing_form_create();
 
     f_lang = (f_languageing_t *)func_cb.f_cb;
-    f_lang->focus = LANG_ROW_ENGLISH;
+    if (sys_cb.lang_id < LANG_ROW_CNT) {
+        f_lang->focus = sys_cb.lang_id;
+    } else {
+        f_lang->focus = LANG_ROW_ENGLISH;
+    }
 
     f_lang->pic_back = compo_getobj_byid(COMPO_ID_PIC_BACK);
     f_lang->btn_back = compo_getobj_byid(COMPO_ID_BTN_BACK);

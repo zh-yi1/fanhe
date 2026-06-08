@@ -31,6 +31,7 @@
  * 底部导航 Tab（HEAT / MODE / SETUP）：
  *   选中：蓝底 + 白框 + 白底线 + 白图标（*_sel.bin）
  *   未选中：黑底 + 白框 + 蓝底线 + 白图标（*.bin）
+ *   PT8028：TCH3 模式键(KU_MODE)循环选中；TCH4 确认键(KU_BACK)进入当前选中页
  */
 #define UI_HOME_ICON_PLACEHOLDER          UI_BUF_ICON_ACTIVITY_BIN
 
@@ -527,6 +528,47 @@ static void func_home_tab_refresh(f_home_t *f_home)
     }
 }
 
+static void func_home_tab_select(f_home_t *f_home, u8 tab)
+{
+    if (f_home == NULL || tab >= HOME_TAB_CNT) {
+        return;
+    }
+    f_home->tab = tab;
+    func_home_tab_refresh(f_home);
+}
+
+static void func_home_tab_select_next(f_home_t *f_home)
+{
+    if (f_home == NULL) {
+        return;
+    }
+    func_home_tab_select(f_home, (u8)((f_home->tab + 1) % HOME_TAB_CNT));
+}
+
+static void func_home_tab_enter(f_home_t *f_home)
+{
+    if (f_home == NULL) {
+        return;
+    }
+
+    switch (f_home->tab) {
+    case HOME_TAB_HEAT:
+        func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        break;
+
+    case HOME_TAB_MODE:
+        func_switch_to(FUNC_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        break;
+
+    case HOME_TAB_SETUP:
+        func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        break;
+
+    default:
+        break;
+    }
+}
+
 static void func_home_status_refresh(f_home_t *f_home)
 {
     tm_t tm = rtc_clock_get();
@@ -557,30 +599,18 @@ static void func_home_button_click(f_home_t *f_home)
 
     switch (id) {
     case COMPO_ID_TAB0_BTN:
-        if (func_cb.sta == FUNC_HOME) {
-            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-        } else {
-            f_home->tab = HOME_TAB_HEAT;
-            func_home_tab_refresh(f_home);
-        }
+        func_home_tab_select(f_home, HOME_TAB_HEAT);
+        func_home_tab_enter(f_home);
         break;
 
     case COMPO_ID_TAB1_BTN:
-        if (func_cb.sta == FUNC_HOME) {
-            func_switch_to(FUNC_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-        } else {
-            f_home->tab = HOME_TAB_MODE;
-            func_home_tab_refresh(f_home);
-        }
+        func_home_tab_select(f_home, HOME_TAB_MODE);
+        func_home_tab_enter(f_home);
         break;
 
     case COMPO_ID_TAB2_BTN:
-        if (func_cb.sta == FUNC_HOME) {
-            func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-        } else {
-            f_home->tab = HOME_TAB_SETUP;
-            func_home_tab_refresh(f_home);
-        }
+        func_home_tab_select(f_home, HOME_TAB_SETUP);
+        func_home_tab_enter(f_home);
         break;
 
     default:
@@ -652,6 +682,14 @@ void func_home_message(size_msg_t msg)
     switch (msg) {
     case MSG_CTP_CLICK:
         func_home_button_click(f_home);
+        break;
+
+    case KU_MODE:
+        func_home_tab_select_next(f_home);
+        break;
+
+    case KU_BACK:
+        func_home_tab_enter(f_home);
         break;
 
     default:

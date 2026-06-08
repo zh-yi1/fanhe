@@ -13,6 +13,8 @@
 
 /*
  * Mode 页：顶栏时间 + 绿色温度 + 状态图标；中部白色 HH:MM 倒计时；底部 Pasta/Chicken/Warm Tab。
+ * PT8028：TCH3 模式键(KU_MODE)循环底部 Tab；TCH4 OK(KU_BACK)开始加热；TCH5 开关回主界面。
+ * 加热 30s 自动锁屏，锁屏仅 ON/OFF 有效，右上角显示 lock.bin。
  *
  * 底部 Tab 图标（ui/home PNG -> 同名 .bin -> ui.bin）：
  *   pasta.png / chicken.png / insulation.png
@@ -104,6 +106,15 @@
 #define MODE_STATUS_TEMP_NARROW_EXTRA     7   /* 含数字 1 等窄字时加宽（如 212 的 21） */
 #define MODE_STATUS_TEMP_SYMBOL_GAP       3
 #define MODE_STATUS_TEMP_CENTER_OFFSET    (-20)
+#define MODE_LOCK_MS                      30000
+#define MODE_MSG_OK                       KU_BACK
+#define MODE_MSG_POWER                    (KEY_RIGHT | KEY_SHORT_UP)
+
+enum {
+    MODE_UI_IDLE = 0,
+    MODE_UI_HEATING,
+    MODE_UI_FINISHED,
+};
 
 enum {
     MODE_TIMER_IDX_H10 = 0,
@@ -184,6 +195,10 @@ typedef struct mode_tab_ui_t_ {
 
 typedef struct f_mode_t_ {
     u8 tab;
+    u8 ui_state;
+    bool screen_locked;
+    u32 heat_start_tick;
+    u32 heat_total_sec;
     u8 last_top_min;
     u8 last_top_sec;
     u16 last_timer_key;
@@ -318,7 +333,15 @@ static const mode_tab_preset_t tbl_mode_tab_preset[MODE_TAB_CNT] = {
 static void func_mode_status_temp_update(f_mode_t *f_mode, u16 temp_f);
 static void func_mode_timer_update(f_mode_t *f_mode, u8 hour, u8 min);
 static void func_mode_display_refresh(f_mode_t *f_mode);
-static void func_mode_tab_preset_apply(f_mode_t *f_mode, u8 tab);
+static void func_mode_tab_preview_apply(f_mode_t *f_mode, u8 tab);
+static void func_mode_tab_refresh(f_mode_t *f_mode);
+static void func_mode_tab_select_next(f_mode_t *f_mode);
+static void func_mode_start_heating(f_mode_t *f_mode);
+static void func_mode_power_key(f_mode_t *f_mode);
+static void func_mode_lock_icon_apply(f_mode_t *f_mode);
+static void func_mode_lock_check(f_mode_t *f_mode);
+static void func_mode_heating_finish_check(f_mode_t *f_mode);
+static bool func_mode_key_allowed(f_mode_t *f_mode, size_msg_t msg);
 
 static void func_mode_dash_runtime_init(void)
 {
@@ -389,19 +412,29 @@ static void func_mode_status_icons_apply(f_mode_t *f_mode)
     } else if (f_mode->pic_bt != NULL) {
         compo_picturebox_set_visible(f_mode->pic_bt, false);
     }
-    if (f_mode->pic_lock != NULL && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
-        compo_picturebox_set_ram(f_mode->pic_lock, home_ui_shared_status_lock_ram);
-        compo_picturebox_set_size(f_mode->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-        compo_picturebox_set_visible(f_mode->pic_lock, true);
-    } else if (f_mode->pic_lock != NULL) {
-        compo_picturebox_set_visible(f_mode->pic_lock, false);
-    }
     if (f_mode->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         compo_picturebox_set_ram(f_mode->pic_bat, home_ui_shared_status_bat_ram);
         compo_picturebox_set_size(f_mode->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
         compo_picturebox_set_visible(f_mode->pic_bat, true);
     } else if (f_mode->pic_bat != NULL) {
         compo_picturebox_set_visible(f_mode->pic_bat, false);
+    }
+    func_mode_lock_icon_apply(f_mode);
+}
+
+static void func_mode_lock_icon_apply(f_mode_t *f_mode)
+{
+    if (f_mode->pic_lock == NULL) {
+        return;
+    }
+
+    if (f_mode->ui_state == MODE_UI_HEATING && f_mode->screen_locked
+        && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_mode->pic_lock, home_ui_shared_status_lock_ram);
+        compo_picturebox_set_size(f_mode->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_mode->pic_lock, true);
+    } else {
+        compo_picturebox_set_visible(f_mode->pic_lock, false);
     }
 }
 
@@ -445,23 +478,52 @@ static void func_mode_countdown_tick(void)
 {
     if (mode_countdown_running && mode_countdown_remain_sec > 0) {
         mode_countdown_remain_sec--;
-        if (mode_countdown_remain_sec == 0) {
-            mode_countdown_running = false;
-        }
+    }
+}
+
+static void func_mode_lock_check(f_mode_t *f_mode)
+{
+    if (f_mode->ui_state != MODE_UI_HEATING || f_mode->screen_locked) {
+        return;
+    }
+    if (tick_check_expire(f_mode->heat_start_tick, MODE_LOCK_MS)) {
+        f_mode->screen_locked = true;
+        func_mode_lock_icon_apply(f_mode);
+    }
+}
+
+static void func_mode_heating_finish_check(f_mode_t *f_mode)
+{
+    if (f_mode->ui_state != MODE_UI_HEATING) {
+        return;
+    }
+    if (mode_countdown_remain_sec == 0) {
+        mode_countdown_running = false;
+        f_mode->ui_state = MODE_UI_FINISHED;
+        f_mode->screen_locked = false;
+        func_mode_lock_icon_apply(f_mode);
     }
 }
 
 static void func_mode_status_refresh(f_mode_t *f_mode)
 {
     tm_t tm = rtc_clock_get();
+    bool sec_changed = false;
 
     if (f_mode->last_top_min != tm.min || f_mode->last_top_sec != tm.sec) {
         f_mode->last_top_min = tm.min;
         f_mode->last_top_sec = tm.sec;
         home_top_time_refresh(&f_mode->top_time, &tm);
+        sec_changed = true;
+    }
+
+    if (f_mode->ui_state == MODE_UI_HEATING && sec_changed) {
         func_mode_countdown_tick();
+        func_mode_heating_finish_check(f_mode);
         func_mode_display_refresh(f_mode);
     }
+
+    func_mode_lock_check(f_mode);
 }
 
 static u16 func_mode_g_digit_gap(u8 d0, u8 d1)
@@ -628,7 +690,7 @@ static void func_mode_display_refresh(f_mode_t *f_mode)
     func_mode_timer_update(f_mode, hour, min);
 }
 
-static void func_mode_tab_preset_apply(f_mode_t *f_mode, u8 tab)
+static void func_mode_tab_preview_apply(f_mode_t *f_mode, u8 tab)
 {
     const mode_tab_preset_t *preset;
 
@@ -638,7 +700,7 @@ static void func_mode_tab_preset_apply(f_mode_t *f_mode, u8 tab)
 
     preset = &tbl_mode_tab_preset[tab];
     func_mode_countdown_set(preset->hour, preset->min);
-    func_mode_countdown_start();
+    func_mode_countdown_stop();
 
     f_mode->last_timer_key = 0xffff;
     func_mode_display_refresh(f_mode);
@@ -647,6 +709,82 @@ static void func_mode_tab_preset_apply(f_mode_t *f_mode, u8 tab)
         f_mode->last_temp_f = preset->temp_f;
         func_mode_status_temp_update(f_mode, preset->temp_f);
     }
+}
+
+static void func_mode_tab_select(f_mode_t *f_mode, u8 tab)
+{
+    if (f_mode == NULL || tab >= MODE_TAB_CNT) {
+        return;
+    }
+    f_mode->tab = tab;
+    func_mode_tab_preview_apply(f_mode, tab);
+    func_mode_tab_refresh(f_mode);
+}
+
+static void func_mode_tab_select_next(f_mode_t *f_mode)
+{
+    if (f_mode == NULL) {
+        return;
+    }
+    func_mode_tab_select(f_mode, (u8)((f_mode->tab + 1) % MODE_TAB_CNT));
+}
+
+static void func_mode_start_heating(f_mode_t *f_mode)
+{
+    const mode_tab_preset_t *preset;
+
+    if (f_mode == NULL || f_mode->ui_state != MODE_UI_IDLE) {
+        return;
+    }
+
+    preset = &tbl_mode_tab_preset[f_mode->tab];
+    f_mode->ui_state = MODE_UI_HEATING;
+    f_mode->screen_locked = false;
+    f_mode->heat_start_tick = tick_get();
+    f_mode->heat_total_sec = (u32)preset->hour * 3600 + (u32)preset->min * 60;
+    if (f_mode->heat_total_sec == 0) {
+        f_mode->heat_total_sec = 60;
+    }
+    mode_countdown_remain_sec = f_mode->heat_total_sec;
+    f_mode->last_timer_key = 0xffff;
+    func_mode_countdown_start();
+    func_mode_display_refresh(f_mode);
+    func_mode_lock_icon_apply(f_mode);
+}
+
+static void func_mode_power_key(f_mode_t *f_mode)
+{
+    if (f_mode == NULL) {
+        return;
+    }
+
+    if (f_mode->ui_state == MODE_UI_HEATING) {
+        func_mode_countdown_stop();
+        f_mode->screen_locked = false;
+        func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        return;
+    }
+
+    if (f_mode->ui_state == MODE_UI_FINISHED) {
+        func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    }
+}
+
+static bool func_mode_key_allowed(f_mode_t *f_mode, size_msg_t msg)
+{
+    if (f_mode == NULL) {
+        return true;
+    }
+    if (msg == MODE_MSG_POWER) {
+        return true;
+    }
+    if (f_mode->screen_locked) {
+        return false;
+    }
+    if (f_mode->ui_state != MODE_UI_IDLE) {
+        return false;
+    }
+    return true;
 }
 
 static compo_shape_t *func_mode_shape_create(compo_form_t *frm, u16 id, s16 x, s16 y,
@@ -797,23 +935,21 @@ static void func_mode_button_click(f_mode_t *f_mode)
 {
     int id = compo_get_button_id();
 
+    if (f_mode == NULL || f_mode->ui_state != MODE_UI_IDLE) {
+        return;
+    }
+
     switch (id) {
     case COMPO_ID_TAB0_BTN:
-        f_mode->tab = MODE_TAB_PASTA;
-        func_mode_tab_preset_apply(f_mode, MODE_TAB_PASTA);
-        func_mode_tab_refresh(f_mode);
+        func_mode_tab_select(f_mode, MODE_TAB_PASTA);
         break;
 
     case COMPO_ID_TAB1_BTN:
-        f_mode->tab = MODE_TAB_CHICKEN;
-        func_mode_tab_preset_apply(f_mode, MODE_TAB_CHICKEN);
-        func_mode_tab_refresh(f_mode);
+        func_mode_tab_select(f_mode, MODE_TAB_CHICKEN);
         break;
 
     case COMPO_ID_TAB2_BTN:
-        f_mode->tab = MODE_TAB_INSULATION;
-        func_mode_tab_preset_apply(f_mode, MODE_TAB_INSULATION);
-        func_mode_tab_refresh(f_mode);
+        func_mode_tab_select(f_mode, MODE_TAB_INSULATION);
         break;
 
     default:
@@ -904,11 +1040,29 @@ static void func_mode_message(size_msg_t msg)
 
     switch (msg) {
     case MSG_CTP_CLICK:
-        func_mode_button_click(f_mode);
+        if (f_mode != NULL && f_mode->ui_state == MODE_UI_IDLE && !f_mode->screen_locked) {
+            func_mode_button_click(f_mode);
+        }
+        break;
+
+    case KU_MODE:
+        if (f_mode != NULL && f_mode->ui_state == MODE_UI_IDLE && !f_mode->screen_locked) {
+            func_mode_tab_select_next(f_mode);
+        }
+        break;
+
+    case MODE_MSG_OK:
+        func_mode_start_heating(f_mode);
+        break;
+
+    case MODE_MSG_POWER:
+        func_mode_power_key(f_mode);
         break;
 
     default:
-        func_message(msg);
+        if (func_mode_key_allowed(f_mode, msg)) {
+            func_message(msg);
+        }
         break;
     }
 }
@@ -922,6 +1076,10 @@ void func_mode_enter(void)
 
     f_mode = (f_mode_t *)func_cb.f_cb;
     f_mode->tab = MODE_TAB_PASTA;
+    f_mode->ui_state = MODE_UI_IDLE;
+    f_mode->screen_locked = false;
+    f_mode->heat_start_tick = 0;
+    f_mode->heat_total_sec = 0;
     f_mode->last_top_min = 0xff;
     f_mode->last_top_sec = 0xff;
     f_mode->last_timer_key = 0xffff;
@@ -951,13 +1109,14 @@ void func_mode_enter(void)
     func_mode_tab_bind(f_mode, MODE_TAB_INSULATION, COMPO_ID_TAB2_SEL_BG);
 
     func_mode_status_icons_apply(f_mode);
-    func_mode_tab_preset_apply(f_mode, f_mode->tab);
+    func_mode_tab_preview_apply(f_mode, f_mode->tab);
     func_mode_tab_refresh(f_mode);
     func_mode_status_refresh(f_mode);
 }
 
 void func_mode_exit(void)
 {
+    func_mode_countdown_stop();
     func_cb.last = FUNC_MODE;
 }
 

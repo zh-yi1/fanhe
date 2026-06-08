@@ -58,6 +58,8 @@
 #define VERINFO_VERSION_STR               "3E 610317-V1.0"
 #endif
 
+#define VERINFO_MSG_POWER                 (KEY_RIGHT | KEY_SHORT_UP)
+
 enum {
     COMPO_ID_PIC_BACK = 1,
     COMPO_ID_BTN_BACK,
@@ -245,6 +247,10 @@ static void func_verinfo_message(size_msg_t msg)
     switch (msg) {
     case MSG_CTP_CLICK:
         func_verinfo_button_click();
+        break;
+
+    case VERINFO_MSG_POWER:
+        func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
     default:

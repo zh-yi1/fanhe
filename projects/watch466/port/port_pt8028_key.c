@@ -14,9 +14,9 @@ const u8 tbl_pt8028_bcd_to_key[8] = {
     KEY_VOL_DOWN,   /* TCH2 减号   BCD 2 */
     KEY_MODE,       /* TCH3 模式   BCD 3 */
     KEY_BACK,       /* TCH4 确认   BCD 4 */
-    KEY_5,          /* TCH5 开关   BCD 5 */
-    KEY_6,          /* TCH6 锁键   BCD 6 */
-    KEY_7,          /* TCH7 加热   BCD 7 */
+    KEY_RIGHT,      /* TCH5 开关   BCD 5 */
+    KEY_LEFT,       /* TCH6 锁键   BCD 6 */
+    KEY_PREV,       /* TCH7 加热   BCD 7 */
 };
 
 AT(.text.key.init)

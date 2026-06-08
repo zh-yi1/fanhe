@@ -11,6 +11,7 @@
 
 /*
  * Setup 页：返回 + 标题 + 状态栏；Time / Language / Ver. Info. 列表。
+ * PT8028：TCH3 模式键循环选中；TCH4 OK 进入；TCH5 开关返回主界面。
  * 图标：left/time/language/info/right + 状态栏 bluetooth/lock/battery_level
  * GPU 0x24150：os_spiflash_read + compo_picturebox_set_ram
  */
@@ -88,6 +89,9 @@
 #define SETUP_ROW_TEXT_LEFT               (SETUP_ROW_ICON_LEFT + SETUP_MENU_ICON_W + SETUP_ROW_TEXT_GAP)
 #define SETUP_ROW_TEXT_RIGHT              (SETUP_ROW_ARROW_X - SETUP_RIGHT_W / 2 - SETUP_ROW_TEXT_GAP)
 #define SETUP_ROW_LABEL_W                 (SETUP_ROW_TEXT_RIGHT - SETUP_ROW_TEXT_LEFT)
+
+#define SETUP_MSG_OK                      KU_BACK
+#define SETUP_MSG_POWER                   (KEY_RIGHT | KEY_SHORT_UP)
 
 static void func_setup_config_row_label(compo_textbox_t *txt, const char *text, s16 row_y)
 {
@@ -375,6 +379,29 @@ static void func_setup_row_focus_refresh(f_setup_t *f_setup)
     }
 }
 
+static void func_setup_row_select_next(f_setup_t *f_setup)
+{
+    if (f_setup == NULL) {
+        return;
+    }
+    f_setup->focus = (u8)((f_setup->focus + 1) % SETUP_ROW_CNT);
+    func_setup_row_focus_refresh(f_setup);
+}
+
+static void func_setup_row_enter(f_setup_t *f_setup)
+{
+    if (f_setup == NULL || f_setup->focus >= SETUP_ROW_CNT) {
+        return;
+    }
+    func_switch_to(tbl_setup_row_func[f_setup->focus], FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
+static void func_setup_power_key(f_setup_t *f_setup)
+{
+    (void)f_setup;
+    func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
 static void func_setup_row_create(compo_form_t *frm, u8 idx)
 {
     compo_picturebox_t *pic;
@@ -460,7 +487,7 @@ static void func_setup_button_click(f_setup_t *f_setup)
         if (row < SETUP_ROW_CNT) {
             f_setup->focus = row;
             func_setup_row_focus_refresh(f_setup);
-            func_switch_to(tbl_setup_row_func[row], FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            func_setup_row_enter(f_setup);
         }
         break;
     }
@@ -537,6 +564,18 @@ static void func_setup_message(size_msg_t msg)
         if (f_setup != NULL) {
             func_setup_button_click(f_setup);
         }
+        break;
+
+    case KU_MODE:
+        func_setup_row_select_next(f_setup);
+        break;
+
+    case SETUP_MSG_OK:
+        func_setup_row_enter(f_setup);
+        break;
+
+    case SETUP_MSG_POWER:
+        func_setup_power_key(f_setup);
         break;
 
     default:

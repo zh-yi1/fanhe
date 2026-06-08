@@ -11,7 +11,7 @@
 
 /*
  * Time 设置页：返回 + 标题 + 状态栏；小时/分钟调节 + AM/PM；底部 NO / YES。
- * 图标：left + 状态栏 + up/down + w0m..w9m + wcm + blue/black am/pm
+ * PT8028：OK 逐步切换 时→分→AM/PM→底部；模式键在 AM/PM 与 NO/YES 间循环；+/- 调节时/分。
  */
 #define UI_TIMEING_PLACEHOLDER            UI_BUF_ICON_ACTIVITY_BIN
 
@@ -136,6 +136,16 @@
 #define TIMEING_BTN_BOTTOM_Y              418
 
 enum {
+    TIMEING_FOCUS_HOUR = 0,
+    TIMEING_FOCUS_MIN,
+    TIMEING_FOCUS_AMPM,
+    TIMEING_FOCUS_BOTTOM,
+};
+
+#define TIMEING_MSG_OK                      KU_BACK
+#define TIMEING_MSG_POWER                   (KEY_RIGHT | KEY_SHORT_UP)
+
+enum {
     COMPO_ID_PIC_BACK = 1,
     COMPO_ID_BTN_BACK,
     COMPO_ID_TITLE,
@@ -176,7 +186,14 @@ enum {
 typedef struct f_timeing_t_ {
     u8 disp_h;
     u8 min;
+    u8 focus;
+    u8 bottom_sel;
     bool is_pm;
+    compo_shape_t *shape_hour_bg;
+    compo_shape_t *shape_min_border;
+    compo_shape_t *shape_min_bg;
+    compo_shape_t *shape_no_bg;
+    compo_shape_t *shape_yes_bg;
     compo_picturebox_t *pic_back;
     compo_button_t *btn_back;
     compo_picturebox_t *pic_bt;
@@ -447,6 +464,192 @@ static void func_timeing_status_icons_apply(f_timeing_t *f_timeing)
     }
 }
 
+static void func_timeing_bottom_btn_refresh(f_timeing_t *f_timeing)
+{
+    if (f_timeing->shape_no_bg == NULL || f_timeing->shape_yes_bg == NULL) {
+        return;
+    }
+
+    if (f_timeing->focus == TIMEING_FOCUS_BOTTOM) {
+        if (f_timeing->bottom_sel == 0) {
+            compo_shape_set_color(f_timeing->shape_no_bg, TIMEING_COLOR_MIN_BORDER);
+            compo_shape_set_color(f_timeing->shape_yes_bg, TIMEING_COLOR_ROW_BG);
+        } else {
+            compo_shape_set_color(f_timeing->shape_no_bg, TIMEING_COLOR_ROW_BG);
+            compo_shape_set_color(f_timeing->shape_yes_bg, TIMEING_COLOR_YES);
+        }
+    } else {
+        compo_shape_set_color(f_timeing->shape_no_bg, TIMEING_COLOR_ROW_BG);
+        compo_shape_set_color(f_timeing->shape_yes_bg, TIMEING_COLOR_YES);
+    }
+}
+
+static void func_timeing_focus_refresh(f_timeing_t *f_timeing)
+{
+    bool hour_sel;
+    bool min_sel;
+
+    if (f_timeing == NULL) {
+        return;
+    }
+
+    hour_sel = (f_timeing->focus == TIMEING_FOCUS_HOUR);
+    min_sel = (f_timeing->focus == TIMEING_FOCUS_MIN);
+
+    if (f_timeing->shape_hour_bg != NULL) {
+        compo_shape_set_visible(f_timeing->shape_hour_bg, hour_sel);
+    }
+    if (f_timeing->shape_min_border != NULL) {
+        compo_shape_set_visible(f_timeing->shape_min_border, true);
+    }
+    if (f_timeing->shape_min_bg != NULL) {
+        compo_shape_set_color(f_timeing->shape_min_bg,
+                              min_sel ? TIMEING_COLOR_ROW_BG : COLOR_BLACK);
+    }
+
+    func_timeing_bottom_btn_refresh(f_timeing);
+}
+
+static void func_timeing_save_rtc(f_timeing_t *f_timeing)
+{
+    tm_t tm_set = rtc_clock_get();
+
+    tm_set.hour = func_timeing_to_hour24(f_timeing->disp_h, f_timeing->is_pm);
+    tm_set.min = f_timeing->min;
+    rtc_clock_set(tm_set);
+}
+
+static void func_timeing_ok_key(f_timeing_t *f_timeing)
+{
+    if (f_timeing == NULL) {
+        return;
+    }
+
+    switch (f_timeing->focus) {
+    case TIMEING_FOCUS_HOUR:
+        f_timeing->focus = TIMEING_FOCUS_MIN;
+        break;
+
+    case TIMEING_FOCUS_MIN:
+        f_timeing->focus = TIMEING_FOCUS_AMPM;
+        break;
+
+    case TIMEING_FOCUS_AMPM:
+        f_timeing->focus = TIMEING_FOCUS_BOTTOM;
+        f_timeing->bottom_sel = 0;
+        break;
+
+    case TIMEING_FOCUS_BOTTOM:
+        if (f_timeing->bottom_sel != 0) {
+            func_timeing_save_rtc(f_timeing);
+        }
+        func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        return;
+
+    default:
+        break;
+    }
+
+    func_timeing_focus_refresh(f_timeing);
+}
+
+static void func_timeing_mode_key(f_timeing_t *f_timeing)
+{
+    if (f_timeing == NULL) {
+        return;
+    }
+
+    switch (f_timeing->focus) {
+    case TIMEING_FOCUS_AMPM:
+        f_timeing->is_pm = !f_timeing->is_pm;
+        func_timeing_ampm_apply(f_timeing);
+        break;
+
+    case TIMEING_FOCUS_BOTTOM:
+        f_timeing->bottom_sel = (u8)((f_timeing->bottom_sel + 1) & 1);
+        func_timeing_bottom_btn_refresh(f_timeing);
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void func_timeing_power_key(f_timeing_t *f_timeing)
+{
+    if (f_timeing == NULL) {
+        return;
+    }
+
+    switch (f_timeing->focus) {
+    case TIMEING_FOCUS_HOUR:
+        func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        break;
+
+    case TIMEING_FOCUS_MIN:
+        f_timeing->focus = TIMEING_FOCUS_HOUR;
+        func_timeing_focus_refresh(f_timeing);
+        break;
+
+    case TIMEING_FOCUS_AMPM:
+        f_timeing->focus = TIMEING_FOCUS_MIN;
+        func_timeing_focus_refresh(f_timeing);
+        break;
+
+    case TIMEING_FOCUS_BOTTOM:
+        f_timeing->focus = TIMEING_FOCUS_AMPM;
+        func_timeing_focus_refresh(f_timeing);
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void func_timeing_value_inc(f_timeing_t *f_timeing)
+{
+    if (f_timeing == NULL) {
+        return;
+    }
+
+    switch (f_timeing->focus) {
+    case TIMEING_FOCUS_HOUR:
+        f_timeing->disp_h = (u8)((f_timeing->disp_h + 1) % 12);
+        func_timeing_digits_apply(f_timeing);
+        break;
+
+    case TIMEING_FOCUS_MIN:
+        f_timeing->min = (u8)((f_timeing->min + 1) % 60);
+        func_timeing_digits_apply(f_timeing);
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void func_timeing_value_dec(f_timeing_t *f_timeing)
+{
+    if (f_timeing == NULL) {
+        return;
+    }
+
+    switch (f_timeing->focus) {
+    case TIMEING_FOCUS_HOUR:
+        f_timeing->disp_h = (u8)((f_timeing->disp_h + 11) % 12);
+        func_timeing_digits_apply(f_timeing);
+        break;
+
+    case TIMEING_FOCUS_MIN:
+        f_timeing->min = (u8)((f_timeing->min + 59) % 60);
+        func_timeing_digits_apply(f_timeing);
+        break;
+
+    default:
+        break;
+    }
+}
+
 static void func_timeing_button_click(void)
 {
     int id = compo_get_button_id();
@@ -463,13 +666,7 @@ static void func_timeing_button_click(void)
         break;
 
     case COMPO_ID_BTN_YES:
-        {
-            tm_t tm_set = rtc_clock_get();
-
-            tm_set.hour = func_timeing_to_hour24(f_timeing->disp_h, f_timeing->is_pm);
-            tm_set.min = f_timeing->min;
-            rtc_clock_set(tm_set);
-        }
+        func_timeing_save_rtc(f_timeing);
         func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
@@ -696,9 +893,31 @@ static void func_timeing_process(void)
 
 static void func_timeing_message(size_msg_t msg)
 {
+    f_timeing_t *f_timeing = (f_timeing_t *)func_cb.f_cb;
+
     switch (msg) {
     case MSG_CTP_CLICK:
         func_timeing_button_click();
+        break;
+
+    case KU_MODE:
+        func_timeing_mode_key(f_timeing);
+        break;
+
+    case TIMEING_MSG_OK:
+        func_timeing_ok_key(f_timeing);
+        break;
+
+    case TIMEING_MSG_POWER:
+        func_timeing_power_key(f_timeing);
+        break;
+
+    case KU_VOL_UP:
+        func_timeing_value_inc(f_timeing);
+        break;
+
+    case KU_VOL_DOWN:
+        func_timeing_value_dec(f_timeing);
         break;
 
     default:
@@ -715,6 +934,13 @@ void func_timeing_enter(void)
     func_cb.frm_main = func_timeing_form_create();
 
     f_timeing = (f_timeing_t *)func_cb.f_cb;
+    f_timeing->focus = TIMEING_FOCUS_HOUR;
+    f_timeing->bottom_sel = 0;
+    f_timeing->shape_hour_bg = compo_getobj_byid(COMPO_ID_SHAPE_HOUR_BG);
+    f_timeing->shape_min_border = compo_getobj_byid(COMPO_ID_SHAPE_MIN_BORDER);
+    f_timeing->shape_min_bg = compo_getobj_byid(COMPO_ID_SHAPE_MIN_BG);
+    f_timeing->shape_no_bg = compo_getobj_byid(COMPO_ID_SHAPE_NO_BG);
+    f_timeing->shape_yes_bg = compo_getobj_byid(COMPO_ID_SHAPE_YES_BG);
     f_timeing->pic_back = compo_getobj_byid(COMPO_ID_PIC_BACK);
     f_timeing->btn_back = compo_getobj_byid(COMPO_ID_BTN_BACK);
     f_timeing->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
@@ -755,6 +981,7 @@ void func_timeing_enter(void)
 
     func_timeing_status_icons_apply(f_timeing);
     func_timeing_digits_apply(f_timeing);
+    func_timeing_focus_refresh(f_timeing);
 }
 
 void func_timeing_exit(void)
