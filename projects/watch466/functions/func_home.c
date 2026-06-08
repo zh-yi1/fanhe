@@ -575,9 +575,12 @@ static void func_home_button_click(f_home_t *f_home)
         break;
 
     case COMPO_ID_TAB2_BTN:
-        f_home->tab = HOME_TAB_SETUP;
-        func_home_tab_refresh(f_home);
-        func_switch_to(FUNC_SETTING, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        if (func_cb.sta == FUNC_HOME) {
+            func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        } else {
+            f_home->tab = HOME_TAB_SETUP;
+            func_home_tab_refresh(f_home);
+        }
         break;
 
     default:

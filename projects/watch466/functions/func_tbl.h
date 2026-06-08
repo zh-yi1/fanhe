@@ -86,6 +86,11 @@ compo_form_t *func_debug_info_form_create(void);
 compo_form_t *func_home_form_create(void);
 compo_form_t *func_heat_form_create(void);
 compo_form_t *func_mode_form_create(void);
+compo_form_t *func_reservation_form_create(void);
+compo_form_t *func_setup_form_create(void);
+compo_form_t *func_timeing_form_create(void);
+compo_form_t *func_languageing_form_create(void);
+compo_form_t *func_verinfo_form_create(void);
 compo_form_t * func_smartstack_form_create(void);
 compo_form_t *func_music_form_create(void);
 #if BT_EMIT_EN
@@ -195,6 +200,11 @@ const func_t tbl_func_create[] = {
     {FUNC_HEAT,                         func_heat_form_create},
     {FUNC_HOME,                         func_home_form_create},
     {FUNC_MODE,                         func_mode_form_create},
+    {FUNC_RESERVATION,                  func_reservation_form_create},
+    {FUNC_SETUP,                        func_setup_form_create},
+    {FUNC_TIMEING,                      func_timeing_form_create},
+    {FUNC_LANGUAGEING,                  func_languageing_form_create},
+    {FUNC_VERINFO,                      func_verinfo_form_create},
     {FUNC_SMARTSTACK,                   func_smartstack_form_create},
 #if BT_EMIT_EN
     {FUNC_MUSIC_SRC,                    func_music_src_form_create},
@@ -314,6 +324,11 @@ extern void func_debug_info(void);
 extern void func_home(void);
 extern void func_heat(void);
 extern void func_mode(void);
+extern void func_reservation(void);
+extern void func_setup(void);
+extern void func_timeing(void);
+extern void func_languageing(void);
+extern void func_verinfo(void);
 void func_home_process(void);
 void func_home_message(size_msg_t msg);
 
@@ -433,6 +448,11 @@ const func_t tbl_func_entry[] = {
     {FUNC_HEAT,                         func_heat},                     //加热页
     {FUNC_HOME,                         func_home},                     //默认主页
     {FUNC_MODE,                         func_mode},                     //模式页
+    {FUNC_RESERVATION,                  func_reservation},              //预约页
+    {FUNC_SETUP,                        func_setup},                    //设置页
+    {FUNC_TIMEING,                      func_timeing},                  //定时页
+    {FUNC_LANGUAGEING,                  func_languageing},             //语言页
+    {FUNC_VERINFO,                      func_verinfo},                  //版本信息页
     {FUNC_SMARTSTACK,                   func_smartstack},               //智能堆栈
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt},
@@ -630,6 +650,16 @@ void func_heat_enter(void);
 void func_heat_exit(void);
 void func_mode_enter(void);
 void func_mode_exit(void);
+void func_reservation_enter(void);
+void func_reservation_exit(void);
+void func_setup_enter(void);
+void func_setup_exit(void);
+void func_timeing_enter(void);
+void func_timeing_exit(void);
+void func_languageing_enter(void);
+void func_languageing_exit(void);
+void func_verinfo_enter(void);
+void func_verinfo_exit(void);
 void func_mode_countdown_set(u8 hour, u8 min);
 void func_mode_countdown_start(void);
 void func_mode_countdown_stop(void);
@@ -715,6 +745,11 @@ const func_t tbl_func_enter[] = {
     {FUNC_HEAT,                         func_heat_enter},                //加热页
     {FUNC_HOME,                         func_home_enter},               //默认主页
     {FUNC_MODE,                         func_mode_enter},               //模式页
+    {FUNC_RESERVATION,                  func_reservation_enter},        //预约页
+    {FUNC_SETUP,                        func_setup_enter},              //设置页
+    {FUNC_TIMEING,                      func_timeing_enter},            //定时页
+    {FUNC_LANGUAGEING,                  func_languageing_enter},       //语言页
+    {FUNC_VERINFO,                      func_verinfo_enter},            //版本信息页
     {FUNC_SMARTSTACK,                   func_smartstack_enter},               //智能堆栈
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt_enter},
@@ -981,6 +1016,11 @@ const func_t tbl_func_exit[] = {
     {FUNC_HEAT,                         func_heat_exit},                    //加热页
     {FUNC_HOME,                         func_home_exit},                    //默认主页
     {FUNC_MODE,                         func_mode_exit},                    //模式页
+    {FUNC_RESERVATION,                  func_reservation_exit},             //预约页
+    {FUNC_SETUP,                        func_setup_exit},                   //设置页
+    {FUNC_TIMEING,                      func_timeing_exit},                 //定时页
+    {FUNC_LANGUAGEING,                  func_languageing_exit},         //语言页
+    {FUNC_VERINFO,                      func_verinfo_exit},                 //版本信息页
     {FUNC_SMARTSTACK,                   func_smartstack_exit},               //智能堆栈
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt_exit},

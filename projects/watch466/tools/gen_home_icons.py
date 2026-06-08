@@ -82,13 +82,12 @@ def ensure_src_layout() -> None:
     if any(SRC_DIR.glob("*.png")):
         for png in sorted(BIN_DIR.glob("*.png")):
             dest = SRC_DIR / png.name
-            if png.name in TIME_ICON_ITEMS or png.name in MODE_SRC_PNGS:
-                if not dest.exists():
-                    shutil.move(str(png), str(dest))
-                    print(f"moved png {png.name} -> res/home")
+            if not dest.exists():
+                shutil.move(str(png), str(dest))
+                print(f"moved png {png.name} -> res/home")
             else:
                 png.unlink()
-                print(f"removed stale png from ui/home: {png.name}")
+                print(f"removed duplicate png from ui/home: {png.name}")
         return
     moved = 0
     for png in sorted(BIN_DIR.glob("*.png")):
@@ -246,6 +245,52 @@ def preserve_mode_blocks(existing: str) -> str:
     return existing[idx:end].rstrip() + "\n\n"
 
 
+SETUP_ICON_ITEMS = (
+    "time.png",
+    "language.png",
+    "info.png",
+    "left.png",
+    "right.png",
+    "up.png",
+    "down.png",
+    "yes.png",
+    "no.png",
+    *(f"w{d}m.png" for d in range(10)),
+    "wcm.png",
+    "w5.png",
+    "black_am.png",
+    "black_pm.png",
+    "blue_am.png",
+    "blue_pm.png",
+)
+
+KNOWN_SRC_PNGS = frozenset(
+    (
+        *(fname for fname, _ in NAV_ICON_ITEMS),
+        *(fname for fname, _ in STATUS_ITEMS),
+        *NATIVE_DIGIT_ITEMS,
+        *TIME_ICON_ITEMS,
+        *(f"{d}.png" for d in range(10)),
+        *MODE_SRC_PNGS,
+        *SETUP_ICON_ITEMS,
+    )
+)
+
+
+def convert_extra_pngs(keep: set[str]) -> None:
+    """Convert setup-page PNGs dropped in ui/home to same-name .bin."""
+    for fname in SETUP_ICON_ITEMS:
+        for base in (BIN_DIR, SRC_DIR):
+            path = base / fname
+            if not path.exists():
+                continue
+            data, _, _ = png_native_to_gpu(path)
+            out_name = Path(fname).stem + ".bin"
+            write_bin(out_name, data, fname)
+            keep.add(out_name)
+            break
+
+
 def main() -> None:
     ensure_src_layout()
     keep: set[str] = set()
@@ -313,6 +358,8 @@ def main() -> None:
         write_bin(out_name, data, fname)
         keep.add(out_name)
         time_sizes[Path(fname).stem] = (w, h, len(data))
+
+    convert_extra_pngs(keep)
 
     cleanup_obsolete_bins()
     remove_png_from_bin_dir()

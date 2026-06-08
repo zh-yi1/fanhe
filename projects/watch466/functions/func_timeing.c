@@ -1,0 +1,774 @@
+#include "include.h"
+#include "func.h"
+#include "home_icon_res.h"
+#include "home_ui_shared.h"
+
+#if TRACE_EN
+#define TRACE(...)              printf(__VA_ARGS__)
+#else
+#define TRACE(...)
+#endif
+
+/*
+ * Time 设置页：返回 + 标题 + 状态栏；小时/分钟调节 + AM/PM；底部 NO / YES。
+ * 图标：left + 状态栏 + up/down + w0m..w9m + wcm + blue/black am/pm
+ */
+#define UI_TIMEING_PLACEHOLDER            UI_BUF_ICON_ACTIVITY_BIN
+
+#ifndef UI_BUF_HOME_LEFT_BIN
+#error "Missing left.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BLUETOOTH_BIN
+#error "Missing bluetooth.bin: run tools/gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_LOCK_BIN
+#error "Missing lock.bin: run tools/gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
+#error "Missing battery_level.bin: run tools/gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_UP_BIN
+#error "Missing up.bin: run tools/convert_ui_home.bat + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_DOWN_BIN
+#error "Missing down.bin: run tools/convert_ui_home.bat + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_WCM_BIN
+#error "Missing wcm.bin: run tools/convert_ui_home.bat + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BLUE_AM_BIN
+#error "Missing blue_am.bin: run tools/convert_ui_home.bat + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BLACK_AM_BIN
+#error "Missing black_am.bin: run tools/convert_ui_home.bat + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BLUE_PM_BIN
+#error "Missing blue_pm.bin: run tools/convert_ui_home.bat + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_BLACK_PM_BIN
+#error "Missing black_pm.bin: run tools/convert_ui_home.bat + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_W0M_BIN
+#error "Missing w0m.bin: run tools/convert_ui_home.bat + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_W5M_BIN
+#define UI_BUF_HOME_W5M_BIN               UI_BUF_HOME_W5_BIN
+#define UI_LEN_HOME_W5M_BIN               UI_LEN_HOME_W5_BIN
+#endif
+
+#define TIMEING_COLOR_DIVIDER             make_color(60, 60, 60)
+#define TIMEING_COLOR_ROW_BG              make_color(29, 29, 29)
+#define TIMEING_COLOR_MIN_BORDER          make_color(60, 60, 60)
+#define TIMEING_COLOR_YES                 make_color(4, 109, 217)
+
+#define TIMEING_LEFT_W                    11
+#define TIMEING_LEFT_H                    17
+#define TIMEING_LEFT_RAM_SIZE             (8 + TIMEING_LEFT_W * TIMEING_LEFT_H * 2)
+
+#define TIMEING_ARROW_W                   18
+#define TIMEING_ARROW_H                   12
+#define TIMEING_ARROW_RAM_SIZE            (8 + TIMEING_ARROW_W * TIMEING_ARROW_H * 2)
+
+#define TIMEING_COLON_W                   5
+#define TIMEING_COLON_H                   29
+#define TIMEING_COLON_RAM_SIZE            (8 + TIMEING_COLON_W * TIMEING_COLON_H * 2)
+
+#define TIMEING_AMPM_W                    43
+#define TIMEING_AMPM_H                    27
+#define TIMEING_AMPM_RAM_SIZE             (8 + TIMEING_AMPM_W * TIMEING_AMPM_H * 2)
+
+#define TIMEING_DIGIT_RAM_MAX_SIZE        1436
+#define TIMEING_DIGIT_SLOT_CNT            4
+
+#define TIMEING_HEADER_Y                  48
+#define TIMEING_BACK_X                    36
+#define TIMEING_TITLE_LEFT                58
+#define TIMEING_TITLE_W                   220
+#define TIMEING_TITLE_H                   36
+#define TIMEING_STATUS_Y                  48
+#define TIMEING_STATUS_BAT_X              (GUI_SCREEN_WIDTH - 24 - HOME_STATUS_BAT_W / 2)
+#define TIMEING_STATUS_LOCK_X             (TIMEING_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - 10 - HOME_STATUS_LOCK_W / 2)
+#define TIMEING_STATUS_BT_X               (TIMEING_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - 10 - HOME_STATUS_BT_W / 2)
+
+#define TIMEING_DIVIDER_Y                 90
+#define TIMEING_DIVIDER_H                 1
+
+#define TIMEING_HOUR_COL_X                108
+#define TIMEING_MIN_COL_X                 268
+#define TIMEING_COLON_X                   188
+#define TIMEING_AMPM_COL_X                396
+#define TIMEING_BOX_Y                     210
+#define TIMEING_BOX_W                     96
+#define TIMEING_BOX_H                     78
+#define TIMEING_BOX_RADIUS                8
+#define TIMEING_ARROW_UP_Y                118
+#define TIMEING_ARROW_DOWN_Y              302
+#define TIMEING_AM_Y                      178
+#define TIMEING_PM_Y                      248
+#define TIMEING_DIGIT_GAP                 10
+#define TIMEING_DIGIT_Y                   (TIMEING_BOX_Y - 10)
+#define TIMEING_SUFFIX_RIGHT_PAD          6
+#define TIMEING_SUFFIX_BOTTOM_PAD         6
+#define TIMEING_SUFFIX_H_W                20
+#define TIMEING_SUFFIX_MIN_W              38
+#define TIMEING_SUFFIX_H                  20
+#define TIMEING_H_SUFFIX_LEFT             (TIMEING_HOUR_COL_X + TIMEING_BOX_W / 2 - TIMEING_SUFFIX_RIGHT_PAD - TIMEING_SUFFIX_H_W)
+#define TIMEING_MIN_SUFFIX_LEFT           (TIMEING_MIN_COL_X + TIMEING_BOX_W / 2 - TIMEING_SUFFIX_RIGHT_PAD - TIMEING_SUFFIX_MIN_W)
+#define TIMEING_SUFFIX_TOP                (TIMEING_BOX_Y + TIMEING_BOX_H / 2 - TIMEING_SUFFIX_BOTTOM_PAD - TIMEING_SUFFIX_H)
+
+#define TIMEING_BTN_W                     145
+#define TIMEING_BTN_H                     48
+#define TIMEING_BTN_RADIUS                8
+#define TIMEING_BTN_NO_X                  118
+#define TIMEING_BTN_YES_X                 348
+#define TIMEING_BTN_BOTTOM_Y              418
+
+enum {
+    COMPO_ID_PIC_BACK = 1,
+    COMPO_ID_BTN_BACK,
+    COMPO_ID_TITLE,
+    COMPO_ID_PIC_BT,
+    COMPO_ID_PIC_LOCK,
+    COMPO_ID_PIC_BAT,
+    COMPO_ID_HEADER_DIVIDER,
+    COMPO_ID_SHAPE_HOUR_BG,
+    COMPO_ID_SHAPE_MIN_BORDER,
+    COMPO_ID_SHAPE_MIN_BG,
+    COMPO_ID_PIC_HOUR_UP,
+    COMPO_ID_BTN_HOUR_UP,
+    COMPO_ID_PIC_HOUR_DOWN,
+    COMPO_ID_BTN_HOUR_DOWN,
+    COMPO_ID_PIC_MIN_UP,
+    COMPO_ID_BTN_MIN_UP,
+    COMPO_ID_PIC_MIN_DOWN,
+    COMPO_ID_BTN_MIN_DOWN,
+    COMPO_ID_PIC_H10,
+    COMPO_ID_PIC_H1,
+    COMPO_ID_PIC_COLON,
+    COMPO_ID_PIC_M10,
+    COMPO_ID_PIC_M1,
+    COMPO_ID_TXT_H_SUFFIX,
+    COMPO_ID_TXT_MIN_SUFFIX,
+    COMPO_ID_PIC_AM,
+    COMPO_ID_BTN_AM,
+    COMPO_ID_PIC_PM,
+    COMPO_ID_BTN_PM,
+    COMPO_ID_SHAPE_NO_BG,
+    COMPO_ID_SHAPE_YES_BG,
+    COMPO_ID_TXT_NO,
+    COMPO_ID_TXT_YES,
+    COMPO_ID_BTN_NO,
+    COMPO_ID_BTN_YES,
+};
+
+typedef struct f_timeing_t_ {
+    u8 disp_h;
+    u8 min;
+    bool is_pm;
+    compo_picturebox_t *pic_back;
+    compo_button_t *btn_back;
+    compo_picturebox_t *pic_bt;
+    compo_picturebox_t *pic_lock;
+    compo_picturebox_t *pic_bat;
+    compo_picturebox_t *pic_hour_up;
+    compo_picturebox_t *pic_hour_down;
+    compo_picturebox_t *pic_min_up;
+    compo_picturebox_t *pic_min_down;
+    compo_picturebox_t *pic_h10;
+    compo_picturebox_t *pic_h1;
+    compo_picturebox_t *pic_colon;
+    compo_picturebox_t *pic_m10;
+    compo_picturebox_t *pic_m1;
+    compo_picturebox_t *pic_am;
+    compo_picturebox_t *pic_pm;
+} f_timeing_t;
+
+static u8 timeing_left_ram[TIMEING_LEFT_RAM_SIZE];
+static u8 timeing_arrow_ram[4][TIMEING_ARROW_RAM_SIZE];
+static u8 timeing_colon_ram[TIMEING_COLON_RAM_SIZE];
+static u8 timeing_ampm_ram[2][TIMEING_AMPM_RAM_SIZE];
+static u8 timeing_digit_ram[TIMEING_DIGIT_SLOT_CNT][TIMEING_DIGIT_RAM_MAX_SIZE];
+
+static const u32 tbl_timeing_digit_addr[10] = {
+    UI_BUF_HOME_W0M_BIN, UI_BUF_HOME_W1M_BIN, UI_BUF_HOME_W2M_BIN, UI_BUF_HOME_W3M_BIN,
+    UI_BUF_HOME_W4M_BIN, UI_BUF_HOME_W5M_BIN, UI_BUF_HOME_W6M_BIN, UI_BUF_HOME_W7M_BIN,
+    UI_BUF_HOME_W8M_BIN, UI_BUF_HOME_W9M_BIN,
+};
+
+static const u16 tbl_timeing_digit_len[10] = {
+    UI_LEN_HOME_W0M_BIN, UI_LEN_HOME_W1M_BIN, UI_LEN_HOME_W2M_BIN, UI_LEN_HOME_W3M_BIN,
+    UI_LEN_HOME_W4M_BIN, UI_LEN_HOME_W5M_BIN, UI_LEN_HOME_W6M_BIN, UI_LEN_HOME_W7M_BIN,
+    UI_LEN_HOME_W8M_BIN, UI_LEN_HOME_W9M_BIN,
+};
+
+static const u16 tbl_timeing_digit_w[10] = {
+    20, 5, 20, 19, 20, 20, 21, 19, 20, 20,
+};
+
+static const u16 tbl_timeing_digit_h[10] = {
+    34, 32, 34, 34, 32, 34, 34, 33, 34, 34,
+};
+
+static bool func_timeing_gpu_ram_set(u8 *ram, u16 buf_size, u16 data_len, compo_picturebox_t *pic)
+{
+    u32 magic;
+    u16 w;
+    u16 h;
+    u16 need;
+
+    if (ram == NULL || data_len < 8) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+
+    magic = GET_LE32(&ram[0]);
+    w = GET_LE16(&ram[4]);
+    h = GET_LE16(&ram[6]);
+    need = (u16)(8 + (u32)w * h * 2);
+    if (magic != 0x24150 || w == 0 || h == 0 || need != data_len || data_len > buf_size) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+
+    if (pic != NULL) {
+        compo_picturebox_set_ram(pic, ram);
+        compo_picturebox_set_size(pic, w, h);
+        compo_picturebox_set_visible(pic, true);
+    }
+    return true;
+}
+
+static bool func_timeing_gpu_flash_to_ram(u8 *ram, u16 buf_size, u32 flash_addr, u16 flash_len,
+                                          compo_picturebox_t *pic)
+{
+    if (ram == NULL || flash_len == 0 || flash_len > buf_size) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+
+    os_spiflash_read(ram, flash_addr, flash_len);
+    return func_timeing_gpu_ram_set(ram, buf_size, flash_len, pic);
+}
+
+static compo_shape_t *func_timeing_shape_create(compo_form_t *frm, u16 id, s16 x, s16 y,
+                                                s16 w, s16 h, u16 color, u16 radius)
+{
+    compo_shape_t *shape = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
+
+    compo_setid(shape, id);
+    compo_shape_set_location(shape, x, y, w, h);
+    compo_shape_set_color(shape, color);
+    compo_shape_set_radius(shape, radius);
+    return shape;
+}
+
+static void func_timeing_config_suffix_label(compo_textbox_t *txt, const char *text,
+                                             s16 left, s16 top, s16 w, s16 h)
+{
+    widget_text_t *widget = txt->txt;
+    rect_t rect;
+    area_t text_area;
+
+    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
+    compo_textbox_set_align_center(txt, false);
+    widget_set_align_center(widget, false);
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+    compo_textbox_set_location(txt, left, top, w, h);
+    compo_textbox_set_forecolor(txt, COLOR_WHITE);
+    compo_textbox_set(txt, text);
+
+    rect = widget_get_location(widget);
+    text_area = widget_text_get_area(widget);
+    if (rect.hei > text_area.hei) {
+        widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
+}
+
+static void func_timeing_config_center_label(compo_textbox_t *txt, const char *text,
+                                             s16 cx, s16 cy, s16 w, s16 h)
+{
+    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
+    compo_textbox_set_align_center(txt, true);
+    widget_set_align_center(txt->txt, true);
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(txt->txt, false);
+    compo_textbox_set_location(txt, cx, cy, w, h);
+    compo_textbox_set_forecolor(txt, COLOR_WHITE);
+    compo_textbox_set(txt, text);
+}
+
+static void func_timeing_parse_rtc(u8 *disp_h, u8 *min, bool *is_pm)
+{
+    tm_t tm = rtc_clock_get();
+    u8 hour = tm.hour;
+
+    *is_pm = false;
+    if (hour >= 12) {
+        *is_pm = true;
+    }
+    *disp_h = (u8)(hour % 12);
+    *min = tm.min;
+}
+
+static u8 func_timeing_to_hour24(u8 disp_h, bool is_pm)
+{
+    if (is_pm) {
+        return (disp_h == 0) ? 12 : (u8)(disp_h + 12);
+    }
+    return disp_h;
+}
+
+static bool func_timeing_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic)
+{
+    if (digit > 9 || slot >= TIMEING_DIGIT_SLOT_CNT) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+
+    if (func_timeing_gpu_flash_to_ram(timeing_digit_ram[slot], TIMEING_DIGIT_RAM_MAX_SIZE,
+                                      tbl_timeing_digit_addr[digit],
+                                      tbl_timeing_digit_len[digit], pic)) {
+        compo_picturebox_set_size(pic, tbl_timeing_digit_w[digit], tbl_timeing_digit_h[digit]);
+        return true;
+    }
+    return false;
+}
+
+static s16 func_timeing_digit10_center_x(s16 col_x, u8 d10, u8 d1, u16 suffix_reserve)
+{
+    u16 w10 = tbl_timeing_digit_w[d10];
+    u16 w1 = tbl_timeing_digit_w[d1];
+    u16 total = (u16)(w10 + TIMEING_DIGIT_GAP + w1);
+
+    return (s16)(col_x - suffix_reserve / 2 - total / 2 + w10 / 2);
+}
+
+static void func_timeing_ampm_apply(f_timeing_t *f_timeing)
+{
+    u32 am_addr;
+    u16 am_len;
+    u32 pm_addr;
+    u16 pm_len;
+
+    if (f_timeing->is_pm) {
+        am_addr = UI_BUF_HOME_BLACK_AM_BIN;
+        am_len = UI_LEN_HOME_BLACK_AM_BIN;
+        pm_addr = UI_BUF_HOME_BLUE_PM_BIN;
+        pm_len = UI_LEN_HOME_BLUE_PM_BIN;
+    } else {
+        am_addr = UI_BUF_HOME_BLUE_AM_BIN;
+        am_len = UI_LEN_HOME_BLUE_AM_BIN;
+        pm_addr = UI_BUF_HOME_BLACK_PM_BIN;
+        pm_len = UI_LEN_HOME_BLACK_PM_BIN;
+    }
+
+    func_timeing_gpu_flash_to_ram(timeing_ampm_ram[0], TIMEING_AMPM_RAM_SIZE,
+                                  am_addr, am_len, f_timeing->pic_am);
+    func_timeing_gpu_flash_to_ram(timeing_ampm_ram[1], TIMEING_AMPM_RAM_SIZE,
+                                  pm_addr, pm_len, f_timeing->pic_pm);
+}
+
+static void func_timeing_digits_apply(f_timeing_t *f_timeing)
+{
+    u8 h10 = (u8)(f_timeing->disp_h / 10);
+    u8 h1 = (u8)(f_timeing->disp_h % 10);
+    u8 m10 = (u8)(f_timeing->min / 10);
+    u8 m1 = (u8)(f_timeing->min % 10);
+    s16 hx;
+    s16 mx;
+
+    hx = func_timeing_digit10_center_x(TIMEING_HOUR_COL_X, h10, h1,
+                                       (u16)(TIMEING_SUFFIX_H_W + 4));
+    mx = func_timeing_digit10_center_x(TIMEING_MIN_COL_X, m10, m1,
+                                       (u16)(TIMEING_SUFFIX_MIN_W + 4));
+
+    func_timeing_load_digit(0, h10, f_timeing->pic_h10);
+    compo_picturebox_set_pos(f_timeing->pic_h10, hx, TIMEING_DIGIT_Y);
+
+    hx += (s16)(tbl_timeing_digit_w[h10] / 2 + TIMEING_DIGIT_GAP + tbl_timeing_digit_w[h1] / 2);
+    func_timeing_load_digit(1, h1, f_timeing->pic_h1);
+    compo_picturebox_set_pos(f_timeing->pic_h1, hx, TIMEING_DIGIT_Y);
+
+    func_timeing_load_digit(2, m10, f_timeing->pic_m10);
+    compo_picturebox_set_pos(f_timeing->pic_m10, mx, TIMEING_DIGIT_Y);
+
+    mx += (s16)(tbl_timeing_digit_w[m10] / 2 + TIMEING_DIGIT_GAP + tbl_timeing_digit_w[m1] / 2);
+    func_timeing_load_digit(3, m1, f_timeing->pic_m1);
+    compo_picturebox_set_pos(f_timeing->pic_m1, mx, TIMEING_DIGIT_Y);
+
+    func_timeing_ampm_apply(f_timeing);
+}
+
+static void func_timeing_status_icons_apply(f_timeing_t *f_timeing)
+{
+    home_ui_shared_status_init();
+
+    if (f_timeing->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
+        compo_picturebox_set_ram(f_timeing->pic_bt, home_ui_shared_status_bt_ram);
+        compo_picturebox_set_size(f_timeing->pic_bt, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
+        compo_picturebox_set_visible(f_timeing->pic_bt, true);
+    }
+    if (f_timeing->pic_lock != NULL && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_timeing->pic_lock, home_ui_shared_status_lock_ram);
+        compo_picturebox_set_size(f_timeing->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_timeing->pic_lock, true);
+    }
+    if (f_timeing->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
+        compo_picturebox_set_ram(f_timeing->pic_bat, home_ui_shared_status_bat_ram);
+        compo_picturebox_set_size(f_timeing->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+        compo_picturebox_set_visible(f_timeing->pic_bat, true);
+    }
+}
+
+static void func_timeing_button_click(void)
+{
+    int id = compo_get_button_id();
+    f_timeing_t *f_timeing = (f_timeing_t *)func_cb.f_cb;
+
+    if (f_timeing == NULL) {
+        return;
+    }
+
+    switch (id) {
+    case COMPO_ID_BTN_BACK:
+    case COMPO_ID_BTN_NO:
+        func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        break;
+
+    case COMPO_ID_BTN_YES:
+        {
+            tm_t tm_set = rtc_clock_get();
+
+            tm_set.hour = func_timeing_to_hour24(f_timeing->disp_h, f_timeing->is_pm);
+            tm_set.min = f_timeing->min;
+            rtc_clock_set(tm_set);
+        }
+        func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        break;
+
+    case COMPO_ID_BTN_HOUR_UP:
+        f_timeing->disp_h = (u8)((f_timeing->disp_h + 1) % 12);
+        func_timeing_digits_apply(f_timeing);
+        break;
+
+    case COMPO_ID_BTN_HOUR_DOWN:
+        f_timeing->disp_h = (u8)((f_timeing->disp_h + 11) % 12);
+        func_timeing_digits_apply(f_timeing);
+        break;
+
+    case COMPO_ID_BTN_MIN_UP:
+        f_timeing->min = (u8)((f_timeing->min + 1) % 60);
+        func_timeing_digits_apply(f_timeing);
+        break;
+
+    case COMPO_ID_BTN_MIN_DOWN:
+        f_timeing->min = (u8)((f_timeing->min + 59) % 60);
+        func_timeing_digits_apply(f_timeing);
+        break;
+
+    case COMPO_ID_BTN_AM:
+        f_timeing->is_pm = false;
+        func_timeing_ampm_apply(f_timeing);
+        break;
+
+    case COMPO_ID_BTN_PM:
+        f_timeing->is_pm = true;
+        func_timeing_ampm_apply(f_timeing);
+        break;
+
+    default:
+        break;
+    }
+}
+
+compo_form_t *func_timeing_form_create(void)
+{
+    compo_form_t *frm = compo_form_create(true);
+    compo_picturebox_t *pic;
+    compo_textbox_t *txt;
+    compo_button_t *btn;
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_BACK);
+    compo_picturebox_set_pos(pic, TIMEING_BACK_X, TIMEING_HEADER_Y);
+    compo_picturebox_set_size(pic, TIMEING_LEFT_W, TIMEING_LEFT_H);
+    compo_picturebox_set_visible(pic, false);
+
+    btn = compo_button_create(frm);
+    compo_setid(btn, COMPO_ID_BTN_BACK);
+    compo_button_set_location(btn, 16, 28, 56, 40);
+
+    txt = compo_textbox_create(frm, 8);
+    compo_setid(txt, COMPO_ID_TITLE);
+    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
+    compo_textbox_set_align_center(txt, false);
+    widget_set_align_center(txt->txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(txt->txt, false);
+    compo_textbox_set_location(txt, TIMEING_TITLE_LEFT, TIMEING_HEADER_Y - TIMEING_TITLE_H / 2,
+                               TIMEING_TITLE_W, TIMEING_TITLE_H);
+    compo_textbox_set_forecolor(txt, COLOR_WHITE);
+    compo_textbox_set(txt, "Time");
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_BT);
+    compo_picturebox_set_pos(pic, TIMEING_STATUS_BT_X, TIMEING_STATUS_Y);
+    compo_picturebox_set_size(pic, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
+    compo_picturebox_set_visible(pic, false);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_LOCK);
+    compo_picturebox_set_pos(pic, TIMEING_STATUS_LOCK_X, TIMEING_STATUS_Y);
+    compo_picturebox_set_size(pic, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+    compo_picturebox_set_visible(pic, false);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_BAT);
+    compo_picturebox_set_pos(pic, TIMEING_STATUS_BAT_X, TIMEING_STATUS_Y);
+    compo_picturebox_set_size(pic, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+    compo_picturebox_set_visible(pic, false);
+
+    func_timeing_shape_create(frm, COMPO_ID_HEADER_DIVIDER, GUI_SCREEN_CENTER_X, TIMEING_DIVIDER_Y,
+                              GUI_SCREEN_WIDTH, TIMEING_DIVIDER_H, TIMEING_COLOR_DIVIDER, 0);
+
+    func_timeing_shape_create(frm, COMPO_ID_SHAPE_HOUR_BG, TIMEING_HOUR_COL_X, TIMEING_BOX_Y,
+                              TIMEING_BOX_W, TIMEING_BOX_H, TIMEING_COLOR_ROW_BG, TIMEING_BOX_RADIUS);
+
+    func_timeing_shape_create(frm, COMPO_ID_SHAPE_MIN_BORDER, TIMEING_MIN_COL_X, TIMEING_BOX_Y,
+                              TIMEING_BOX_W, TIMEING_BOX_H, TIMEING_COLOR_MIN_BORDER, TIMEING_BOX_RADIUS);
+    func_timeing_shape_create(frm, COMPO_ID_SHAPE_MIN_BG, TIMEING_MIN_COL_X, TIMEING_BOX_Y,
+                              TIMEING_BOX_W - 2, TIMEING_BOX_H - 2, COLOR_BLACK, TIMEING_BOX_RADIUS - 1);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_HOUR_UP);
+    compo_picturebox_set_pos(pic, TIMEING_HOUR_COL_X, TIMEING_ARROW_UP_Y);
+    compo_picturebox_set_size(pic, TIMEING_ARROW_W, TIMEING_ARROW_H);
+    compo_picturebox_set_visible(pic, false);
+
+    btn = compo_button_create(frm);
+    compo_setid(btn, COMPO_ID_BTN_HOUR_UP);
+    compo_button_set_location(btn, TIMEING_HOUR_COL_X - 24, TIMEING_ARROW_UP_Y - 16, 48, 32);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_HOUR_DOWN);
+    compo_picturebox_set_pos(pic, TIMEING_HOUR_COL_X, TIMEING_ARROW_DOWN_Y);
+    compo_picturebox_set_size(pic, TIMEING_ARROW_W, TIMEING_ARROW_H);
+    compo_picturebox_set_visible(pic, false);
+
+    btn = compo_button_create(frm);
+    compo_setid(btn, COMPO_ID_BTN_HOUR_DOWN);
+    compo_button_set_location(btn, TIMEING_HOUR_COL_X - 24, TIMEING_ARROW_DOWN_Y - 16, 48, 32);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_MIN_UP);
+    compo_picturebox_set_pos(pic, TIMEING_MIN_COL_X, TIMEING_ARROW_UP_Y);
+    compo_picturebox_set_size(pic, TIMEING_ARROW_W, TIMEING_ARROW_H);
+    compo_picturebox_set_visible(pic, false);
+
+    btn = compo_button_create(frm);
+    compo_setid(btn, COMPO_ID_BTN_MIN_UP);
+    compo_button_set_location(btn, TIMEING_MIN_COL_X - 24, TIMEING_ARROW_UP_Y - 16, 48, 32);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_MIN_DOWN);
+    compo_picturebox_set_pos(pic, TIMEING_MIN_COL_X, TIMEING_ARROW_DOWN_Y);
+    compo_picturebox_set_size(pic, TIMEING_ARROW_W, TIMEING_ARROW_H);
+    compo_picturebox_set_visible(pic, false);
+
+    btn = compo_button_create(frm);
+    compo_setid(btn, COMPO_ID_BTN_MIN_DOWN);
+    compo_button_set_location(btn, TIMEING_MIN_COL_X - 24, TIMEING_ARROW_DOWN_Y - 16, 48, 32);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_H10);
+    compo_picturebox_set_visible(pic, false);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_H1);
+    compo_picturebox_set_visible(pic, false);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_COLON);
+    compo_picturebox_set_pos(pic, TIMEING_COLON_X, TIMEING_BOX_Y);
+    compo_picturebox_set_size(pic, TIMEING_COLON_W, TIMEING_COLON_H);
+    compo_picturebox_set_visible(pic, false);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_M10);
+    compo_picturebox_set_visible(pic, false);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_M1);
+    compo_picturebox_set_visible(pic, false);
+
+    txt = compo_textbox_create(frm, 2);
+    compo_setid(txt, COMPO_ID_TXT_H_SUFFIX);
+    func_timeing_config_suffix_label(txt, "H", TIMEING_H_SUFFIX_LEFT, TIMEING_SUFFIX_TOP,
+                                     TIMEING_SUFFIX_H_W, TIMEING_SUFFIX_H);
+
+    txt = compo_textbox_create(frm, 4);
+    compo_setid(txt, COMPO_ID_TXT_MIN_SUFFIX);
+    func_timeing_config_suffix_label(txt, "Min", TIMEING_MIN_SUFFIX_LEFT, TIMEING_SUFFIX_TOP,
+                                     TIMEING_SUFFIX_MIN_W, TIMEING_SUFFIX_H);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_AM);
+    compo_picturebox_set_pos(pic, TIMEING_AMPM_COL_X, TIMEING_AM_Y);
+    compo_picturebox_set_size(pic, TIMEING_AMPM_W, TIMEING_AMPM_H);
+    compo_picturebox_set_visible(pic, false);
+
+    btn = compo_button_create(frm);
+    compo_setid(btn, COMPO_ID_BTN_AM);
+    compo_button_set_location(btn, TIMEING_AMPM_COL_X - 28, TIMEING_AM_Y - 16, 56, 32);
+
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_PM);
+    compo_picturebox_set_pos(pic, TIMEING_AMPM_COL_X, TIMEING_PM_Y);
+    compo_picturebox_set_size(pic, TIMEING_AMPM_W, TIMEING_AMPM_H);
+    compo_picturebox_set_visible(pic, false);
+
+    btn = compo_button_create(frm);
+    compo_setid(btn, COMPO_ID_BTN_PM);
+    compo_button_set_location(btn, TIMEING_AMPM_COL_X - 28, TIMEING_PM_Y - 16, 56, 32);
+
+    func_timeing_shape_create(frm, COMPO_ID_SHAPE_NO_BG, TIMEING_BTN_NO_X, TIMEING_BTN_BOTTOM_Y,
+                              TIMEING_BTN_W, TIMEING_BTN_H, TIMEING_COLOR_ROW_BG, TIMEING_BTN_RADIUS);
+    func_timeing_shape_create(frm, COMPO_ID_SHAPE_YES_BG, TIMEING_BTN_YES_X, TIMEING_BTN_BOTTOM_Y,
+                              TIMEING_BTN_W, TIMEING_BTN_H, TIMEING_COLOR_YES, TIMEING_BTN_RADIUS);
+
+    txt = compo_textbox_create(frm, 4);
+    compo_setid(txt, COMPO_ID_TXT_NO);
+    func_timeing_config_center_label(txt, "NO", TIMEING_BTN_NO_X, TIMEING_BTN_BOTTOM_Y,
+                                     TIMEING_BTN_W, TIMEING_BTN_H);
+
+    txt = compo_textbox_create(frm, 4);
+    compo_setid(txt, COMPO_ID_TXT_YES);
+    func_timeing_config_center_label(txt, "YES", TIMEING_BTN_YES_X, TIMEING_BTN_BOTTOM_Y,
+                                      TIMEING_BTN_W, TIMEING_BTN_H);
+
+    btn = compo_button_create(frm);
+    compo_setid(btn, COMPO_ID_BTN_NO);
+    compo_button_set_location(btn, TIMEING_BTN_NO_X - TIMEING_BTN_W / 2,
+                            TIMEING_BTN_BOTTOM_Y - TIMEING_BTN_H / 2,
+                            TIMEING_BTN_W, TIMEING_BTN_H);
+
+    btn = compo_button_create(frm);
+    compo_setid(btn, COMPO_ID_BTN_YES);
+    compo_button_set_location(btn, TIMEING_BTN_YES_X - TIMEING_BTN_W / 2,
+                            TIMEING_BTN_BOTTOM_Y - TIMEING_BTN_H / 2,
+                            TIMEING_BTN_W, TIMEING_BTN_H);
+
+    return frm;
+}
+
+static void func_timeing_process(void)
+{
+    func_process();
+}
+
+static void func_timeing_message(size_msg_t msg)
+{
+    switch (msg) {
+    case MSG_CTP_CLICK:
+        func_timeing_button_click();
+        break;
+
+    default:
+        func_message(msg);
+        break;
+    }
+}
+
+void func_timeing_enter(void)
+{
+    f_timeing_t *f_timeing;
+
+    func_cb.f_cb = func_zalloc(sizeof(f_timeing_t));
+    func_cb.frm_main = func_timeing_form_create();
+
+    f_timeing = (f_timeing_t *)func_cb.f_cb;
+    f_timeing->pic_back = compo_getobj_byid(COMPO_ID_PIC_BACK);
+    f_timeing->btn_back = compo_getobj_byid(COMPO_ID_BTN_BACK);
+    f_timeing->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
+    f_timeing->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
+    f_timeing->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
+    f_timeing->pic_hour_up = compo_getobj_byid(COMPO_ID_PIC_HOUR_UP);
+    f_timeing->pic_hour_down = compo_getobj_byid(COMPO_ID_PIC_HOUR_DOWN);
+    f_timeing->pic_min_up = compo_getobj_byid(COMPO_ID_PIC_MIN_UP);
+    f_timeing->pic_min_down = compo_getobj_byid(COMPO_ID_PIC_MIN_DOWN);
+    f_timeing->pic_h10 = compo_getobj_byid(COMPO_ID_PIC_H10);
+    f_timeing->pic_h1 = compo_getobj_byid(COMPO_ID_PIC_H1);
+    f_timeing->pic_colon = compo_getobj_byid(COMPO_ID_PIC_COLON);
+    f_timeing->pic_m10 = compo_getobj_byid(COMPO_ID_PIC_M10);
+    f_timeing->pic_m1 = compo_getobj_byid(COMPO_ID_PIC_M1);
+    f_timeing->pic_am = compo_getobj_byid(COMPO_ID_PIC_AM);
+    f_timeing->pic_pm = compo_getobj_byid(COMPO_ID_PIC_PM);
+
+    func_timeing_parse_rtc(&f_timeing->disp_h, &f_timeing->min, &f_timeing->is_pm);
+
+    func_timeing_gpu_flash_to_ram(timeing_left_ram, TIMEING_LEFT_RAM_SIZE,
+                                  UI_BUF_HOME_LEFT_BIN, UI_LEN_HOME_LEFT_BIN,
+                                  f_timeing->pic_back);
+    func_timeing_gpu_flash_to_ram(timeing_arrow_ram[0], TIMEING_ARROW_RAM_SIZE,
+                                  UI_BUF_HOME_UP_BIN, UI_LEN_HOME_UP_BIN,
+                                  f_timeing->pic_hour_up);
+    func_timeing_gpu_flash_to_ram(timeing_arrow_ram[1], TIMEING_ARROW_RAM_SIZE,
+                                  UI_BUF_HOME_DOWN_BIN, UI_LEN_HOME_DOWN_BIN,
+                                  f_timeing->pic_hour_down);
+    func_timeing_gpu_flash_to_ram(timeing_arrow_ram[2], TIMEING_ARROW_RAM_SIZE,
+                                  UI_BUF_HOME_UP_BIN, UI_LEN_HOME_UP_BIN,
+                                  f_timeing->pic_min_up);
+    func_timeing_gpu_flash_to_ram(timeing_arrow_ram[3], TIMEING_ARROW_RAM_SIZE,
+                                  UI_BUF_HOME_DOWN_BIN, UI_LEN_HOME_DOWN_BIN,
+                                  f_timeing->pic_min_down);
+    func_timeing_gpu_flash_to_ram(timeing_colon_ram, TIMEING_COLON_RAM_SIZE,
+                                  UI_BUF_HOME_WCM_BIN, UI_LEN_HOME_WCM_BIN,
+                                  f_timeing->pic_colon);
+
+    func_timeing_status_icons_apply(f_timeing);
+    func_timeing_digits_apply(f_timeing);
+}
+
+void func_timeing_exit(void)
+{
+    func_cb.last = FUNC_TIMEING;
+}
+
+void func_timeing(void)
+{
+    printf("%s\n", __func__);
+    func_timeing_enter();
+    while (func_cb.sta == FUNC_TIMEING) {
+        func_timeing_process();
+        func_timeing_message(msg_dequeue());
+    }
+    func_timeing_exit();
+}

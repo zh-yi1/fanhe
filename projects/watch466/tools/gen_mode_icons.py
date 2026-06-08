@@ -138,11 +138,20 @@ def remove_obsolete() -> None:
             print(f"removed obsolete {name}")
 
 
-def remove_png_from_bin_dir() -> None:
-    """ui/home 勿留 .png，否则 prebuild 会生成 _PNG 资源，运行时 C481/C491。"""
-    for png in sorted(BIN_DIR.glob("*.png")):
-        png.unlink()
-        print(f"removed png from ui/home: {png.name}")
+def remove_mode_png_from_bin_dir() -> None:
+    """Only remove Mode source PNGs; leave setup/other PNGs for gen_home_icons.py."""
+    names: set[str] = set()
+    for png_name in MODE_ICON_PNGS + MODE_LINE_PNGS + MODE_GREEN_PNGS:
+        names.add(png_name)
+        names.add(png_name[:1].upper() + png_name[1:])
+        for alias in MODE_ICON_ALIASES.get(png_name, ()):
+            names.add(alias)
+            names.add(alias[:1].upper() + alias[1:])
+    for name in sorted(names):
+        path = BIN_DIR / name
+        if path.exists():
+            path.unlink()
+            print(f"removed mode png from ui/home: {name}")
 
 
 def patch_home_icon_res(sizes: dict[str, tuple[int, int]]) -> None:
@@ -262,7 +271,7 @@ def main() -> None:
 
     patch_home_icon_res(sizes)
     patch_green_status_res(g_sizes)
-    remove_png_from_bin_dir()
+    remove_mode_png_from_bin_dir()
 
     print("\nNext: run Output/bin/prebuild.bat, then rebuild and flash ui.bin + app.bin")
 

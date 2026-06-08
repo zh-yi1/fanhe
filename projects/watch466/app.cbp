@@ -1406,6 +1406,21 @@
 		<Unit filename="functions/func_mode.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_reservation.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setup.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_timeing.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_languageing.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_verinfo.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_menu.c">
 			<Option compilerVar="CC" />
 		</Unit>
