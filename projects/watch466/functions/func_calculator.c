@@ -30,26 +30,26 @@ typedef struct calculator_disp_btn_item_t_ {
 
 //按钮item，创建时遍历一下
 static const calculator_disp_btn_item_t tbl_calculator_disp_btn_item[] = {
-    {UI_BUF_CALCULATOR_1_CLICK_BIN,             BTN_1,              43+33-2+1,     274+56+5+1},
-    {UI_BUF_CALCULATOR_2_CLICK_BIN,             BTN_2,              121+33+5,    274+56+5+1},
-    {UI_BUF_CALCULATOR_3_CLICK_BIN,             BTN_3,              199+33+5,    274+56+5+1},
-    {UI_BUF_CALCULATOR_4_CLICK_BIN,             BTN_4,              43+33,     216+45+5+1},
-    {UI_BUF_CALCULATOR_5_CLICK_BIN,             BTN_5,              121+33+5,    216+45+5+1},
-    {UI_BUF_CALCULATOR_6_CLICK_BIN,             BTN_6,              199+33+5+1,    216+45+5+1},
-    {UI_BUF_CALCULATOR_7_CLICK_BIN,             BTN_7,              43+33,     158+40},
-    {UI_BUF_CALCULATOR_8_CLICK_BIN,             BTN_8,              121+33+5,    158+40},
-    {UI_BUF_CALCULATOR_9_CLICK_BIN,             BTN_9,              199+33+5,    158+40},
-    {UI_BUF_CALCULATOR_0_CLICK_BIN,             BTN_0,              121+45,    332+76},
-    {UI_BUF_CALCULATOR_POINT_CLICK_BIN,         BTN_POINT,          199+45-2,    332+76},
-    {UI_BUF_CALCULATOR_MINUS_CLICK_BIN,         BTN_OPPOSITE,       43+280,     332-132},
-    {UI_BUF_CALCULATOR_CE_CLICK_BIN,            BTN_CE,             43+104+5+2,     100+30-1},
-    {UI_BUF_CALCULATOR_C_CLICK_BIN,             BTN_C,              121-50+5,    100+30},
-    {UI_BUF_CALCULATOR_DEL_CLICK_BIN,           BTN_DEL,            199+200+5,    100+102-3-1},
-    {UI_BUF_CALCULATOR_DIVIDED_CLICK_BIN,       BTN_DIV,            277+135-5-2,    100+234+5+1},
-    {UI_BUF_CALCULATOR_MULTIPLY_CLICK_BIN,      BTN_MUL,            277+135-5-2,    158+102+5+2},
-    {UI_BUF_CALCULATOR_REDUCE_CLICK_BIN,        BTN_SUB,            277+45,    216+122},
-    {UI_BUF_CALCULATOR_ADD_CLICK_BIN,           BTN_ADD,            277+45,    274-5-1},
-    {UI_BUF_CALCULATOR_EQUAL_CLICK_BIN,         BTN_EQUAL,          277+45,    332+76},
+    // {UI_BUF_CALCULATOR_1_CLICK_BIN,             BTN_1,              43+33-2+1,     274+56+5+1},
+    // {UI_BUF_CALCULATOR_2_CLICK_BIN,             BTN_2,              121+33+5,    274+56+5+1},
+    // {UI_BUF_CALCULATOR_3_CLICK_BIN,             BTN_3,              199+33+5,    274+56+5+1},
+    // {UI_BUF_CALCULATOR_4_CLICK_BIN,             BTN_4,              43+33,     216+45+5+1},
+    // {UI_BUF_CALCULATOR_5_CLICK_BIN,             BTN_5,              121+33+5,    216+45+5+1},
+    // {UI_BUF_CALCULATOR_6_CLICK_BIN,             BTN_6,              199+33+5+1,    216+45+5+1},
+    // {UI_BUF_CALCULATOR_7_CLICK_BIN,             BTN_7,              43+33,     158+40},
+    // {UI_BUF_CALCULATOR_8_CLICK_BIN,             BTN_8,              121+33+5,    158+40},
+    // {UI_BUF_CALCULATOR_9_CLICK_BIN,             BTN_9,              199+33+5,    158+40},
+    // {UI_BUF_CALCULATOR_0_CLICK_BIN,             BTN_0,              121+45,    332+76},
+    // {UI_BUF_CALCULATOR_POINT_CLICK_BIN,         BTN_POINT,          199+45-2,    332+76},
+    // {UI_BUF_CALCULATOR_MINUS_CLICK_BIN,         BTN_OPPOSITE,       43+280,     332-132},
+    // {UI_BUF_CALCULATOR_CE_CLICK_BIN,            BTN_CE,             43+104+5+2,     100+30-1},
+    // {UI_BUF_CALCULATOR_C_CLICK_BIN,             BTN_C,              121-50+5,    100+30},
+    // {UI_BUF_CALCULATOR_DEL_CLICK_BIN,           BTN_DEL,            199+200+5,    100+102-3-1},
+    // {UI_BUF_CALCULATOR_DIVIDED_CLICK_BIN,       BTN_DIV,            277+135-5-2,    100+234+5+1},
+    // {UI_BUF_CALCULATOR_MULTIPLY_CLICK_BIN,      BTN_MUL,            277+135-5-2,    158+102+5+2},
+    // {UI_BUF_CALCULATOR_REDUCE_CLICK_BIN,        BTN_SUB,            277+45,    216+122},
+    // {UI_BUF_CALCULATOR_ADD_CLICK_BIN,           BTN_ADD,            277+45,    274-5-1},
+    // {UI_BUF_CALCULATOR_EQUAL_CLICK_BIN,         BTN_EQUAL,          277+45,    332+76},
 };
 
 //创建计算器窗体，创建窗体中不要使用功能结构体 func_cb.f_cb
@@ -57,8 +57,8 @@ compo_form_t *func_calculator_form_create(void)
 {
     //新建窗体和背景
     compo_form_t *frm = compo_form_create(true);
-    compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_CALCULATOR_BG_BIN);
-    compo_picturebox_set_pos(pic, 160+50+30, 228+40);
+    // compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_CALCULATOR_BG_BIN);
+    // compo_picturebox_set_pos(pic, 160+50+30, 228+40);
 
     //创建按钮
     compo_button_t *btn;

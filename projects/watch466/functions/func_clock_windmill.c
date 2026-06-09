@@ -14,23 +14,23 @@
 ///平面立体风车 （这个效果好一点）
 static const compo_windmill_item_t tbl_menu_windmill_2d[] = {
     //风车
-    {UI_BUF_DIALPLATE_WINDMILL_RED1_BIN},            //外部平行边界
-    {UI_BUF_DIALPLATE_WINDMILL_YELLOW1_BIN},
-    {UI_BUF_DIALPLATE_WINDMILL_GREEN1_BIN},
-    {UI_BUF_DIALPLATE_WINDMILL_BLUE1_BIN},
+    // {UI_BUF_DIALPLATE_WINDMILL_RED1_BIN},            //外部平行边界
+    // {UI_BUF_DIALPLATE_WINDMILL_YELLOW1_BIN},
+    // {UI_BUF_DIALPLATE_WINDMILL_GREEN1_BIN},
+    // {UI_BUF_DIALPLATE_WINDMILL_BLUE1_BIN},
 
-    {UI_BUF_DIALPLATE_WINDMILL_YELLOW1_BIN},         //内部平行边界
-    {UI_BUF_DIALPLATE_WINDMILL_GREEN1_BIN},
-    {UI_BUF_DIALPLATE_WINDMILL_BLUE1_BIN},
-    {UI_BUF_DIALPLATE_WINDMILL_RED1_BIN},
+    // {UI_BUF_DIALPLATE_WINDMILL_YELLOW1_BIN},         //内部平行边界
+    // {UI_BUF_DIALPLATE_WINDMILL_GREEN1_BIN},
+    // {UI_BUF_DIALPLATE_WINDMILL_BLUE1_BIN},
+    // {UI_BUF_DIALPLATE_WINDMILL_RED1_BIN},
 
-    {UI_BUF_DIALPLATE_WINDMILL_RED1_BIN},            //红色斜边
-    {UI_BUF_DIALPLATE_WINDMILL_YELLOW1_BIN},         //黄色斜边
-    {UI_BUF_DIALPLATE_WINDMILL_GREEN1_BIN},          //绿色斜边
-    {UI_BUF_DIALPLATE_WINDMILL_BLUE1_BIN},           //蓝色斜边
+    // {UI_BUF_DIALPLATE_WINDMILL_RED1_BIN},            //红色斜边
+    // {UI_BUF_DIALPLATE_WINDMILL_YELLOW1_BIN},         //黄色斜边
+    // {UI_BUF_DIALPLATE_WINDMILL_GREEN1_BIN},          //绿色斜边
+    // {UI_BUF_DIALPLATE_WINDMILL_BLUE1_BIN},           //蓝色斜边
 
-    {UI_BUF_DIALPLATE_WINDMILL_WIND_TOP_BIN},        //大图
-    {UI_BUF_DIALPLATE_WINDMILL_WIND_BOTTOM_BIN},
+    // {UI_BUF_DIALPLATE_WINDMILL_WIND_TOP_BIN},        //大图
+    // {UI_BUF_DIALPLATE_WINDMILL_WIND_BOTTOM_BIN},
 };
 
 ///斜面立体风车
@@ -126,33 +126,33 @@ compo_form_t *func_clock_windmill_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(true);       //菜单一般创建在底层
 
-    //创建背景图
-    compo_picturebox_t* pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_WINDMILL_BG_BIN);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_picturebox_set_size(pic, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT); //原图适配320的，这里拉伸下
+    // //创建背景图
+    // compo_picturebox_t* pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_WINDMILL_BG_BIN);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // compo_picturebox_set_size(pic, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT); //原图适配320的，这里拉伸下
 
     //创建泡泡
     if (func_cb.sta == FUNC_CLOCK) {
         func_clock_windmill_pbubbles_create();
         for (int i=0; i<FUNC_BUBBLES_NUM; i++) {
-            bubbles[i].res = UI_BUF_DIALPLATE_WINDMILL_BUBBLE_BIN;
-            bubbles[i].sta = BUBBLE_STA_NONE;
-            bubbles[i].visible = false;
+            // bubbles[i].res = UI_BUF_DIALPLATE_WINDMILL_BUBBLE_BIN;
+            // bubbles[i].sta = BUBBLE_STA_NONE;
+            // bubbles[i].visible = false;
 
-            compo_picturebox_t* bubble = compo_picturebox_create(frm, UI_BUF_DIALPLATE_WINDMILL_BUBBLE_BIN);
-            compo_setid(bubble, COMPO_ID_BUBBLE_1+i);
-            compo_picturebox_set_visible(bubble, false);
+            // compo_picturebox_t* bubble = compo_picturebox_create(frm, UI_BUF_DIALPLATE_WINDMILL_BUBBLE_BIN);
+            // compo_setid(bubble, COMPO_ID_BUBBLE_1+i);
+            // compo_picturebox_set_visible(bubble, false);
         }
     }
 
-    pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_WINDMILL_POLE_BIN);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_HEIGHT - gui_image_get_size(UI_BUF_DIALPLATE_WINDMILL_POLE_BIN).hei + gui_image_get_size(UI_BUF_DIALPLATE_WINDMILL_POLE_BIN).hei/2);
+    // pic = compo_picturebox_create(frm, UI_BUF_DIALPLATE_WINDMILL_POLE_BIN);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_HEIGHT - gui_image_get_size(UI_BUF_DIALPLATE_WINDMILL_POLE_BIN).hei + gui_image_get_size(UI_BUF_DIALPLATE_WINDMILL_POLE_BIN).hei/2);
 
     //创建立方体菜单
     compo_windmill_t *windmill = compo_windmill_create(frm, tbl_menu_windmill_2d, sizeof(tbl_menu_windmill_2d)/sizeof(tbl_menu_windmill_2d[0]));
 //    compo_windmill_t *windmill = compo_windmill_create(frm, tbl_menu_windmill_3d, sizeof(tbl_menu_windmill_3d)/sizeof(tbl_menu_windmill_3d[0]));
 //    widget_set_size(windmill->page, 300, 365);
-    compo_windmill_set_pos(windmill, GUI_SCREEN_CENTER_X, GUI_SCREEN_HEIGHT - gui_image_get_size(UI_BUF_DIALPLATE_WINDMILL_POLE_BIN).hei - 50);
+   // compo_windmill_set_pos(windmill, GUI_SCREEN_CENTER_X, GUI_SCREEN_HEIGHT - gui_image_get_size(UI_BUF_DIALPLATE_WINDMILL_POLE_BIN).hei - 50);
     widget_page_scale_to(windmill->page, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
     compo_setid(windmill, COMPO_ID_WINDMILL);
 

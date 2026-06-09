@@ -133,7 +133,7 @@ bool power_off_check(void)
 #if WARNING_POWER_ON
             mp3_res_play(RES_BUF_EN_POWERON_MP3, RES_LEN_EN_POWERON_MP3);
 #endif // WARNING_POWER_ON
-            func_cb.sta = FUNC_CLOCK;
+            func_cb.sta = DEFAULE_START_FUNC;
             return true;
         } else {
             if (CHARGE_DC_IN()) {

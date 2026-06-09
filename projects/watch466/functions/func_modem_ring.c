@@ -36,12 +36,12 @@ compo_form_t *func_modem_ring_form_create(void)
     msg_enqueue(EVT_CALL_NUMBER_UPDATE);
 
     //接听
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_ANSWER_BIN);
-    compo_setid(btn, COMPO_ID_BTN_ANSWER);
+//    btn = compo_button_create_by_image(frm, UI_BUF_CALL_ANSWER_BIN);
+  //  compo_setid(btn, COMPO_ID_BTN_ANSWER);
     compo_button_set_pos(btn, 250, 279);
 
     //挂断
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
+  //  btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
     compo_setid(btn, COMPO_ID_BTN_REJECT);
     compo_button_set_pos(btn, 70, 279);
 

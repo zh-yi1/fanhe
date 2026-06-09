@@ -76,40 +76,40 @@ compo_form_t *func_breathe_form_create(void)
     //新建窗体和背景
     compo_form_t *frm = compo_form_create(true);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_BREATHE]);
+    // //设置标题栏
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_BREATHE]);
 
-	//新建按钮
-	compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON2_BIN);
+	// //新建按钮
+	// compo_button_t *btn;
+    // btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON2_BIN);
 
-    compo_setid(btn, COMPO_ID_BTN_START);
-    compo_button_set_pos(btn, 160+65, 336+80);
+    // compo_setid(btn, COMPO_ID_BTN_START);
+    // compo_button_set_pos(btn, 160+65, 336+80);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_BREATHE_TIME_BIN);
-    compo_setid(btn, COMPO_ID_BTN_TIME);
+    // btn = compo_button_create_by_image(frm, UI_BUF_BREATHE_TIME_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_TIME);
 
-    compo_button_set_pos(btn, 41+65, 172);
+    // compo_button_set_pos(btn, 41+65, 172);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_BREATHE_MODE_BIN);
-    compo_setid(btn, COMPO_ID_BTN_MODE);
+    // btn = compo_button_create_by_image(frm, UI_BUF_BREATHE_MODE_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_MODE);
 
-    compo_button_set_pos(btn, 279+65, 172);
+    // compo_button_set_pos(btn, 279+65, 172);
 
-    //新建图像
-    compo_picturebox_t *pic;
+    // //新建图像
+    // compo_picturebox_t *pic;
 
-    pic = compo_picturebox_create(frm, UI_BUF_BREATHE_BREATHE_BIN);
-    compo_setid(pic, COMPO_ID_PIC_BREATHE);
-    compo_picturebox_set_pos(pic, 160+65, 172);
+    // pic = compo_picturebox_create(frm, UI_BUF_BREATHE_BREATHE_BIN);
+    // compo_setid(pic, COMPO_ID_PIC_BREATHE);
+    // compo_picturebox_set_pos(pic, 160+65, 172);
 
-	//创建文本
-	compo_textbox_t *txt_start = compo_textbox_create(frm, 20);
-	compo_textbox_set_pos(txt_start, 160+55+10, 336+80);
-	compo_setid(txt_start, COMPO_ID_TXT_START);
-	compo_textbox_set(txt_start, i18n[STR_START]);
+	// //创建文本
+	// compo_textbox_t *txt_start = compo_textbox_create(frm, 20);
+	// compo_textbox_set_pos(txt_start, 160+55+10, 336+80);
+	// compo_setid(txt_start, COMPO_ID_TXT_START);
+	// compo_textbox_set(txt_start, i18n[STR_START]);
 
     return frm;
 }

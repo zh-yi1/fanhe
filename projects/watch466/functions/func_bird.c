@@ -65,22 +65,22 @@ compo_form_t *func_bird_form_create(void)
     compo_form_t *frm;
     component_t *compo;
     uint8_t i;
-    uint32_t pipe_bin_addr[] = {UI_BUF_GAME_GAME_PIPE_UP_BIN, UI_BUF_GAME_GAME_PIPE_DOWN_BIN};
+//    uint32_t pipe_bin_addr[] = {UI_BUF_GAME_GAME_PIPE_UP_BIN, UI_BUF_GAME_GAME_PIPE_DOWN_BIN};
 
     //新建窗体和背景
     frm = compo_form_create(true);
 
     //背景图
-    compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAME_BG_BIN);
+   // compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAME_BG_BIN);
     compo_picturebox_set_pos((compo_picturebox_t *)compo, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
 
     //stop pic
-    compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAME_START_BIN);
+  //  compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAME_START_BIN);
     compo_setid(compo, COMPO_ID_BIRD_STOP_PIC);
     compo_picturebox_set_pos((compo_picturebox_t *)compo, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
 
     //bird pic
-    compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAME_BIRD_BIN);
+   // compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAME_BIRD_BIN);
     compo_setid(compo, COMPO_ID_BIRD_BIRD_PIC);
     compo_picturebox_cut((compo_picturebox_t *)compo, 0, 3);
     compo_picturebox_set_pos((compo_picturebox_t *)compo, BIRD_X_POS, GUI_SCREEN_CENTER_Y);
@@ -88,19 +88,19 @@ compo_form_t *func_bird_form_create(void)
 
     //pipe pic
     for(i = 0; i < 4; i++) {
-        compo = (component_t *)compo_picturebox_create(frm, pipe_bin_addr[i % 2]);
-        compo_setid(compo, COMPO_ID_BIRD_PIPE_PIC_START + i);
-        compo_picturebox_set_visible((compo_picturebox_t *)compo, false);
+        // compo = (component_t *)compo_picturebox_create(frm, pipe_bin_addr[i % 2]);
+        // compo_setid(compo, COMPO_ID_BIRD_PIPE_PIC_START + i);
+        // compo_picturebox_set_visible((compo_picturebox_t *)compo, false);
     }
 
     //fail pic
-    compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAMEOVER_BIN);
+   // compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAMEOVER_BIN);
     compo_setid(compo, COMPO_ID_BIRD_FAIL_PIC);
     compo_picturebox_set_pos((compo_picturebox_t *)compo, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
     compo_picturebox_set_visible((compo_picturebox_t *)compo, false);
 
     //finish pic
-    compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAME_FINISH_BIN);
+    //compo = (component_t *)compo_picturebox_create(frm, UI_BUF_GAME_GAME_FINISH_BIN);
     compo_setid(compo, COMPO_ID_BIRD_FINISH_PIC);
     compo_picturebox_set_pos((compo_picturebox_t *)compo, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
     compo_picturebox_set_visible((compo_picturebox_t *)compo, false);

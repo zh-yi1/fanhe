@@ -5,7 +5,7 @@ AT(.sleep_backup.gui)
 u8 sys_backup_buf[32 * 1024];
 
 extern u8 *cache_backup;
-extern u32 __dynamic_pool_start, __dynamic_pool_size;
+extern u32 __dynamic_pool_start, __dynamic_pool_end;
 
 bool power_off_check(void);
 void lock_code_pwrsave(void);
@@ -585,7 +585,7 @@ static void sfunc_sleep(void)
     }
 #endif
 
-    if ((((u32)&__dynamic_pool_start) + ((u32)&__dynamic_pool_size) > 0x60000) && is_gpu_init()) {     //如果ab_malloc跨sram和gpuram将会清空malloc内存
+    if (((u32)&__dynamic_pool_end > 0x60000) && is_gpu_init()) {     //如果ab_malloc跨sram和gpuram将会清空malloc内存
         void customer_heap_init(void);
         customer_heap_init();
     }

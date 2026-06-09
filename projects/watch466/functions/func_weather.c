@@ -26,10 +26,10 @@ compo_form_t *func_weather_form_create(void)
     sys_cb.temperature[1] = 29;
 
 	//创建图片
-	compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_WEATHER_WEATHER_LIST_BIN);
-	compo_picturebox_cut(pic, sys_cb.weather_idx, WEATHER_CNT);
-	compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, 193);
-	compo_bonddata(pic, COMPO_BOND_WEATHER);
+//	compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_WEATHER_WEATHER_LIST_BIN);
+//	compo_picturebox_cut(pic, sys_cb.weather_idx, WEATHER_CNT);
+	// compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, 193);
+	// compo_bonddata(pic, COMPO_BOND_WEATHER);
 
 	//创建文本
     compo_textbox_t *txt = compo_textbox_create(frm, 7);

@@ -429,6 +429,7 @@ SECTIONS
         *(.disp.compo*)
         __disp_restore_end = .;
         *(.disp.temp_buf)
+        *(.disp.home_ram*)
         __disp_end = .;
     } > disp
     __disp_stack_size = __disp_end - __disp_start;
@@ -603,6 +604,11 @@ SECTIONS
     } > sram
 
 #endif
+
+    /* 堆上限锚点：供 C 用 &__dynamic_pool_end - &__dynamic_pool_start 计算大小，避免 ABS 符号 GPREL 重定位失败 */
+    .dynamic_pool_limit __camera_heap_start (NOLOAD) : {
+        __dynamic_pool_end = .;
+    } > sram
 
     __dynamic_pool_size = __camera_heap_start - __dynamic_pool_start;
     __asr_buf_size = __asr_buf_end - __asr_buf_start;

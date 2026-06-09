@@ -138,7 +138,7 @@ void func_set_sub_dousing_list_icon_click(void)
     }
 
     //切入应用
-    switch(icon_idx) {
+    switch(icon_idx) { 
     case  COMPO_ID_BTN_NUM0...COMPO_ID_BTN_NUM6:
         if (icon_idx==COMPO_ID_BTN_NUM0) {
             sys_cb.sleep_time = 50;

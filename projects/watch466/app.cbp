@@ -1386,6 +1386,21 @@
 		<Unit filename="functions/func_heartrate.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_heat.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_home.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/home_ui_shared.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/home_top_time.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/home_ui_ram.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_light.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1393,6 +1408,24 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_map.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_mode.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_reservation.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setup.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_timeing.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_languageing.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_verinfo.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_menu.c">

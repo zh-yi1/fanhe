@@ -155,6 +155,14 @@ enum {
 #if LE_AB_FOT_EN
     FUNC_OTA_UI_MODE,
 #endif
+    FUNC_HEAT,                          //加热页
+    FUNC_HOME,                          //默认主页
+    FUNC_MODE,                          //模式页
+    FUNC_RESERVATION,                   //预约页
+    FUNC_SETUP,                         //设置页
+    FUNC_TIMEING,                       //定时页
+    FUNC_LANGUAGEING,                   //语言页
+    FUNC_VERINFO,                       //版本信息页
     FUNC_MAX_NUM,           //用于计数
 
 };

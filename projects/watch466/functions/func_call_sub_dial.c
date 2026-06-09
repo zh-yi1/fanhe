@@ -49,8 +49,8 @@ compo_form_t *func_call_sub_dial_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
 
-    compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_CALL_BG_BIN);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, 264);
+    // compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_CALL_BG_BIN);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, 264);
 
     //创建按钮
     compo_button_t *btn;
@@ -87,19 +87,19 @@ compo_form_t *func_call_answer_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //来电按钮
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_ANSWER_BIN);
+    //btn = compo_button_create_by_image(frm, UI_BUF_CALL_ANSWER_BIN);
     compo_setid(btn, COMPO_ID_BTN_ANSWER);
     compo_button_set_pos(btn, 344, 337);
     compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA1); // 180跟原来的更接近
 
     //挂电话按钮
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
+    //btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
     compo_setid(btn, COMPO_ID_BTN_REJECT);
     compo_button_set_pos(btn, 122, 337);
     compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA1); //// 180跟原来的更接近
 
     //信息按钮
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_MES_BIN);
+   // btn = compo_button_create_by_image(frm, UI_BUF_CALL_MES_BIN);
     compo_setid(btn, COMPO_ID_BTN_MSG);
     compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 377);
     compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA1); //// 180跟原来的更接近
@@ -120,11 +120,11 @@ compo_form_t *func_calling_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //新建按钮
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_MUTE_CLICK_BIN);  // UI_BUF_CALL_MUTE_BIN  两个图片不能用透明度进行合一  UI_BUF_CALL_MUTE_BIN 更改透明度之后直接是黑色的 UI_BUF_CALL_MUTE_CLICK_BIN 带有灰色圆
+   // btn = compo_button_create_by_image(frm, UI_BUF_CALL_MUTE_CLICK_BIN);  // UI_BUF_CALL_MUTE_BIN  两个图片不能用透明度进行合一  UI_BUF_CALL_MUTE_BIN 更改透明度之后直接是黑色的 UI_BUF_CALL_MUTE_CLICK_BIN 带有灰色圆
     compo_setid(btn, COMPO_ID_BTN_MUTE);
     compo_button_set_pos(btn, 109, 352);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
+   // btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
     compo_setid(btn, COMPO_ID_BTN_REJECT);
     compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 387);
     compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA1); //// 180跟原来的更接近

@@ -48,9 +48,9 @@ compo_form_t * func_clock_sub_sidebar_form_create(void)
     cardbox = compo_cardbox_create(frm, 0, 2, 2, SIDEBAR_CARD_WIDTH_ORG, SIDEBAR_CARD_HEIGHT_ORG);
     compo_cardbox_set_pos(cardbox, GUI_SCREEN_CENTER_X, SIDEBAR_CARD_Y_POS);
     compo_setid(cardbox, SIDEBAR_CARD_ID_WEATHER);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_WEATHER_BG_BIN);  //天气背景
+   // compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_WEATHER_BG_BIN);  //天气背景
     compo_cardbox_icon_set_location(cardbox, 0, 0, 0, SIDEBAR_CARD_WIDTH_ORG, SIDEBAR_CARD_HEIGHT_ORG);
-    compo_cardbox_icon_set(cardbox, 1, UI_BUF_WEATHER_WEATHER_LIST_BIN);  //天气图标
+ //   compo_cardbox_icon_set(cardbox, 1, UI_BUF_WEATHER_WEATHER_LIST_BIN);  //天气图标
     compo_cardbox_icon_set_location(cardbox, 1, -SIDEBAR_CARD_WIDTH_ORG/4, 0, 130, 130);
     compo_cardbox_icon_cut(cardbox, 1, sys_cb.weather_idx, WEATHER_CNT);
     compo_cardbox_text_set(cardbox, 0, i18n[STR_CLOUDY+sys_cb.weather_idx]);
@@ -62,7 +62,7 @@ compo_form_t * func_clock_sub_sidebar_form_create(void)
     cardbox = compo_cardbox_create(frm, 0, 1, 2, SIDEBAR_CARD_WIDTH_ORG, SIDEBAR_CARD_HEIGHT_ORG);
     compo_cardbox_set_pos(cardbox, GUI_SCREEN_CENTER_X, SIDEBAR_CARD_Y_POS + (SIDEBAR_CARD_HEIGHT_ORG + SIDEBAR_CARD_Y_GAP)* 1);
     compo_setid(cardbox, SIDEBAR_CARD_ID_SLEEP);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_SLEEP_BIN);  //睡眠背景
+ //   compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_SLEEP_BIN);  //睡眠背景
     compo_cardbox_icon_set_location(cardbox, 0, 0, 0, SIDEBAR_CARD_WIDTH_ORG, SIDEBAR_CARD_HEIGHT_ORG);
     compo_cardbox_text_set(cardbox, 0, i18n[STR_SLEEP]);
     compo_cardbox_text_set_location(cardbox, 0, 90, 0-30, 200, 50);
@@ -74,7 +74,7 @@ compo_form_t * func_clock_sub_sidebar_form_create(void)
     cardbox = compo_cardbox_create(frm, 0, 1, 2, SIDEBAR_CARD_WIDTH_ORG, SIDEBAR_CARD_HEIGHT_ORG);
     compo_cardbox_set_pos(cardbox, GUI_SCREEN_CENTER_X, SIDEBAR_CARD_Y_POS + (SIDEBAR_CARD_HEIGHT_ORG + SIDEBAR_CARD_Y_GAP)* 2);
     compo_setid(cardbox, SIDEBAR_CARD_ID_HR);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_HR_BIN);  //心率背景
+   // compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_HR_BIN);  //心率背景
     compo_cardbox_icon_set_location(cardbox, 0, 0, 0, SIDEBAR_CARD_WIDTH_ORG, SIDEBAR_CARD_HEIGHT_ORG);
     compo_cardbox_text_set_forecolor(cardbox, 0, COLOR_DARKGRAY);
     compo_cardbox_text_set(cardbox, 0, i18n[STR_HEART_RATE]);
@@ -87,13 +87,13 @@ compo_form_t * func_clock_sub_sidebar_form_create(void)
     cardbox = compo_cardbox_create(frm, 0, 1, 0, 190, 180);
     compo_cardbox_set_pos(cardbox, 125, SIDEBAR_CARD_Y_POS + (SIDEBAR_CARD_HEIGHT_ORG + SIDEBAR_CARD_Y_GAP)* 3);
     compo_setid(cardbox, SIDEBAR_CARD_ID_CALCULATOR);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_CALCULATOR_BIN);  //图标
+   // compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_CALCULATOR_BIN);  //图标
     compo_cardbox_icon_set_pos(cardbox, 0, 0, 0);
     //音乐
     cardbox = compo_cardbox_create(frm, 0, 1, 0, 190, 180);
     compo_cardbox_set_pos(cardbox, 340, SIDEBAR_CARD_Y_POS + (SIDEBAR_CARD_HEIGHT_ORG + SIDEBAR_CARD_Y_GAP)* 3);
     compo_setid(cardbox, SIDEBAR_CARD_ID_MUSIC);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_MUSIC_BIN);  //图标
+  //  compo_cardbox_icon_set(cardbox, 0, UI_BUF_SIDEBAR_MUSIC_BIN);  //图标
     compo_cardbox_icon_set_pos(cardbox, 0, 0, 0);
 
     return frm;

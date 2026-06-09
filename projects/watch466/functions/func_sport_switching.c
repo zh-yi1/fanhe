@@ -39,9 +39,9 @@ enum {
 #define ANIM_MAX_CNT                       ((int)(sizeof(anim_addr_tbl) / sizeof(anim_addr_tbl[0])))
 
 static const u32 anim_addr_tbl[] = {    //替换图片即可
-    UI_BUF_SPORT_EXERCISING_3_BIN,
-    UI_BUF_SPORT_EXERCISING_2_BIN,
-    UI_BUF_SPORT_EXERCISING_1_BIN,
+    // UI_BUF_SPORT_EXERCISING_3_BIN,
+    // UI_BUF_SPORT_EXERCISING_2_BIN,
+    // UI_BUF_SPORT_EXERCISING_1_BIN,
 };
 
 //创建运动开始界面窗体

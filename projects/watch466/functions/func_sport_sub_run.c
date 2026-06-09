@@ -33,57 +33,57 @@ compo_form_t *func_sport_sub_run_form_create(void)
     //新建窗体和背景
     compo_form_t *frm = compo_form_create(true);
 
-    compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_SPORT_EXERCISING_BG_BIN);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_X);
+    // compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_SPORT_EXERCISING_BG_BIN);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_X);
 
-    compo_textbox_t *txt = compo_textbox_create(frm, 20);
-    compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 80);
-    compo_textbox_set(txt, i18n[func_sport_get_str_idx()]);
+    // compo_textbox_t *txt = compo_textbox_create(frm, 20);
+    // compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 80);
+    // compo_textbox_set(txt, i18n[func_sport_get_str_idx()]);
 
-    txt = compo_textbox_create(frm, 3);
-    compo_textbox_set_forecolor(txt, COLOR_DIMGRAY);
-    compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 205);
-    compo_textbox_set(txt, "bpm");
+    // txt = compo_textbox_create(frm, 3);
+    // compo_textbox_set_forecolor(txt, COLOR_DIMGRAY);
+    // compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 205);
+    // compo_textbox_set(txt, "bpm");
 
-    txt = compo_textbox_create(frm, 4);
-    compo_textbox_set_forecolor(txt, COLOR_DIMGRAY);
-    compo_textbox_set_pos(txt, 120, 310);
-    compo_textbox_set(txt, "kcal");
+    // txt = compo_textbox_create(frm, 4);
+    // compo_textbox_set_forecolor(txt, COLOR_DIMGRAY);
+    // compo_textbox_set_pos(txt, 120, 310);
+    // compo_textbox_set(txt, "kcal");
 
-    txt = compo_textbox_create(frm, 2);
-    compo_textbox_set_forecolor(txt, COLOR_DIMGRAY);
-    compo_textbox_set_pos(txt, 340, 310);
-    compo_textbox_set(txt, "km");
+    // txt = compo_textbox_create(frm, 2);
+    // compo_textbox_set_forecolor(txt, COLOR_DIMGRAY);
+    // compo_textbox_set_pos(txt, 340, 310);
+    // compo_textbox_set(txt, "km");
 
-	//创建数字
-	txt = compo_textbox_create(frm, 3);
-	compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
-    compo_setid(txt, COMPO_ID_NUM_BPM);
-    compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 150);
-    compo_textbox_set(txt, "136");
+	// //创建数字
+	// txt = compo_textbox_create(frm, 3);
+	// compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
+    // compo_setid(txt, COMPO_ID_NUM_BPM);
+    // compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 150);
+    // compo_textbox_set(txt, "136");
 
-    txt = compo_textbox_create(frm, 3);
-	compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
-    compo_setid(txt, COMPO_ID_NUM_KCAL);
-    compo_textbox_set_pos(txt, 120, 260);
-    compo_textbox_set(txt, "120");
+    // txt = compo_textbox_create(frm, 3);
+	// compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
+    // compo_setid(txt, COMPO_ID_NUM_KCAL);
+    // compo_textbox_set_pos(txt, 120, 260);
+    // compo_textbox_set(txt, "120");
 
-    txt = compo_textbox_create(frm, 3);
-	compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
-    compo_setid(txt, COMPO_ID_NUM_KM);
-    compo_textbox_set_pos(txt, 340, 260);
-    compo_textbox_set(txt, "5.2");
+    // txt = compo_textbox_create(frm, 3);
+	// compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
+    // compo_setid(txt, COMPO_ID_NUM_KM);
+    // compo_textbox_set_pos(txt, 340, 260);
+    // compo_textbox_set(txt, "5.2");
 
-    txt = compo_textbox_create(frm, 10);
-	compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
-    compo_setid(txt, COMPO_ID_NUM_SPORT_TIME);
-    compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 375);
-    compo_textbox_set(txt, "00:00:00");
+    // txt = compo_textbox_create(frm, 10);
+	// compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
+    // compo_setid(txt, COMPO_ID_NUM_SPORT_TIME);
+    // compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 375);
+    // compo_textbox_set(txt, "00:00:00");
 
-    pic = compo_picturebox_create(frm, UI_BUF_SPORT_EXERCISING_ARROW_BIN);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, 230);
-    compo_picturebox_set_rotation_center(pic, 13, 222);
-    compo_setid(pic, COMPO_ID_PIC_BG);
+    // pic = compo_picturebox_create(frm, UI_BUF_SPORT_EXERCISING_ARROW_BIN);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, 230);
+    // compo_picturebox_set_rotation_center(pic, 13, 222);
+    // compo_setid(pic, COMPO_ID_PIC_BG);
 
     return frm;
 }

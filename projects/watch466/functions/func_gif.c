@@ -25,9 +25,9 @@ compo_form_t *func_gif_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
 
-    compo_gif_t *gif = compo_gif_create(frm, UI_BUF_GIF_HEART_GIF, UI_LEN_GIF_HEART_GIF);
-    compo_gif_set_pos(gif, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_setid(gif, COMPO_ID_GIF);
+    // compo_gif_t *gif = compo_gif_create(frm, UI_BUF_GIF_HEART_GIF, UI_LEN_GIF_HEART_GIF);
+    // compo_gif_set_pos(gif, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // compo_setid(gif, COMPO_ID_GIF);
 
 
     return frm;

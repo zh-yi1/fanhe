@@ -304,36 +304,36 @@ compo_form_t *func_bt_form_create(void)
 
     //新建按钮
     compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PREV_BIN);
-    compo_setid(btn, COMPO_ID_BTN_PREV);
-    compo_button_set_pos(btn, 64, GUI_SCREEN_CENTER_Y);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PREV_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_PREV);
+    // compo_button_set_pos(btn, 64, GUI_SCREEN_CENTER_Y);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PLAY_BIN);
-    compo_setid(btn, COMPO_ID_BTN_PLAY);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PLAY_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_PLAY);
+    // compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_NEXT_BIN);
-    compo_setid(btn, COMPO_ID_BTN_NEXT);
-    compo_button_set_pos(btn, 402, GUI_SCREEN_CENTER_Y);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_NEXT_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_NEXT);
+    // compo_button_set_pos(btn, 402, GUI_SCREEN_CENTER_Y);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_DOWN_BIN);
-    compo_setid(btn, COMPO_ID_BTN_VOL_DOWN);
-    compo_button_set_pos(btn, 118, 364);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_DOWN_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_VOL_DOWN);
+    // compo_button_set_pos(btn, 118, 364);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_UP_BIN);
-    compo_setid(btn, COMPO_ID_BTN_VOL_UP);
-    compo_button_set_pos(btn, 348, 364);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_UP_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_VOL_UP);
+    // compo_button_set_pos(btn, 348, 364);
 
-    compo_picturebox_t *vol_pic = compo_picturebox_create(frm, UI_BUF_MUSIC_VOLUME_BG_BIN);
-    compo_picturebox_set_pos(vol_pic, GUI_SCREEN_CENTER_X, 364);
+    // compo_picturebox_t *vol_pic = compo_picturebox_create(frm, UI_BUF_MUSIC_VOLUME_BG_BIN);
+    // compo_picturebox_set_pos(vol_pic, GUI_SCREEN_CENTER_X, 364);
 
-    vol_pic = compo_picturebox_create(frm, UI_BUF_MUSIC_VOLUME_1_BIN);
-    compo_setid(vol_pic, COMPO_ID_PIC_MUSIC_VOL);
-    compo_picturebox_set_pos(vol_pic, 181, 364);
+    // vol_pic = compo_picturebox_create(frm, UI_BUF_MUSIC_VOLUME_1_BIN);
+    // compo_setid(vol_pic, COMPO_ID_PIC_MUSIC_VOL);
+    // compo_picturebox_set_pos(vol_pic, 181, 364);
 
-    vol_pic = compo_picturebox_create(frm, UI_BUF_MUSIC_VOLUME_2_BIN);
-    compo_setid(vol_pic, COMPO_ID_PIC_MUSIC_VOL+4);
-    compo_picturebox_set_pos(vol_pic, 181+26*4, 364);
+    // vol_pic = compo_picturebox_create(frm, UI_BUF_MUSIC_VOLUME_2_BIN);
+    // compo_setid(vol_pic, COMPO_ID_PIC_MUSIC_VOL+4);
+    // compo_picturebox_set_pos(vol_pic, 181+26*4, 364);
 
 
     compo_shape_t *shape;
@@ -380,9 +380,9 @@ static void func_bt_music_play_btnpic_refresh(u8 sta)
     compo_button_t *btn = compo_getobj_byid(COMPO_ID_BTN_PLAY);
 
     if (sta) {
-        compo_button_set_bgimg(btn, UI_BUF_MUSIC_PAUSE_BIN);
+     //   compo_button_set_bgimg(btn, UI_BUF_MUSIC_PAUSE_BIN);
     } else {
-        compo_button_set_bgimg(btn, UI_BUF_MUSIC_PLAY_BIN);
+    //    compo_button_set_bgimg(btn, UI_BUF_MUSIC_PLAY_BIN);
     }
 }
 

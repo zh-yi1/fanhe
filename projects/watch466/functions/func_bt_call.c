@@ -76,12 +76,12 @@ compo_form_t *func_bt_call_form_create(void)
     compo_setid(time_txt, COMPO_ID_TXT_TIME);
 
     //挂断按钮
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
+   // btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
     compo_setid(btn, COMPO_ID_BTN_REJECT);
     compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 387);
 
     //mic
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_MUTE_BIN);
+  //  btn = compo_button_create_by_image(frm, UI_BUF_CALL_MUTE_BIN);
     compo_setid(btn, COMPO_ID_BTN_MIC);
     compo_button_set_pos(btn, 109, 352);
 
@@ -102,7 +102,7 @@ compo_form_t *func_bt_outgoing_form_create(void)
     msg_enqueue(EVT_CALL_NUMBER_UPDATE);
 
     //挂断按钮
-    btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
+   // btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
     compo_setid(btn, COMPO_ID_BTN_REJECT);
     compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 387);
 
@@ -200,11 +200,11 @@ static void func_bt_call_click(void)
         f_bt_call->mic_mute = !f_bt_call->mic_mute;
         if (f_bt_call->mic_mute) {
             audio_path_exit(AUDIO_PATH_BTMIC);
-            compo_button_set_bgimg(btn, UI_BUF_CALL_MUTE_ON_BIN);
+          //  compo_button_set_bgimg(btn, UI_BUF_CALL_MUTE_ON_BIN);
         } else {
             audio_path_init(AUDIO_PATH_BTMIC);
 			audio_path_start(AUDIO_PATH_BTMIC);
-            compo_button_set_bgimg(btn, UI_BUF_CALL_MUTE_BIN);
+            //compo_button_set_bgimg(btn, UI_BUF_CALL_MUTE_BIN);
         }
         break;
 

@@ -31,13 +31,13 @@ typedef struct f_game_t_ {
 } f_game_t;
 
 static const compo_listbox_item_t tbl_weeks_list[] = {
-    {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
-    {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
-    {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
-    {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
-    {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
-    {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
-    {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
+    // {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
+    // {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
+    // {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
+    // {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
+    // {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
+    // {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
+    // {.res_addr = UI_BUF_GAME_GAME_BIRD_ICON_BIN, .str_idx = STR_GAME},
 };
 
 //创建闹钟--重复窗体，创建窗体中不要使用功能结构体 func_cb.f_cb

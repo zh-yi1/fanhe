@@ -44,7 +44,7 @@ void func_video_play_btn_ui_set_visible(bool visible)
 }
 
 const video_list_t video_list[] = {
-    [0] = {UI_BUF_AVI_1_AVI, UI_LEN_AVI_1_AVI},
+//    [0] = {UI_BUF_AVI_1_AVI, UI_LEN_AVI_1_AVI},
 };
 
 //创建指南针窗体
@@ -59,25 +59,25 @@ compo_form_t *func_video_play_form_create(void)
     compo_video_set_size(video, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
     compo_video_set_pos(video, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
 
-    compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_DOWN_CLICK_BIN);
-    compo_setid(btn, COMPO_ID_BTN_VOL_DOWN);
-    compo_button_set_pos(btn, 80, 110);
-    compo_button_set_alpha(btn, 127);
+    // compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_DOWN_CLICK_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_VOL_DOWN);
+    // compo_button_set_pos(btn, 80, 110);
+    // compo_button_set_alpha(btn, 127);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_UP_CLICK_BIN);
-    compo_setid(btn, COMPO_ID_BTN_VOL_UP);
-    compo_button_set_pos(btn, 386, 110);
-    compo_button_set_alpha(btn, 127);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_VOLUME_UP_CLICK_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_VOL_UP);
+    // compo_button_set_pos(btn, 386, 110);
+    // compo_button_set_alpha(btn, 127);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PREV_CLICK_BIN);
-    compo_setid(btn, COMPO_ID_BTN_PREV);
-    compo_button_set_pos(btn, 80, GUI_SCREEN_HEIGHT - 110);
-    compo_button_set_alpha(btn, 127);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PREV_CLICK_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_PREV);
+    // compo_button_set_pos(btn, 80, GUI_SCREEN_HEIGHT - 110);
+    // compo_button_set_alpha(btn, 127);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_NEXT_CLICK_BIN);
-    compo_setid(btn, COMPO_ID_BTN_NEXT);
-    compo_button_set_pos(btn, 386, GUI_SCREEN_HEIGHT - 110);
-    compo_button_set_alpha(btn, 127);
+    // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_NEXT_CLICK_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_NEXT);
+    // compo_button_set_pos(btn, 386, GUI_SCREEN_HEIGHT - 110);
+    // compo_button_set_alpha(btn, 127);
 
 
 
