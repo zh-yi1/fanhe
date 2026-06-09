@@ -116,8 +116,39 @@
 /*****************************************************************************
  * Module    : 屏幕驱动配置
  *****************************************************************************/
-#define GUI_SELECT                      GUI_OLED_466_ICNA3310B    		//GUI Display Select
+#define GUI_SELECT                      GUI_TFT_240_ST789_i80 //GUI_OLED_466_ICNA3310B    		//GUI Display Select
 
+#if (GUI_SELECT == GUI_TFT_240_ST789_i80)
+#define PORT_TFT_INT                    IO_PE9                      //TE
+#define PORT_TFT_INT_VECTOR             PORT_INT2_VECTOR
+
+#define PORT_LCD_DISPLAY                IO_NONE
+#define PORT_LCD_VSYNC                  IO_NONE
+#define PORT_LCD_HSYNC                  IO_NONE
+#define PORT_LCD_DE                     IO_NONE
+
+#define PORT_TFT_DC                     IO_PA3
+#define PORT_TFT_CS                     IO_PA5
+#define PORT_TFT_RST                    IO_PE8
+#define PORT_TFT_LCD_SCL                IO_PA4
+
+#define PORT_TFT_LCD_D0                 IO_PA2
+#define PORT_TFT_LCD_D1                 IO_PA1
+#define PORT_TFT_LCD_D2                 IO_PA0
+#define PORT_TFT_LCD_D3                 IO_PE14
+#define PORT_TFT_LCD_D4                 IO_PE13
+#define PORT_TFT_LCD_D5                 IO_PE12
+#define PORT_TFT_LCD_D6                 IO_PE11
+#define PORT_TFT_LCD_D7                 IO_PE10
+#define PORT_TFT_LCD_D8                 IO_NONE
+#define PORT_TFT_LCD_D9                 IO_NONE
+#define PORT_TFT_LCD_D10                IO_NONE
+#define PORT_TFT_LCD_D11                IO_NONE
+#define PORT_TFT_LCD_D12                IO_NONE
+#define PORT_TFT_LCD_D13                IO_NONE
+#define PORT_TFT_LCD_D14                IO_NONE
+#define PORT_TFT_LCD_D15                IO_NONE
+#else
 #define PORT_TFT_INT                    IO_PA6                      //TE
 #define PORT_TFT_INT_VECTOR             PORT_INT2_VECTOR
 
@@ -147,6 +178,7 @@
 #define PORT_TFT_LCD_D13                IO_NONE
 #define PORT_TFT_LCD_D14                IO_NONE
 #define PORT_TFT_LCD_D15                IO_NONE
+#endif
 
 #define PORT_TFT_BL                     PG_BL_TMR4                  //BL
 #define LCD_BL_EN()                     led_pg_on()

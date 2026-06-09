@@ -935,7 +935,7 @@ static void func_mode_button_click(f_mode_t *f_mode)
 {
     int id = compo_get_button_id();
 
-    if (f_mode == NULL || f_mode->ui_state != MODE_UI_IDLE) {
+    if (f_mode == NULL || f_mode->ui_state != MODE_UI_IDLE){
         return;
     }
 
