@@ -24,10 +24,10 @@ typedef enum {  // 普通串口类型
 typedef void (*uart_rx_isr_t)(uint8_t *buf, uint32_t len);
 
 typedef struct {
-    volatile uint32_t UARTxCON;
-    volatile uint32_t UARTxCPND;
-    volatile uint32_t UARTxBAUD;
-    volatile uint32_t UARTxDATA;
+    volatile uint32_t UARTxCON;  // 控制寄存器：使能/数据位/停止位/中断开关
+    volatile uint32_t UARTxCPND; // 状态寄存器：中断标志/收发完成标志
+    volatile uint32_t UARTxBAUD; // 波特率寄存器：分频系数
+    volatile uint32_t UARTxDATA; 
 } uart_sfr_t;
 
 typedef struct _uart_t_ {

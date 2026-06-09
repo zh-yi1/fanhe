@@ -59,6 +59,10 @@ void func_process(void)
 
     WDT_CLR();
 
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_uart_process();
+#endif
+
 #if CPU_USAGE_MONITOT_EN
     cpu_trace_monitor();
 #endif
@@ -165,6 +169,9 @@ void func_process(void)
         sys_clk_free(INDEX_GUI);
    }
 
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_uart_process();
+#endif
 }
 
 //根据任务名创建窗体。此处调用的创建窗体函数不要调用子任务的控制结构体

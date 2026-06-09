@@ -1160,6 +1160,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="config.h" />
+		<Unit filename="demo/flash_fatfs_demo.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="demo/flash_fatfs_demo.h" />
 		<Unit filename="functions/common/func_bt_update.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1238,6 +1242,10 @@
 		<Unit filename="functions/func_bird.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_ble_gatts.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_ble_gatts.h" />
 		<Unit filename="functions/func_blood_oxygen.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1248,6 +1256,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_breathe.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_brightness.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_bt.c">
@@ -1350,14 +1361,7 @@
 		<Unit filename="functions/func_findphone.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_ble_gatts.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_ble_gatts.h" />
 		<Unit filename="functions/func_flashlight.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_brightness.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_fmrx.c">
@@ -1383,6 +1387,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_light.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_lunchbox_uart.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_map.c">
@@ -1617,10 +1624,6 @@
 		<Unit filename="ui.h" />
 		<Unit filename="ui_external.h" />
 		<Unit filename="xcfg.h" />
-		<Unit filename="demo/flash_fatfs_demo.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="demo/flash_fatfs_demo.h" />
 		<Extensions />
 	</Project>
 </CodeBlocks_project_file>

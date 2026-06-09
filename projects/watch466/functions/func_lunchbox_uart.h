@@ -1,0 +1,278 @@
+/*  
+    智能盒饭 - UART串口协议
+    引脚: TX=PB8=UT1TXMAP_G2_PB8
+          RX=PB9=UT1RXMAP_G2_PB9
+           帧格式: 帧头(2B) + 版本(1B) + 消息标志(1B) + 命令字(1B)
+                + 错误标志(1B) + 数据长度(2B-BE,大端) + 数据(xB) + 校验和(1B)
+         通信机制:
+             同步: 常规通信一问一答, msg_flag 与请求帧一致, cmd 与请求帧一致
+             异步: MCU 主动上报(温控/故障), msg_flag 自增, 无需主机先请求
+ */
+#ifndef __FUNC_LUNCHBOX_UART_H
+#define __FUNC_LUNCHBOX_UART_H
+
+#include "include.h"
+
+//是否开启串口协议：
+#if FUNC_LUNCHBOX_UART_EN
+
+//-----------------------------------------------------------------------------
+// 协议常量
+//-----------------------------------------------------------------------------
+#define LB_FRAME_HEADER         0x55aa      // 帧头固定值
+#define LB_FRAME_VERSION        0x00        // 协议版本号
+
+#define LB_BAUD                 115200      // 波特率（按需修改）
+#define LB_SELFTEST_EN          0           // 自测开关：1=开启echo，0=关闭
+#define LB_RXBUF_SIZE           512         // 接收缓冲区大小(字节)
+#define LB_TXBUF_SIZE           512         // 发送缓冲区大小(字节)
+#define LB_FRAME_TIMEOUT_MS     300         // 帧超时时间(毫秒)，超过此时间未收完一帧则丢弃
+
+//-----------------------------------------------------------------------------
+// 属性 ID（DataPoint dpid）
+//-----------------------------------------------------------------------------
+enum {
+    LB_DPID_POWER_SWITCH    = 1,        // 总开关: bool, 1=开 0=关
+    LB_DPID_HEAT_MODE       = 2,        // 加热模式: enum, 0=关 1=自定义 2=鸡腿 3=意面 4=预约
+    LB_DPID_BATTERY         = 3,        // 电量: enum, 1=低 2=中 3=高 4=满
+    LB_DPID_CHARGE_STATUS   = 4,        // 充电状态: enum, 0=未充电 1=充电中 2=已充满
+    LB_DPID_HEAT_DURATION   = 5,        // 加热时长: value(4B), 30~210 分钟
+    LB_DPID_REMAIN_TIME     = 6,        // 剩余加热时间: value(4B), 分钟
+    LB_DPID_HEAT_TEMP       = 7,        // 加热温度: enum, 0=40°C ~ 5=90°C
+    LB_DPID_LANGUAGE        = 8,        // 语言: enum, 0=中文 1=英文...
+    LB_DPID_FAULT           = 9,        // 故障: enum, 0=正常 1=高温告警
+};
+
+// DataPoint 数据类型
+#define LB_DP_TYPE_BOOL     0x01
+#define LB_DP_TYPE_VALUE    0x02
+#define LB_DP_TYPE_ENUM     0x04
+
+//-----------------------------------------------------------------------------
+// 预约记录
+//-----------------------------------------------------------------------------
+#define LB_SCHEDULE_MAX         20      // 最大预约条数
+
+typedef struct {
+    u8  id;                             // 唯一标识 (1~255, 0=无效)
+    char name[32];                      // 预约名称
+    u32 time;                           // 触发时间（秒，从0:00起）
+    u8  temp;                           // 温度档位 (0~10)
+    u8  duration;                       // 加热时长（分钟）
+    u8  enabled;                        // 0=关闭, 1=开启
+    u8  repeat;                         // 重复周期位掩码
+} lb_schedule_t;
+
+//-----------------------------------------------------------------------------
+// 设备信息（由应用层填充）
+//-----------------------------------------------------------------------------
+typedef struct {
+    char bt_name[16];                   // 蓝牙名称，不足补 0
+    char version[8];                    // 软件版本 "x.x.x"
+    char model[10];                     // 产品型号
+    u8   mac[6];                        // MAC 地址
+    char sn[32];                        // 序列号
+    u8   color;                         // 颜色枚举: 0=白 1=黑 2=红 3=蓝 4=绿 5=金
+} lb_device_info_t;
+
+//-----------------------------------------------------------------------------
+// 属性值联合体
+//-----------------------------------------------------------------------------
+typedef struct {
+    u8 dpid;                            // 属性 ID
+    u8 type;                            // 数据类型 (LB_DP_TYPE_*)
+    union {
+        u8  b;                          // bool / enum
+        u32 v;                          // 32-bit value
+    };
+} lb_attr_t;
+
+//-----------------------------------------------------------------------------
+// 命令字（主机 ↔ 设备）
+// 同步(SYNC): APP→MCU 一问一答，MCU 用 lunchbox_uart_send_response() 回复
+// 异步(ASYNC): MCU 主动推送，用 lunchbox_uart_send_async() 发送
+//-----------------------------------------------------------------------------
+enum {
+    // --- 同步命令：APP 请求 → MCU 应答 ---
+    LB_CMD_PRODUCT_INFO     = 0x01,     // [同步] 查询产品信息
+    LB_CMD_DYNAMIC_ATTR     = 0x02,     // [同步] 查询设备动态属性
+    LB_CMD_SCHEDULE_LIST    = 0x04,     // [同步] 查询预约列表
+    LB_CMD_SCHEDULE_ADD     = 0x05,     // [同步] 新增预约
+    LB_CMD_SCHEDULE_MODIFY  = 0x06,     // [同步] 修改预约
+    LB_CMD_SCHEDULE_DELETE  = 0x07,     // [同步] 删除预约
+    LB_CMD_STATUS_QUERY     = 0x08,     // [同步] 状态查询（触发0x03全量上报）
+    LB_CMD_OTA_QUERY        = 0x09,     // [同步] 升级查询
+    LB_CMD_OTA_START        = 0x0a,     // [同步] 升级启动
+    LB_CMD_OTA_DATA         = 0x0b,     // [同步] 升级包传输
+    LB_CMD_OTA_END          = 0x0c,     // [同步] 升级结束
+
+    // --- 异步命令：MCU 主动推送 ---
+    LB_CMD_STATUS_REPORT    = 0x03,     // [异步] 状态上报（属性变化/故障通知）
+};
+
+/*
+    执行结果：LB_ERR_SUCCESS    (成功)
+              LB_ERR_EXEC_FAIL  (失败)
+*/
+enum {
+    LB_ERR_SUCCESS = 0x00,     
+    LB_ERR_EXEC_FAIL = 0x01,     
+};
+
+//-----------------------------------------------------------------------------
+// 帧结构（#pragma pack(1) 保证与线上字节序一致，禁止编译器插入填充）
+//-----------------------------------------------------------------------------
+#pragma pack(1)
+
+/**
+ * @brief 协议帧头（发送/接收共用）
+ *
+ * 一条完整帧 = lb_frame_head_t + data[data_len] + checksum(1B)
+ * checksum 为从 head.header 开始逐字节累加后对256取余
+ */
+typedef struct {
+    u16 header;             // 帧头，固定 0x55aa
+    u8  version;            // 协议版本号
+    u8  msg_flag;           // 消息标志，请求与应答保持一致，用于匹配
+    u8  cmd;                // 命令字，见 LB_CMD_* 枚举
+    u8  err_flag;           // 错误标志，0=成功，其他见 LB_ERR_* 枚举
+    u16 data_len;           // 数据区长度(字节)，大端序
+} lb_frame_head_t;
+
+#pragma pack()
+
+/**
+ * @brief 解析后的接收帧（给业务回调用）
+ *
+ * 帧解析器校验通过后，把各字段拆好填入此结构体，
+ * data 指针直接指向接收缓冲区内对应位置，非独立拷贝。
+ */
+typedef struct {
+    u8  version;            // 协议版本号
+    u8  msg_flag;           // 消息标志
+    u8  cmd;                // 命令字
+    u8  err_flag;           // 错误标志
+    u16 data_len;           // 数据区长度(字节)
+    u8  *data;              // 指向数据区首字节，data_len==0 时为 NULL
+    bool valid;             // 帧校验是否通过（true=通过）
+} lb_rx_frame_t;
+
+/**
+ * @brief 命令处理回调函数类型
+ *
+ * @param[in] rx  解析好的接收帧指针
+ * @return        错误码，LB_ERR_SUCCESS(0) 表示处理成功
+ *
+ * 注意：回调在 lunchbox_uart_process() 的调用上下文中执行，
+ *       不应长时间阻塞，否则会影响帧接收。
+ */
+typedef u8 (*lb_cmd_handler_t)(lb_rx_frame_t *rx);
+
+//-----------------------------------------------------------------------------
+// API
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief 初始化串口协议模块
+ *
+ * 配置 UART1 引脚(PB8-TX, PB9-RX)、波特率，初始化内部缓冲区和回调表。
+ * 应在系统初始化阶段调用一次。
+ *
+ * @param[in] baud  波特率，如 9600、115200
+ */
+void lunchbox_uart_init(u32 baud);
+
+/**
+ * @brief 主循环处理（需在 func_process 或主循环中轮询调用）
+ *
+ * 职责：从 UART1 缓冲区取字节 → 拼帧 → 超时检测 → 帧校验 → 分发给注册的回调。
+ * 调用频率越高越好，建议每帧调用一次。
+ */
+void lunchbox_uart_process(void);
+
+/**
+ * @brief 发送请求/命令帧（同步模式下主机侧使用，err_flag 固定为成功）
+ *
+ * 按协议格式组帧（大端），计算校验和，通过 UART1 发出。
+ * 一般用于外部主机→MCU的方向；MCU 内部测试/转发也可调用。
+ *
+ * @param[in] cmd       命令字
+ * @param[in] msg_flag  消息标志（同步模式下由调用者管理配对）
+ * @param[in] data      待发送数据（可为 NULL）
+ * @param[in] len       数据长度(字节)，0 表示无数据
+ */
+void lunchbox_uart_send(u8 cmd, u8 msg_flag, u8 *data, u16 len);
+
+/**
+ * @brief 发送应答帧（同步模式，MCU 回复主机请求）
+ *
+ * 与 lunchbox_uart_send 类似，但 err_flag 由调用者指定。
+ * msg_flag 应与请求帧一致，用于请求-应答配对。
+ *
+ * @param[in] cmd       命令字（与请求帧一致）
+ * @param[in] msg_flag  消息标志（与请求帧一致）
+ * @param[in] err       错误码，见 LB_ERR_* 枚举
+ * @param[in] data      待发送数据（可为 NULL）
+ * @param[in] len       数据长度(字节)
+ */
+void lunchbox_uart_send_response(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len);
+
+/**
+ * @brief 异步发送帧（MCU 主动上报，无需主机先请求）
+ *
+ * 用于 LB_CMD_TEMP_REPORT、LB_CMD_FAULT_REPORT 等异步命令。
+ * msg_flag 自动递增（0~255 循环），主机可据此检测是否丢帧。
+ * err_flag 固定为 LB_ERR_SUCCESS。
+ *
+ * @param[in] cmd       命令字（异步类，如 LB_CMD_TEMP_REPORT）
+ * @param[in] data      待发送数据（可为 NULL）
+ * @param[in] len       数据长度(字节)，0 表示无数据
+ */
+void lunchbox_uart_send_async(u8 cmd, u8 *data, u16 len);
+
+/**
+ * @brief 注册命令处理回调
+ *
+ * 收到完整帧且校验通过后，根据 cmd 查表调用对应的 handler。
+ * 一个 cmd 只能注册一个 handler，后注册的覆盖前面的。
+ *
+ * @param[in] cmd       命令字
+ * @param[in] handler   处理回调函数指针
+ */
+void lunchbox_uart_reg_handler(u8 cmd, lb_cmd_handler_t handler);
+
+//-----------------------------------------------------------------------------
+// 业务 API（应用层使用）
+//-----------------------------------------------------------------------------
+
+/** @brief 注册所有协议命令的业务处理器，初始化后调用一次 */
+void lunchbox_uart_init_handlers(void);
+
+/** @brief 设置设备信息（用于 0x01 产品信息查询应答） */
+void lunchbox_set_device_info(lb_device_info_t *info);
+
+/** @brief 设置属性值并触发异步上报（用于 MCU 状态变化通知 APP） */
+void lunchbox_set_attr_bool(u8 dpid, u8 val);
+void lunchbox_set_attr_enum(u8 dpid, u8 val);
+void lunchbox_set_attr_value(u8 dpid, u32 val);
+
+/** @brief 主动上报所有属性（0x03 全量推送） */
+void lunchbox_report_all_attrs(void);
+
+/** @brief 主动上报单个属性变化（0x03 增量推送） */
+void lunchbox_report_attr(u8 dpid);
+
+//-----------------------------------------------------------------------------
+// 自测
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief 自测函数：上电发测试字符串 + 注册 echo 处理器
+ *
+ * 在初始化后调用一次即可验证串口收发链路。
+ * 同时在 UART1 发送 LUNCHBOX_UART_OK\r\n 和注册命令 echo。
+ */
+void func_lunchbox_uart_test(void);
+
+#endif // FUNC_LUNCHBOX_UART_EN
+#endif // __FUNC_LUNCHBOX_UART_H

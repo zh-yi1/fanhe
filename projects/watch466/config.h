@@ -27,6 +27,7 @@
 #define FUNC_IDLE_EN                    0   //是否打开IDLE功能
 #define FUNC_GAME_TETRIS_EN             0   //是否打开俄罗斯方块游戏
 #define FUNC_BLE_GATTS_EN               1   //是否打开BLE GATTS Demo功能
+#define FUNC_LUNCHBOX_UART_EN           1   //是否打开智能盒饭串口协议功能
 
 /******************************************************************************
 *Module      :BT EMIT FUNCTION
