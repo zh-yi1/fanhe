@@ -262,6 +262,8 @@ SETUP_ICON_ITEMS = (
     "black_pm.png",
     "blue_am.png",
     "blue_pm.png",
+    "Hm.png",
+    "Minm.png",
 )
 
 KNOWN_SRC_PNGS = frozenset(
@@ -289,6 +291,40 @@ def convert_extra_pngs(keep: set[str]) -> None:
             write_bin(out_name, data, fname)
             keep.add(out_name)
             break
+
+
+def gpu_size_from_bin(path: Path) -> tuple[int, int, int]:
+    data = path.read_bytes()
+    if len(data) < 8:
+        raise SystemExit(f"invalid bin (too short): {path.name}")
+    magic, w, h = struct.unpack("<IHH", data[:8])
+    if magic != 0x24150 or w == 0 or h == 0:
+        raise SystemExit(f"invalid GPU bin: {path.name}")
+    need = 8 + w * h * 2
+    if need != len(data):
+        raise SystemExit(f"size mismatch {path.name}: file {len(data)} need {need}")
+    return w, h, len(data)
+
+
+def timeing_suffix_block() -> str:
+    hm_w, hm_h, hm_sz = 7, 10, 148
+    minm_w, minm_h, minm_sz = 19, 10, 388
+    hm_path = BIN_DIR / "Hm.bin"
+    minm_path = BIN_DIR / "Minm.bin"
+    if hm_path.exists():
+        hm_w, hm_h, hm_sz = gpu_size_from_bin(hm_path)
+    if minm_path.exists():
+        minm_w, minm_h, minm_sz = gpu_size_from_bin(minm_path)
+    suffix_max = max(hm_sz, minm_sz)
+    return "\n".join([
+        "/* Time setting page H/Min suffix (same visual size as AMm/PMm) */",
+        f"#define HOME_TIMEING_HM_W                 {hm_w}",
+        f"#define HOME_TIMEING_HM_H                 {hm_h}",
+        f"#define HOME_TIMEING_MINM_W               {minm_w}",
+        f"#define HOME_TIMEING_MINM_H               {minm_h}",
+        f"#define HOME_TIMEING_SUFFIX_RAM_MAX_SIZE  {suffix_max}",
+        "",
+    ])
 
 
 def main() -> None:
@@ -507,6 +543,7 @@ def main() -> None:
                 heat_detail.rstrip(),
                 "",
                 time_block,
+                timeing_suffix_block(),
                 mode_blocks,
                 "#endif",
                 "",

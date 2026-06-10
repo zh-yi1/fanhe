@@ -10,7 +10,14 @@
 #endif
 
 /*
- * Language 页：返回 + 标题 + 状态栏；English / Deutsch / Italiano / Français 列表。
+ * Language 页 UI（320×240 / 466×466）：返回 + 标题 + 状态栏；四语列表。
+ * 图标 bin 保持原始尺寸，不缩放。
+ *
+ * 320×240 设计图布局：
+ *   顶栏 0~44：Y=22 — 返回(11×17) + "Language" 左对齐 + 右上 BT/锁/电量
+ *   分隔线 Y=44
+ *   四行各 45px：English / Deutsch / Italiano / Français，文字 X=25，箭头右距 16
+ *   选中行 #1A1A1A 底；行间分隔线
  * PT8028：TCH3 模式键循环选中；TCH4 OK 确认语言；TCH5 开关返回 Setup。
  */
 #define UI_LANG_PLACEHOLDER               UI_BUF_ICON_ACTIVITY_BIN
@@ -38,6 +45,14 @@
 #define LANG_COLOR_ROW_BG                 make_color(29, 29, 29)
 #define LANG_COLOR_DIVIDER                make_color(60, 60, 60)
 
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define LANG_COLOR_ROW_BG_SEL             make_color(26, 26, 26)
+#define LANG_COLOR_DIVIDER_LINE           make_color(51, 51, 51)
+#else
+#define LANG_COLOR_ROW_BG_SEL             LANG_COLOR_ROW_BG
+#define LANG_COLOR_DIVIDER_LINE           LANG_COLOR_DIVIDER
+#endif
+
 #define LANG_LEFT_W                       11
 #define LANG_LEFT_H                       17
 #define LANG_LEFT_RAM_SIZE                (8 + LANG_LEFT_W * LANG_LEFT_H * 2)
@@ -46,18 +61,63 @@
 #define LANG_RIGHT_H                      13
 #define LANG_RIGHT_RAM_SIZE               (8 + LANG_RIGHT_W * LANG_RIGHT_H * 2)
 
-#define LANG_HEADER_Y                     48
-#define LANG_BACK_X                       36
-#define LANG_TITLE_CENTER_X               130
-#define LANG_TITLE_W                      260
-#define LANG_TITLE_H                      36
-#define LANG_STATUS_Y                     48
-#define LANG_STATUS_BAT_X                 (GUI_SCREEN_WIDTH - 24 - HOME_STATUS_BAT_W / 2)
-#define LANG_STATUS_LOCK_X                (LANG_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - 10 - HOME_STATUS_LOCK_W / 2)
-#define LANG_STATUS_BT_X                  (LANG_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - 10 - HOME_STATUS_BT_W / 2)
+#define LANG_REF_W                        466
+#define LANG_REF_H                        466
+#define LANG_SX(v)                        ((s16)((s32)(v) * GUI_SCREEN_WIDTH / LANG_REF_W))
+#define LANG_SY(v)                        ((s16)((s32)(v) * GUI_SCREEN_HEIGHT / LANG_REF_H))
 
-#define LANG_DIVIDER_Y                    90
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define LANG_HEADER_Y                     22
+#define LANG_STATUS_Y                     22
+#define LANG_STATUS_RIGHT_MARGIN          10
+#define LANG_STATUS_GAP                   6
+#define LANG_BACK_X                       16
+#define LANG_BACK_BTN_X                   6
+#define LANG_BACK_BTN_Y                   4
+#define LANG_BACK_BTN_W                   48
+#define LANG_BACK_BTN_H                   38
+#define LANG_TITLE_LEFT                   28
+#define LANG_TITLE_Y                      22
+#define LANG_TITLE_H                      36
+#define LANG_TITLE_TOP                    (LANG_TITLE_Y - LANG_TITLE_H / 2)
+#define LANG_DIVIDER_Y                    44
 #define LANG_DIVIDER_H                    1
+#define LANG_LIST_TOP                     46
+#define LANG_LIST_BOTTOM                  226
+#define LANG_ROW_H                        45
+#define LANG_ROW_TEXT_LEFT                25
+#define LANG_ROW_ARROW_RIGHT              16
+#else
+#define LANG_HEADER_Y                     LANG_SY(48)
+#define LANG_STATUS_Y                     LANG_SY(48)
+#define LANG_STATUS_RIGHT_MARGIN          LANG_SX(24)
+#define LANG_STATUS_GAP                   LANG_SX(10)
+#define LANG_BACK_X                       LANG_SX(36)
+#define LANG_BACK_BTN_X                   LANG_SX(16)
+#define LANG_BACK_BTN_Y                   LANG_SY(28)
+#define LANG_BACK_BTN_W                   LANG_SX(56)
+#define LANG_BACK_BTN_H                   LANG_SY(40)
+#define LANG_TITLE_LEFT                   LANG_SX(130)
+#define LANG_TITLE_Y                      LANG_SY(48)
+#define LANG_TITLE_H                      LANG_SY(36)
+#define LANG_TITLE_TOP                    (LANG_TITLE_Y - LANG_TITLE_H / 2)
+#define LANG_DIVIDER_Y                    LANG_SY(90)
+#define LANG_DIVIDER_H                    1
+#define LANG_LIST_TOP                     (LANG_DIVIDER_Y + LANG_DIVIDER_H / 2 + LANG_SY(4))
+#define LANG_LIST_BOTTOM                  (GUI_SCREEN_HEIGHT - LANG_SY(8))
+#define LANG_ROW_TEXT_LEFT                LANG_SX(36)
+#define LANG_ROW_ARROW_RIGHT              LANG_SX(24)
+#endif
+
+#define LANG_STATUS_BAT_X                 (GUI_SCREEN_WIDTH - LANG_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
+#define LANG_STATUS_LOCK_X                (LANG_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - LANG_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
+#define LANG_STATUS_BT_X                  (LANG_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - LANG_STATUS_GAP - HOME_STATUS_BT_W / 2)
+
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define LANG_TITLE_W                      (LANG_STATUS_BT_X - HOME_STATUS_BT_W / 2 - LANG_STATUS_GAP - LANG_TITLE_LEFT)
+#else
+#define LANG_TITLE_W                      LANG_SX(260)
+#endif
 
 enum {
     LANG_ROW_ENGLISH = 0,
@@ -67,13 +127,14 @@ enum {
     LANG_ROW_CNT,
 };
 
-#define LANG_LIST_TOP                     (LANG_DIVIDER_Y + LANG_DIVIDER_H / 2 + 4)
-#define LANG_LIST_BOTTOM                  (GUI_SCREEN_HEIGHT - 8)
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define LANG_ROW_STEP                     LANG_ROW_H
+#else
 #define LANG_ROW_H                        ((LANG_LIST_BOTTOM - LANG_LIST_TOP) / LANG_ROW_CNT)
 #define LANG_ROW_STEP                     LANG_ROW_H
+#endif
 
-#define LANG_ROW_TEXT_LEFT                36
-#define LANG_ROW_ARROW_X                  (GUI_SCREEN_WIDTH - 24 - LANG_RIGHT_W / 2)
+#define LANG_ROW_ARROW_X                  (GUI_SCREEN_WIDTH - LANG_ROW_ARROW_RIGHT - LANG_RIGHT_W / 2)
 #define LANG_ROW_TEXT_RIGHT               (LANG_ROW_ARROW_X - LANG_RIGHT_W / 2 - 12)
 #define LANG_ROW_LABEL_W                  (LANG_ROW_TEXT_RIGHT - LANG_ROW_TEXT_LEFT)
 
@@ -241,6 +302,39 @@ static compo_shape_t *func_languageing_shape_create(compo_form_t *frm, u16 id, s
     return shape;
 }
 
+static void func_languageing_config_title(compo_textbox_t *txt)
+{
+    widget_text_t *widget = txt->txt;
+    rect_t rect;
+    area_t text_area;
+
+    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+    compo_textbox_set_align_center(txt, false);
+    widget_set_align_center(widget, false);
+    compo_textbox_set_location(txt, LANG_TITLE_LEFT, LANG_TITLE_TOP,
+                               LANG_TITLE_W, LANG_TITLE_H);
+#else
+    compo_textbox_set_align_center(txt, true);
+    compo_textbox_set_location(txt, LANG_TITLE_LEFT, LANG_TITLE_TOP,
+                               LANG_TITLE_W, LANG_TITLE_H);
+#endif
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+    compo_textbox_set_forecolor(txt, COLOR_WHITE);
+    compo_textbox_set(txt, "Language");
+
+    rect = widget_get_location(widget);
+    text_area = widget_text_get_area(widget);
+    if (rect.hei > text_area.hei) {
+        widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
+}
+
 static void func_languageing_config_row_label(compo_textbox_t *txt, const char *text, s16 row_y)
 {
     widget_text_t *widget = txt->txt;
@@ -339,7 +433,7 @@ static void func_languageing_row_create(compo_form_t *frm, u8 idx)
     s16 y = func_languageing_row_center_y(idx);
 
     bg = func_languageing_shape_create(frm, tbl_lang_row_id_bg[idx], GUI_SCREEN_CENTER_X, y,
-                                       GUI_SCREEN_WIDTH, LANG_ROW_H, LANG_COLOR_ROW_BG);
+                                       GUI_SCREEN_WIDTH, LANG_ROW_H, LANG_COLOR_ROW_BG_SEL);
     compo_shape_set_visible(bg, false);
 
     txt = compo_textbox_create(frm, 20);
@@ -355,7 +449,7 @@ static void func_languageing_row_create(compo_form_t *frm, u8 idx)
     if (tbl_lang_row_id_divider[idx] != 0) {
         func_languageing_shape_create(frm, tbl_lang_row_id_divider[idx], GUI_SCREEN_CENTER_X,
                                       func_languageing_row_divider_y(idx), GUI_SCREEN_WIDTH, 1,
-                                      LANG_COLOR_DIVIDER);
+                                      LANG_COLOR_DIVIDER_LINE);
     }
 
     btn = compo_button_create(frm);
@@ -431,19 +525,12 @@ compo_form_t *func_languageing_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_BACK);
-    compo_button_set_location(btn, 16, 28, 56, 40);
+    compo_button_set_location(btn, LANG_BACK_BTN_X, LANG_BACK_BTN_Y,
+                              LANG_BACK_BTN_W, LANG_BACK_BTN_H);
 
     txt = compo_textbox_create(frm, 16);
     compo_setid(txt, COMPO_ID_TITLE);
-    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_textbox_set_align_center(txt, true);
-    compo_textbox_set_autoroll(txt, false);
-    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
-    widget_text_set_ellipsis(txt->txt, false);
-    compo_textbox_set_location(txt, LANG_TITLE_CENTER_X, LANG_HEADER_Y,
-                               LANG_TITLE_W, LANG_TITLE_H);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, "Language");
+    func_languageing_config_title(txt);
 
     pic = compo_picturebox_create(frm, UI_LANG_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_BT);
@@ -464,7 +551,7 @@ compo_form_t *func_languageing_form_create(void)
     compo_picturebox_set_visible(pic, false);
 
     func_languageing_shape_create(frm, COMPO_ID_HEADER_DIVIDER, GUI_SCREEN_CENTER_X, LANG_DIVIDER_Y,
-                                GUI_SCREEN_WIDTH, LANG_DIVIDER_H, LANG_COLOR_DIVIDER);
+                                GUI_SCREEN_WIDTH, LANG_DIVIDER_H, LANG_COLOR_DIVIDER_LINE);
 
     for (i = 0; i < LANG_ROW_CNT; i++) {
         func_languageing_row_create(frm, i);

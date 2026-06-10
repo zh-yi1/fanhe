@@ -1,11 +1,19 @@
 #ifndef _HOME_TOP_TIME_H
 #define _HOME_TOP_TIME_H
 
+#include "include.h"
 #include "home_icon_res.h"
 
 /* 左上 RTC：0m..9m + colonm + AMm/PMm（ui/home -> ui.bin -> set_ram） */
-#define HOME_TOP_TIME_X                   78
-#define HOME_TOP_TIME_Y                   48
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define HOME_TOP_TIME_X                   12
+#define HOME_TOP_TIME_Y                   20
+#else
+#define HOME_TOP_TIME_REF_W               466
+#define HOME_TOP_TIME_REF_H               466
+#define HOME_TOP_TIME_X                   ((s16)((s32)78 * GUI_SCREEN_WIDTH / HOME_TOP_TIME_REF_W))
+#define HOME_TOP_TIME_Y                   ((s16)((s32)48 * GUI_SCREEN_HEIGHT / HOME_TOP_TIME_REF_H))
+#endif
 #define HOME_TOP_TIME_ELEM_GAP            2
 #define HOME_TOP_TIME_AMPM_GAP            4
 

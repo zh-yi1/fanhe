@@ -2,6 +2,7 @@
 #include "func_menu.h"
 #include "func_tbl.h"
 #include "func.h"
+#include "func_reservation.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -79,6 +80,8 @@ void func_process(void)
         compo_update();                                     //更新组件
 
         gui_process();                                      //刷新UI
+
+        func_reservation_poll();
 
     }
 

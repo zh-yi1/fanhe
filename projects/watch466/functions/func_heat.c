@@ -12,14 +12,11 @@
 #endif
 
 /*
- * Heat 页 UI（参照设计图）：
- *   左上：RTC 图标（0m..9m + colonm + AMm/PMm -> ui.bin，home_top_time.c）
- *   右上：bluetooth.bin / lock.bin / battery_level.bin
- *   中部倒计时：w0x.bin..w9x.bin（选中/加热白字）+ wbx.bin（冒号）+ b0x.bin..b9x.bin（未选中灰字）
- *   下部温度：w0x/b0x + bhx.bin（°F）
- * PT8028：TCH4 OK 切换时/分/温度并确认加热；TCH0/TCH2 +/-；TCH5 开关回退/退出
- * PNG 放 Output/bin/ui/home/，运行 gen_home_icons.py -> prebuild -> ui.bin
- * GPU 0x24150：os_spiflash_read + compo_picturebox_set_ram
+ * Heat 页 UI（320×240 横屏设计图）：
+ *   顶栏 Y≈20：左上 RTC，右上 BT/锁/电量
+ *   中部 Y≈100：大号倒计时 HH:MM（选中白字 / 未选中灰字）
+ *   下部 Y≈190：温度 XXX°F（灰字 b0x + bhx）
+ *   图标 bin 保持 home_icon_res.h 原始尺寸，不缩放
  */
 #define UI_HEAT_PLACEHOLDER               UI_BUF_ICON_ACTIVITY_BIN
 
@@ -51,15 +48,29 @@
 #error "Missing battery_level.bin: add ui/home/battery_level.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
-#define HEAT_STATUS_Y                     48
-#define HEAT_STATUS_RIGHT_MARGIN          24
-#define HEAT_STATUS_GAP                   10
+/* 466×466 参考布局；320×240 横屏按设计图固定坐标，图标 bin 保持原始尺寸 */
+#define HEAT_REF_W                        466
+#define HEAT_REF_H                        466
+#define HEAT_SX(v)                        ((s16)((s32)(v) * GUI_SCREEN_WIDTH / HEAT_REF_W))
+#define HEAT_SY(v)                        ((s16)((s32)(v) * GUI_SCREEN_HEIGHT / HEAT_REF_H))
+
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define HEAT_STATUS_Y                     20
+#define HEAT_STATUS_RIGHT_MARGIN          10
+#define HEAT_STATUS_GAP                   6
+#define HEAT_TIMER_Y                      100   /* 倒计时区中心（设计 Y≈60~140） */
+#define HEAT_TEMP_Y                       190   /* 温度区中心（设计 Y≈160~220） */
+#else
+#define HEAT_STATUS_Y                     HEAT_SY(48)
+#define HEAT_STATUS_RIGHT_MARGIN          HEAT_SX(24)
+#define HEAT_STATUS_GAP                   HEAT_SX(10)
+#define HEAT_TIMER_Y                      HEAT_SY(195)
+#define HEAT_TEMP_Y                       HEAT_SY(305)
+#endif
+
 #define HEAT_STATUS_BAT_X                 (GUI_SCREEN_WIDTH - HEAT_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
 #define HEAT_STATUS_LOCK_X                (HEAT_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - HEAT_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
 #define HEAT_STATUS_BT_X                  (HEAT_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - HEAT_STATUS_GAP - HOME_STATUS_BT_W / 2)
-
-#define HEAT_TIMER_Y                      195
-#define HEAT_TEMP_Y                       305
 #define HEAT_TIMER_PAIR_GAP               10  /* 时/分各位数字之间 */
 #define HEAT_TIMER_PAIR_NARROW_EXTRA      8   /* 含数字 1 等窄字时加宽（如 01） */
 #define HEAT_TIMER_COLON_GAP              10  /* 时与分之间（冒号两侧） */

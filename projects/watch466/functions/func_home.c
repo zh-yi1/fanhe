@@ -4,6 +4,8 @@
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
 #include "home_top_time.h"
+#include "home_tab_label.h"
+#include "func_reservation.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -28,7 +30,7 @@
  *   Flash：UI_BUF_HOME_BLUETOOTH_BIN、UI_BUF_HOME_LOCK_BIN、UI_BUF_HOME_BATTERY_LEVEL_BIN
  *   RAM：home_ui_shared_status_*_ram -> home_ui_shared_status_init() + func_home_status_icons_apply()
  *
- * 底部导航 Tab（HEAT / MODE / SETUP）：
+ * 底部导航 Tab（HEAT / MODE / SETUP）：320×240 横屏按 UI 效果图排版。
  *   选中：蓝底 + 白框 + 白底线 + 白图标（*_sel.bin）
  *   未选中：黑底 + 白框 + 蓝底线 + 白图标（*.bin）
  *   PT8028：TCH3 模式键(KU_MODE)循环选中；TCH4 确认键(KU_BACK)进入当前选中页
@@ -89,33 +91,114 @@
 
 #define HOME_COLOR_BLUE                 make_color(4, 109, 217)
 
-#define HOME_TAB_BTN_W                  118
-#define HOME_TAB_BTN_H                  96
-#define HOME_TAB_BTN_R                  16
-#define HOME_TAB_BTN_R_IN               14
-#define HOME_TAB_BTN_Y                  390
-#define HOME_TAB_PAD_TOP                12
-#define HOME_TAB_PAD_BOTTOM             10
-#define HOME_TAB_PAD_MID                6
-#define HOME_TAB_FONT_H                 8
-#define HOME_TAB_LINE_H                 3
-#define HOME_TAB_ICON_Y                 (HOME_TAB_BTN_Y - HOME_TAB_BTN_H / 2 + HOME_TAB_PAD_TOP + HOME_NAV_ICON_MAX_H / 2)
-#define HOME_TAB_LABEL_Y                (HOME_TAB_ICON_Y + HOME_NAV_ICON_MAX_H / 2 + HOME_TAB_PAD_MID + HOME_TAB_FONT_H / 2)
-#define HOME_TAB_DASH_Y                 (HOME_TAB_BTN_Y + HOME_TAB_BTN_H / 2 - HOME_TAB_PAD_BOTTOM - HOME_TAB_LINE_H / 2)
-#define HOME_TAB_DASH_W                 HOME_DASH_RAM_W
-#define HOME_TAB_X0                     87
-#define HOME_TAB_X1                     233
-#define HOME_TAB_X2                     379
+/* 466×466 参考布局；320×240 横屏使用紧凑布局 */
+#define HOME_REF_W                      466
+#define HOME_REF_H                      466
+#define HOME_SX(v)                      ((s16)((s32)(v) * GUI_SCREEN_WIDTH / HOME_REF_W))
+#define HOME_SY(v)                      ((s16)((s32)(v) * GUI_SCREEN_HEIGHT / HOME_REF_H))
+#define HOME_TAB_INSET                  HOME_SX(4)
 
-#define HOME_STATUS_Y                   48
-#define HOME_STATUS_RIGHT_MARGIN        24
-#define HOME_STATUS_GAP                 10
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+/* 320×240 横屏：底部 Tab 80×65，三等分居中 */
+#define HOME_TAB_SIDE_MARGIN            20
+#define HOME_TAB_GAP                    20
+#define HOME_TAB_BTN_W                  80
+#define HOME_TAB_BTN_H                  65
+#define HOME_TAB_BTN_R                  8
+#define HOME_TAB_BTN_R_IN               7
+#define HOME_TAB_BTN_Y                  200
+#define HOME_TAB_PAD_TOP                6
+#define HOME_TAB_PAD_BOTTOM             5
+#define HOME_TAB_PAD_MID                2
+#define HOME_TAB_LINE_H                 2
+#define HOME_TAB_ICON_DISP_H            18
+#define HOME_TAB_X0                     60
+#define HOME_TAB_X1                     160
+#define HOME_TAB_X2                     260
+#define HOME_STATUS_Y                   20
+#define HOME_STATUS_RIGHT_MARGIN        10
+#define HOME_STATUS_GAP                 6
+#define HOME_STATUS_H                   18
+#define HOME_CLOCK_GAP                  2
+#define HOME_MAIN_DIGIT_W               42
+#define HOME_MAIN_DIGIT_H               72
+#define HOME_MAIN_COLON_W               21
+#define HOME_MAIN_COLON_H               72
+#define HOME_TAB_DASH_W_FIXED           50
+#elif (GUI_SCREEN_HEIGHT <= 240)
+#define HOME_TAB_SIDE_MARGIN            HOME_SX(8)
+#define HOME_TAB_BTN_W                  ((GUI_SCREEN_WIDTH - HOME_TAB_SIDE_MARGIN * 2 - HOME_SX(8)) / 3)
+#define HOME_TAB_BTN_H                  42
+#define HOME_TAB_BTN_R                  8
+#define HOME_TAB_BTN_R_IN               7
+#define HOME_TAB_BTN_Y                  (GUI_SCREEN_HEIGHT - 14)
+#define HOME_TAB_PAD_TOP                3
+#define HOME_TAB_PAD_BOTTOM             3
+#define HOME_TAB_PAD_MID                2
+#define HOME_TAB_LINE_H                 2
+#define HOME_TAB_ICON_DISP_H            20
+#define HOME_TAB_STEP                   (HOME_TAB_BTN_W + HOME_SX(4))
+#define HOME_TAB_X0                     (HOME_TAB_SIDE_MARGIN + HOME_TAB_BTN_W / 2)
+#define HOME_TAB_X1                     (HOME_TAB_X0 + HOME_TAB_STEP)
+#define HOME_TAB_X2                     (HOME_TAB_X1 + HOME_TAB_STEP)
+#define HOME_STATUS_Y                   16
+#define HOME_STATUS_RIGHT_MARGIN        HOME_SX(8)
+#define HOME_STATUS_GAP                 HOME_SX(4)
+#define HOME_STATUS_H                   18
+#define HOME_CLOCK_GAP                  2
+#define HOME_MAIN_DIGIT_W               32
+#define HOME_MAIN_DIGIT_H               38
+#define HOME_MAIN_COLON_W               14
+#define HOME_MAIN_COLON_H               38
+#define HOME_TAB_DASH_W_FIXED           HOME_DASH_RAM_W
+#else
+#define HOME_TAB_BTN_W                  HOME_SX(118)
+#define HOME_TAB_BTN_H                  HOME_SY(96)
+#define HOME_TAB_BTN_R                  HOME_SX(16)
+#define HOME_TAB_BTN_R_IN               HOME_SX(14)
+#define HOME_TAB_BTN_Y                  HOME_SY(390)
+#define HOME_TAB_PAD_TOP                HOME_SY(12)
+#define HOME_TAB_PAD_BOTTOM             HOME_SY(10)
+#define HOME_TAB_PAD_MID                HOME_SY(6)
+#define HOME_TAB_FONT_H                 HOME_SY(8)
+#define HOME_TAB_LINE_H                 HOME_SY(3)
+#define HOME_TAB_ICON_DISP_H            HOME_NAV_ICON_MAX_H
+#define HOME_TAB_X0                     HOME_SX(87)
+#define HOME_TAB_X1                     HOME_SX(233)
+#define HOME_TAB_X2                     HOME_SX(379)
+#define HOME_STATUS_Y                   HOME_SY(48)
+#define HOME_STATUS_RIGHT_MARGIN        HOME_SX(24)
+#define HOME_STATUS_GAP                 HOME_SX(10)
+#define HOME_STATUS_H                   HOME_SY(36)
+#define HOME_CLOCK_GAP                  HOME_SX(4)
+#define HOME_MAIN_DIGIT_W               HOME_SX(48)
+#define HOME_MAIN_DIGIT_H               HOME_SY(82)
+#define HOME_MAIN_COLON_W               HOME_SX(24)
+#define HOME_MAIN_COLON_H               HOME_SY(82)
+#define HOME_TAB_DASH_W_FIXED           HOME_DASH_RAM_W
+#endif
+
+#define HOME_TAB_ICON_Y                 (HOME_TAB_BTN_Y - HOME_TAB_BTN_H / 2 + HOME_TAB_PAD_TOP + HOME_TAB_ICON_DISP_H / 2)
+#define HOME_TAB_LABEL_W                (HOME_TAB_BTN_W - 6)
+#define HOME_TAB_LABEL_H                (HOME_TAB_BTN_H - HOME_TAB_PAD_TOP - HOME_TAB_ICON_DISP_H \
+                                         - HOME_TAB_PAD_MID - HOME_TAB_PAD_BOTTOM - HOME_TAB_LINE_H)
+#define HOME_TAB_LABEL_ZONE_TOP         (HOME_TAB_BTN_Y - HOME_TAB_BTN_H / 2 + HOME_TAB_PAD_TOP \
+                                         + HOME_TAB_ICON_DISP_H + HOME_TAB_PAD_MID)
+#define HOME_TAB_LABEL_Y                (HOME_TAB_LABEL_ZONE_TOP + HOME_TAB_LABEL_H / 2)
+#define HOME_TAB_DASH_Y                 (HOME_TAB_BTN_Y + HOME_TAB_BTN_H / 2 - HOME_TAB_PAD_BOTTOM - HOME_TAB_LINE_H / 2)
+#define HOME_TAB_DASH_W                 HOME_TAB_DASH_W_FIXED
+
 #define HOME_STATUS_BAT_X               (GUI_SCREEN_WIDTH - HOME_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
 #define HOME_STATUS_LOCK_X              (HOME_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - HOME_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
 #define HOME_STATUS_BT_X                (HOME_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - HOME_STATUS_GAP - HOME_STATUS_BT_W / 2)
-#define HOME_STATUS_H                   36
 #define HOME_CLOCK_Y                    ((HOME_STATUS_Y + HOME_STATUS_H + HOME_TAB_BTN_Y - HOME_TAB_BTN_H / 2) / 2)
-#define HOME_CLOCK_GAP                  4
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define HOME_RES_MARQUEE_Y              55
+#define HOME_RES_MARQUEE_W              296
+#else
+#define HOME_RES_MARQUEE_Y              HOME_SY(80)
+#define HOME_RES_MARQUEE_W              (GUI_SCREEN_WIDTH - HOME_SX(32))
+#endif
 
 enum {
     HOME_CLOCK_IDX_H10 = 0,
@@ -147,6 +230,7 @@ enum {
     COMPO_ID_PIC_BT,
     COMPO_ID_PIC_LOCK,
     COMPO_ID_PIC_BAT,
+    COMPO_ID_TXT_RES_MARQUEE,
     COMPO_ID_TAB0_SEL_BG,
     COMPO_ID_TAB0_BORDER_OUT,
     COMPO_ID_TAB0_BORDER_IN,
@@ -179,7 +263,7 @@ typedef struct home_tab_ui_t_ {
     compo_shape_t *line;
     compo_picturebox_t *pic;
     compo_button_t *btn;
-    compo_textbox_t *label;
+    compo_picturebox_t *label;
 } home_tab_ui_t;
 
 typedef struct f_home_t_ {
@@ -193,11 +277,56 @@ typedef struct f_home_t_ {
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_lock;
     compo_picturebox_t *pic_bat;
+    compo_textbox_t *txt_res_marquee;
     home_tab_ui_t tabs[HOME_TAB_CNT];
 } f_home_t;
 
 static u32 home_countdown_remain_sec;
 static bool home_countdown_running;
+
+static u8 *home_tab_label_ram_ptr[HOME_TAB_CNT];
+
+static const char * const tbl_home_tab_label[HOME_TAB_CNT] = {
+    "HEAT",
+    "MODE",
+    "SETUP",
+};
+
+static const s16 tbl_home_tab_x[HOME_TAB_CNT] = {
+    HOME_TAB_X0,
+    HOME_TAB_X1,
+    HOME_TAB_X2,
+};
+
+static bool func_home_tab_label_ram_alloc(void)
+{
+    u8 i;
+
+    for (i = 0; i < HOME_TAB_CNT; i++) {
+        u16 sz = home_tab_label_ram_size(tbl_home_tab_label[i]);
+
+        if (sz == 0) {
+            return false;
+        }
+        home_tab_label_ram_ptr[i] = func_zalloc(sz);
+        if (home_tab_label_ram_ptr[i] == NULL) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void func_home_tab_label_ram_free(void)
+{
+    u8 i;
+
+    for (i = 0; i < HOME_TAB_CNT; i++) {
+        if (home_tab_label_ram_ptr[i] != NULL) {
+            func_free(home_tab_label_ram_ptr[i]);
+            home_tab_label_ram_ptr[i] = NULL;
+        }
+    }
+}
 
 static const u32 tbl_home_digit_addr[10] = {
     UI_BUF_HOME_0_BIN,
@@ -352,21 +481,22 @@ static void func_home_clock_layout(f_home_t *f_home, u8 hour, u8 min)
     u16 total;
     u8 i;
 
-    total = HOME_DIGIT_W + HOME_CLOCK_GAP + HOME_DIGIT_W + HOME_CLOCK_GAP
-          + HOME_COLON_W + HOME_CLOCK_GAP + HOME_DIGIT_W + HOME_CLOCK_GAP
-          + HOME_DIGIT_W;
+    total = HOME_MAIN_DIGIT_W + HOME_CLOCK_GAP + HOME_MAIN_DIGIT_W + HOME_CLOCK_GAP
+          + HOME_MAIN_COLON_W + HOME_CLOCK_GAP + HOME_MAIN_DIGIT_W + HOME_CLOCK_GAP
+          + HOME_MAIN_DIGIT_W;
     x = GUI_SCREEN_CENTER_X - (s16)(total / 2);
 
     for (i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
-        s16 cx = x + (s16)(HOME_DIGIT_W / 2);
+        s16 cx = x + (s16)(HOME_MAIN_DIGIT_W / 2);
 
         compo_picturebox_set_pos(f_home->pic_clock[i], cx, HOME_CLOCK_Y);
-        compo_picturebox_set_size(f_home->pic_clock[i], HOME_DIGIT_W, HOME_DIGIT_H);
-        x += HOME_DIGIT_W + HOME_CLOCK_GAP;
+        compo_picturebox_set_size(f_home->pic_clock[i], HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+        x += HOME_MAIN_DIGIT_W + HOME_CLOCK_GAP;
         if (i == HOME_CLOCK_IDX_H1) {
-            cx = x + (s16)(HOME_COLON_W / 2);
+            cx = x + (s16)(HOME_MAIN_COLON_W / 2);
             compo_picturebox_set_pos(f_home->pic_clock_colon, cx, HOME_CLOCK_Y);
-            x += HOME_COLON_W + HOME_CLOCK_GAP;
+            compo_picturebox_set_size(f_home->pic_clock_colon, HOME_MAIN_COLON_W, HOME_MAIN_COLON_H);
+            x += HOME_MAIN_COLON_W + HOME_CLOCK_GAP;
         }
     }
 }
@@ -397,6 +527,21 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
     func_home_clock_layout(f_home, hour, min);
 }
 
+static void func_home_tab_icon_size(u8 idx, u16 *out_w, u16 *out_h)
+{
+    u16 src_w = tbl_home_nav_icon_w[idx];
+    u16 src_h = tbl_home_nav_icon_h[idx];
+
+    if (src_h == 0) {
+        *out_w = 0;
+        *out_h = 0;
+        return;
+    }
+
+    *out_h = HOME_TAB_ICON_DISP_H;
+    *out_w = (u16)((u32)src_w * HOME_TAB_ICON_DISP_H / src_h);
+}
+
 static void func_home_tab_icon_update(f_home_t *f_home, u8 idx)
 {
     bool selected = (idx == f_home->tab);
@@ -409,9 +554,12 @@ static void func_home_tab_icon_update(f_home_t *f_home, u8 idx)
 
     os_spiflash_read(home_ui_shared_icon_runtime[idx], addr, len);
     if (gui_set_ram_check(home_ui_shared_icon_runtime[idx], __func__)) {
+        u16 icon_w;
+        u16 icon_h;
+
+        func_home_tab_icon_size(idx, &icon_w, &icon_h);
         compo_picturebox_set_ram(f_home->tabs[idx].pic, home_ui_shared_icon_runtime[idx]);
-        compo_picturebox_set_size(f_home->tabs[idx].pic,
-                                  tbl_home_nav_icon_w[idx], tbl_home_nav_icon_h[idx]);
+        compo_picturebox_set_size(f_home->tabs[idx].pic, icon_w, icon_h);
     }
 }
 
@@ -423,20 +571,9 @@ static void func_home_tab_line_update(f_home_t *f_home, u8 idx)
         return;
     }
 
+    compo_shape_set_visible(f_home->tabs[idx].line, true);
     compo_shape_set_color(f_home->tabs[idx].line, selected ? COLOR_WHITE : HOME_COLOR_BLUE);
 }
-
-static const char * const tbl_home_tab_label[HOME_TAB_CNT] = {
-    "HEAT",
-    "MODE",
-    "SETUP",
-};
-
-static const s16 tbl_home_tab_x[HOME_TAB_CNT] = {
-    HOME_TAB_X0,
-    HOME_TAB_X1,
-    HOME_TAB_X2,
-};
 
 static compo_shape_t *func_home_shape_create(compo_form_t *frm, u16 id, s16 x, s16 y,
                                               s16 w, s16 h, u16 color, u16 radius)
@@ -462,18 +599,33 @@ static compo_shape_t *func_home_tab_line_create(compo_form_t *frm, u16 id, s16 x
     return shape;
 }
 
+static void func_home_tab_label_update(f_home_t *f_home, u8 idx)
+{
+    bool selected = (idx == f_home->tab);
+    u16 buf_size = home_tab_label_ram_size(tbl_home_tab_label[idx]);
+
+    if (home_tab_label_ram_ptr[idx] == NULL || buf_size == 0) {
+        return;
+    }
+    home_tab_label_apply(f_home->tabs[idx].label, home_tab_label_ram_ptr[idx], buf_size,
+                         tbl_home_tab_label[idx], tbl_home_tab_x[idx], HOME_TAB_LABEL_Y,
+                         selected, HOME_COLOR_BLUE);
+}
+
 static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const char *label, s16 x)
 {
     compo_picturebox_t *pic;
+    compo_picturebox_t *pic_label;
     compo_button_t *btn;
-    compo_textbox_t *txt;
+    u16 label_buf_size = home_tab_label_ram_size(label);
 
     func_home_shape_create(frm, id_base + 0, x, HOME_TAB_BTN_Y,
                            HOME_TAB_BTN_W, HOME_TAB_BTN_H, HOME_COLOR_BLUE, HOME_TAB_BTN_R);
     func_home_shape_create(frm, id_base + 1, x, HOME_TAB_BTN_Y,
                            HOME_TAB_BTN_W, HOME_TAB_BTN_H, COLOR_WHITE, HOME_TAB_BTN_R);
     func_home_shape_create(frm, id_base + 2, x, HOME_TAB_BTN_Y,
-                           HOME_TAB_BTN_W - 4, HOME_TAB_BTN_H - 4, COLOR_BLACK, HOME_TAB_BTN_R_IN);
+                           HOME_TAB_BTN_W - HOME_TAB_INSET, HOME_TAB_BTN_H - HOME_TAB_INSET,
+                           COLOR_BLACK, HOME_TAB_BTN_R_IN);
 
     pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic, tbl_home_tab_pic_id[idx]);
@@ -481,16 +633,22 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     if (gui_set_ram_check(home_ui_shared_icon_runtime[idx], __func__)) {
         compo_picturebox_set_ram(pic, home_ui_shared_icon_runtime[idx]);
     }
-    compo_picturebox_set_pos(pic, x, HOME_TAB_ICON_Y);
-    compo_picturebox_set_size(pic, tbl_home_nav_icon_w[idx], tbl_home_nav_icon_h[idx]);
+    {
+        u16 icon_w;
+        u16 icon_h;
 
-    txt = compo_textbox_create(frm, 8);
-    compo_setid(txt, id_base + 4);
-    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_textbox_set_pos(txt, x, HOME_TAB_LABEL_Y);
-    compo_textbox_set_align_center(txt, true);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, label);
+        func_home_tab_icon_size(idx, &icon_w, &icon_h);
+        compo_picturebox_set_pos(pic, x, HOME_TAB_ICON_Y);
+        compo_picturebox_set_size(pic, icon_w, icon_h);
+    }
+
+    pic_label = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
+    compo_setid(pic_label, id_base + 4);
+    compo_picturebox_set_visible(pic_label, false);
+    if (home_tab_label_ram_ptr[idx] != NULL && label_buf_size > 0) {
+        home_tab_label_apply(pic_label, home_tab_label_ram_ptr[idx], label_buf_size,
+                             label, x, HOME_TAB_LABEL_Y, (idx == HOME_TAB_HEAT), HOME_COLOR_BLUE);
+    }
 
     func_home_tab_line_create(frm, tbl_home_tab_dash_id[idx], x);
 
@@ -525,6 +683,7 @@ static void func_home_tab_refresh(f_home_t *f_home)
         compo_shape_set_visible(tab->border_in, !selected);
         func_home_tab_icon_update(f_home, i);
         func_home_tab_line_update(f_home, i);
+        func_home_tab_label_update(f_home, i);
     }
 }
 
@@ -569,6 +728,24 @@ static void func_home_tab_enter(f_home_t *f_home)
     }
 }
 
+static void func_home_res_marquee_refresh(f_home_t *f_home)
+{
+    char buf[48];
+
+    if (f_home->txt_res_marquee == NULL) {
+        return;
+    }
+
+    if (!func_reservation_is_waiting()) {
+        compo_textbox_set_visible(f_home->txt_res_marquee, false);
+        return;
+    }
+
+    func_reservation_marquee_text(buf, sizeof(buf));
+    compo_textbox_set(f_home->txt_res_marquee, buf);
+    compo_textbox_set_visible(f_home->txt_res_marquee, true);
+}
+
 static void func_home_status_refresh(f_home_t *f_home)
 {
     tm_t tm = rtc_clock_get();
@@ -578,6 +755,7 @@ static void func_home_status_refresh(f_home_t *f_home)
         f_home->last_top_sec = tm.sec;
         home_top_time_refresh(&f_home->top_time, &tm);
         func_home_countdown_tick();
+        func_home_res_marquee_refresh(f_home);
     }
 
     {
@@ -643,17 +821,27 @@ compo_form_t *func_home_form_create(void)
     compo_picturebox_set_pos(pic, HOME_STATUS_BAT_X, HOME_STATUS_Y);
     compo_picturebox_set_size(pic, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
 
+    {
+        compo_textbox_t *txt = compo_textbox_create(frm, 48);
+
+        compo_setid(txt, COMPO_ID_TXT_RES_MARQUEE);
+        compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, HOME_RES_MARQUEE_Y);
+        compo_textbox_set_autoroll(txt, true);
+        compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_SROLL_CIRC);
+        compo_textbox_set_visible(txt, false);
+    }
+
     for (u8 i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
         pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
         compo_setid(pic, tbl_home_clock_id[i]);
         compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, HOME_CLOCK_Y);
-        compo_picturebox_set_size(pic, HOME_DIGIT_MAX_W, HOME_DIGIT_H);
+        compo_picturebox_set_size(pic, HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
     }
 
     pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_CLOCK_COLON);
     compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, HOME_CLOCK_Y);
-    compo_picturebox_set_size(pic, HOME_COLON_W, HOME_COLON_H);
+    compo_picturebox_set_size(pic, HOME_MAIN_COLON_W, HOME_MAIN_COLON_H);
 
     func_home_tab_create(frm, HOME_TAB_HEAT, COMPO_ID_TAB0_SEL_BG,
                          tbl_home_tab_label[HOME_TAB_HEAT], tbl_home_tab_x[HOME_TAB_HEAT]);
@@ -702,6 +890,9 @@ void func_home_enter(void)
 {
     f_home_t *f_home;
 
+    if (!func_home_tab_label_ram_alloc()) {
+        printf("func_home: tab label ram alloc fail\n");
+    }
     func_cb.f_cb = func_zalloc(sizeof(f_home_t));
     func_cb.frm_main = func_home_form_create();
 
@@ -725,6 +916,7 @@ void func_home_enter(void)
     f_home->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
     f_home->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
     f_home->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
+    f_home->txt_res_marquee = compo_getobj_byid(COMPO_ID_TXT_RES_MARQUEE);
     func_home_tab_bind(f_home, HOME_TAB_HEAT, COMPO_ID_TAB0_SEL_BG);
     func_home_tab_bind(f_home, HOME_TAB_MODE, COMPO_ID_TAB1_SEL_BG);
     func_home_tab_bind(f_home, HOME_TAB_SETUP, COMPO_ID_TAB2_SEL_BG);
@@ -735,10 +927,12 @@ void func_home_enter(void)
 
     func_home_tab_refresh(f_home);
     func_home_status_refresh(f_home);
+    func_home_res_marquee_refresh(f_home);
 }
 
 void func_home_exit(void)
 {
+    func_home_tab_label_ram_free();
     func_cb.last = FUNC_HOME;
 }
 
