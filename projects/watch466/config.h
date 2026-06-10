@@ -312,7 +312,7 @@
 #define LE_ALLOW_WKUP_EN                0   //休眠中ble断开/连接/传输是否需要退出休眠
 
 //gatt 配置
-#define LE_ATT_NUM                      25  //最大支持多少条gatt属性, att_handle 1 ~ LE_ATT_NUM (BlueFit + 128bit UUID img service)
+#define LE_ATT_NUM                      35  //最大支持多少条gatt属性, att_handle 1 ~ LE_ATT_NUM (BlueFit + 128bit UUID img service + lunchbox BLE)
 
 //APP 功能相关
 #define USE_APP_TYPE                    APP_BLUE_FIT //选择手表应用app类型

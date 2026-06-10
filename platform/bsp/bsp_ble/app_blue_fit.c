@@ -112,7 +112,7 @@ static const gatts_uuid_base_st gatt_tx_base = {
 };
 
 static const gatts_uuid_base_st gatt_rx_base = {
-    .props = ATT_WRITE_WITHOUT_RESPONSE,
+    .props = ATT_WRITE | ATT_WRITE_WITHOUT_RESPONSE,
     .type = BLE_GATTS_UUID_TYPE_128BIT,
     .uuid = rx_uuid128,
 };
@@ -325,9 +325,17 @@ int app_protocol_tx(u8 *buf, u8 len)
         return false;
     }
 
+    // 饭盒协议帧(0x55AA)不覆写序号，保持帧头完整
+    bool lunchbox_frame = false;
+#if FUNC_LUNCHBOX_UART_EN
+    if (buf[0] == 0x55 && buf[1] == 0xAA)
+        lunchbox_frame = true;
+#endif
+
 #if FUNC_CAMERA_TRANS_EN
 	if ((buf[0] != 0xaa) && (buf[1] != 55))
 #endif
+    if (!lunchbox_frame)
     {
         static u8 seq_num = 0;
         buf[0] = seq_num;
@@ -371,8 +379,17 @@ static int gatt_callback_app(uint16_t con_handle, uint16_t handle, uint32_t flag
 
 static void ble_app_blue_fit_rx_callback(u8 *ptr, u16 len)
 {
-//    printf("--->app_rx len:%d:\n");
+    printf("BLE rx len=%d: %02x %02x %02x\n", len, ptr[0], ptr[1], ptr[2]);
 //    print_r(ptr, len);
+
+#if FUNC_LUNCHBOX_UART_EN
+    // 饭盒协议帧：0x55AA 帧头 → 走饭盒 BLE 通道
+    if (len >= 2 && ptr[0] == 0x55 && ptr[1] == 0xAA) {
+        lunchbox_ble_rx_handle(ptr, len);
+        return;
+    }
+#endif
+
 #if FUNC_CAMERA_TRANS_EN
 	if (func_cb.sta == FUNC_CAMERA) {
 		func_camera_jpeg_rx(ptr, len);
@@ -499,17 +516,17 @@ static void ble_app_gatts_service_init(void)
                                  uuid_tx_primay_base.type,
                                  NULL);
 
-    // ret |= ble_gatts_characteristic_add(gatt_tx_base.uuid,
-    //                                     gatt_tx_base.type,
-    //                                     gatt_tx_base.props,
-    //                                     &gatts_tx_base.handle,
-    //                                     &gatts_app_protocol_tx_cb_info);      //characteristic
+    ret |= ble_gatts_characteristic_add(gatt_tx_base.uuid,
+                                         gatt_tx_base.type,
+                                         gatt_tx_base.props,
+                                         &gatts_tx_base.handle,
+                                         &gatts_app_protocol_tx_cb_info);      //characteristic
 
-    // ret |= ble_gatts_characteristic_add(gatt_rx_base.uuid,
-    //                                     gatt_rx_base.type,
-    //                                     gatt_rx_base.props,
-    //                                     &gatts_rx_base.handle,
-    //                                     &gatts_app_protocol_rx_cb_info);      //characteristic
+    ret |= ble_gatts_characteristic_add(gatt_rx_base.uuid,
+                                         gatt_rx_base.type,
+                                         gatt_rx_base.props,
+                                         &gatts_rx_base.handle,
+                                         &gatts_app_protocol_rx_cb_info);      //characteristic
 
 #if SECURITY_PAY_EN
     //alipay
@@ -576,10 +593,17 @@ static void ble_app_gatts_service_init(void)
 
 //----------------------------------------------------------------------------
 //
+#if FUNC_LUNCHBOX_UART_EN
+static void lb_ble_tx_wrapper(u8 *data, u16 len) { app_protocol_tx(data, (u8)len); }
+#endif
+
 void ble_app_watch_init(void)
 {
     ble_change_name("ebadges");
     ble_app_gatts_service_init();
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_ble_set_tx_fn(lb_ble_tx_wrapper);
+#endif
 }
 
 void ble_app_watch_disconnect_callback(void)

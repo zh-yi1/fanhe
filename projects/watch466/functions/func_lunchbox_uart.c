@@ -33,7 +33,8 @@ static u32 lb_rx_ticks;                  // 最近一次收到字节的时间戳
 
 static u8  lb_ring_buf[LB_RXBUF_SIZE];   // bsp_uart1 环形缓冲区
 static u8  lb_tx_buf[LB_TXBUF_SIZE];     // 组帧发送缓冲区
-static lb_cmd_handler_t   cmd_handler[256];  // 命令字 → 回调，下标即 cmd 值
+static lb_cmd_handler_t   cmd_handler[16];   // 命令字 → 回调，仅 0x01~0x0F 有效
+static lb_ble_tx_fn_t     lb_ble_tx_fn;      // BLE 发送回调（非 NULL 时走 BLE）
 
 //-----------------------------------------------------------------------------
 // 工具
@@ -132,8 +133,13 @@ static bool lb_frame_parse(void)
 
     // ──── 派发到已注册的命令处理器 ────
     LB_TRACE("lb: rx cmd=0x%02X dlen=%d\n", rx.cmd, rx.data_len);
-    if (cmd_handler[rx.cmd])                // 检查该 cmd 是否注册过处理器
-        cmd_handler[rx.cmd](&rx);           // 调回调，传 &rx（业务只读，不修改原始 buf）
+    if (rx.cmd < 16 && cmd_handler[rx.cmd]) {   // 边界检查 + 是否注册过处理器
+        // UART 收到的帧，应答走 UART 而非 BLE
+        lb_ble_tx_fn_t saved_ble_tx = lb_ble_tx_fn;
+        lb_ble_tx_fn = NULL;
+        cmd_handler[rx.cmd](&rx);               // 调回调，传 &rx（业务只读，不修改原始 buf）
+        lb_ble_tx_fn = saved_ble_tx;            // 恢复 BLE TX
+    }
 
     lb_rx_reset();                          // 帧处理完，重置 idx，准备收下一帧
     return true;
@@ -185,7 +191,11 @@ static void lb_send_frame(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
         memcpy(lb_tx_buf + off, data, len); off += len;
     }
     lb_tx_buf[off] = lb_checksum(lb_tx_buf, off); off++;
-    uart_bufs_tx(UART_TYPE_1, lb_tx_buf, off);
+    if (lb_ble_tx_fn) {
+        lb_ble_tx_fn(lb_tx_buf, off);           // 走 BLE Notify
+    } else {
+        uart_bufs_tx(UART_TYPE_1, lb_tx_buf, off); // 走 UART
+    }
 }
 
 /** @brief 发送请求/命令帧，err_flag 固定为成功 */
@@ -674,7 +684,60 @@ void lunchbox_uart_init_handlers(void)
 }
 
 /** @brief 为指定命令字注册处理回调，后注册覆盖先注册 */
-void  lunchbox_uart_reg_handler(u8 cmd, lb_cmd_handler_t h) { cmd_handler[cmd] = h; }
+void  lunchbox_uart_reg_handler(u8 cmd, lb_cmd_handler_t h) { if (cmd < 16) cmd_handler[cmd] = h; }
+
+//-----------------------------------------------------------------------------
+// BLE 通道实现
+//-----------------------------------------------------------------------------
+
+/** @brief 注册 BLE 发送函数 */
+void lunchbox_ble_set_tx_fn(lb_ble_tx_fn_t fn)
+{
+    lb_ble_tx_fn = fn;
+}
+
+/** @brief BLE 帧解析（无需从 UART 环形缓冲取数据，直接解析内存 buffer） */
+static bool lb_ble_frame_parse(u8 *raw, u16 raw_len, lb_rx_frame_t *frame)
+{
+    // 最小帧：帧头(2) + 版本(1) + msg_flag(1) + cmd(1) + err_flag(1) + data_len(2) + checksum(1) = 9
+    if (raw_len < 9) return false;
+
+    // 帧头校验：逐字节比较，避免大小端歧义
+    if (raw[0] != 0x55 || raw[1] != 0xAA) return false;
+
+    u16 data_len = ((u16)raw[6] << 8) | raw[7];   // 大端：raw[6]=高字节, raw[7]=低字节
+    if (raw_len != 9 + data_len) return false;
+
+    u8 checksum = lb_checksum(raw, raw_len - 1);
+    if (checksum != raw[raw_len - 1]) return false;
+
+    frame->version  = raw[2];
+    frame->msg_flag = raw[3];
+    frame->cmd      = raw[4];
+    frame->err_flag = raw[5];
+    frame->data_len = data_len;
+    frame->data     = data_len > 0 ? &raw[8] : NULL;
+    frame->valid    = true;
+    return true;
+}
+
+/** @brief 处理 BLE 接收到的饭盒协议帧 */
+void lunchbox_ble_rx_handle(u8 *data, u16 len)
+{
+    lb_rx_frame_t frame;
+    memset(&frame, 0, sizeof(frame));
+
+    if (!lb_ble_frame_parse(data, len, &frame)) {
+        LB_TRACE("lb_ble: frame parse fail, len=%d\n", len);
+        return;
+    }
+
+    LB_TRACE("lb_ble: rx cmd=0x%02x msg=%d len=%d\n", frame.cmd, frame.msg_flag, frame.data_len);
+
+    if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
+        cmd_handler[frame.cmd](&frame);
+    }
+}
 
 /** @brief 初始化 UART1 及协议模块内部状态，见 func_lunchbox_uart.h */
 void lunchbox_uart_init(u32 baud)

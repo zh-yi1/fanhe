@@ -24,8 +24,8 @@
 
 #define LB_BAUD                 115200      // 波特率（按需修改）
 #define LB_SELFTEST_EN          0           // 自测开关：1=开启echo，0=关闭
-#define LB_RXBUF_SIZE           512         // 接收缓冲区大小(字节)
-#define LB_TXBUF_SIZE           512         // 发送缓冲区大小(字节)
+#define LB_RXBUF_SIZE           256         // 接收缓冲区大小(字节)
+#define LB_TXBUF_SIZE           256         // 发送缓冲区大小(字节)
 #define LB_FRAME_TIMEOUT_MS     300         // 帧超时时间(毫秒)，超过此时间未收完一帧则丢弃
 
 //-----------------------------------------------------------------------------
@@ -51,7 +51,7 @@ enum {
 //-----------------------------------------------------------------------------
 // 预约记录
 //-----------------------------------------------------------------------------
-#define LB_SCHEDULE_MAX         20      // 最大预约条数
+#define LB_SCHEDULE_MAX         5       // 最大预约条数
 
 typedef struct {
     u8  id;                             // 唯一标识 (1~255, 0=无效)
@@ -273,6 +273,19 @@ void lunchbox_report_attr(u8 dpid);
  * 同时在 UART1 发送 LUNCHBOX_UART_OK\r\n 和注册命令 echo。
  */
 void func_lunchbox_uart_test(void);
+
+//-----------------------------------------------------------------------------
+// BLE 通道接口
+//-----------------------------------------------------------------------------
+
+/** @brief BLE 发送回调函数类型 */
+typedef void (*lb_ble_tx_fn_t)(u8 *data, u16 len);
+
+/** @brief 注册 BLE 发送函数 */
+void lunchbox_ble_set_tx_fn(lb_ble_tx_fn_t fn);
+
+/** @brief 处理 BLE 接收到的饭盒协议帧，自动校验+分发给命令处理器 */
+void lunchbox_ble_rx_handle(u8 *data, u16 len);
 
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_UART_H
