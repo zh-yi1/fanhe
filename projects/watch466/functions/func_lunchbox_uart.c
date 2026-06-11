@@ -241,6 +241,10 @@ static u8 lb_attr_heat_temp     = 0;    // 加热温度: 默认40°C
 static u8 lb_attr_language      = 0;    // 语言: 默认中文
 static u8 lb_attr_fault         = 0;    // 故障: 默认正常
 
+// 模式信息（0x08 查询 / 0x09 修改）：索引 1=自定义, 2=鸡腿, 3=意面, 4=预约, 5=保温
+static u8 lb_mode_temp[6]     = { 0, 3, 4, 5, 3, 0 };  // 默认: 自定义70°C, 鸡腿80°C, 意面90°C, 预约70°C, 保温40°C
+static u8 lb_mode_duration[6] = { 0, 30, 45, 20, 30, 0 }; // 默认: 自定义30min, 鸡腿45min, 意面20min, 预约30min, 保温0min
+
 //-----------------------------------------------------------------------------
 // DataPoint 编码工具
 //-----------------------------------------------------------------------------
@@ -607,18 +611,59 @@ static u8 lb_handler_schedule_delete(lb_rx_frame_t *rx)
 }
 
 /**
- * @brief 0x08 — 状态查询
- * APP 发送: 无数据 → 触发 0x03 全量上报
+ * @brief 0x08 — 获取指定模式信息
+ * APP 发送: 无数据(查全部3种) 或 1字节模式标志(1-3, 查指定模式)
+ * MCU 返回: 每条3字节(模式标志+温度+时长), 共3~9字节
  */
-static u8 lb_handler_status_query(lb_rx_frame_t *rx)
+static u8 lb_handler_mode_query(lb_rx_frame_t *rx)
 {
-    lunchbox_report_all_attrs(); // ← 先发 0x03 异步帧
-    lunchbox_uart_send_response(LB_CMD_STATUS_QUERY, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
-    return LB_ERR_SUCCESS;       // ← 再发 0x08 同步应答
+    u8 buf[15];  // 最多5条 × 3字节 = 15
+    u16 off = 0;
+
+    if (rx->data_len == 1 && rx->data && rx->data[0] >= 1 && rx->data[0] <= 5) {
+        // 查询指定模式
+        u8 mode = rx->data[0];
+        buf[off++] = mode;
+        buf[off++] = lb_mode_temp[mode];
+        buf[off++] = lb_mode_duration[mode];
+    } else {
+        // 查询所有5种模式
+        for (u8 m = 1; m <= 5; m++) {
+            buf[off++] = m;
+            buf[off++] = lb_mode_temp[m];
+            buf[off++] = lb_mode_duration[m];
+        }
+    }
+
+    lunchbox_uart_send_response(LB_CMD_MODE_QUERY, rx->msg_flag, LB_ERR_SUCCESS, buf, off);
+    return LB_ERR_SUCCESS;
 }
 
 /**
- * @brief 0x09 — 升级查询 (桩)
+ * @brief 0x09 — 修改指定模式信息
+ * APP 发送: 3字节(模式标志+温度+时长) → MCU 返回成功/失败
+ */
+static u8 lb_handler_mode_modify(lb_rx_frame_t *rx)
+{
+    if (!rx->data || rx->data_len < 3) {
+        lunchbox_uart_send_response(LB_CMD_MODE_MODIFY, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return LB_ERR_EXEC_FAIL;
+    }
+
+    u8 mode = rx->data[0];
+    if (mode < 1 || mode > 5) {
+        lunchbox_uart_send_response(LB_CMD_MODE_MODIFY, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return LB_ERR_EXEC_FAIL;
+    }
+
+    lb_mode_temp[mode]     = rx->data[1];
+    lb_mode_duration[mode] = rx->data[2];
+    lunchbox_uart_send_response(LB_CMD_MODE_MODIFY, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
+    return LB_ERR_SUCCESS;
+}
+
+/**
+ * @brief 0x0a — 升级查询 (桩)
  */
 static u8 lb_handler_ota_query(lb_rx_frame_t *rx)
 {
@@ -628,7 +673,7 @@ static u8 lb_handler_ota_query(lb_rx_frame_t *rx)
 }
 
 /**
- * @brief 0x0a — 升级启动 (桩)
+ * @brief 0x0b — 升级启动 (桩)
  */
 static u8 lb_handler_ota_start(lb_rx_frame_t *rx)
 {
@@ -638,7 +683,7 @@ static u8 lb_handler_ota_start(lb_rx_frame_t *rx)
 }
 
 /**
- * @brief 0x0b — 升级包传输 (桩)
+ * @brief 0x0c — 升级包传输 (桩)
  */
 static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
 {
@@ -647,7 +692,7 @@ static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
 }
 
 /**
- * @brief 0x0c — 升级结束 (桩)
+ * @brief 0x0d — 升级结束 (桩)
  */
 static u8 lb_handler_ota_end(lb_rx_frame_t *rx)
 {
@@ -669,7 +714,8 @@ void lunchbox_uart_init_handlers(void)
     lunchbox_uart_reg_handler(LB_CMD_SCHEDULE_ADD,    lb_handler_schedule_add);
     lunchbox_uart_reg_handler(LB_CMD_SCHEDULE_MODIFY, lb_handler_schedule_modify);
     lunchbox_uart_reg_handler(LB_CMD_SCHEDULE_DELETE, lb_handler_schedule_delete);
-    lunchbox_uart_reg_handler(LB_CMD_STATUS_QUERY,    lb_handler_status_query);
+    lunchbox_uart_reg_handler(LB_CMD_MODE_QUERY,      lb_handler_mode_query);
+    lunchbox_uart_reg_handler(LB_CMD_MODE_MODIFY,     lb_handler_mode_modify);
     lunchbox_uart_reg_handler(LB_CMD_OTA_QUERY,       lb_handler_ota_query);
     lunchbox_uart_reg_handler(LB_CMD_OTA_START,       lb_handler_ota_start);
     lunchbox_uart_reg_handler(LB_CMD_OTA_DATA,        lb_handler_ota_data);

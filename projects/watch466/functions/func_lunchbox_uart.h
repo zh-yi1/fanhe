@@ -51,7 +51,7 @@ enum {
 //-----------------------------------------------------------------------------
 // 预约记录
 //-----------------------------------------------------------------------------
-#define LB_SCHEDULE_MAX         5       // 最大预约条数
+#define LB_SCHEDULE_MAX         10      // 最大预约条数
 
 typedef struct {
     u8  id;                             // 唯一标识 (1~255, 0=无效)
@@ -100,11 +100,12 @@ enum {
     LB_CMD_SCHEDULE_ADD     = 0x05,     // [同步] 新增预约
     LB_CMD_SCHEDULE_MODIFY  = 0x06,     // [同步] 修改预约
     LB_CMD_SCHEDULE_DELETE  = 0x07,     // [同步] 删除预约
-    LB_CMD_STATUS_QUERY     = 0x08,     // [同步] 状态查询（触发0x03全量上报）
-    LB_CMD_OTA_QUERY        = 0x09,     // [同步] 升级查询
-    LB_CMD_OTA_START        = 0x0a,     // [同步] 升级启动
-    LB_CMD_OTA_DATA         = 0x0b,     // [同步] 升级包传输
-    LB_CMD_OTA_END          = 0x0c,     // [同步] 升级结束
+    LB_CMD_MODE_QUERY       = 0x08,     // [同步] 获取指定模式信息（温度+时长）
+    LB_CMD_MODE_MODIFY      = 0x09,     // [同步] 修改指定模式信息
+    LB_CMD_OTA_QUERY        = 0x0a,     // [同步] 升级查询
+    LB_CMD_OTA_START        = 0x0b,     // [同步] 升级启动
+    LB_CMD_OTA_DATA         = 0x0c,     // [同步] 升级包传输
+    LB_CMD_OTA_END          = 0x0d,     // [同步] 升级结束
 
     // --- 异步命令：MCU 主动推送 ---
     LB_CMD_STATUS_REPORT    = 0x03,     // [异步] 状态上报（属性变化/故障通知）
