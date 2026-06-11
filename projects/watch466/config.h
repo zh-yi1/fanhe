@@ -223,7 +223,7 @@
 #define GUI_USE_SCREENSHOOT             1*CHIP_PACKAGE_SUPPORT_PSRAM //是否使用截图转场, 需要使用psram
 #define GUI_USE_BLUR                    1*CHIP_PACKAGE_SUPPORT_PSRAM //是否使用高斯模糊, 需要使用psram,开启后下拉界面使用高斯模糊效果
 #define GUI_SPU_PSRAM                   0                       //使用PSRAM推屏
-#define DEFAULE_START_FUNC              FUNC_RESERVATION            //默认启动页为版本信息页
+#define DEFAULE_START_FUNC              FUNC_HOME            //默认启动页为版本信息页
 
 /*****************************************************************************
  * Module    : UI场景相关配置
