@@ -53,7 +53,7 @@
 #define CHIP_PACKAGE_SUPPORT_PSRAM      1                           //芯片支持psram
 #define CHIP_PACKAGE_SUPPORT_HFP        1                           //芯片支持HFP
 
-#define UART0_PRINTF_SEL                PRINTF_PE7                  //非饭盒默认；饭盒 ELUNCHBOX 块内改 VUSB
+#define UART0_PRINTF_SEL                PRINTF_PB3                  //日志总开关：PRINTF_NONE=关 printf；PRINTF_PB3=PB3 UART 115200
 #define SYS_INIT_VOLUME                 xcfg_cb.sys_init_vol        //系统默认音量
 
 #define TS_MODE_EN                      0                           //内部NTC模块是否开启
@@ -196,16 +196,8 @@
 
 #if ELUNCHBOX_PANEL_EN
 #define ELUNCHBOX_KEEP_AWAKE            1           /* 禁止自动熄屏/深度休眠 */
-/*
- * 调试 UART 选择（二选一，改下面一行即可）：
- *   PRINTF_PE7  — PE7 TX 接 USB-TTL，115200（默认，不影响 LCD）
- *   PRINTF_VUSB — 饭盒板会自动降级为 PE7（VUSB 会干扰 LCD 供电）
- */
-#ifndef ELUNCHBOX_UART0_PRINTF
-#define ELUNCHBOX_UART0_PRINTF          PRINTF_PE7  /* PE7 USB-TTL 115200；勿 VUSB(易花屏) */
-#endif
-#undef  UART0_PRINTF_SEL
-#define UART0_PRINTF_SEL                ELUNCHBOX_UART0_PRINTF
+/* 日志走全局 UART0_PRINTF_SEL（PRINTF_PB3 / PRINTF_NONE）；TRACE_EN 仅控各文件 TRACE() 宏 */
+/* LEVEL_HIGH_PRI 定时器在 tmr 线程执行；饭盒须保持 BT_EMIT_EN=0，避免额外高优先级 co_timer */
 /* 保持 FUNC_BT_EN=1，否则 libapp(rf.c) 缺 rfphy_* / modem_init 链接符号 */
 #undef  BT_BACKSTAGE_EN
 #define BT_BACKSTAGE_EN                 0
@@ -579,9 +571,17 @@
 #define PT8028_FLAG_ACTIVE_LOW          1           //OUT_FLAG 低有效=有键（规格表2）
 #define PT8028_KEY_DEBOUNCE_SCANS       1           //保留兼容；释放沿不再依赖此值
 #define PT8028_KEY_LATCH_MS             80          //保留，兼容旧配置
+#if ELUNCHBOX_PANEL_EN
+#define PT8028_KEY_DEBUG                0           //饭盒默认关，避免 printf 阻塞 tmr 线程
+#else
 #define PT8028_KEY_DEBUG                1           //边沿/按键日志经 pt8028_log_flush 输出
+#endif
 #define PT8028_GPIO_MONITOR_EN          0           //1=主循环打印 GPIO(易刷屏/卡死，默认关)
+#if ELUNCHBOX_PANEL_EN
+#define PT8028_BCD_SAMPLE_CNT           3           //主线程扫描，略减采样次数
+#else
 #define PT8028_BCD_SAMPLE_CNT           5           //每次读 BCD 连采次数(多数表决)
+#endif
 #define PT8028_BCD_STABLE_CNT           2           //释放/消息：连续 2 次 5ms 相同 BCD
 #define PT8028_PRESS_SETTLE_SCANS       2           //OUT_FLAG 变 0 后约 10ms 再采 BCD
 

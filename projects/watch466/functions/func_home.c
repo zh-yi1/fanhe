@@ -15,6 +15,17 @@
 #include "bsp_pt8028_key.h"
 #endif
 
+#if ELUNCHBOX_PANEL_EN
+#define HOME_DBG(...)
+#else
+#define HOME_DBG(...)           printf(__VA_ARGS__)
+#endif
+
+#if ELUNCHBOX_PANEL_EN
+#undef TRACE_EN
+#define TRACE_EN                0
+#endif
+
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
 #else
@@ -295,6 +306,24 @@ typedef struct f_home_t_ {
 static u32 home_countdown_remain_sec;
 static bool home_countdown_running;
 
+#if ELUNCHBOX_PANEL_EN
+static u8 home_gui_dirty = 1;
+
+void func_home_gui_mark_dirty(void)
+{
+    home_gui_dirty = 1;
+}
+
+bool func_home_gui_need_refresh(void)
+{
+    if (!home_gui_dirty) {
+        return false;
+    }
+    home_gui_dirty = 0;
+    return true;
+}
+#endif
+
 static u8 *home_tab_label_ram_ptr[HOME_TAB_CNT];
 
 static const char * const tbl_home_tab_label[HOME_TAB_CNT] = {
@@ -521,6 +550,8 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
         return;
     }
 
+    home_gpu_wait_idle();
+
     os_spiflash_read(home_ui_colon_ram, UI_BUF_HOME_COLON_BIN, UI_LEN_HOME_COLON_BIN);
     if (gui_set_ram_check(home_ui_colon_ram, __func__)) {
         compo_picturebox_set_ram(f_home->pic_clock_colon, home_ui_colon_ram);
@@ -536,6 +567,9 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
     }
 
     func_home_clock_layout(f_home, hour, min);
+#if ELUNCHBOX_PANEL_EN
+    func_home_gui_mark_dirty();
+#endif
 }
 
 static void func_home_countdown_adjust_min(f_home_t *f_home, s16 delta_min)
@@ -711,6 +745,8 @@ static void func_home_tab_refresh(f_home_t *f_home)
 {
     u8 i;
 
+    home_gpu_wait_idle();
+
     for (i = 0; i < HOME_TAB_CNT; i++) {
         home_tab_ui_t *tab = &f_home->tabs[i];
         bool selected = (i == f_home->tab);
@@ -722,6 +758,9 @@ static void func_home_tab_refresh(f_home_t *f_home)
         func_home_tab_line_update(f_home, i);
         func_home_tab_label_update(f_home, i);
     }
+#if ELUNCHBOX_PANEL_EN
+    func_home_gui_mark_dirty();
+#endif
 }
 
 static void func_home_tab_select(f_home_t *f_home, u8 tab)
@@ -755,7 +794,7 @@ void func_home_mode_key(void)
     }
     last_tick = tick_get();
     func_home_tab_select_next(f_home);
-    printf("Home Tab -> %s\n", tab_name[f_home->tab]);
+    HOME_DBG("Home Tab -> %s\n", tab_name[f_home->tab]);
 }
 
 static void func_home_tab_enter(f_home_t *f_home)
@@ -764,19 +803,21 @@ static void func_home_tab_enter(f_home_t *f_home)
         return;
     }
 
+    home_gpu_wait_idle();
+
     switch (f_home->tab) {
     case HOME_TAB_HEAT:
-        printf("func_home_tab_enter: HOME_TAB_HEAT\n");
+        HOME_DBG("func_home_tab_enter: HOME_TAB_HEAT\n");
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
     case HOME_TAB_MODE:
-        printf("func_home_tab_enter: HOME_TAB_MODE\n");
+        HOME_DBG("func_home_tab_enter: HOME_TAB_MODE\n");
         func_switch_to(FUNC_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
     case HOME_TAB_SETUP:
-        printf("func_home_tab_enter: HOME_TAB_SETUP\n");
+        HOME_DBG("func_home_tab_enter: HOME_TAB_SETUP\n");
         func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
@@ -795,12 +836,18 @@ static void func_home_res_marquee_refresh(f_home_t *f_home)
 
     if (!func_reservation_is_waiting()) {
         compo_textbox_set_visible(f_home->txt_res_marquee, false);
+#if ELUNCHBOX_PANEL_EN
+        func_home_gui_mark_dirty();
+#endif
         return;
     }
 
     func_reservation_marquee_text(buf, sizeof(buf));
     compo_textbox_set(f_home->txt_res_marquee, buf);
     compo_textbox_set_visible(f_home->txt_res_marquee, true);
+#if ELUNCHBOX_PANEL_EN
+    func_home_gui_mark_dirty();
+#endif
 }
 
 static void func_home_status_refresh(f_home_t *f_home)
@@ -813,6 +860,9 @@ static void func_home_status_refresh(f_home_t *f_home)
         home_top_time_refresh(&f_home->top_time, &tm);
         func_home_countdown_tick();
         func_home_res_marquee_refresh(f_home);
+#if ELUNCHBOX_PANEL_EN
+        func_home_gui_mark_dirty();
+#endif
     }
 
     {
@@ -918,7 +968,6 @@ static void func_home_pt8028_poll(f_home_t *f_home)
     static u8 session_bcd = 0xff;
     u8 flag, bcd, d0, d1, d2;
 
-    pt8028_gpio_ensure();
     pt8028_get_raw_state(&flag, &bcd, &d0, &d1, &d2);
 
     if (flag == 0 && bcd <= PT8028_KEY_TCH7 && bcd != PT8028_KEY_TCH7) {
@@ -933,11 +982,11 @@ static void func_home_pt8028_poll(f_home_t *f_home)
     if (last_flag == 0 && flag == 1 && session_bcd <= PT8028_KEY_TCH7) {
         switch (session_bcd) {
         case PT8028_KEY_TCH3:
-            printf("Home: 模式键 TCH3 (FLAG,D2,D1,D0=0,0,1,1)\n");
+            HOME_DBG("Home: 模式键 TCH3 (FLAG,D2,D1,D0=0,0,1,1)\n");
             func_home_mode_key();
             break;
         case PT8028_KEY_TCH4:
-            printf("Home: 确认键 TCH4\n");
+            HOME_DBG("Home: 确认键 TCH4\n");
             func_home_tab_enter(f_home);
             break;
         default:
@@ -954,7 +1003,7 @@ void func_home_process(void)
 {
     f_home_t *f_home = (f_home_t *)func_cb.f_cb;
 
-#if USER_PT8028_KEY
+#if USER_PT8028_KEY && !ELUNCHBOX_PANEL_EN
     if (f_home != NULL) {
         func_home_pt8028_poll(f_home);
     }
@@ -975,41 +1024,43 @@ void func_home_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        printf("Home: 锁键\n");
+        HOME_DBG("Home: 锁键\n");
         break;
 
     case KU_PREV:
-        printf("Home: 加热键 -> 跳转加热页\n");
+        HOME_DBG("Home: 加热键 -> 跳转加热页\n");
+        home_gpu_wait_idle();
         func_message(msg);
         break;
 
     case KU_MODE:
     case K_MODE:
-        printf("Home: 模式键 -> 切换 Tab (msg=0x%04X)\n", (unsigned)msg);
+        HOME_DBG("Home: 模式键 -> 切换 Tab (msg=0x%04X)\n", (unsigned)msg);
         func_home_mode_key();
         break;
 
     case KU_BACK:
-        printf("Home: 确认键 -> 进入当前 Tab\n");
+        HOME_DBG("Home: 确认键 -> 进入当前 Tab\n");
         func_home_tab_enter(f_home);
         break;
 
     case KU_RIGHT:
-        printf("Home: 开关键\n");
+        HOME_DBG("Home: 开关键\n");
         break;
 
     case KU_NEXT:
-        printf("Home: 预约键 -> 跳转预约页\n");
+        HOME_DBG("Home: 预约键 -> 跳转预约页\n");
+        home_gpu_wait_idle();
         func_message(msg);
         break;
 
     case KU_VOL_UP:
-        printf("Home: 加号 -> 倒计时+1分钟\n");
+        HOME_DBG("Home: 加号 -> 倒计时+1分钟\n");
         func_home_countdown_adjust_min(f_home, 1);
         break;
 
     case KU_VOL_DOWN:
-        printf("Home: 减号 -> 倒计时-1分钟\n");
+        HOME_DBG("Home: 减号 -> 倒计时-1分钟\n");
         func_home_countdown_adjust_min(f_home, -1);
         break;
 
@@ -1024,7 +1075,7 @@ void func_home_enter(void)
     f_home_t *f_home;
 
     if (!func_home_tab_label_ram_alloc()) {
-        printf("func_home: tab label ram alloc fail\n");
+        HOME_DBG("func_home: tab label ram alloc fail\n");
     }
     func_cb.f_cb = func_zalloc(sizeof(f_home_t));
     func_cb.frm_main = func_home_form_create();
@@ -1064,6 +1115,9 @@ void func_home_enter(void)
 
     tft_bglight_frist_set_check();
     os_gui_draw_force();
+#if ELUNCHBOX_PANEL_EN
+    func_home_gui_mark_dirty();     /* 首帧进主循环仍需 gui_process 一次 */
+#endif
 }
 
 void func_home_exit(void)
@@ -1077,7 +1131,9 @@ void func_home_exit(void)
 
 void func_home(void)
 {
+#if !ELUNCHBOX_PANEL_EN
     printf("%s\n", __func__);
+#endif
     func_home_enter();
     while (func_cb.sta == FUNC_HOME) {
         func_home_message(msg_dequeue());

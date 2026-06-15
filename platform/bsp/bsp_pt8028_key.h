@@ -45,10 +45,22 @@ void pt8028_log_flush(void);
 /* 主线程：GPIO 变化时打印原始电平 */
 void pt8028_gpio_monitor(void);
 
-/* 周期检查 PE1~4 数字使能，防止被 init 清掉 */
+/* 仅在 GPIO 未配置时恢复 PE1~4（热路径无 GPIOEDE 读） */
 void pt8028_gpio_ensure(void);
+
+/* 主线程 500ms 检测 GPIOEDE 是否被 LCD/SD 等改写 */
+void pt8028_gpio_ensure_periodic(void);
+
+/* pt8028_port_gpio_init 完成后标记已配置 */
+void pt8028_gpio_mark_configured(void);
+
+/* LCD/GUI 等可能清 GPIO 前置无效，下次 ensure 会恢复 */
+void pt8028_gpio_invalidate(void);
 
 /* 周期重新配置 PT8028 GPIO，防止被 SD/LCD 复用覆盖 */
 void pt8028_poll_reinit(void);
+
+/* 饭盒：主线程 5ms 节拍扫描（勿放 5ms 中断，避免饿死 tmr 线程） */
+void pt8028_key_scan(void);
 
 #endif // _BSP_PT8028_KEY_H

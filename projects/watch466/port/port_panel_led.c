@@ -97,7 +97,7 @@ static void panel_led_show_tch(u8 tch)
     }
 }
 
-AT(.text.port.panel_led)
+AT(.com_text.port.panel_led)
 void panel_led_scan(void)
 {
     u8 tch = pt8028_get_led_tch();

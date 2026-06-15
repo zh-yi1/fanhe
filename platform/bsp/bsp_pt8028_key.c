@@ -50,6 +50,7 @@ typedef struct {
 static pt8028_cb_t pt8028_cb AT(.buf.pt8028);
 static pt8028_edge_log_t pt8028_edge_log AT(.buf.pt8028);
 static pt8028_key_log_t pt8028_key_log AT(.buf.pt8028);
+static u8 pt8028_gpio_ok AT(.buf.pt8028);
 
 static char pt8028_last_key_str[12] AT(.buf.pt8028) = "none";
 static u8 pt8028_sample_bcd AT(.buf.pt8028) = 0xff;
@@ -213,8 +214,11 @@ AT(.com_text.bsp.pt8028)
 static void pt8028_emit_short_up(u8 out_flag)
 {
     u8 key;
-    u8 bcd = pt8028_bcd_pick_release();
+    u8 bcd = pt8028_cb.press_bcd;
 
+    if (!pt8028_bcd_pressed_valid(bcd)) {
+        bcd = pt8028_bcd_pick_release();
+    }
     if (!pt8028_bcd_pressed_valid(bcd)) {
         pt8028_key_reject_print(0xff, pt8028_cb.press_bcd,
                                 pt8028_hist_best(pt8028_cb.bcd_hist), out_flag);
@@ -226,20 +230,59 @@ static void pt8028_emit_short_up(u8 out_flag)
     pt8028_cb.press_key = key;
     pt8028_cb.pending_ku = (u16)(key | KEY_SHORT_UP);
     pt8028_queue_key(bcd, key, pt8028_cb.pending_ku, bcd, out_flag);
+}
 
-    if (bcd <= PT8028_KEY_TCH7) {
-        strcpy(pt8028_last_key_str, tbl_pt8028_short_name[bcd]);
+#define PT8028_GPIO_PE_MASK             (BIT(1) | BIT(2) | BIT(3) | BIT(4))
+
+AT(.com_text.bsp.pt8028)
+void pt8028_gpio_mark_configured(void)
+{
+    pt8028_gpio_ok = 1;
+}
+
+AT(.com_text.bsp.pt8028)
+void pt8028_gpio_invalidate(void)
+{
+    pt8028_gpio_ok = 0;
+}
+
+AT(.com_text.bsp.pt8028)
+void pt8028_gpio_ensure(void)
+{
+    /* 已配置且未被改写：直接返回；勿在 5ms 中断里调用本函数 */
+    if (pt8028_gpio_ok) {
+        return;
     }
+    if ((GPIOEDE & PT8028_GPIO_PE_MASK) == PT8028_GPIO_PE_MASK) {
+        pt8028_gpio_ok = 1;
+        return;
+    }
+    pt8028_port_gpio_init();
 }
 
 AT(.text.bsp.pt8028)
-void pt8028_gpio_ensure(void)
+void pt8028_gpio_ensure_periodic(void)
 {
-    /* bsp_io_init/gui 可能清掉 GPIOE，须 4 脚 DE 全置位才认为有效 */
-    const u32 pe_mask = (BIT(1) | BIT(2) | BIT(3) | BIT(4));
+    static u32 last_chk_ms;
+    static u32 last_gpioede_pe;
+    u32 cur;
 
-    if ((GPIOEDE & pe_mask) != pe_mask) {
-        pt8028_port_gpio_init();
+    if (!tick_check_expire(last_chk_ms, 500)) {
+        return;
+    }
+    last_chk_ms = tick_get();
+
+    cur = GPIOEDE & PT8028_GPIO_PE_MASK;
+    if (cur == last_gpioede_pe) {
+        return;
+    }
+    last_gpioede_pe = cur;
+
+    if (cur == PT8028_GPIO_PE_MASK) {
+        pt8028_gpio_ok = 1;
+    } else {
+        pt8028_gpio_ok = 0;
+        pt8028_gpio_ensure();
     }
 }
 
@@ -264,8 +307,7 @@ u8 get_pt8028_key(void)
     u8 key_val = NO_KEY;
     u8 bcd;
 
-    pt8028_gpio_ensure();
-
+    /* GPIO 恢复仅主线程 periodic 负责，中断里不调 ensure(Flash) */
     if (pt8028_is_pressed()) {
         if (pt8028_cb.last_out_flag == 1) {
             pt8028_cb.press_active = 1;
@@ -348,9 +390,12 @@ u8 pt8028_get_led_tch(void)
 {
     u8 bcd;
 
-    /* LED：settle 后即时多数表决，不要求 full stable（避免长时间不亮） */
     if (!pt8028_is_pressed() || pt8028_cb.press_settle > 0) {
         return PT8028_KEY_NONE;
+    }
+
+    if (pt8028_bcd_is_stable() && pt8028_bcd_pressed_valid(pt8028_cb.press_bcd)) {
+        return pt8028_cb.press_bcd;
     }
 
     bcd = pt8028_read_bcd_pressed();
@@ -426,6 +471,10 @@ void pt8028_log_flush(void)
             last_flag = flag;
         }
     }
+#else
+    if (!pt8028_edge_log.pending && !pt8028_key_log.pending) {
+        return;
+    }
 #endif
 
     if (pt8028_edge_log.pending) {
@@ -477,5 +526,33 @@ void pt8028_poll_reinit(void)
         pt8028_port_gpio_init();
     }
 }
+
+#if ELUNCHBOX_PANEL_EN
+AT(.text.bsp.pt8028)
+void pt8028_key_scan(void)
+{
+    static u32 last_ms;
+    u16 key;
+
+    if (!tick_check_expire(last_ms, 5)) {
+        return;
+    }
+    last_ms = tick_get();
+
+    get_pt8028_key();
+
+    key = pt8028_pop_short_up();
+    if (key == NO_KEY) {
+        return;
+    }
+    if (sys_cb.gui_sleep_sta) {
+        sys_cb.gui_need_wakeup = 1;
+    }
+    if (sys_cb.gui_sleep_sta == 0) {
+        msg_enqueue(key);
+    }
+    reset_sleep_delay_all();
+}
+#endif
 
 #endif // USER_PT8028_KEY

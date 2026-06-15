@@ -223,6 +223,8 @@ bool home_top_time_refresh(home_top_time_ui_t *ui, tm_t *tm)
     if (ui->last_key == key) {
         return false;
     }
+
+    home_gpu_wait_idle();
     ui->last_key = key;
 
     h10 = (u8)(hour12 / 10);

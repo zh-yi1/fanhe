@@ -443,7 +443,7 @@ AT(.com_text.bsp.key)
 u8 bsp_key_scan(void)
 {
     static bool flag_detach_delay_key = false;
-#if USER_PT8028_KEY
+#if USER_PT8028_KEY && !ELUNCHBOX_PANEL_EN
     static u16 pt8028_block_ku = NO_KEY;
 #endif
     u8 key_val = NO_KEY;
@@ -460,7 +460,7 @@ u8 bsp_key_scan(void)
     sys_cb.vusb = bsp_vusb_get_voltage();
 #endif
 
-#if USER_PT8028_KEY
+#if USER_PT8028_KEY && !ELUNCHBOX_PANEL_EN
     key_val = get_pt8028_key();
 
     key = pt8028_pop_short_up();
@@ -497,7 +497,7 @@ u8 bsp_key_scan(void)
 #endif // USER_IOKEY
 
     key = bsp_key_process(key_val);
-#if USER_PT8028_KEY
+#if USER_PT8028_KEY && !ELUNCHBOX_PANEL_EN
     if (key != NO_KEY && key == pt8028_block_ku) {
         key = NO_KEY;
         pt8028_block_ku = NO_KEY;

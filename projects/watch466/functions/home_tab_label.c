@@ -1,5 +1,6 @@
 #include "include.h"
 #include "home_tab_label.h"
+#include "home_ui_shared.h"
 
 typedef struct {
     char c;
@@ -188,6 +189,8 @@ void home_tab_label_apply(compo_picturebox_t *pic, u8 *ram, u16 buf_size,
     if (pic == NULL || ram == NULL || tw == 0) {
         return;
     }
+
+    home_gpu_wait_idle();
 
     data_len = home_tab_label_render(ram, buf_size, label, bg_color);
     if (data_len == 0) {

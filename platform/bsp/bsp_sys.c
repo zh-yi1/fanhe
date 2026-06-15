@@ -529,7 +529,9 @@ void uart0_mapping_sel(void)
     FUNCMCON0 = URX0MAP_TX | UTX0MAP_PE7;           //RX0 Map To TX0, TX0 Map to G6
 #elif (UART0_PRINTF_SEL == PRINTF_VUSB)
     PWRCON0 |= BIT(30);                             //Enable VUSB GPIO
+#if !ELUNCHBOX_PANEL_EN
     RTCCON &= ~BIT(6);                              //关充电复位
+#endif
     PWRCON0 |= BIT(29);
     FUNCMCON0 = URX0MAP_TX | UTX0MAP_VUSB;          //RX0 Map To TX0, TX0 Map to G8
 #endif

@@ -90,10 +90,12 @@ static void pt8028_gpio_input_init(u8 io, u8 pull)
 AT(.text.key.init)
 void pt8028_port_gpio_init(void)
 {
+    pt8028_gpio_invalidate();
     pt8028_gpio_input_init(PT8028_GPIO_OUT_FLAG, PT8028_GPIO_FLAG_PULL);
     pt8028_gpio_input_init(PT8028_GPIO_D0, PT8028_GPIO_BCD_PULL);
     pt8028_gpio_input_init(PT8028_GPIO_D1, PT8028_GPIO_BCD_PULL);
     pt8028_gpio_input_init(PT8028_GPIO_D2, PT8028_GPIO_BCD_PULL);
+    pt8028_gpio_mark_configured();
 }
 
 AT(.text.key.init)

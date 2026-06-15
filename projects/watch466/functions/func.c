@@ -3,6 +3,9 @@
 #include "func_tbl.h"
 #include "func.h"
 #include "func_reservation.h"
+#if ELUNCHBOX_PANEL_EN
+#include "home_ui_shared.h"
+#endif
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #endif
@@ -67,7 +70,10 @@ void func_process(void)
     WDT_CLR();
 
 #if USER_PT8028_KEY
-    pt8028_gpio_ensure();
+    pt8028_gpio_ensure_periodic();
+#if ELUNCHBOX_PANEL_EN
+    pt8028_key_scan();
+#endif
     pt8028_log_flush();
 #if !ELUNCHBOX_PANEL_EN
     pt8028_poll_reinit();
@@ -77,7 +83,7 @@ void func_process(void)
 #endif
 #endif
 
-#if (UART0_PRINTF_SEL != PRINTF_NONE) && !ELUNCHBOX_PANEL_EN
+#if (UART0_PRINTF_SEL != PRINTF_NONE)
     uart0_printf_ensure();
 #endif
 
@@ -102,9 +108,21 @@ void func_process(void)
 	if (!sys_cb.gui_sleep_sta && !sys_cb.flag_halt) {
 	#endif
 
+#if ELUNCHBOX_PANEL_EN
+        bool gui_do_refresh = true;
+
+        if (func_cb.sta == FUNC_HOME) {
+            gui_do_refresh = func_home_gui_need_refresh();
+        }
+        compo_update();
+        if (gui_do_refresh) {
+            gui_process();
+        }
+#else
         compo_update();                                     //更新组件
 
         gui_process();                                      //刷新UI
+#endif
 
         func_reservation_poll();
 
@@ -383,6 +401,9 @@ void func_switch_next(bool flag_auto, bool flag_loop)
 //切换
 void func_switch_to(u8 sta, u16 switch_mode)
 {
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+#endif
 #if VIDEO_PLAY_EN
     compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
     compo_video_exit_lock(video);
@@ -1108,9 +1129,13 @@ void func_run(void)
     // func.c
     
     for (;;) {
+#if !ELUNCHBOX_PANEL_EN
         printf("func_enter <<\n");
+#endif
         func_enter();
+#if !ELUNCHBOX_PANEL_EN
         printf("pwrkey usage_id: %d\n", bsp_pwrkey_get_usage_id());
+#endif
         for (int i = 0; i < FUNC_ENTRY_CNT; i++) {
             if (tbl_func_entry[i].func_idx == func_cb.sta) {
                 task_stack_push(func_cb.sta);
@@ -1120,6 +1145,7 @@ void func_run(void)
                 break;
             }
         }
+#if !ELUNCHBOX_PANEL_EN
         printf("func_cb.sta:%d\n", func_cb.sta);
         if (func_cb.sta == FUNC_PWROFF) {
             printf("func_pwroff <<\n");
@@ -1127,7 +1153,13 @@ void func_run(void)
             printf("func_pwroff >>\n");
         }
         printf("func_exit <<\n");
+#endif
+        if (func_cb.sta == FUNC_PWROFF) {
+            func_pwroff(1);
+        }
         func_exit();
+#if !ELUNCHBOX_PANEL_EN
         printf("func_exit >>\n");
+#endif
     }
 }

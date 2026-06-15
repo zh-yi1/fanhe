@@ -113,22 +113,32 @@ void task_stack_init(void)
  **/
 void task_stack_push(u8 val)
 {
+#if !ELUNCHBOX_PANEL_EN
     printf("%s:[", __func__);
+#endif
     for (u8 i = 0; i < task_stack.num; i++) {    //有重复值直接回退到第一次入栈处
         if (task_stack.task_tbl[i] == val) {
             task_stack.num = i + 1;
+#if !ELUNCHBOX_PANEL_EN
             printf("%d]<--[%d]\n", val, val);
+#endif
             return;
         } else {
+#if !ELUNCHBOX_PANEL_EN
             printf("%d ", task_stack.task_tbl[i]);
+#endif
         }
     }
     if (task_stack.num < TASK_STACK_MAX) {
         task_stack.task_tbl[task_stack.num] = val;
         task_stack.num++;
+#if !ELUNCHBOX_PANEL_EN
         printf("%d]<--[%d]\n", val, val);
+#endif
     } else {
+#if !ELUNCHBOX_PANEL_EN
         printf("]<--[%d]\n", val, val);
+#endif
     }
 }
 

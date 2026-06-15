@@ -21,4 +21,7 @@ extern bool home_ui_shared_dash_inited;
 void home_ui_shared_status_init(void);
 void home_ui_shared_dash_init(void);
 
+/* 修改 set_ram / Flash→RAM 贴图前调用，避免 GPU 读缓冲时被改写触发 C241 */
+void home_gpu_wait_idle(void);
+
 #endif
