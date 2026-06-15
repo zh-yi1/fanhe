@@ -61,10 +61,10 @@ typedef struct password_disp_pic_item_t_ {
 
 //图片item，创建时遍历一下
 static const password_disp_pic_item_t tbl_password_disp_pic_item[] = {
-    {UI_BUF_SETTING_PASSWORD_NUM_BIN,     COMPO_ID_PIC_PASSWORD_ZERO,        199,    PASSWORD_Y_POS,    false},
-    {UI_BUF_SETTING_PASSWORD_NUM_BIN,     COMPO_ID_PIC_PASSWORD_ONE,         216,    PASSWORD_Y_POS,    false},
-    {UI_BUF_SETTING_PASSWORD_NUM_BIN,     COMPO_ID_PIC_PASSWORD_TWS,         233,    PASSWORD_Y_POS,    false},
-    {UI_BUF_SETTING_PASSWORD_NUM_BIN,     COMPO_ID_PIC_PASSWORD_THR,         250,    PASSWORD_Y_POS,    false},
+    // {UI_BUF_SETTING_PASSWORD_NUM_BIN,     COMPO_ID_PIC_PASSWORD_ZERO,        199,    PASSWORD_Y_POS,    false},
+    // {UI_BUF_SETTING_PASSWORD_NUM_BIN,     COMPO_ID_PIC_PASSWORD_ONE,         216,    PASSWORD_Y_POS,    false},
+    // {UI_BUF_SETTING_PASSWORD_NUM_BIN,     COMPO_ID_PIC_PASSWORD_TWS,         233,    PASSWORD_Y_POS,    false},
+    // {UI_BUF_SETTING_PASSWORD_NUM_BIN,     COMPO_ID_PIC_PASSWORD_THR,         250,    PASSWORD_Y_POS,    false},
 };
 
 
@@ -85,55 +85,55 @@ compo_form_t *func_password_sub_disp_form_create(void)
 {
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
-    compo_form_add_image(frm, UI_BUF_SETTING_PASSWORD_BG_BIN, GUI_SCREEN_CENTER_X, 210 + PASSWORD_Y_POS);
+    // compo_form_add_image(frm, UI_BUF_SETTING_PASSWORD_BG_BIN, GUI_SCREEN_CENTER_X, 210 + PASSWORD_Y_POS);
 
-    //创建文本
-    compo_textbox_t *txt = compo_textbox_create(frm, 20);
-    compo_setid(txt, COMPO_ID_TXT_NEWPASSWORD);
-    compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, PASSWORD_Y_POS);
-    compo_textbox_set(txt, i18n[STR_CUR_PASSWORD]);
-    compo_textbox_set_visible(txt, true);
+    // //创建文本
+    // compo_textbox_t *txt = compo_textbox_create(frm, 20);
+    // compo_setid(txt, COMPO_ID_TXT_NEWPASSWORD);
+    // compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, PASSWORD_Y_POS);
+    // compo_textbox_set(txt, i18n[STR_CUR_PASSWORD]);
+    // compo_textbox_set_visible(txt, true);
 
-    if(sys_cb.password_cnt == 4 && sys_cb.password_change) {
-        compo_textbox_set(txt, i18n[STR_OLD_PASSWORD]);
-    }else if(sys_cb.password_cnt == 0 && !sys_cb.password_change){
-        compo_textbox_set(txt, i18n[STR_NEW_PASSWORD]);
-    }
+    // if(sys_cb.password_cnt == 4 && sys_cb.password_change) {
+    //     compo_textbox_set(txt, i18n[STR_OLD_PASSWORD]);
+    // }else if(sys_cb.password_cnt == 0 && !sys_cb.password_change){
+    //     compo_textbox_set(txt, i18n[STR_NEW_PASSWORD]);
+    // }
 
-    //新建图像
-    compo_picturebox_t *pic_click;
-    for (u8 idx = 0; idx < PASSWORD_DISP_PIC_ITEM_CNT; idx++) {
-        pic_click = compo_picturebox_create(frm, tbl_password_disp_pic_item[idx].res_addr);
-        compo_setid(pic_click, tbl_password_disp_pic_item[idx].pic_id);
-        compo_picturebox_set_pos(pic_click, tbl_password_disp_pic_item[idx].x, tbl_password_disp_pic_item[idx].y);
-        compo_picturebox_set_visible(pic_click, tbl_password_disp_pic_item[idx].visible_en);
-    }
+    // //新建图像
+    // compo_picturebox_t *pic_click;
+    // for (u8 idx = 0; idx < PASSWORD_DISP_PIC_ITEM_CNT; idx++) {
+    //     pic_click = compo_picturebox_create(frm, tbl_password_disp_pic_item[idx].res_addr);
+    //     compo_setid(pic_click, tbl_password_disp_pic_item[idx].pic_id);
+    //     compo_picturebox_set_pos(pic_click, tbl_password_disp_pic_item[idx].x, tbl_password_disp_pic_item[idx].y);
+    //     compo_picturebox_set_visible(pic_click, tbl_password_disp_pic_item[idx].visible_en);
+    // }
 
-    //创建按钮
-    compo_button_t *btn;
-    for (u8 idx_btn = 0; idx_btn < PASSWORD_DISP_BTN_ITEM_CNT + 1; idx_btn++) {
-        btn = compo_button_create(frm);
-        if (idx_btn == 9) {
-            continue;
-        } else {
-            compo_setid(btn, COMPO_ID_BTN_NUM1 + idx_btn);
-        }
-        compo_button_set_location(btn, 131 + (idx_btn%3) * (PASSWORD_BTN_WIDTH+8), PASSWORD_Y_POS + 120 + (idx_btn/3) * (PASSWORD_BTN_HEI+8), PASSWORD_BTN_WIDTH, PASSWORD_BTN_HEI);
-    }
+    // //创建按钮
+    // compo_button_t *btn;
+    // for (u8 idx_btn = 0; idx_btn < PASSWORD_DISP_BTN_ITEM_CNT + 1; idx_btn++) {
+    //     btn = compo_button_create(frm);
+    //     if (idx_btn == 9) {
+    //         continue;
+    //     } else {
+    //         compo_setid(btn, COMPO_ID_BTN_NUM1 + idx_btn);
+    //     }
+    //     compo_button_set_location(btn, 131 + (idx_btn%3) * (PASSWORD_BTN_WIDTH+8), PASSWORD_Y_POS + 120 + (idx_btn/3) * (PASSWORD_BTN_HEI+8), PASSWORD_BTN_WIDTH, PASSWORD_BTN_HEI);
+    // }
 
-    //创建数字
-	char buf[13];
-    compo_textbox_t *txt_num;
-    for (u8 idx = 0; idx < PASSWORD_NUM_ITEM_CNT; idx++) {
-        txt_num = compo_textbox_create(frm, 7);
-		compo_textbox_set_font(txt_num, UI_BUF_0FONT_FONT_NUM_38_BIN);
-        compo_setid(txt_num, COMPO_ID_NUM_DISP_ZERO + idx);
-        compo_textbox_set_pos(txt_num, GUI_SCREEN_CENTER_X, PASSWORD_Y_POS);
-        memset(buf, 0, sizeof(buf));
-        snprintf(buf, sizeof(buf), "%d%d%d%d", sys_cb.password_value[idx], sys_cb.password_value[idx+1], sys_cb.password_value[idx+2], sys_cb.password_value[idx+3]);
-        compo_textbox_set(txt_num, buf);
-        compo_textbox_set_visible(txt_num, false);
-    }
+    // //创建数字
+	// char buf[13];
+    // compo_textbox_t *txt_num;
+    // for (u8 idx = 0; idx < PASSWORD_NUM_ITEM_CNT; idx++) {
+    //     txt_num = compo_textbox_create(frm, 7);
+	// 	compo_textbox_set_font(txt_num, UI_BUF_0FONT_FONT_NUM_38_BIN);
+    //     compo_setid(txt_num, COMPO_ID_NUM_DISP_ZERO + idx);
+    //     compo_textbox_set_pos(txt_num, GUI_SCREEN_CENTER_X, PASSWORD_Y_POS);
+    //     memset(buf, 0, sizeof(buf));
+    //     snprintf(buf, sizeof(buf), "%d%d%d%d", sys_cb.password_value[idx], sys_cb.password_value[idx+1], sys_cb.password_value[idx+2], sys_cb.password_value[idx+3]);
+    //     compo_textbox_set(txt_num, buf);
+    //     compo_textbox_set_visible(txt_num, false);
+    // }
 
     return frm;
 }

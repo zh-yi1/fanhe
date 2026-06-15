@@ -306,22 +306,22 @@ compo_form_t *func_camera_form_create(void)
 {
     //新建窗体和背景
     compo_form_t *frm = compo_form_create(true);
-	compo_form_add_image(frm, UI_BUF_CAMERA_CAMERA_BIN, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+	// compo_form_add_image(frm, UI_BUF_CAMERA_CAMERA_BIN, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_CAMERA]);
+    // //设置标题栏
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_CAMERA]);
 
-	//新建按钮
-	compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON2_BIN);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 418);
+	// //新建按钮
+	// compo_button_t *btn;
+    // btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON2_BIN);
+    // compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 418);
 
-	//创建文本
-	compo_textbox_t *txt_start = compo_textbox_create(frm, 10);
-	compo_textbox_set_pos(txt_start, GUI_SCREEN_CENTER_X, 418);
-    compo_textbox_set(txt_start, i18n[STR_START]);
+	// //创建文本
+	// compo_textbox_t *txt_start = compo_textbox_create(frm, 10);
+	// compo_textbox_set_pos(txt_start, GUI_SCREEN_CENTER_X, 418);
+    // compo_textbox_set(txt_start, i18n[STR_START]);
 
     return frm;
 }

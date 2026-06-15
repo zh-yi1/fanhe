@@ -17,17 +17,22 @@
 AT(.text.bsp.param)
 void param_init(bool reset)
 {
+    printf("%s(%d)\r\n", __func__, __LINE__);
     cm_init(MAX_CM_PAGE, CM_START, CM_SIZE);
-    //printf("CM: %x\n", cm_read8(PAGE0(0)));
-    //printf("CM: %x\n", cm_read8(PAGE1(0)));
+    printf("CM: %x\n", cm_read8(PAGE0(0)));
+    printf("CM: %x\n", cm_read8(PAGE1(0)));
 
+    printf("%s(%d)\r\n", __func__, __LINE__);
     sys_cb.rand_seed = sys_get_rand_key();
 
+    printf("%s(%d)\r\n", __func__, __LINE__);
     param_sys_vol_read();
     if (sys_cb.vol < SYS_LIMIT_VOLUME) {
         sys_cb.vol = SYS_INIT_VOLUME;
     }
+    printf("%s(%d)\r\n", __func__, __LINE__);
     sys_cb.hfp_vol = sys_cb.vol / sys_cb.hfp2sys_mul;
+    printf("%s(%d)\r\n", __func__, __LINE__);
 }
 
 AT(.text.bsp.param)

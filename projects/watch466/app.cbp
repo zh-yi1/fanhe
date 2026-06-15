@@ -405,6 +405,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_key.h" />
+		<Unit filename="../../platform/bsp/bsp_pt8028_key.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_pt8028_key.h" />
 		<Unit filename="../../platform/bsp/bsp_map.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1635,6 +1639,14 @@
 		<Unit filename="port/port_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="port/port_pt8028_key.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="port/port_pt8028_key.h" />
+		<Unit filename="port/port_panel_led.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="port/port_panel_led.h" />
 		<Unit filename="port/port_mute.c">
 			<Option compilerVar="CC" />
 		</Unit>

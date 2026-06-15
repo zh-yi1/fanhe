@@ -42,14 +42,14 @@ typedef struct time_sub_custom_btn_item_t_ {
 
 //按钮item，创建时遍历一下
 static const  time_sub_custom_btn_item_t tbl_time_sub_custom_btn_item[] = {
-    {UI_BUF_COMMON_INCREASE_BIN,             COMPO_ID_BTN_YEAR_INC,         62,     97},
-    {UI_BUF_COMMON_INCREASE_BIN,             COMPO_ID_BTN_MON_INC,          151,    97},
-    {UI_BUF_COMMON_INCREASE_BIN,             COMPO_ID_BTN_DAY_INC,          254,    97},
-    {UI_BUF_COMMON_REDUCE_BIN,               COMPO_ID_BTN_YEAR_REDU,        62,     236},
-    {UI_BUF_COMMON_REDUCE_BIN,               COMPO_ID_BTN_MON_REDU,         151,    236},
-    {UI_BUF_COMMON_REDUCE_BIN,               COMPO_ID_BTN_DAY_REDU,         254,    236},
-    {UI_BUF_COMMON_NO_BIN,                   COMPO_ID_BTN_NO,               62,     320},
-    {UI_BUF_ALARM_CLOCK_YES_BIN,             COMPO_ID_BTN_YES,              254,    320},
+    // {UI_BUF_COMMON_INCREASE_BIN,             COMPO_ID_BTN_YEAR_INC,         62,     97},
+    // {UI_BUF_COMMON_INCREASE_BIN,             COMPO_ID_BTN_MON_INC,          151,    97},
+    // {UI_BUF_COMMON_INCREASE_BIN,             COMPO_ID_BTN_DAY_INC,          254,    97},
+    // {UI_BUF_COMMON_REDUCE_BIN,               COMPO_ID_BTN_YEAR_REDU,        62,     236},
+    // {UI_BUF_COMMON_REDUCE_BIN,               COMPO_ID_BTN_MON_REDU,         151,    236},
+    // {UI_BUF_COMMON_REDUCE_BIN,               COMPO_ID_BTN_DAY_REDU,         254,    236},
+    // {UI_BUF_COMMON_NO_BIN,                   COMPO_ID_BTN_NO,               62,     320},
+   // {UI_BUF_ALARM_CLOCK_YES_BIN,             COMPO_ID_BTN_YES,              254,    320},
 };
 
 //创建日期调整显示窗体

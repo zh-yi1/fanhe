@@ -151,8 +151,13 @@ bool bsp_pwm_duty_set(pwm_gpio gpio, u32 duty, bool invert)
             //PWRCON4 |= BIT(9);
             //PWRCON4 = (PWRCON4 & ~(3 << 10)) | (0 << 10);         //DI_MOTOPG_PREDRV(0)
         } else if(gpio == PG_BL_TMR4) {
+#if ELUNCHBOX_PANEL_EN
+            PWRCON4 |= BIT(5);
+            PWRCON4 = (PWRCON4 & ~(3 << 6)) | (0 << 6);   /* LED 背光 PG 预驱 */
+#else
             //PWRCON4 |= BIT(5);
             //PWRCON4 = (PWRCON4 & ~(3 << 6)) | (0 << 6);         //DI_LEDPG_PREDRV(0)
+#endif
         } else {
             bsp_gpio_cfg_init(&gpio_reg, t4_pwm_gpio_reg[gpio - TM4_PWM_GROUP_ID]);
             if(gpio_reg.sfr != NULL){

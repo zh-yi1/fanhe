@@ -53,75 +53,75 @@ compo_form_t *func_set_sub_time_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_SETTING_TIME]);
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_SETTING_TIME]);
 
-    //创建按钮
-    compo_button_t *btn;
-    compo_picturebox_t *pic[3];
-    for (u8 idx_btn = 0; idx_btn < DISURD_DISP_BTN_ITEM_CNT; idx_btn++) {
-        btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BG3_BIN);
-        compo_setid(btn, tbl_disturd_disp_btn_item[idx_btn].btn_id);
-        compo_button_set_pos(btn, tbl_disturd_disp_btn_item[idx_btn].x, tbl_disturd_disp_btn_item[idx_btn].y);
-        pic[idx_btn] = compo_picturebox_create(frm, UI_BUF_SETTING_PASSWORD_OPEN_BIN);
-        compo_picturebox_set_pos(pic[idx_btn], tbl_disturd_disp_btn_item[idx_btn].x+150, tbl_disturd_disp_btn_item[idx_btn].y);
-        compo_picturebox_set_visible(pic[idx_btn], true);
-    }
+    // //创建按钮
+    // compo_button_t *btn;
+    // compo_picturebox_t *pic[3];
+    // for (u8 idx_btn = 0; idx_btn < DISURD_DISP_BTN_ITEM_CNT; idx_btn++) {
+    //     btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BG3_BIN);
+    //     compo_setid(btn, tbl_disturd_disp_btn_item[idx_btn].btn_id);
+    //     compo_button_set_pos(btn, tbl_disturd_disp_btn_item[idx_btn].x, tbl_disturd_disp_btn_item[idx_btn].y);
+    //     //pic[idx_btn] = compo_picturebox_create(frm, UI_BUF_SETTING_PASSWORD_OPEN_BIN);
+    //     compo_picturebox_set_pos(pic[idx_btn], tbl_disturd_disp_btn_item[idx_btn].x+150, tbl_disturd_disp_btn_item[idx_btn].y);
+    //     compo_picturebox_set_visible(pic[idx_btn], true);
+    // }
 
-    //文本
-    s16 txt_x_pos = 90;
-    s16 txt_y_pos = 90;
-    char buf[84];
-    component_t *compo = (component_t *)compo_textbox_create(frm, 20);
-    compo_setid(compo, COMPO_ID_TEXT_CALENDE);
-    compo_textbox_set_align_center((compo_textbox_t *)compo, false);
-    compo_textbox_set_pos((compo_textbox_t *)compo, txt_x_pos, txt_y_pos);
-    compo_textbox_set((compo_textbox_t *)compo, i18n[STR_CUSTOM_CALENDAR]);
+    // //文本
+    // s16 txt_x_pos = 90;
+    // s16 txt_y_pos = 90;
+    // char buf[84];
+    // component_t *compo = (component_t *)compo_textbox_create(frm, 20);
+    // compo_setid(compo, COMPO_ID_TEXT_CALENDE);
+    // compo_textbox_set_align_center((compo_textbox_t *)compo, false);
+    // compo_textbox_set_pos((compo_textbox_t *)compo, txt_x_pos, txt_y_pos);
+    // compo_textbox_set((compo_textbox_t *)compo, i18n[STR_CUSTOM_CALENDAR]);
 
-    component_t *compo_tws = (component_t *)compo_textbox_create(frm,20);
-    compo_setid(compo_tws, COMPO_ID_TEXT_CALENDE);
-    compo_textbox_set_align_center((compo_textbox_t *)compo_tws, false);
-    compo_textbox_set_pos((compo_textbox_t *)compo_tws, txt_x_pos, txt_y_pos+100);
-    compo_textbox_set((compo_textbox_t *)compo_tws, i18n[STR_CUSTOM_DATA]);
+    // component_t *compo_tws = (component_t *)compo_textbox_create(frm,20);
+    // compo_setid(compo_tws, COMPO_ID_TEXT_CALENDE);
+    // compo_textbox_set_align_center((compo_textbox_t *)compo_tws, false);
+    // compo_textbox_set_pos((compo_textbox_t *)compo_tws, txt_x_pos, txt_y_pos+100);
+    // compo_textbox_set((compo_textbox_t *)compo_tws, i18n[STR_CUSTOM_DATA]);
 
-    component_t *compo_thr = (component_t *)compo_textbox_create(frm,20);
-    compo_setid(compo_thr, COMPO_ID_TEXT_CALENDE);
-    compo_textbox_set_align_center((compo_textbox_t *)compo_thr, false);
-    compo_textbox_set_pos((compo_textbox_t *)compo_thr, txt_x_pos, txt_y_pos+200);
-    compo_textbox_set((compo_textbox_t *)compo_thr, i18n[STR_CUSTOM_TIME]);
+    // component_t *compo_thr = (component_t *)compo_textbox_create(frm,20);
+    // compo_setid(compo_thr, COMPO_ID_TEXT_CALENDE);
+    // compo_textbox_set_align_center((compo_textbox_t *)compo_thr, false);
+    // compo_textbox_set_pos((compo_textbox_t *)compo_thr, txt_x_pos, txt_y_pos+200);
+    // compo_textbox_set((compo_textbox_t *)compo_thr, i18n[STR_CUSTOM_TIME]);
 
-    snprintf(buf, sizeof(buf), "%d%s%s", 2026, ".01", ".26");
-    component_t *compo_four = (component_t *)compo_textbox_create(frm,20);
-    compo_textbox_set_font((compo_textbox_t *)compo_four, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_setid(compo_four, COMPO_ID_TEXT_CALENDE);
-    compo_textbox_set_align_center((compo_textbox_t *)compo_four, false);
-    compo_textbox_set_pos((compo_textbox_t *)compo_four, txt_x_pos, txt_y_pos+37);
-    compo_textbox_set((compo_textbox_t *)compo_four, buf);
+    // snprintf(buf, sizeof(buf), "%d%s%s", 2026, ".01", ".26");
+    // component_t *compo_four = (component_t *)compo_textbox_create(frm,20);
+    // compo_textbox_set_font((compo_textbox_t *)compo_four, UI_BUF_0FONT_FONT_ASC_BIN);
+    // compo_setid(compo_four, COMPO_ID_TEXT_CALENDE);
+    // compo_textbox_set_align_center((compo_textbox_t *)compo_four, false);
+    // compo_textbox_set_pos((compo_textbox_t *)compo_four, txt_x_pos, txt_y_pos+37);
+    // compo_textbox_set((compo_textbox_t *)compo_four, buf);
 
-    snprintf(buf, sizeof(buf), "%d", 24);
-    component_t *compo_five = (component_t *)compo_textbox_create(frm,20);
-    compo_textbox_set_font((compo_textbox_t *)compo_five, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_setid(compo_five, COMPO_ID_TEXT_CALENDE);
-    compo_textbox_set_align_center((compo_textbox_t *)compo_five, false);
-    compo_textbox_set_pos((compo_textbox_t *)compo_five, txt_x_pos, txt_y_pos+137);
-    compo_textbox_set((compo_textbox_t *)compo_five, buf);
+    // snprintf(buf, sizeof(buf), "%d", 24);
+    // component_t *compo_five = (component_t *)compo_textbox_create(frm,20);
+    // compo_textbox_set_font((compo_textbox_t *)compo_five, UI_BUF_0FONT_FONT_ASC_BIN);
+    // compo_setid(compo_five, COMPO_ID_TEXT_CALENDE);
+    // compo_textbox_set_align_center((compo_textbox_t *)compo_five, false);
+    // compo_textbox_set_pos((compo_textbox_t *)compo_five, txt_x_pos, txt_y_pos+137);
+    // compo_textbox_set((compo_textbox_t *)compo_five, buf);
 
-    snprintf(buf, sizeof(buf), "%s", "12.20");
-    component_t *compo_six = (component_t *)compo_textbox_create(frm,20);
-    compo_textbox_set_font((compo_textbox_t *)compo_six, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_setid(compo_six, COMPO_ID_TEXT_CALENDE);
-    compo_textbox_set_align_center((compo_textbox_t *)compo_six, false);
-    compo_textbox_set_pos((compo_textbox_t *)compo_six, txt_x_pos, txt_y_pos+237);
-    compo_textbox_set((compo_textbox_t *)compo_six, buf);
+    // snprintf(buf, sizeof(buf), "%s", "12.20");
+    // component_t *compo_six = (component_t *)compo_textbox_create(frm,20);
+    // compo_textbox_set_font((compo_textbox_t *)compo_six, UI_BUF_0FONT_FONT_ASC_BIN);
+    // compo_setid(compo_six, COMPO_ID_TEXT_CALENDE);
+    // compo_textbox_set_align_center((compo_textbox_t *)compo_six, false);
+    // compo_textbox_set_pos((compo_textbox_t *)compo_six, txt_x_pos, txt_y_pos+237);
+    // compo_textbox_set((compo_textbox_t *)compo_six, buf);
 
-    // snprintf(buf, sizeof(buf), "%s", i18n[STR_TIME_TIP]);
-    component_t *compo_sev = (component_t *)compo_textbox_create(frm, 130);
-    compo_textbox_set_multiline((compo_textbox_t *)compo_sev, true);
-    compo_textbox_set_autosize((compo_textbox_t *)compo_sev, false);
-    compo_textbox_set_location((compo_textbox_t *)compo_sev, GUI_SCREEN_CENTER_X, txt_y_pos+470, 300, GUI_SCREEN_HEIGHT);
-    compo_textbox_set((compo_textbox_t *)compo_sev, i18n[STR_TIME_TIP]);
-    // widget_page_set_client(frm->page_body, 0, -60);
+    // // snprintf(buf, sizeof(buf), "%s", i18n[STR_TIME_TIP]);
+    // component_t *compo_sev = (component_t *)compo_textbox_create(frm, 130);
+    // compo_textbox_set_multiline((compo_textbox_t *)compo_sev, true);
+    // compo_textbox_set_autosize((compo_textbox_t *)compo_sev, false);
+    // compo_textbox_set_location((compo_textbox_t *)compo_sev, GUI_SCREEN_CENTER_X, txt_y_pos+470, 300, GUI_SCREEN_HEIGHT);
+    // compo_textbox_set((compo_textbox_t *)compo_sev, i18n[STR_TIME_TIP]);
+    // // widget_page_set_client(frm->page_body, 0, -60);
     return frm;
 }
 

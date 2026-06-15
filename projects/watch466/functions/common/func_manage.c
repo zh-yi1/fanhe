@@ -20,42 +20,42 @@ typedef struct {
 
 #define FUNC_ITEM_CNT   (sizeof(func_item_tbl) / sizeof(func_item_tbl[0]))
 const static func_item_info_t func_item_tbl[] = {
-    {FUNC_HEARTRATE,                UI_BUF_ICON_HEART_RATE_BIN,                 STR_HEART_RATE},            //心率
-    {FUNC_BT,                       UI_BUF_ICON_MUSIC_BIN,                      STR_MUSIC},                 //蓝牙播放器(控制手机音乐)
-    {FUNC_ALARM_CLOCK,              UI_BUF_ICON_ALARM_CLOCK_BIN,                STR_ALARM_CLOCK},           //闹钟
-    {FUNC_BLOOD_OXYGEN,             UI_BUF_ICON_BLOOD_OXYGEN_BIN,               STR_BLOOD_OXYGEN},          //血氧
-    {FUNC_BLOODSUGAR,               UI_BUF_ICON_BLOODSUGAR_BIN,                 STR_BLOOD_SUGAR},           //血糖
-    {FUNC_BLOOD_PRESSURE,           UI_BUF_ICON_BLOOD_PRESSURE_BIN,             STR_BLOOD_PRESSURE},        //血压
-    {FUNC_BREATHE,		            UI_BUF_ICON_BREATHE_BIN,                    STR_BREATHE},               //呼吸
-    {FUNC_CALCULATOR,	            UI_BUF_ICON_CALCULATOR_BIN,                 STR_CALCULATOR},            //计算器
-    {FUNC_CAMERA,		            UI_BUF_ICON_CAMERA_BIN,                     STR_CAMERA},                //相机
-    {FUNC_LIGHT,	                UI_BUF_ICON_LIGHT_BIN,                      STR_SETTING_LIGHT},         //亮度调节
-    {FUNC_TIMER,	                UI_BUF_ICON_TIMER_BIN,                      STR_TIMER},                 //定时器
-    {FUNC_SLEEP,	                UI_BUF_ICON_SLEEP_BIN,                      STR_SLEEP},                 //睡眠
-    {FUNC_STOPWATCH,	            UI_BUF_ICON_STOPWATCH_BIN,                  STR_STOP_WATCH},            //秒表
-    {FUNC_WEATHER,	                UI_BUF_ICON_WEATHER_BIN,                    STR_WEATHER},               //天气
-    {FUNC_GAME,                     UI_BUF_ICON_GAME_BIN,                       STR_GAME},                  //游戏
-    {FUNC_ALTITUDE,                 UI_BUF_ICON_ALTITUDE_BIN,                   STR_ALTITUDE},              //海拔
-    {FUNC_MAP,                      UI_BUF_ICON_MAP_BIN,                        STR_MAP},                   //地图
-    {FUNC_MESSAGE,                  UI_BUF_ICON_MESSAGE_BIN,                    STR_MESSAGE},               //消息
-    {FUNC_SCAN,                     UI_BUF_ICON_SCAN_BIN,                       STR_SCAN},                  //扫一扫
-    {FUNC_VOICE,                    UI_BUF_ICON_VOICE_BIN,                      STR_VOICE},                 //语音助手
-#if SECURITY_PAY_EN
-    {FUNC_ALIPAY,                   UI_BUF_ICON_ALIPAY_BIN,                     STR_ALIPAY},                //支付宝
-#endif // SECURITY_PAY_EN
-    {FUNC_COMPASS,                  UI_BUF_ICON_COMPASS_BIN,                    STR_COMPASS},               //指南针
-    {FUNC_SPORT,	                UI_BUF_ICON_SPORT_BIN,                      STR_SPORTS},                //运动
-    {FUNC_CALL,                     UI_BUF_ICON_CALL_BIN,                       STR_PHONE},                 //电话
-    {FUNC_FINDPHONE,                UI_BUF_ICON_FINDPHONE_BIN,                  STR_FIND_PHONE},            //寻找手机
-    {FUNC_CALENDAER,                UI_BUF_ICON_CALENDAR_BIN,                   STR_CALENDAR},              //日历
-    {FUNC_VOLUME,                   UI_BUF_ICON_VOLUME_BIN,                     STR_VOLUME},                //音量
-    {FUNC_ACTIVITY,                 UI_BUF_ICON_ACTIVITY_BIN,                   STR_ACTIVITY_RECORD},       //活动记录
-    {FUNC_FLASHLIGHT,               UI_BUF_ICON_FLASHLIGHT_BIN,                 STR_FLASHLIGHT},            //手电筒
-    {FUNC_SETTING,	                UI_BUF_ICON_SETTING_BIN,                    STR_SETTING},               //设置
-    {FUNC_LANGUAGE,                 UI_BUF_ICON_LANGUAGE_BIN,                   STR_SETTING_LANGUAGE},      //设置--语言
-    {FUNC_RESTART,                  UI_BUF_ICON_RESTART_BIN,                    STR_SETTING_RESTART},       //重启
-    {FUNC_RSTFY,                    UI_BUF_ICON_RESTORE_FACTORY_BIN,            STR_SETTING_RSTFY},         //设置--恢复出厂
-    {FUNC_OFF,                      UI_BUF_ICON_OFF_BIN,                        STR_SETTING_OFF},           //关机
+//     {FUNC_HEARTRATE,                UI_BUF_ICON_HEART_RATE_BIN,                 STR_HEART_RATE},            //心率
+//     {FUNC_BT,                       UI_BUF_ICON_MUSIC_BIN,                      STR_MUSIC},                 //蓝牙播放器(控制手机音乐)
+//     {FUNC_ALARM_CLOCK,              UI_BUF_ICON_ALARM_CLOCK_BIN,                STR_ALARM_CLOCK},           //闹钟
+//     {FUNC_BLOOD_OXYGEN,             UI_BUF_ICON_BLOOD_OXYGEN_BIN,               STR_BLOOD_OXYGEN},          //血氧
+//     {FUNC_BLOODSUGAR,               UI_BUF_ICON_BLOODSUGAR_BIN,                 STR_BLOOD_SUGAR},           //血糖
+//     {FUNC_BLOOD_PRESSURE,           UI_BUF_ICON_BLOOD_PRESSURE_BIN,             STR_BLOOD_PRESSURE},        //血压
+//     {FUNC_BREATHE,		            UI_BUF_ICON_BREATHE_BIN,                    STR_BREATHE},               //呼吸
+//     {FUNC_CALCULATOR,	            UI_BUF_ICON_CALCULATOR_BIN,                 STR_CALCULATOR},            //计算器
+//     {FUNC_CAMERA,		            UI_BUF_ICON_CAMERA_BIN,                     STR_CAMERA},                //相机
+//     {FUNC_LIGHT,	                UI_BUF_ICON_LIGHT_BIN,                      STR_SETTING_LIGHT},         //亮度调节
+//     {FUNC_TIMER,	                UI_BUF_ICON_TIMER_BIN,                      STR_TIMER},                 //定时器
+//     {FUNC_SLEEP,	                UI_BUF_ICON_SLEEP_BIN,                      STR_SLEEP},                 //睡眠
+//     {FUNC_STOPWATCH,	            UI_BUF_ICON_STOPWATCH_BIN,                  STR_STOP_WATCH},            //秒表
+//     {FUNC_WEATHER,	                UI_BUF_ICON_WEATHER_BIN,                    STR_WEATHER},               //天气
+//     {FUNC_GAME,                     UI_BUF_ICON_GAME_BIN,                       STR_GAME},                  //游戏
+//     {FUNC_ALTITUDE,                 UI_BUF_ICON_ALTITUDE_BIN,                   STR_ALTITUDE},              //海拔
+//     {FUNC_MAP,                      UI_BUF_ICON_MAP_BIN,                        STR_MAP},                   //地图
+//     {FUNC_MESSAGE,                  UI_BUF_ICON_MESSAGE_BIN,                    STR_MESSAGE},               //消息
+//     {FUNC_SCAN,                     UI_BUF_ICON_SCAN_BIN,                       STR_SCAN},                  //扫一扫
+//     {FUNC_VOICE,                    UI_BUF_ICON_VOICE_BIN,                      STR_VOICE},                 //语音助手
+// #if SECURITY_PAY_EN
+//     {FUNC_ALIPAY,                   UI_BUF_ICON_ALIPAY_BIN,                     STR_ALIPAY},                //支付宝
+// #endif // SECURITY_PAY_EN
+//     {FUNC_COMPASS,                  UI_BUF_ICON_COMPASS_BIN,                    STR_COMPASS},               //指南针
+//     {FUNC_SPORT,	                UI_BUF_ICON_SPORT_BIN,                      STR_SPORTS},                //运动
+//     {FUNC_CALL,                     UI_BUF_ICON_CALL_BIN,                       STR_PHONE},                 //电话
+//     {FUNC_FINDPHONE,                UI_BUF_ICON_FINDPHONE_BIN,                  STR_FIND_PHONE},            //寻找手机
+//     {FUNC_CALENDAER,                UI_BUF_ICON_CALENDAR_BIN,                   STR_CALENDAR},              //日历
+//     {FUNC_VOLUME,                   UI_BUF_ICON_VOLUME_BIN,                     STR_VOLUME},                //音量
+//     {FUNC_ACTIVITY,                 UI_BUF_ICON_ACTIVITY_BIN,                   STR_ACTIVITY_RECORD},       //活动记录
+//     {FUNC_FLASHLIGHT,               UI_BUF_ICON_FLASHLIGHT_BIN,                 STR_FLASHLIGHT},            //手电筒
+//     {FUNC_SETTING,	                UI_BUF_ICON_SETTING_BIN,                    STR_SETTING},               //设置
+//     {FUNC_LANGUAGE,                 UI_BUF_ICON_LANGUAGE_BIN,                   STR_SETTING_LANGUAGE},      //设置--语言
+//     {FUNC_RESTART,                  UI_BUF_ICON_RESTART_BIN,                    STR_SETTING_RESTART},       //重启
+//     {FUNC_RSTFY,                    UI_BUF_ICON_RESTORE_FACTORY_BIN,            STR_SETTING_RSTFY},         //设置--恢复出厂
+//     {FUNC_OFF,                      UI_BUF_ICON_OFF_BIN,                        STR_SETTING_OFF},           //关机
 };
 
 /**

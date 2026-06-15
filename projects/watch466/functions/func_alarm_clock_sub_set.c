@@ -225,20 +225,20 @@ compo_form_t *func_alarm_clock_sub_set_form_create(void)
 
 	//新建按钮
 	compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON1_BIN);//UI_BUF_ALARM_CLOCK_CONTINUE_BIN 
-    compo_setid(btn, COMPO_ID_BTN_CONTINUE);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 321+40+50);
-    compo_textbox_t *txt_2 =  compo_textbox_create(frm, 3);
-    compo_textbox_set(txt_2,"ok");
-    compo_textbox_set_pos(txt_2, GUI_GET_SCREEN_CENTER_X, 361+50);
+    // btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON1_BIN);//UI_BUF_ALARM_CLOCK_CONTINUE_BIN 
+    // compo_setid(btn, COMPO_ID_BTN_CONTINUE);
+    // compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 321+40+50);
+    // compo_textbox_t *txt_2 =  compo_textbox_create(frm, 3);
+    // compo_textbox_set(txt_2,"ok");
+    // compo_textbox_set_pos(txt_2, GUI_GET_SCREEN_CENTER_X, 361+50);
 
-    btn = compo_button_create(frm);
-    compo_setid(btn, COMPO_ID_BTN_ACLOCK_HOUR);
-    compo_button_set_location(btn, 95+80, 164, 100, 170);
+    // btn = compo_button_create(frm);
+    // compo_setid(btn, COMPO_ID_BTN_ACLOCK_HOUR);
+    // compo_button_set_location(btn, 95+80, 164, 100, 170);
 
-    btn = compo_button_create(frm);
-    compo_setid(btn, COMPO_ID_BTN_ACLOCK_MIN);
-    compo_button_set_location(btn, 225+80, 164, 100, 170);
+    // btn = compo_button_create(frm);
+    // compo_setid(btn, COMPO_ID_BTN_ACLOCK_MIN);
+    // compo_button_set_location(btn, 225+80, 164, 100, 170);
 
     return frm;
 }

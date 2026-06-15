@@ -47,43 +47,43 @@ compo_form_t *func_heartrate_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_HEART_RATE]);
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_HEART_RATE]);
 
-    //设置内容
-    compo_form_add_image(frm, UI_BUF_HEART_RATE_HR_BIN, GUI_SCREEN_CENTER_X, 145);
-    compo_form_add_image(frm, UI_BUF_HEART_RATE_HR_BG_BIN, GUI_SCREEN_CENTER_X, 370);
+    // //设置内容
+    // compo_form_add_image(frm, UI_BUF_HEART_RATE_HR_BIN, GUI_SCREEN_CENTER_X, 145);
+    // compo_form_add_image(frm, UI_BUF_HEART_RATE_HR_BG_BIN, GUI_SCREEN_CENTER_X, 370);
 
-	compo_form_add_image(frm, UI_BUF_HEART_RATE_UP_BIN, 141, 289);
-    compo_form_add_image(frm, UI_BUF_HEART_RATE_DOWN_BIN, 400, 289);
+	// compo_form_add_image(frm, UI_BUF_HEART_RATE_UP_BIN, 141, 289);
+    // compo_form_add_image(frm, UI_BUF_HEART_RATE_DOWN_BIN, 400, 289);
 
-	//创建文本
-	compo_textbox_t *txt = compo_textbox_create(frm, 10);
-	compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 289);
-	compo_textbox_set(txt, i18n[STR_TIME_PER_MIN]);
+	// //创建文本
+	// compo_textbox_t *txt = compo_textbox_create(frm, 10);
+	// compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 289);
+	// compo_textbox_set(txt, i18n[STR_TIME_PER_MIN]);
 
-	//测量心率值
-    s16 txt_val_x[3] = {100, GUI_SCREEN_CENTER_X, 355};
-    s16 txt_val_y[3] = {289, GUI_SCREEN_CENTER_Y, 289};
-    char* txt_val_test[3] = {"90", "85", "80"};
-    for (u8 idx = 0; idx < HEARTRATE_TEXT_ITEM_CNT; idx++) {
-        compo_textbox_t *txt_val = compo_textbox_create(frm, 3);
-        compo_textbox_set_font(txt_val, UI_BUF_0FONT_FONT_NUM_38_BIN);
-        compo_setid(txt_val, COMPO_ID_NUM_HEARTRATE_MAX + idx);
-        // compo_textbox_set_align_center(txt_val, false);
-        compo_textbox_set_pos(txt_val, txt_val_x[idx], txt_val_y[idx]);
-        compo_textbox_set(txt_val, txt_val_test[idx]);
-    }
+	// //测量心率值
+    // s16 txt_val_x[3] = {100, GUI_SCREEN_CENTER_X, 355};
+    // s16 txt_val_y[3] = {289, GUI_SCREEN_CENTER_Y, 289};
+    // char* txt_val_test[3] = {"90", "85", "80"};
+    // for (u8 idx = 0; idx < HEARTRATE_TEXT_ITEM_CNT; idx++) {
+    //     compo_textbox_t *txt_val = compo_textbox_create(frm, 3);
+    //     compo_textbox_set_font(txt_val, UI_BUF_0FONT_FONT_NUM_38_BIN);
+    //     compo_setid(txt_val, COMPO_ID_NUM_HEARTRATE_MAX + idx);
+    //     // compo_textbox_set_align_center(txt_val, false);
+    //     compo_textbox_set_pos(txt_val, txt_val_x[idx], txt_val_y[idx]);
+    //     compo_textbox_set(txt_val, txt_val_test[idx]);
+    // }
 
-	//心率详情
-	compo_form_add_image(frm, UI_BUF_HEART_RATE_CHART_BG_BIN, GUI_SCREEN_CENTER_X, 650);
+	// //心率详情
+	// compo_form_add_image(frm, UI_BUF_HEART_RATE_CHART_BG_BIN, GUI_SCREEN_CENTER_X, 650);
 
-    //创建图表
-    compo = (component_t *)compo_chartbox_create(frm, CHART_TYPE_BAR, 7);
-    compo_chartbox_set_location((compo_chartbox_t *)compo, 180+70, 572+20, 230, 150);
-    compo_chartbox_set_pixel((compo_chartbox_t *)compo, 2);
-    compo_setid((compo_chartbox_t *)compo, COMPO_ID_CHART);
+    // //创建图表
+    // compo = (component_t *)compo_chartbox_create(frm, CHART_TYPE_BAR, 7);
+    // compo_chartbox_set_location((compo_chartbox_t *)compo, 180+70, 572+20, 230, 150);
+    // compo_chartbox_set_pixel((compo_chartbox_t *)compo, 2);
+    // compo_setid((compo_chartbox_t *)compo, COMPO_ID_CHART);
 
     return frm;
 }

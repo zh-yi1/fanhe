@@ -3,6 +3,12 @@
 #include "func_tbl.h"
 #include "func.h"
 #include "func_reservation.h"
+#if USER_PT8028_KEY
+#include "bsp_pt8028_key.h"
+#endif
+#if USER_PANEL_LED
+#include "port_panel_led.h"
+#endif
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -59,6 +65,25 @@ void func_process(void)
    }
 
     WDT_CLR();
+
+#if USER_PT8028_KEY
+    pt8028_gpio_ensure();
+    pt8028_log_flush();
+#if !ELUNCHBOX_PANEL_EN
+    pt8028_poll_reinit();
+#endif
+#if PT8028_GPIO_MONITOR_EN
+    pt8028_gpio_monitor();
+#endif
+#endif
+
+#if (UART0_PRINTF_SEL != PRINTF_NONE) && !ELUNCHBOX_PANEL_EN
+    uart0_printf_ensure();
+#endif
+
+#if USER_PANEL_LED
+    panel_led_scan();                       /* 主线程刷新 LED，勿放 5ms 中断(易花屏) */
+#endif
 
 #if CPU_USAGE_MONITOT_EN
     cpu_trace_monitor();
@@ -840,7 +865,9 @@ void func_message(size_msg_t msg)
         break;
 
     case MSG_CTP_COVER:
+#if !ELUNCHBOX_KEEP_AWAKE
         sys_cb.sleep_delay = 1; //100ms后进入休眠
+#endif
         break;
 
     case MSG_QDEC_FORWARD:
@@ -861,6 +888,18 @@ void func_message(size_msg_t msg)
             if (func_cb.flag_sort != 0) {
                 func_switch_prev(true);                     //切到下一个任务
             }
+        }
+        break;
+
+    case KU_PREV:
+        if (func_cb.sta != FUNC_HEAT) {
+            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
+        break;
+
+    case KU_NEXT:
+        if (func_cb.sta != FUNC_RESERVATION) {
+            func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         }
         break;
 
@@ -885,7 +924,14 @@ void func_message(size_msg_t msg)
 #endif
 
         case KU_MODE:
-            func_cb.sta = FUNC_NULL;
+            if (func_cb.sta == FUNC_HOME) {
+                func_home_mode_key();
+            } else if (func_cb.sta != FUNC_HEAT && func_cb.sta != FUNC_MODE &&
+                       func_cb.sta != FUNC_SETUP && func_cb.sta != FUNC_RESERVATION &&
+                       func_cb.sta != FUNC_TIMEING && func_cb.sta != FUNC_LANGUAGEING &&
+                       func_cb.sta != FUNC_VERINFO) {
+                func_cb.sta = FUNC_NULL;
+            }
             break;
 
         case KL_BACK:   //堆栈后台
@@ -1056,6 +1102,9 @@ void func_run(void)
     func_cb.sta = DEFAULE_START_FUNC;
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
+#if ELUNCHBOX_PANEL_EN && USER_PANEL_LED
+    panel_led_set(PANEL_LED_ID_SWITCH, true);   /* 进 func_run 点亮 LED1，便于无屏时确认固件已跑 */
+#endif
     // func.c
     
     for (;;) {

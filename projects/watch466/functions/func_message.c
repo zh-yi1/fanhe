@@ -49,11 +49,11 @@ typedef struct f_message_t_ {
 #endif
 
 static const compo_listbox_item_t tbl_message_list[MSG_MAX_LIST_CNT] = {
-    {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
-    {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
-    {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
-    {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
-    {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
+    // {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
+    // {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
+    // {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
+    // {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
+    // {.res_addr = UI_BUF_SETTING_LIGHT_BIN},
 };
 
 compo_listbox_custom_item_t tbl_message_txt_list[MSG_MAX_LIST_CNT] = {0};

@@ -226,11 +226,11 @@ compo_form_t *func_calender_form_create(void)
         u8 col = i % CALE_GRID_COLS;
         s16 x_pos = func_calendar_cell_x(col);
         s16 y_pos = func_calendar_cell_y(row);
-        compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_COMMON_NUM_30_26_BIN);
+        //compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_COMMON_NUM_30_26_BIN);
 
-        compo_picturebox_cut(pic, 1, 32);
-        compo_picturebox_set_pos(pic, x_pos, y_pos);
-        compo_setid(pic, COMPO_ID_DATE_PIC_START + i);
+       // compo_picturebox_cut(pic, 1, 32);
+       // compo_picturebox_set_pos(pic, x_pos, y_pos);
+       // compo_setid(pic, COMPO_ID_DATE_PIC_START + i);
     }
 
     return frm;

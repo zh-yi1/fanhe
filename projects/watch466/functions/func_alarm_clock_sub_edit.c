@@ -36,66 +36,66 @@ compo_form_t *func_alarm_clock_sub_edit_form_create(void)
 
 	//新建按钮
 	compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON2_BIN);// UI_BUF_ALARM_CLOCK_DELETE_BIN
-    compo_setid(btn, COMPO_ID_BTN_DEL);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 336+50+40); //210
+    // btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON2_BIN);// UI_BUF_ALARM_CLOCK_DELETE_BIN
+    // compo_setid(btn, COMPO_ID_BTN_DEL);
+    // compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 336+50+40); //210
 
-    btn = compo_button_create(frm);
-    compo_setid(btn, COMPO_ID_BTN_SET);
-    compo_button_set_location(btn, 160+50, 160, 320, 40);
+    // btn = compo_button_create(frm);
+    // compo_setid(btn, COMPO_ID_BTN_SET);
+    // compo_button_set_location(btn, 160+50, 160, 320, 40);
 
-    btn = compo_button_create(frm);
-    compo_setid(btn, COMPO_ID_BTN_REPEAT);
-    compo_button_set_location(btn, 160+50, 220+50, 320, 40);
+    // btn = compo_button_create(frm);
+    // compo_setid(btn, COMPO_ID_BTN_REPEAT);
+    // compo_button_set_location(btn, 160+50, 220+50, 320, 40);
 
-	u8 hour, min;
-    hour = sys_cb.alarm_total_sec[sys_cb.alarm_idx] / 3600;
-    min = (sys_cb.alarm_total_sec[sys_cb.alarm_idx] % 3600) / 60;
-    char aclock_str[20];
-    sprintf(aclock_str, "%02d:%02d", hour, min);
-	compo_textbox_t *txt;
-	txt = compo_textbox_create(frm, 5);
-	compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
-	compo_textbox_set_align_center(txt, false);
-	compo_textbox_set_pos(txt, 30+50, 90);
-    compo_textbox_set(txt, aclock_str);
+	// u8 hour, min;
+    // hour = sys_cb.alarm_total_sec[sys_cb.alarm_idx] / 3600;
+    // min = (sys_cb.alarm_total_sec[sys_cb.alarm_idx] % 3600) / 60;
+    // char aclock_str[20];
+    // sprintf(aclock_str, "%02d:%02d", hour, min);
+	// compo_textbox_t *txt;
+	// txt = compo_textbox_create(frm, 5);
+	// compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
+	// compo_textbox_set_align_center(txt, false);
+	// compo_textbox_set_pos(txt, 30+50, 90);
+    // compo_textbox_set(txt, aclock_str);
 
-    char weak_str[8];
-    for(u8 i=0 ; i<7 ; i++) {
-        if(sys_cb.alarm_week_sel[0] & BIT(i)) {
-            weak_str[i] = '1'+ i;
-        } else {
-            weak_str[i] = ' ';
-        }
-    }
+    // char weak_str[8];
+    // for(u8 i=0 ; i<7 ; i++) {
+    //     if(sys_cb.alarm_week_sel[0] & BIT(i)) {
+    //         weak_str[i] = '1'+ i;
+    //     } else {
+    //         weak_str[i] = ' ';
+    //     }
+    // }
 
-    txt = compo_textbox_create(frm, 20);
-	compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
-	compo_textbox_set_align_center(txt, false);
-	compo_textbox_set_pos(txt, 30+50, 140+70);
-    compo_textbox_set(txt, weak_str);
+    // txt = compo_textbox_create(frm, 20);
+	// compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
+	// compo_textbox_set_align_center(txt, false);
+	// compo_textbox_set_pos(txt, 30+50, 140+70);
+    // compo_textbox_set(txt, weak_str);
 
-    txt = compo_textbox_create(frm, 12);
-    compo_textbox_set_align_center(txt, false);
-	compo_textbox_set_pos(txt, 30+50, 140);
-    compo_textbox_set(txt, i18n[STR_ALARM_CHANGE_TIME]);
+    // txt = compo_textbox_create(frm, 12);
+    // compo_textbox_set_align_center(txt, false);
+	// compo_textbox_set_pos(txt, 30+50, 140);
+    // compo_textbox_set(txt, i18n[STR_ALARM_CHANGE_TIME]);
 
-    txt = compo_textbox_create(frm, 12);
-    compo_textbox_set_align_center(txt, false);
-	compo_textbox_set_pos(txt, 30+50, 200+70);
-    compo_textbox_set(txt, i18n[STR_ALARM_SET_REPEAT]);
+    // txt = compo_textbox_create(frm, 12);
+    // compo_textbox_set_align_center(txt, false);
+	// compo_textbox_set_pos(txt, 30+50, 200+70);
+    // compo_textbox_set(txt, i18n[STR_ALARM_SET_REPEAT]);
 
-    txt = compo_textbox_create(frm, 10);
-    compo_textbox_set_align_center(txt, false);
-	compo_textbox_set_pos(txt, GUI_GET_SCREEN_CENTER_X-50, 340+55);
-    compo_textbox_set(txt, "delete");
-    compo_textbox_set_forecolor(txt, 63488);
+    // txt = compo_textbox_create(frm, 10);
+    // compo_textbox_set_align_center(txt, false);
+	// compo_textbox_set_pos(txt, GUI_GET_SCREEN_CENTER_X-50, 340+55);
+    // compo_textbox_set(txt, "delete");
+    // compo_textbox_set_forecolor(txt, 63488);
 
-    compo_picturebox_t * pic_click = compo_picturebox_create(frm, UI_BUF_ALARM_CLOCK_OPEN_BIN);
-    compo_picturebox_set_pos(pic_click, 283+50, 160);
+    // compo_picturebox_t * pic_click = compo_picturebox_create(frm, UI_BUF_ALARM_CLOCK_OPEN_BIN);
+    // compo_picturebox_set_pos(pic_click, 283+50, 160);
 
-    pic_click = compo_picturebox_create(frm, UI_BUF_ALARM_CLOCK_OPEN_BIN);
-    compo_picturebox_set_pos(pic_click, 283+50, 220);
+    // pic_click = compo_picturebox_create(frm, UI_BUF_ALARM_CLOCK_OPEN_BIN);
+    // compo_picturebox_set_pos(pic_click, 283+50, 220);
 
 
 

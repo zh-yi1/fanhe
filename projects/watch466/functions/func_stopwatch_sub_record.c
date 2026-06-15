@@ -28,28 +28,28 @@ compo_form_t *func_stopwatch_sub_record_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE | COMPO_FORM_MODE_SHOW_TIME);
-    compo_form_set_title(frm, i18n[STR_STOP_WATCH_RECORD]);
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE | COMPO_FORM_MODE_SHOW_TIME);
+    // compo_form_set_title(frm, i18n[STR_STOP_WATCH_RECORD]);
 
-    //新建列表
-    compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_TITLE);
-    compo_listbox_set(listbox, tbl_stopwatch_list, sys_cb.stopwatch_rec_cnt);
-    compo_setid(listbox, COMPO_ID_LISTBOX);
+    // //新建列表
+    // compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_TITLE);
+    // compo_listbox_set(listbox, tbl_stopwatch_list, sys_cb.stopwatch_rec_cnt);
+    // compo_setid(listbox, COMPO_ID_LISTBOX);
 
-    compo_listbox_set_bgimg(listbox, UI_BUF_COMMON_BG_BIN);
-    compo_listbox_set_text_modify(listbox, tbl_stopwatch_txt_list);
+    // compo_listbox_set_bgimg(listbox, UI_BUF_COMMON_BG_BIN);
+    // compo_listbox_set_text_modify(listbox, tbl_stopwatch_txt_list);
 
-	u8 min = 0;
-	u8 sec = 0;
-	u16 msec = 0;
-    for (u8 i = 0; i < sys_cb.stopwatch_rec_cnt; i++) {
-        min = ((sys_cb.stopwatch_rec_view[i] / 1000) % 3600) / 60;
-        sec = (sys_cb.stopwatch_rec_view[i] / 1000) % 60;
-        msec = sys_cb.stopwatch_rec_view[i] % 1000;
-        sprintf(tbl_stopwatch_txt_list[i].str_txt, "%2d. %02d:%02d.%02d", sys_cb.stopwatch_rec_cnt - i, min, sec, msec / 10);
-    }
-    compo_listbox_set_focus_byidx(listbox, 1);
-    compo_listbox_update(listbox);
+	// u8 min = 0;
+	// u8 sec = 0;
+	// u16 msec = 0;
+    // for (u8 i = 0; i < sys_cb.stopwatch_rec_cnt; i++) {
+    //     min = ((sys_cb.stopwatch_rec_view[i] / 1000) % 3600) / 60;
+    //     sec = (sys_cb.stopwatch_rec_view[i] / 1000) % 60;
+    //     msec = sys_cb.stopwatch_rec_view[i] % 1000;
+    //     sprintf(tbl_stopwatch_txt_list[i].str_txt, "%2d. %02d:%02d.%02d", sys_cb.stopwatch_rec_cnt - i, min, sec, msec / 10);
+    // }
+    // compo_listbox_set_focus_byidx(listbox, 1);
+    // compo_listbox_update(listbox);
 
     return frm;
 }

@@ -1,6 +1,6 @@
 #include "include.h"
 
-#define TRACE_EN                1
+#define TRACE_EN                0
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -161,6 +161,25 @@ void tft_bglight_frist_set_check(void)
         sys_cb.light_level = 5;
     }
     lcd_drv_set_brightness(tft_cb.tft_bglight_duty);
+}
+
+void tft_bglight_open(void)
+{
+    LCD_BL_EN();
+    tft_cb.tft_bglight_first_set = true;
+    tft_bglight_frist_set_check();
+}
+
+void tft_bglight_force_on(void)
+{
+    tft_cb.te_bglight_cnt = 0;
+    tft_cb.tft_bglight_kick = false;
+    tft_cb.tft_bglight_first_set = true;
+    if (tft_cb.tft_bglight_duty == 0) {
+        tft_cb.tft_bglight_duty = GUI_DEFAULT_BK;
+    }
+    tft_bglight_frist_set_check();
+    LCD_BL_EN();
 }
 
 //设置TE MODE

@@ -45,47 +45,47 @@ compo_form_t *func_alarm_clock_sub_repeat_form_create(void)
     //新建窗体和背景
     compo_form_t *frm = compo_form_create(true);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_ALARM_CLOCK_REPEAT]);
+//     //设置标题栏
+//     compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+//     compo_form_set_title_center(frm, true);
+//     compo_form_set_title(frm, i18n[STR_ALARM_CLOCK_REPEAT]);
 
-    //新建列表
-    compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_TITLE_NORMAL);
-    compo_listbox_set(listbox, tbl_weeks_list, WEEKS_LIST_CNT);
-    compo_listbox_set_location(listbox, 160+50, 165, 320+100, 200);
-    compo_listbox_set_item_height(listbox, 60);
-    compo_setid(listbox, COMPO_ID_LISTBOX);
-    compo_listbox_set_sta_icon(listbox, UI_BUF_COMMON_SELECT_YES_BIN, UI_BUF_COMMON_SELECT_NO_BIN); //UI_BUF_COMMON_SELECT_ON_BIN  //UI_BUF_COMMON_SELECT_BIN
-    compo_listbox_set_bithook(listbox, bsp_sys_get_ctlbit);
-    compo_listbox_set_focus_byidx(listbox, 2);
+//     //新建列表
+//     compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_TITLE_NORMAL);
+//     compo_listbox_set(listbox, tbl_weeks_list, WEEKS_LIST_CNT);
+//     compo_listbox_set_location(listbox, 160+50, 165, 320+100, 200);
+//     compo_listbox_set_item_height(listbox, 60);
+//     compo_setid(listbox, COMPO_ID_LISTBOX);
+//     compo_listbox_set_sta_icon(listbox, UI_BUF_COMMON_SELECT_YES_BIN, UI_BUF_COMMON_SELECT_NO_BIN); //UI_BUF_COMMON_SELECT_ON_BIN  //UI_BUF_COMMON_SELECT_BIN
+//     compo_listbox_set_bithook(listbox, bsp_sys_get_ctlbit);
+//     compo_listbox_set_focus_byidx(listbox, 2);
 
-    for (int i=0; i<7; i++) {       //获取每个闹钟设置的星期
-        bsp_sys_set_ctlbit(SYS_CTL_ACLOCK_MON + i, (sys_cb.alarm_week_sel[sys_cb.alarm_idx] >> i) & 1);
-    }
+//     for (int i=0; i<7; i++) {       //获取每个闹钟设置的星期
+//         bsp_sys_set_ctlbit(SYS_CTL_ACLOCK_MON + i, (sys_cb.alarm_week_sel[sys_cb.alarm_idx] >> i) & 1);
+//     }
 
-    compo_listbox_update(listbox);
+//     compo_listbox_update(listbox);
 
-	//新建按钮
-	compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_NO_BIN);//UI_BUF_COMMON_NO_BIN
-    compo_setid(btn, COMPO_ID_BTN_REPETAT_NO);
-    compo_button_set_pos(btn, 87+60, 321);
+// 	//新建按钮
+// 	compo_button_t *btn;
+//     btn = compo_button_create_by_image(frm, UI_BUF_COMMON_NO_BIN);//UI_BUF_COMMON_NO_BIN
+//     compo_setid(btn, COMPO_ID_BTN_REPETAT_NO);
+//     compo_button_set_pos(btn, 87+60, 321);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_ALARM_CLOCK_YES_BIN);
-    compo_setid(btn, COMPO_ID_BTN_REPETAT_YES);
-    compo_button_set_pos(btn, 233+60, 321);
+//     // btn = compo_button_create_by_image(frm, UI_BUF_ALARM_CLOCK_YES_BIN);
+//     // compo_setid(btn, COMPO_ID_BTN_REPETAT_YES);
+//     // compo_button_set_pos(btn, 233+60, 321);
 
-    //新建图像
-   compo_picturebox_t *pic_click = compo_picturebox_create(frm, UI_BUF_COMMON_SELECT_YES_BIN);
-   compo_setid(pic_click, COMPO_ID_PIC_REPETAT_NO_CLICK);
-   compo_picturebox_set_pos(pic_click, 87, 321);
-   compo_picturebox_set_visible(pic_click, false);
+//     //新建图像
+//    compo_picturebox_t *pic_click = compo_picturebox_create(frm, UI_BUF_COMMON_SELECT_YES_BIN);
+//    compo_setid(pic_click, COMPO_ID_PIC_REPETAT_NO_CLICK);
+//    compo_picturebox_set_pos(pic_click, 87, 321);
+//    compo_picturebox_set_visible(pic_click, false);
 
-   pic_click = compo_picturebox_create(frm, UI_BUF_COMMON_SELECT_NO_BIN);
-   compo_setid(pic_click, COMPO_ID_PIC_REPETAT_YES_CLICK);
-   compo_picturebox_set_pos(pic_click, 233, 321);
-   compo_picturebox_set_visible(pic_click, false);
+//    pic_click = compo_picturebox_create(frm, UI_BUF_COMMON_SELECT_NO_BIN);
+//    compo_setid(pic_click, COMPO_ID_PIC_REPETAT_YES_CLICK);
+//    compo_picturebox_set_pos(pic_click, 233, 321);
+//    compo_picturebox_set_visible(pic_click, false);
     return frm;
 }
 

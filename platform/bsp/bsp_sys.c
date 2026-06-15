@@ -480,9 +480,12 @@ bool rtc_init(void)
 //UART0打印信息输出GPIO选择，UART0默认G1(PA7)
 void uart0_mapping_sel(void)
 {
-    //等待uart0发送完成
+    //等待uart0发送完成（PRINTF_NONE 时 UART 可能永不完成，须超时）
     if(UART0CON & BIT(0)) {
-        while (!(UART0CON & BIT(8)));
+        u16 tout = 200;
+        while (!(UART0CON & BIT(8)) && tout--) {
+            delay_us(100);
+        }
     }
     GPIOBPU  &= ~(BIT(3) | BIT(4));
     FUNCMCON0 = (0xf << 12) | (0xf << 8);           //clear uart0 mapping
@@ -531,6 +534,43 @@ void uart0_mapping_sel(void)
     FUNCMCON0 = URX0MAP_TX | UTX0MAP_VUSB;          //RX0 Map To TX0, TX0 Map to G8
 #endif
 }
+
+#if (UART0_PRINTF_SEL != PRINTF_NONE)
+AT(.com_text.bsp.uart)
+void uart0_printf_ensure(void)
+{
+    static u32 last_chk_ms;
+    u32 expect = 0;
+
+#if (UART0_PRINTF_SEL == PRINTF_PB3)
+    expect = URX0MAP_TX | UTX0MAP_PB3;
+#elif (UART0_PRINTF_SEL == PRINTF_PA0)
+    expect = URX0MAP_TX | UTX0MAP_PA0;
+#elif (UART0_PRINTF_SEL == PRINTF_PB0)
+    expect = URX0MAP_TX | UTX0MAP_PB0;
+#elif (UART0_PRINTF_SEL == PRINTF_PB12)
+    expect = URX0MAP_TX | UTX0MAP_PB12;
+#elif (UART0_PRINTF_SEL == PRINTF_PE0)
+    expect = URX0MAP_TX | UTX0MAP_PE0;
+#elif (UART0_PRINTF_SEL == PRINTF_PE7)
+    expect = URX0MAP_TX | UTX0MAP_PE7;
+#elif (UART0_PRINTF_SEL == PRINTF_VUSB)
+    expect = URX0MAP_TX | UTX0MAP_VUSB;
+#endif
+
+    if (expect == 0) {
+        return;
+    }
+    if ((FUNCMCON0 & 0xFF0) == (expect & 0xFF0)) {
+        return;
+    }
+    if (last_chk_ms && !tick_check_expire(last_chk_ms, 500)) {
+        return;
+    }
+    last_chk_ms = tick_get();
+    uart0_mapping_sel();
+}
+#endif
 
 
 AT(.rodata.vol)
@@ -602,6 +642,13 @@ static void bsp_var_init(void)
 
 #if !RTC_CLOCK_PDN_EN
     bsp_set_shipping_mode(1);
+#endif
+
+#if ELUNCHBOX_KEEP_AWAKE
+    sys_cb.sleep_en = 0;
+    sys_cb.sleep_delay = -1L;
+    sys_cb.guioff_delay = -1L;
+    sys_cb.pwroff_delay = -1L;
 #endif
 }
 
@@ -762,7 +809,7 @@ void bsp_sys_init(void)
     app_platform_init();
 #endif
 
-#if !LP_XOSC_CLOCK_EN
+#if !LP_XOSC_CLOCK_EN && !ELUNCHBOX_PANEL_EN
     rtc_pwd_calibration();
 #endif
 
@@ -803,13 +850,24 @@ void bsp_sys_init(void)
 #if BSP_UART_EN
     bsp_uart_init();
 #endif
+#if !ELUNCHBOX_PANEL_EN
     bsp_huart_init();
+#endif
 
     key_init();
     rtc_init();
 
     /// enable user timer for display & dac
     sys_set_tmr_enable(1, 1);
+
+#if ELUNCHBOX_PANEL_EN
+    /* 饭盒：跳过 BT/DAC/mic 等可能阻塞项，尽快点亮 LCD */
+    lang_select(sys_cb.lang_id);
+    bsp_sys_mute();
+    gui_init();
+    customer_heap_init();
+    return;
+#endif
 
 #if NOC_FLASH_EN || NOC_PSRAM_EN
     noc_init((NOC_PSRAM_EN << 1) | NOC_FLASH_EN);

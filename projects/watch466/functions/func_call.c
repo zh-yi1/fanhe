@@ -19,9 +19,9 @@ typedef struct f_call_list_t_ {
 } f_call_list_t;
 
 static const compo_listbox_item_t tbl_call_list[] = {
-    {STR_CALL_RECENT,      UI_BUF_ICON_CALL_BIN,               .func_sta = FUNC_CALL_SUB_RECORD},
-    {STR_CALL_LINK,        UI_BUF_ICON_ADDRESS_BOOK_BIN,       .func_sta = FUNC_CALL_SUB_LINKMAN},
-    {STR_CALL_DIAL,        UI_BUF_ICON_MENU_BIN,               .func_sta = FUNC_CALL_SUB_DIAL},
+    // {STR_CALL_RECENT,      UI_BUF_ICON_CALL_BIN,               .func_sta = FUNC_CALL_SUB_RECORD},
+    // {STR_CALL_LINK,        UI_BUF_ICON_ADDRESS_BOOK_BIN,       .func_sta = FUNC_CALL_SUB_LINKMAN},
+    // {STR_CALL_DIAL,        UI_BUF_ICON_MENU_BIN,               .func_sta = FUNC_CALL_SUB_DIAL},
 };
 
 //电话页面

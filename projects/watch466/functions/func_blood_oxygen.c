@@ -46,43 +46,43 @@ compo_form_t *func_blood_oxygen_form_create(void)
 
     //新建窗体和背景
     compo_form_t *frm = compo_form_create(true);
-    compo = (component_t *)compo_picturebox_create(frm, UI_BUF_BLOOD_OXYGEN_BLOOD_OXYGEN_BIN);
-    compo_picturebox_set_pos((compo_picturebox_t *)compo, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_setid(compo, COMPO_ID_PIC_BG);
+    // compo = (component_t *)compo_picturebox_create(frm, UI_BUF_BLOOD_OXYGEN_BLOOD_OXYGEN_BIN);
+    // compo_picturebox_set_pos((compo_picturebox_t *)compo, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // compo_setid(compo, COMPO_ID_PIC_BG);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_BLOOD_OXYGEN]);
+    // //设置标题栏
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_BLOOD_OXYGEN]);
 
-	//图像按钮
-	compo = (component_t *)compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON2_BIN);
-    compo_setid(compo, COMPO_ID_BTN);
-    compo_button_set_pos((compo_button_t *)compo, GUI_SCREEN_CENTER_X, 336+80);
+	// //图像按钮
+	// compo = (component_t *)compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON2_BIN);
+    // compo_setid(compo, COMPO_ID_BTN);
+    // compo_button_set_pos((compo_button_t *)compo, GUI_SCREEN_CENTER_X, 336+80);
 
-    //按钮上的文本
-    compo = (component_t *)compo_textbox_create(frm, 10);
-    compo_setid(compo, COMPO_ID_TXT_TIPS);
-    compo_textbox_set_pos((compo_textbox_t *)compo, GUI_SCREEN_CENTER_X, 336+80);
-    compo_textbox_set((compo_textbox_t *)compo, i18n[STR_START]);
+    // //按钮上的文本
+    // compo = (component_t *)compo_textbox_create(frm, 10);
+    // compo_setid(compo, COMPO_ID_TXT_TIPS);
+    // compo_textbox_set_pos((compo_textbox_t *)compo, GUI_SCREEN_CENTER_X, 336+80);
+    // compo_textbox_set((compo_textbox_t *)compo, i18n[STR_START]);
 
-    compo = (component_t *)compo_textbox_create(frm, 55);
-    compo_setid(compo, COMPO_ID_TXT_ADVICE);
-    compo_textbox_set_location((compo_textbox_t *)compo, GUI_SCREEN_CENTER_X, 336, 350, 50);
-    compo_textbox_set((compo_textbox_t *)compo, i18n[STR_OXYGEN_TIP]);
-    compo_textbox_set_visible((compo_textbox_t *)compo, false);
+    // compo = (component_t *)compo_textbox_create(frm, 55);
+    // compo_setid(compo, COMPO_ID_TXT_ADVICE);
+    // compo_textbox_set_location((compo_textbox_t *)compo, GUI_SCREEN_CENTER_X, 336, 350, 50);
+    // compo_textbox_set((compo_textbox_t *)compo, i18n[STR_OXYGEN_TIP]);
+    // compo_textbox_set_visible((compo_textbox_t *)compo, false);
 
-    //测量结果
-    compo = (component_t *)compo_textbox_create(frm, 4);
-    compo_setid(compo, COMPO_ID_TXT_RESULT);
-    compo_textbox_set_pos((compo_textbox_t *)compo, GUI_SCREEN_CENTER_X, 260);
-    compo_textbox_set_visible((compo_textbox_t *)compo, false);
+    // //测量结果
+    // compo = (component_t *)compo_textbox_create(frm, 4);
+    // compo_setid(compo, COMPO_ID_TXT_RESULT);
+    // compo_textbox_set_pos((compo_textbox_t *)compo, GUI_SCREEN_CENTER_X, 260);
+    // compo_textbox_set_visible((compo_textbox_t *)compo, false);
 
-    //未佩戴提示
-    compo = (component_t *)compo_picturebox_create(frm, UI_BUF_BLOOD_OXYGEN_EXPLAIN_BIN);
-    compo_setid(compo, COMPO_ID_PIC_UNWEAR);
-    compo_picturebox_set_pos((compo_picturebox_t *)compo, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_picturebox_set_visible((compo_picturebox_t *)compo, false);
+    // //未佩戴提示
+    // compo = (component_t *)compo_picturebox_create(frm, UI_BUF_BLOOD_OXYGEN_EXPLAIN_BIN);
+    // compo_setid(compo, COMPO_ID_PIC_UNWEAR);
+    // compo_picturebox_set_pos((compo_picturebox_t *)compo, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // compo_picturebox_set_visible((compo_picturebox_t *)compo, false);
 
     return frm;
 }

@@ -24,17 +24,17 @@ compo_form_t *func_voice_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_VOICE]);
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_VOICE]);
 
-	//创建动画
-    compo_animation_t *animation = compo_animation_create(frm, UI_BUF_VOICE_320_86_BIN);
-    compo_animation_set_pos(animation, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_animation_set_radix(animation, 2);
-    compo_animation_set_interval(animation, 1);
-    compo_setid(animation, COMPO_ID_PIC_VOICE);
-    compo_animation_set_roll(animation, UI_BUF_VOICE_320_86_BIN);
+	// //创建动画
+    // compo_animation_t *animation = compo_animation_create(frm, UI_BUF_VOICE_320_86_BIN);
+    // compo_animation_set_pos(animation, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // compo_animation_set_radix(animation, 2);
+    // compo_animation_set_interval(animation, 1);
+    // compo_setid(animation, COMPO_ID_PIC_VOICE);
+    // compo_animation_set_roll(animation, UI_BUF_VOICE_320_86_BIN);
     return frm;
 }
 

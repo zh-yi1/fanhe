@@ -17,7 +17,7 @@
  *   顶栏 Y≈20：左上 RTC + 绿色温度 + 右上 BT/锁/电量
  *   中部：白色 HH:MM 倒计时（bin 原始尺寸）
  *   底部 Tab 80×65：Pasta / Chicken / Warm（图标 bin 原始尺寸，文字 5×7 点阵）
- * PT8028：TCH3 模式键循环 Tab；TCH4 OK 开始加热；TCH5 回主界面
+ * PT8028：TCH3 模式循环 Tab；TCH4 确认开始加热；TCH5 开关回 Home；TCH0 锁键解锁童锁
  */
 #define UI_MODE_PLACEHOLDER               UI_BUF_ICON_ACTIVITY_BIN
 #define MODE_COLOR_BLUE                   make_color(4, 109, 217)
@@ -1140,6 +1140,13 @@ static void func_mode_message(size_msg_t msg)
 
     case MODE_MSG_POWER:
         func_mode_power_key(f_mode);
+        break;
+
+    case KU_LEFT:
+        if (f_mode != NULL && f_mode->ui_state == MODE_UI_HEATING && f_mode->screen_locked) {
+            f_mode->screen_locked = false;
+            func_mode_lock_icon_apply(f_mode);
+        }
         break;
 
     default:

@@ -40,11 +40,11 @@ typedef struct light_pic_item_t_ {
 
 //图片item，创建时遍历一下
 static const light_pic_item_t tbl_light_pic_item[] = {
-    {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL1,         157,    349,    false},
-    {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL2,         195,    349,    false},
-    {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL3,         233,    349,    false},
-    {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL4,         271,    349,    false},
-    {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL5,         309,    349,    false},
+    // {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL1,         157,    349,    false},
+    // {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL2,         195,    349,    false},
+    // {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL3,         233,    349,    false},
+    // {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL4,         271,    349,    false},
+    // {UI_BUF_COMMON_BG2_BIN,     COMPO_ID_PIC_LEVEL5,         309,    349,    false},
 };
 
 //创建亮度调节窗体，创建窗体中不要使用功能结构体 func_cb.f_cb
@@ -53,37 +53,37 @@ compo_form_t *func_light_form_create(void)
 
     //新建窗体和背景
     compo_form_t *frm = compo_form_create(true);
-	compo_form_add_image(frm, UI_BUF_SETTING_LIGHT_LIGHT_BIN, GUI_SCREEN_CENTER_X, 220);
-    compo_form_add_image(frm, UI_BUF_COMMON_BG1_BIN, GUI_SCREEN_CENTER_X, 349);
+	// compo_form_add_image(frm, UI_BUF_SETTING_LIGHT_LIGHT_BIN, GUI_SCREEN_CENTER_X, 220);
+    // compo_form_add_image(frm, UI_BUF_COMMON_BG1_BIN, GUI_SCREEN_CENTER_X, 349);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_SETTING_LIGHT]);
+    // //设置标题栏
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_SETTING_LIGHT]);
 
-	//新建按钮
-	compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_REDUCE1_BIN);
-    compo_setid(btn, COMPO_ID_BTN_REDUCE);
-    compo_button_set_pos(btn, 86, 349);
+	// //新建按钮
+	// compo_button_t *btn;
+    // btn = compo_button_create_by_image(frm, UI_BUF_COMMON_REDUCE1_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_REDUCE);
+    // compo_button_set_pos(btn, 86, 349);
 
-	btn = compo_button_create_by_image(frm, UI_BUF_COMMON_INCREASE1_BIN);
-    compo_setid(btn, COMPO_ID_BTN_INCREASE);
-    compo_button_set_pos(btn, 370, 349);
+	// btn = compo_button_create_by_image(frm, UI_BUF_COMMON_INCREASE1_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_INCREASE);
+    // compo_button_set_pos(btn, 370, 349);
 
-    //新建图像
-    compo_picturebox_t *pic_level[LIGHT_PIC_ITEM_CNT];
-    for (u8 idx = 0; idx < LIGHT_PIC_ITEM_CNT; idx++) {
-        pic_level[idx] = compo_picturebox_create(frm, tbl_light_pic_item[idx].res_addr);
-        compo_setid(pic_level[idx], tbl_light_pic_item[idx].pic_id);
-        compo_picturebox_set_pos(pic_level[idx], tbl_light_pic_item[idx].x, tbl_light_pic_item[idx].y);
-        compo_picturebox_set_visible(pic_level[idx], tbl_light_pic_item[idx].visible_en);
-    }
+    // //新建图像
+    // compo_picturebox_t *pic_level[LIGHT_PIC_ITEM_CNT];
+    // for (u8 idx = 0; idx < LIGHT_PIC_ITEM_CNT; idx++) {
+    //     pic_level[idx] = compo_picturebox_create(frm, tbl_light_pic_item[idx].res_addr);
+    //     compo_setid(pic_level[idx], tbl_light_pic_item[idx].pic_id);
+    //     compo_picturebox_set_pos(pic_level[idx], tbl_light_pic_item[idx].x, tbl_light_pic_item[idx].y);
+    //     compo_picturebox_set_visible(pic_level[idx], tbl_light_pic_item[idx].visible_en);
+    // }
 
-    printf("%s-->light_level:%d\n",__func__, sys_cb.light_level);
-    for (u8 i=0; i<sys_cb.light_level; i++) {
-        compo_picturebox_set_visible(pic_level[i],true);
-    }
+    // printf("%s-->light_level:%d\n",__func__, sys_cb.light_level);
+    // for (u8 i=0; i<sys_cb.light_level; i++) {
+    //     compo_picturebox_set_visible(pic_level[i],true);
+    // }
 
     return frm;
 }

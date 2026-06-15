@@ -272,21 +272,21 @@ static void func_clock_sub_card_compo_create(compo_form_t *frm)
     compo_datetime_t *dt;
 
     //时钟、日期
-    pic = compo_picturebox_create(frm, UI_BUF_PULLUP_DIALPLATE_BG_BIN); //时钟背景
-    compo_picturebox_set_pos(pic, CLOCK_BG_X, CLOCK_BG_Y);
-    compo_setid(pic, COMPO_ID_CLOCK_BG);
-    dt = compo_datetime_create(frm, UI_BUF_PULLUP_HOUR_BIN);            //时针
-    compo_setid(dt, COMPO_ID_CLOCK_H);
-    compo_datetime_set_center(dt, 0, CLOCK_POINTER_H_H / 2);
-    compo_datetime_set_start_angle(dt, 900);
-    compo_datetime_set_pos(dt, CLOCK_POINTER_H_X, CLOCK_POINTER_H_Y);
-    compo_bonddata(dt, COMPO_BOND_HOUR);
-    dt = compo_datetime_create(frm, UI_BUF_PULLUP_MIN_BIN);             //分针
-    compo_setid(dt, COMPO_ID_CLOCK_M);
-    compo_datetime_set_center(dt, 0, CLOCK_POINTER_M_H /2);
-    compo_datetime_set_start_angle(dt, 900);
-    compo_datetime_set_pos(dt, CLOCK_POINTER_M_X, CLOCK_POINTER_M_Y);
-    compo_bonddata(dt, COMPO_BOND_MINUTE);
+    // pic = compo_picturebox_create(frm, UI_BUF_PULLUP_DIALPLATE_BG_BIN); //时钟背景
+    // compo_picturebox_set_pos(pic, CLOCK_BG_X, CLOCK_BG_Y);
+    // compo_setid(pic, COMPO_ID_CLOCK_BG);
+    // dt = compo_datetime_create(frm, UI_BUF_PULLUP_HOUR_BIN);            //时针
+    // compo_setid(dt, COMPO_ID_CLOCK_H);
+    // compo_datetime_set_center(dt, 0, CLOCK_POINTER_H_H / 2);
+    // compo_datetime_set_start_angle(dt, 900);
+    // compo_datetime_set_pos(dt, CLOCK_POINTER_H_X, CLOCK_POINTER_H_Y);
+    // compo_bonddata(dt, COMPO_BOND_HOUR);
+    // dt = compo_datetime_create(frm, UI_BUF_PULLUP_MIN_BIN);             //分针
+    // compo_setid(dt, COMPO_ID_CLOCK_M);
+    // compo_datetime_set_center(dt, 0, CLOCK_POINTER_M_H /2);
+    // compo_datetime_set_start_angle(dt, 900);
+    // compo_datetime_set_pos(dt, CLOCK_POINTER_M_X, CLOCK_POINTER_M_Y);
+    // compo_bonddata(dt, COMPO_BOND_MINUTE);
     txt = compo_textbox_create(frm, 5);                                 //日期
     compo_textbox_set_location(txt, DATE_X, DATE_Y, DATE_W, DATE_H);
     compo_setid(txt, COMPO_ID_DATE);
@@ -303,13 +303,13 @@ static void func_clock_sub_card_compo_create(compo_form_t *frm)
     compo_setid(cardbox, COMPO_ID_CARD_POWEROFF_ASSISTANT);
     compo_cardbox_rect_set_color(cardbox, 0, make_color(29, 29, 29));
     compo_cardbox_rect_set_location(cardbox, 0, ASSISTANT_BG_X, ASSISTANT_BG_Y, ASSISTANT_BG_W, ASSISTANT_BG_H, CARD_R_ORG);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_ICON_VOICE_BIN);
+    //compo_cardbox_icon_set(cardbox, 0, UI_BUF_ICON_VOICE_BIN);
     compo_cardbox_icon_set_location(cardbox, 0, ASSISTANT_ICON_X, ASSISTANT_ICON_Y, ASSISTANT_ICON_W, ASSISTANT_ICON_H);
     compo_cardbox_text_set(cardbox, 0, i18n[STR_VOICE]);
     compo_cardbox_text_set_location(cardbox, 0, ASSISTANT_TXT_X, ASSISTANT_TXT_Y, ASSISTANT_TXT_W, ASSISTANT_TXT_H);
     // compo_cardbox_rect_set_color(cardbox, 1, make_color(29, 29, 29));
     // compo_cardbox_rect_set_location(cardbox, 1, POWEROFF_BG_X, POWEROFF_BG_Y, POWEROFF_BG_W, POWEROFF_BG_H, CARD_R_ORG);
-    compo_cardbox_icon_set(cardbox, 1, UI_BUF_ICON_OFF_BIN);
+    //compo_cardbox_icon_set(cardbox, 1, UI_BUF_ICON_OFF_BIN);
     compo_cardbox_icon_set_location(cardbox, 1, POWEROFF_ICON_X, POWEROFF_ICON_Y, POWEROFF_ICON_W, POWEROFF_ICON_H);
     compo_cardbox_text_set(cardbox, 1, i18n[STR_SETTING_OFF]);
     compo_cardbox_text_set_location(cardbox, 1, POWEROFF_TXT_X, POWEROFF_TXT_Y, POWEROFF_TXT_W, POWEROFF_TXT_H);
@@ -333,9 +333,9 @@ static void func_clock_sub_card_compo_create(compo_form_t *frm)
     compo_setid(cardbox, COMPO_ID_CARD_HEARTRATE);
     compo_cardbox_rect_set_color(cardbox, 0, make_color(29, 29, 29));
     compo_cardbox_rect_set_location(cardbox, 0, HEARTRATE_BG_X, HEARTRATE_BG_Y, HEARTRATE_BG_W, HEARTRATE_BG_H, CARD_R_ORG);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_HEART_RATE_HR_BG_BIN);
+    //compo_cardbox_icon_set(cardbox, 0, UI_BUF_HEART_RATE_HR_BG_BIN);
     compo_cardbox_icon_set_location(cardbox, 0, HEARTRATE_LINE_X, HEARTRATE_LINE_Y, HEARTRATE_LINE_W, HEARTRATE_LINE_H);
-    compo_cardbox_icon_set(cardbox, 1, UI_BUF_ICON_HEART_RATE_BIN);
+    //compo_cardbox_icon_set(cardbox, 1, UI_BUF_ICON_HEART_RATE_BIN);
     compo_cardbox_icon_set_location(cardbox, 1, HEARTRATE_ICON_X, HEARTRATE_ICON_Y, HEARTRATE_ICON_W, HEARTRATE_ICON_H);
     compo_cardbox_text_set_font(cardbox, 0, UI_BUF_0FONT_FONT_NUM_24_BIN);
     compo_cardbox_text_set(cardbox, 0, "72");   //心率值--------->>>todo
@@ -371,7 +371,7 @@ static void func_clock_sub_card_compo_create(compo_form_t *frm)
     compo_setid(cardbox, COMPO_ID_CARD_ACTIVITY);
     compo_cardbox_rect_set_color(cardbox, 0, make_color(29, 29, 29));
     compo_cardbox_rect_set_location(cardbox, 0, ACTIVITY_BG_X, ACTIVITY_BG_Y, ACTIVITY_BG_W, ACTIVITY_BG_H, CARD_R_ORG);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_ICON_ACTIVITY_BIN);
+    //compo_cardbox_icon_set(cardbox, 0, UI_BUF_ICON_ACTIVITY_BIN);
     compo_cardbox_icon_set_location(cardbox, 0, ACTIVITY_ICON_X, ACTIVITY_ICON_Y, ACTIVITY_ICON_W, ACTIVITY_ICON_H);
     compo_cardbox_text_set_font(cardbox, 0, UI_BUF_0FONT_FONT_NUM_24_BIN);
     compo_cardbox_text_set(cardbox, 0, "12000");    //步数--------->>>todo
@@ -388,13 +388,13 @@ static void func_clock_sub_card_compo_create(compo_form_t *frm)
     compo_setid(cardbox, COMPO_ID_CARD_SPORT_COMPASS);
     compo_cardbox_rect_set_color(cardbox, 0, make_color(29, 29, 29));
     compo_cardbox_rect_set_location(cardbox, 0, COMPASS_BG_X, COMPASS_BG_Y, COMPASS_BG_W, COMPASS_BG_H, CARD_R_ORG);
-    compo_cardbox_icon_set(cardbox, 0, UI_BUF_ICON_COMPASS_BIN);
+    //compo_cardbox_icon_set(cardbox, 0, UI_BUF_ICON_COMPASS_BIN);
     compo_cardbox_icon_set_location(cardbox, 0, COMPASS_ICON_X, COMPASS_ICON_Y, COMPASS_ICON_W, COMPASS_ICON_H);
     compo_cardbox_text_set(cardbox, 0, i18n[STR_COMPASS]);
     compo_cardbox_text_set_location(cardbox, 0, COMPASS_TXT_X, COMPASS_TXT_Y, COMPASS_TXT_W, COMPASS_TXT_H);
     // compo_cardbox_rect_set_color(cardbox, 1, make_color(29, 29, 29));
     // compo_cardbox_rect_set_location(cardbox, 1, SPORT_BG_X, SPORT_BG_Y, SPORT_BG_W, SPORT_BG_H, CARD_R_ORG);
-    compo_cardbox_icon_set(cardbox, 1, UI_BUF_ICON_SPORT_BIN);
+    //compo_cardbox_icon_set(cardbox, 1, UI_BUF_ICON_SPORT_BIN);
     compo_cardbox_icon_set_location(cardbox, 1, SPORT_ICON_X, SPORT_ICON_Y, SPORT_ICON_W, SPORT_ICON_H);
     compo_cardbox_text_set(cardbox, 1, i18n[STR_SPORTS]);
     compo_cardbox_text_set_location(cardbox, 1, SPORT_TXT_X, SPORT_TXT_Y, SPORT_TXT_W, SPORT_TXT_H);

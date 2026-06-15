@@ -97,6 +97,7 @@ uint8_t const cfg_bt_link_info_items = 8;   //保存回连信息的个数（最�
 #endif
 
 // uint8_t cfg_bb_rf_gfsk_pwr = 127;     //调节GFSK TXPWR，范围：90~127
+/* cfg_bb_rf_path_gain 由 libplatform.a(rf_rapid.o) 提供，勿在 bt.c 重复定义 */
 
 #if 0//BT_RF_EXT_CTL_EN
 const uint8_t cfg_bb_rf_ctl = BIT(0);   //bit0=RF_EXT_CTL_EN

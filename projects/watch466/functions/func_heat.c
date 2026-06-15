@@ -17,6 +17,7 @@
  *   中部 Y≈100：大号倒计时 HH:MM（选中白字 / 未选中灰字）
  *   下部 Y≈190：温度 XXX°F（灰字 b0x + bhx）
  *   图标 bin 保持 home_icon_res.h 原始尺寸，不缩放
+ * PT8028：TCH4 确认 | TCH5 开关/返回 | TCH2/TCH6 减/加 | TCH0 锁键解锁童锁
  */
 #define UI_HEAT_PLACEHOLDER               UI_BUF_ICON_ACTIVITY_BIN
 
@@ -835,6 +836,13 @@ static void func_heat_message(size_msg_t msg)
 
     case HEAT_MSG_POWER:
         func_heat_power_key(f_heat);
+        break;
+
+    case KU_LEFT:
+        if (f_heat != NULL && f_heat->ui_state == HEAT_UI_HEATING && f_heat->screen_locked) {
+            f_heat->screen_locked = false;
+            func_heat_lock_icon_apply(f_heat);
+        }
         break;
 
     case KU_MODE:

@@ -19,7 +19,7 @@
 
 #define FUNC_BT_EN                      1   //是否打开蓝牙功能
 #define FUNC_BT_DUT_EN                  0   //是否打开蓝牙的独立DUT测试模式
-#define FUNC_MUSIC_EN                   1   //是否打开MUSIC功能
+#define FUNC_MUSIC_EN                   0   //是否打开MUSIC功能
 #define FUNC_FMRX_EN                    0   //是否打开FM收音功能
 #define FUNC_RECORDER_EN                0   //是否打开录音机功能
 #define FUNC_USBDEV_EN                  0   //是否打开USB DEVICE功能
@@ -53,7 +53,7 @@
 #define CHIP_PACKAGE_SUPPORT_PSRAM      1                           //芯片支持psram
 #define CHIP_PACKAGE_SUPPORT_HFP        1                           //芯片支持HFP
 
-#define UART0_PRINTF_SEL                PRINTF_PB3                  //选择UART打印信息输出IO，或关闭打印信息输出
+#define UART0_PRINTF_SEL                PRINTF_PE7                  //非饭盒默认；饭盒 ELUNCHBOX 块内改 VUSB
 #define SYS_INIT_VOLUME                 xcfg_cb.sys_init_vol        //系统默认音量
 
 #define TS_MODE_EN                      0                           //内部NTC模块是否开启
@@ -89,18 +89,18 @@
  * Module    : FLASH配置
  *****************************************************************************/
 #define FLASH_DISK_EN                   1                                                   //是否支持FLASH DISK 功能
-#define FLASH_SIZE                      FSIZE_16M                                            //根据芯片信息配置实际FLASH SIZE
-#define FLASH_CODE_BASE_SIZE            0xEA000                                             //基础功能所需FLASH
+#define FLASH_SIZE                      FSIZE_8M                                            //根据芯片信息配置实际FLASH SIZE
+#define FLASH_CODE_BASE_SIZE            0x1C0000                                            //代码区(须<=FLASH_UI_BASE-0x2000)
 #define FLASH_UI_BASE                   0x200000                                            //UI资源起始地址(最小值为FLASH_CODE_SIZE)
-#define FLASH_UI_SIZE                   0xC00000                                            //UI资源大小(ui.bin的大小)
-#define FLASH_PKG_START                 0xE00000                                            //升级压缩包存放起始地址
-#define FLASH_PKG_SIZE                  0x200000                                            //升级压缩包大小
+#define FLASH_UI_SIZE                   0x100000                                            //UI资源大小(ui.bin的大小)
+#define FLASH_PKG_START                 0x300000                                            //升级压缩包存放起始地址
+#define FLASH_PKG_SIZE                  0x050000                                            //升级压缩包大小
 #define FLASH_DISK_START                FLASH_PKG_START                                     //FLASH DISK 功能与OTA升级复用
 #define FLASH_DISK_LEN                  FLASH_PKG_SIZE                                      //FLASH DISK 功能与OTA升级复用, 0为关闭此功能
 #define FLASH_CM_SIZE                   0x5000
 #define FLASH_ERASE_4K                  1                                                   //是否支持4K擦除
-#define FLASH_DUAL_READ                 1                                                   //是否支持2线模式
-#define FLASH_QUAD_READ                 1                                                   //是否支持4线模式
+#define FLASH_DUAL_READ                 0                                                   //是否支持2线模式
+#define FLASH_QUAD_READ                 0                                                   //是否支持4线模式
 #define SPIFLASH_SPEED_UP_EN            2                                                   //SPI FLASH提速: 0->1bit data, 1->2bit data, 2->4bit data
 #define FLASH_ERASE_32K_64K             0                                                   //是否支持32k和64k擦除
 #define FLASH_EXTERNAL_EN               0                                                   //是否支持外挂flash, 可存放UI资源
@@ -111,7 +111,7 @@
  *****************************************************************************/
 #define NOC_FLASH_EN                    0                       //是否支持NOC FLASH(CACHE)
 #define NOC_PSRAM_EN                    0*CHIP_PACKAGE_SUPPORT_PSRAM                       //是否支持NOC FLASH(NO CACHE)
-#define NOC_PSRAM_SIZE                  FSIZE_4M                //PSRAM的大小
+#define NOC_PSRAM_SIZE                  0 //FSIZE_4M                //PSRAM的大小
 
 /*****************************************************************************
  * Module    : 屏幕驱动配置
@@ -189,12 +189,60 @@
 
 #define GUI_DEFAULT_BK                  100                         //默认背光亮度
 
+/*****************************************************************************
+ * Module    : 饭盒面板 (ELUNCHBOX) — 与手表默认配置冲突项在此覆盖
+ *****************************************************************************/
+#define ELUNCHBOX_PANEL_EN              1
 
+#if ELUNCHBOX_PANEL_EN
+#define ELUNCHBOX_KEEP_AWAKE            1           /* 禁止自动熄屏/深度休眠 */
+/*
+ * 调试 UART 选择（二选一，改下面一行即可）：
+ *   PRINTF_PE7  — PE7 TX 接 USB-TTL，115200（默认，不影响 LCD）
+ *   PRINTF_VUSB — 饭盒板会自动降级为 PE7（VUSB 会干扰 LCD 供电）
+ */
+#ifndef ELUNCHBOX_UART0_PRINTF
+#define ELUNCHBOX_UART0_PRINTF          PRINTF_PE7  /* PE7 USB-TTL 115200；勿 VUSB(易花屏) */
+#endif
+#undef  UART0_PRINTF_SEL
+#define UART0_PRINTF_SEL                ELUNCHBOX_UART0_PRINTF
+/* 保持 FUNC_BT_EN=1，否则 libapp(rf.c) 缺 rfphy_* / modem_init 链接符号 */
+#undef  BT_BACKSTAGE_EN
+#define BT_BACKSTAGE_EN                 0
+#undef  BT_BACKSTAGE_MUSIC_EN
+#define BT_BACKSTAGE_MUSIC_EN           0
+#undef  CTP_SELECT
+#define CTP_SELECT                      CTP_NO      /* 无 CST 屏触摸，用 PT8028 */
+#undef  CTP_SUPPORT_COVER
+#define CTP_SUPPORT_COVER               0           /* 盖手息屏会 100ms 后休眠 */
+#undef  USER_KEY_QDEC_EN
+#define USER_KEY_QDEC_EN                0           /* G4=PE13/14 与 LCD D3/D4 冲突 */
+#undef  MUSIC_SDCARD_EN
+#define MUSIC_SDCARD_EN                 0           /* 无 SD 卡 */
+#undef  SD_SOFT_DETECT_EN
+#define SD_SOFT_DETECT_EN               0
+#undef  SD0_MAPPING
+#define SD0_MAPPING                     SD0MAP_NONE  /* 禁止 SD 占用 PB 等脚 */
+#undef  SD1_MAPPING
+#define SD1_MAPPING                     SD1MAP_NONE  /* SD1 G3 占 PE1~4，与 PT8028 冲突 */
+#undef  FUNC_REC_TO_SD
+#define FUNC_REC_TO_SD                  0           /* 无 SD 卡，避免 SD_SUPPORT_EN=1 */
+#undef  PHOTO_VIEW_EN
+#define PHOTO_VIEW_EN                   0           /* 照片浏览依赖 SD，饭盒无 SD */
+#undef  VIDEO_RECODE_TAKE_PHOTO_EN
+#define VIDEO_RECODE_TAKE_PHOTO_EN      0           /* 勿占 PE2/PE4(PT8028 D0/D2) */
+#undef  IMG_SENSOR_BF03A2_EN
+#define IMG_SENSOR_BF03A2_EN            0
+#else
+#define ELUNCHBOX_KEEP_AWAKE            0
+#endif
 
 /*****************************************************************************
  * Module    : 触摸驱动配置
  *****************************************************************************/
+#if !ELUNCHBOX_PANEL_EN
 #define CTP_SELECT                      CTP_CST8X                   //CTP Select
+#endif
 #define PORT_CTP_SCL                    IO_PA8
 #define PORT_CTP_SDA                    IO_PA9
 #define PORT_CTP_MAP_GPIO               2
@@ -204,7 +252,9 @@
 #define PORT_CTP_RST                    IO_PA11
 #define PORT_CTP_RST_H()                GPIOASET = BIT(11);
 #define PORT_CTP_RST_L()                GPIOACLR = BIT(11);
+#if !ELUNCHBOX_PANEL_EN
 #define CTP_SUPPORT_COVER               1                           //是否支持盖手息屏功能，需要确认屏幕是否支持
+#endif
 #define CTP_DOUBLE_CLICK_EN             0                           //触摸双击检测使能
 
 /*****************************************************************************
@@ -220,8 +270,8 @@
 #define GUI_FONT_W_SPACE                0                       //字的间距
 #define GUI_FONT_H_SPACE                0                       //全局字的行间距,0:不设置, 其他:设置文本行最小间距
 #define GUI_USE_ARC                     1                       //是否使用圆弧控件
-#define GUI_USE_SCREENSHOOT             1*CHIP_PACKAGE_SUPPORT_PSRAM //是否使用截图转场, 需要使用psram
-#define GUI_USE_BLUR                    1*CHIP_PACKAGE_SUPPORT_PSRAM //是否使用高斯模糊, 需要使用psram,开启后下拉界面使用高斯模糊效果
+#define GUI_USE_SCREENSHOOT             0                       //无PSRAM须关
+#define GUI_USE_BLUR                    0                       //无PSRAM须关(config_extra会在BLUR=1时强开)
 #define GUI_SPU_PSRAM                   0                       //使用PSRAM推屏
 #define DEFAULE_START_FUNC              FUNC_HOME            //默认启动页为版本信息页
 
@@ -414,7 +464,9 @@
  * Module    : SD/UDISK音乐功能配置
  *****************************************************************************/
 #define MUSIC_UDISK_EN                  0   //是否支持播放UDISK
+#if !ELUNCHBOX_PANEL_EN
 #define MUSIC_SDCARD_EN                 1   //是否支持播放SDCARD
+#endif
 #define USB_SD_UPDATE_EN                0   //是否支持UDISK/SD的离线升级
 
 #define MUSIC_WAV_SUPPORT               1   //是否支持WAV格式解码
@@ -456,7 +508,9 @@
 #define FUNC_REC_SPR                    SPR_8000            //录音的波特率
 #define FUNC_REC_BITRATE                16000               //录音的码率
 #define FUNC_REC_NCH                    MIC_DEFAULT_NCH     //录音的通道数, 硬件自行决定
+#if !ELUNCHBOX_PANEL_EN
 #define FUNC_REC_TO_SD                  1                   //录音到文件系统
+#endif
 #define FUNC_REC_OPUS_BT_MUSIC_EN       0                   //录音OPUS压缩同时支持后台音乐播放, 只支持OPUS压缩时可以使用后台音乐sbc传输播放, 开了之后只能录opus了
 #undef  BT_A2DP_AAC_AUDIO_EN
 #define BT_A2DP_AAC_AUDIO_EN            (!FUNC_REC_OPUS_BT_MUSIC_EN)
@@ -521,8 +575,22 @@
 #define USER_PWRKEY                     1           //PWRKEY的使用，0为不使用
 #define USER_ADKEY                      0           //ADKEY的使用， 0为不使用
 #define USER_IOKEY                      0           //IOKEY的使用， 0为不使用
+#define USER_PT8028_KEY                 1           //PT8028S 触摸键 BCD 接口
+#define PT8028_FLAG_ACTIVE_LOW          1           //OUT_FLAG 低有效=有键（规格表2）
+#define PT8028_KEY_DEBOUNCE_SCANS       1           //保留兼容；释放沿不再依赖此值
+#define PT8028_KEY_LATCH_MS             80          //保留，兼容旧配置
+#define PT8028_KEY_DEBUG                1           //边沿/按键日志经 pt8028_log_flush 输出
+#define PT8028_GPIO_MONITOR_EN          0           //1=主循环打印 GPIO(易刷屏/卡死，默认关)
+#define PT8028_BCD_SAMPLE_CNT           5           //每次读 BCD 连采次数(多数表决)
+#define PT8028_BCD_STABLE_CNT           2           //释放/消息：连续 2 次 5ms 相同 BCD
+#define PT8028_PRESS_SETTLE_SCANS       2           //OUT_FLAG 变 0 后约 10ms 再采 BCD
 
+#define USER_PANEL_LED                  1           //面板白色 LED1~6（原理图 510Ω 到 GND）
+#define PANEL_LED_ACTIVE_HIGH           1           //1=GPIO 高电平点亮 LED
+
+#if !ELUNCHBOX_PANEL_EN
 #define USER_KEY_QDEC_EN                1           //旋钮, 硬件正交解码, A,B输出分别接一个IO
+#endif
 #define USER_QDEC_MAPPING               QDEC_MAP_G4 //选择硬件正交解码的mapping, 每组map的IO固定，详见define处说明
 
 #define USER_ADKEY_QDEC_EN              0           //旋钮, A,B串不同电阻接到同一个IO口上，软件ADC采集并解码
@@ -653,7 +721,9 @@
 #define SD_DETECT_IO                    IO_NONE//IO_MUX_SDCLK
 #define SD_DATA_BUS_4BIT_EN             0           //是否使用sd data bus 4bit width
 #define SD_DATA_BUS_DDR_EN              0           //单线不支持DDR模式
+#if !ELUNCHBOX_PANEL_EN
 #define SD_SOFT_DETECT_EN               1           //是否使用软件检测 (SD发命令检测)
+#endif
 
 #define SD_IS_SOFT_DETECT()             SD_SOFT_DETECT_EN             //配置工具中选则63是软件检测.
 #define SD_DETECT_INIT()                sdcard_detect_init()
@@ -666,7 +736,9 @@
 /*****************************************************************************
  * Module    : IO SD0配置，MMC供电需要选择VDDIO为3.5V以上
  *****************************************************************************/
+#if !ELUNCHBOX_PANEL_EN
 #define SD0_MAPPING                     SD0MAP_G2   //选择SD0 mapping
+#endif
 #define SD0_CLKGAT_EN()                 CLKGAT0 |= BIT(16);
 
 /*****************************************************************************
@@ -709,6 +781,10 @@
 
 #define WARNING_POWER_ON                1
 #define WARNING_POWER_OFF               0
+#if ELUNCHBOX_PANEL_EN
+#undef  WARNING_POWER_ON
+#define WARNING_POWER_ON                0           /* 饭盒：跳过开机 MP3，避免阻塞进 Home */
+#endif
 #define WARNING_BT_INCALL               1            //是否打开蓝牙来电提示音
 
 /*****************************************************************************
@@ -778,14 +854,16 @@
  *****************************************************************************/
 #define AVI_DIALPLATE_EN                    0*CHIP_PACKAGE_SUPPORT_PSRAM  //使用视频表盘功能
 #define VIDEO_CLK_SEL                       SYS_192M                    //AVI选择的系统时钟
-#define VIDEO_PLAY_EN                       1                           //AVI视频播放功能
+#define VIDEO_PLAY_EN                       0                           //AVI视频播放功能
 #define AVI_USE_SD                          (1)*VIDEO_PLAY_EN           //AVI是否使用SD卡
 #define AVI_USE_PSRAM                       (1)*VIDEO_PLAY_EN*CHIP_PACKAGE_SUPPORT_PSRAM           //是否使用PSRAM
 
 /*****************************************************************************
  * Module    : JPEG显示解码功能
  *****************************************************************************/
+#if !ELUNCHBOX_PANEL_EN
 #define PHOTO_VIEW_EN                       1                           //jpeg照片解码显示功能
+#endif
 #define PHOTO_CLK_SEL                       SYS_192M                    //JPEG选择的系统时钟
 #define PHOTO_USE_SD                        (1)*PHOTO_VIEW_EN           //JPEG显示是否使用SD卡
 #define PHOTO_USE_PSRAM                     (1)*PHOTO_VIEW_EN*CHIP_PACKAGE_SUPPORT_PSRAM           //是否使用PSRAM
@@ -904,6 +982,17 @@
 #define OS_THREAD_ASR_TICK              -1
 #define OS_THREAD_ASR_PRIORITY          28          //优先级
 
+#include "config_extra.h"
+
+/* config_extra 在 GUI_USE_BLUR=1 时会强开 SCREENSHOOT/NOC_PSRAM，但 NOC_PSRAM_SIZE=0 时无 psram 段，.psram_buf.lcd 会进 flash */
+#if (PSRAM_SIZE == 0)
+#undef GUI_USE_SCREENSHOOT
+#undef GUI_USE_BLUR
+#define GUI_USE_SCREENSHOOT             0
+#define GUI_USE_BLUR                    0
+#endif
+
+#if !BT_PANU_EN
 #undef FLASH_CODE_SIZE
 #define FLASH_CODE_SIZE                 FLASH_CODE_BASE_SIZE                                /*基础功能所需FLASH*/\
                                         + 0x4000*(VIDEO_PLAY_EN)                            /*VIDEO PLAY*/\
@@ -914,8 +1003,7 @@
                                         + 0x7000*(OPUS_ENC_EN)                              /*OPUS压缩算法*/\
                                         + 0xFA000*(ASR_SELECT)                              /*ASR语音*/\
                                         + 0x15000*(SECURITY_PAY_EN)                         /*支付宝基础功能*/\
-                                        + 0xA5000*(SECURITY_TRANSITCODE_EN)                 /*支付宝拓展乘车码功能*/\
-
-#include "config_extra.h"
+                                        + 0xA5000*(SECURITY_TRANSITCODE_EN)                 /*支付宝拓展乘车码功能*/
+#endif
 
 #endif // __CONFIG_WATCH_DEV_V1_0_H__

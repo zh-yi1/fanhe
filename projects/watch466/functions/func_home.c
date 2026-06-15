@@ -7,6 +7,14 @@
 #include "home_tab_label.h"
 #include "func_reservation.h"
 
+#if USER_PANEL_LED
+#include "port_panel_led.h"
+#endif
+
+#if USER_PT8028_KEY
+#include "bsp_pt8028_key.h"
+#endif
+
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
 #else
@@ -33,9 +41,12 @@
  * 底部导航 Tab（HEAT / MODE / SETUP）：320×240 横屏按 UI 效果图排版。
  *   选中：蓝底 + 白框 + 白底线 + 白图标（*_sel.bin）
  *   未选中：黑底 + 白框 + 蓝底线 + 白图标（*.bin）
- *   PT8028：TCH3 模式键(KU_MODE)循环选中；TCH4 确认键(KU_BACK)进入当前选中页
+ *   PT8028（原理图 TCH0~TCH7）：
+ *     TCH0 锁键(KU_LEFT) | TCH1 加热(KU_PREV) | TCH2 减(KU_VOL_DOWN) | TCH3 模式(KU_MODE)
+ *     TCH4 确认(KU_BACK) | TCH5 开关(KU_RIGHT) | TCH6 加(KU_VOL_UP) | TCH7 预约(KU_NEXT)
+ *   Home：TCH3 循环 Tab；TCH4 进入当前 Tab 页
  */
-#define UI_HOME_ICON_PLACEHOLDER          UI_BUF_ICON_ACTIVITY_BIN
+#define UI_HOME_ICON_PLACEHOLDER UI_BUF_ICON_ACTIVITY_BIN         
 
 #ifndef UI_BUF_HOME_0_BIN
 #error "Run tools/gen_home_icons.py then Output/bin/prebuild.bat to refresh ui.h"
@@ -527,6 +538,32 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
     func_home_clock_layout(f_home, hour, min);
 }
 
+static void func_home_countdown_adjust_min(f_home_t *f_home, s16 delta_min)
+{
+    u32 sec = home_countdown_remain_sec;
+    u32 max_sec = (u32)99 * 3600 + (u32)59 * 60;
+
+    if (delta_min > 0) {
+        sec += (u32)delta_min * 60;
+        if (sec > max_sec) {
+            sec = max_sec;
+        }
+    } else if (delta_min < 0) {
+        u32 sub = (u32)(-delta_min) * 60;
+
+        sec = (sec > sub) ? sec - sub : 0;
+    }
+    home_countdown_remain_sec = sec;
+
+    if (f_home != NULL) {
+        u8 cd_hour, cd_min;
+
+        func_home_countdown_get_display(&cd_hour, &cd_min);
+        f_home->last_cd_total_min = 0xffff;
+        func_home_clock_update(f_home, cd_hour, cd_min);
+    }
+}
+
 static void func_home_tab_icon_size(u8 idx, u16 *out_w, u16 *out_h)
 {
     u16 src_w = tbl_home_nav_icon_w[idx];
@@ -704,6 +741,23 @@ static void func_home_tab_select_next(f_home_t *f_home)
     func_home_tab_select(f_home, (u8)((f_home->tab + 1) % HOME_TAB_CNT));
 }
 
+void func_home_mode_key(void)
+{
+    f_home_t *f_home = (f_home_t *)func_cb.f_cb;
+    static u32 last_tick;
+    static const char * const tab_name[HOME_TAB_CNT] = { "加热", "模式", "设置" };
+
+    if (func_cb.sta != FUNC_HOME || f_home == NULL) {
+        return;
+    }
+    if (!tick_check_expire(last_tick, 80)) {
+        return;
+    }
+    last_tick = tick_get();
+    func_home_tab_select_next(f_home);
+    printf("Home Tab -> %s\n", tab_name[f_home->tab]);
+}
+
 static void func_home_tab_enter(f_home_t *f_home)
 {
     if (f_home == NULL) {
@@ -712,14 +766,17 @@ static void func_home_tab_enter(f_home_t *f_home)
 
     switch (f_home->tab) {
     case HOME_TAB_HEAT:
+        printf("func_home_tab_enter: HOME_TAB_HEAT\n");
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
     case HOME_TAB_MODE:
+        printf("func_home_tab_enter: HOME_TAB_MODE\n");
         func_switch_to(FUNC_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
     case HOME_TAB_SETUP:
+        printf("func_home_tab_enter: HOME_TAB_SETUP\n");
         func_switch_to(FUNC_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
@@ -853,10 +910,55 @@ compo_form_t *func_home_form_create(void)
     return frm;
 }
 
+#if USER_PT8028_KEY
+/* 表2 主线程：OUT_FLAG 1->0 锁存 BCD，0->1 松开触发动作 */
+static void func_home_pt8028_poll(f_home_t *f_home)
+{
+    static u8 last_flag = 1;
+    static u8 session_bcd = 0xff;
+    u8 flag, bcd, d0, d1, d2;
+
+    pt8028_gpio_ensure();
+    pt8028_get_raw_state(&flag, &bcd, &d0, &d1, &d2);
+
+    if (flag == 0 && bcd <= PT8028_KEY_TCH7 && bcd != PT8028_KEY_TCH7) {
+        session_bcd = bcd;
+    } else if (flag == 0) {
+        u8 tch = pt8028_get_press_tch();
+        if (tch <= PT8028_KEY_TCH6) {
+            session_bcd = tch;
+        }
+    }
+
+    if (last_flag == 0 && flag == 1 && session_bcd <= PT8028_KEY_TCH7) {
+        switch (session_bcd) {
+        case PT8028_KEY_TCH3:
+            printf("Home: 模式键 TCH3 (FLAG,D2,D1,D0=0,0,1,1)\n");
+            func_home_mode_key();
+            break;
+        case PT8028_KEY_TCH4:
+            printf("Home: 确认键 TCH4\n");
+            func_home_tab_enter(f_home);
+            break;
+        default:
+            break;
+        }
+        session_bcd = 0xff;
+    }
+
+    last_flag = flag;
+}
+#endif
+
 void func_home_process(void)
 {
     f_home_t *f_home = (f_home_t *)func_cb.f_cb;
 
+#if USER_PT8028_KEY
+    if (f_home != NULL) {
+        func_home_pt8028_poll(f_home);
+    }
+#endif
     if (f_home != NULL) {
         func_home_status_refresh(f_home);
     }
@@ -872,12 +974,43 @@ void func_home_message(size_msg_t msg)
         func_home_button_click(f_home);
         break;
 
+    case KU_LEFT:
+        printf("Home: 锁键\n");
+        break;
+
+    case KU_PREV:
+        printf("Home: 加热键 -> 跳转加热页\n");
+        func_message(msg);
+        break;
+
     case KU_MODE:
-        func_home_tab_select_next(f_home);
+    case K_MODE:
+        printf("Home: 模式键 -> 切换 Tab (msg=0x%04X)\n", (unsigned)msg);
+        func_home_mode_key();
         break;
 
     case KU_BACK:
+        printf("Home: 确认键 -> 进入当前 Tab\n");
         func_home_tab_enter(f_home);
+        break;
+
+    case KU_RIGHT:
+        printf("Home: 开关键\n");
+        break;
+
+    case KU_NEXT:
+        printf("Home: 预约键 -> 跳转预约页\n");
+        func_message(msg);
+        break;
+
+    case KU_VOL_UP:
+        printf("Home: 加号 -> 倒计时+1分钟\n");
+        func_home_countdown_adjust_min(f_home, 1);
+        break;
+
+    case KU_VOL_DOWN:
+        printf("Home: 减号 -> 倒计时-1分钟\n");
+        func_home_countdown_adjust_min(f_home, -1);
         break;
 
     default:
@@ -928,10 +1061,16 @@ void func_home_enter(void)
     func_home_tab_refresh(f_home);
     func_home_status_refresh(f_home);
     func_home_res_marquee_refresh(f_home);
+
+    tft_bglight_frist_set_check();
+    os_gui_draw_force();
 }
 
 void func_home_exit(void)
 {
+#if USER_PANEL_LED
+    panel_led_all_off();
+#endif
     func_home_tab_label_ram_free();
     func_cb.last = FUNC_HOME;
 }
@@ -941,8 +1080,8 @@ void func_home(void)
     printf("%s\n", __func__);
     func_home_enter();
     while (func_cb.sta == FUNC_HOME) {
-        func_home_process();
         func_home_message(msg_dequeue());
+        func_home_process();
     }
     func_home_exit();
 }

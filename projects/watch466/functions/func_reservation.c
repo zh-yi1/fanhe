@@ -18,6 +18,7 @@
  *     左上 RTC：0m..9m.bin + colonm.bin + AMm/PMm
  *     中部时间：0..9.bin + colon.bin
  *   图二（加热/温度）：w0x/b0x + whx/bhx + colonm.bin
+ * PT8028：TCH4 确认 | TCH5 开关/返回 | TCH2/TCH6 减/加 | TCH0 锁键解锁童锁
  */
 #define UI_RES_PLACEHOLDER                UI_BUF_ICON_ACTIVITY_BIN
 
@@ -1371,6 +1372,13 @@ static void func_reservation_message(size_msg_t msg)
 
     case RES_MSG_POWER:
         func_res_power_key(f_res);
+        break;
+
+    case KU_LEFT:
+        if (f_res != NULL && f_res->ui == RES_UI_HEATING && f_res->screen_locked) {
+            f_res->screen_locked = false;
+            func_res_lock_icon_apply(f_res);
+        }
         break;
 
     default:
