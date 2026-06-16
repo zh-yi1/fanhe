@@ -132,7 +132,7 @@ void func_process(void)
 #endif // CHARGE_EN
 
     if(bt_cb.bt_is_inited) {
-        bt_thread_check_trigger();
+        bt_thread_check_trigger(); //经典蓝牙线程
 #if LE_EN
         ble_app_process();
 #endif

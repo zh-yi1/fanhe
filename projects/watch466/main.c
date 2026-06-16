@@ -131,7 +131,9 @@ int main(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_uart_init(LB_BAUD);
+#if !LB_BRIDGE_MODE
     lunchbox_uart_init_handlers();
+#endif
 #if LB_SELFTEST_EN
     func_lunchbox_uart_test();
 #endif

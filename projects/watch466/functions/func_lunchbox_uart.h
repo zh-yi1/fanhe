@@ -24,6 +24,7 @@
 
 #define LB_BAUD                 115200      // 波特率（按需修改）
 #define LB_SELFTEST_EN          0           // 自测开关：1=开启echo，0=关闭
+#define LB_BRIDGE_MODE          1           // 1=纯转发桥(加热模块已到), 0=本地处理(调试用)
 #define LB_RXBUF_SIZE           256         // 接收缓冲区大小(字节)
 #define LB_TXBUF_SIZE           256         // 发送缓冲区大小(字节)
 #define LB_FRAME_TIMEOUT_MS     300         // 帧超时时间(毫秒)，超过此时间未收完一帧则丢弃

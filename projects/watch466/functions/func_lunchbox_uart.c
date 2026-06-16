@@ -33,7 +33,9 @@ static u32 lb_rx_ticks;                  // 最近一次收到字节的时间戳
 
 static u8  lb_ring_buf[LB_RXBUF_SIZE];   // bsp_uart1 环形缓冲区
 static u8  lb_tx_buf[LB_TXBUF_SIZE];     // 组帧发送缓冲区
+#if !LB_BRIDGE_MODE
 static lb_cmd_handler_t   cmd_handler[16];   // 命令字 → 回调，仅 0x01~0x0F 有效
+#endif
 static lb_ble_tx_fn_t     lb_ble_tx_fn;      // BLE 发送回调（非 NULL 时走 BLE）
 
 //-----------------------------------------------------------------------------
@@ -131,15 +133,27 @@ static bool lb_frame_parse(void)
         .valid    = true,                                   // 标记为有效帧
     };
 
-    // ──── 派发到已注册的命令处理器 ────
+    // ──── UART 收包日志 ────
+    printf("UART==>RX [%d]: ", total);
+    for (u16 i = 0; i < total; i++) printf("%02X ", lb_rx_buf[i]);
+    printf("\n");
+
+#if LB_BRIDGE_MODE
+    // ──── 桥模式：原帧透传到 BLE ────
+    if (lb_ble_tx_fn) {
+        lb_ble_tx_fn(lb_rx_buf, total);        // 加热模块回复 → 走 BLE 发给 APP
+    }
+#else
+    // ──── 本地模式：派发到已注册的命令处理器 ────
     LB_TRACE("lb: rx cmd=0x%02X dlen=%d\n", rx.cmd, rx.data_len);
     if (rx.cmd < 16 && cmd_handler[rx.cmd]) {   // 边界检查 + 是否注册过处理器
         // UART 收到的帧，应答走 UART 而非 BLE
         lb_ble_tx_fn_t saved_ble_tx = lb_ble_tx_fn;
-        lb_ble_tx_fn = NULL;
+        lb_ble_tx_fn = NULL;                    // ← 暂时屏蔽 BLE
         cmd_handler[rx.cmd](&rx);               // 调回调，传 &rx（业务只读，不修改原始 buf）
         lb_ble_tx_fn = saved_ble_tx;            // 恢复 BLE TX
     }
+#endif
 
     lb_rx_reset();                          // 帧处理完，重置 idx，准备收下一帧
     return true;
@@ -162,7 +176,18 @@ static void lb_timeout_check(void)
 //-----------------------------------------------------------------------------
 
 /**
- * @brief 组帧并通过 UART1 发送
+ * @brief 组帧并发送（UART/BLE 双通道自动切换）
+ *
+ * 帧格式（大端）：
+ *   [0x55][0xAA][ver][flag][cmd][err][dlen_H][dlen_L][data...][checksum]
+ *    帧头2B 版本1B 标志1B 命令1B 错误1B 长度2B(BE) 数据xB     校验和1B
+ *
+ * 双通道切换逻辑：
+ *   - lb_ble_tx_fn == NULL  → uart_bufs_tx() 走串口 PB8 发出
+ *   - lb_ble_tx_fn != NULL  → lb_ble_tx_fn() 走 BLE Notify 发出
+ *
+ * 串口测试时没有蓝牙连接，lb_ble_tx_fn 为 NULL，所有应答走串口返回；
+ * 手机连上后 ble_app_watch_init() 注册了 lb_ble_tx_wrapper，自动切为蓝牙。
  *
  * @param[in] cmd       命令字
  * @param[in] msg_flag  消息标志
@@ -209,23 +234,31 @@ void lunchbox_uart_send_response(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
 static u8 lb_async_msg_flag = 0;    // 异步消息自动递增的 msg_flag
 
 /**
- * @brief 异步发送帧（MCU 主动上报，无需主机先请求）
+ * @brief 异步发送帧 — MCU 主动推送（无需主机先请求）
  *
  * 与同步通信（一问一答）不同，异步帧由 MCU 自发推送（如温度上报、故障通知）。
- * msg_flag 自动递增，主机可用它检测是否丢帧。
+ * msg_flag 自动递增（0~255 循环），主机可用它检测是否丢帧。
  *
- * @param[in] cmd   命令字，如 LB_CMD_TEMP_REPORT、LB_CMD_FAULT_REPORT
- * @param[in] data  待发送数据
+ * 最终同样走 lb_send_frame()，服从双通道切换：
+ *   BLE 连上 → 通过 Notify 推给手机
+ *   没连 BLE → 通过串口发出
+ *
+ * @param[in] cmd   命令字，如 LB_CMD_STATUS_REPORT = 0x03
+ * @param[in] data  待发送数据（DataPoint 编码后的属性数据）
  * @param[in] len   数据长度
  */
 void lunchbox_uart_send_async(u8 cmd, u8 *data, u16 len)
     { lb_send_frame(cmd, lb_async_msg_flag++, LB_ERR_SUCCESS, data, len); }
 
 //-----------------------------------------------------------------------------
-// 业务状态
+// 设备信息（桥模式也需要，0x01 产品信息由 MCU 本地处理）
 //-----------------------------------------------------------------------------
-
 static lb_device_info_t lb_dev_info;                // 设备信息（应用层通过 API 填入）
+
+//-----------------------------------------------------------------------------
+// 业务状态（仅本地模式使用，桥模式下加热模块负责其他业务逻辑）
+//-----------------------------------------------------------------------------
+#if !LB_BRIDGE_MODE
 static lb_schedule_t     lb_schedules[LB_SCHEDULE_MAX]; // 预约列表
 static u8                lb_schedule_count;         // 当前预约条数
 static u8                lb_next_schedule_id = 1;   // 自增预约 ID
@@ -332,7 +365,13 @@ static u8 lb_attr_write(u8 *data, u16 len)
     return LB_ERR_SUCCESS;
 }
 
+#endif // !LB_BRIDGE_MODE
+
+// ─── 以下两个函数在桥模式和本地模式都需要 ───
+
 void lunchbox_set_device_info(lb_device_info_t *info) { if (info) memcpy(&lb_dev_info, info, sizeof(lb_device_info_t)); }
+
+#if !LB_BRIDGE_MODE
 
 /** @brief 单属性写入辅助（前置声明） */
 static void lb_attr_write_single(u8 dpid, u8 type, u8 *val, u16 val_len);
@@ -470,9 +509,17 @@ void lunchbox_report_attr(u8 dpid)
 // 命令处理器
 //-----------------------------------------------------------------------------
 
+#endif // !LB_BRIDGE_MODE
+
+// ─── 0x01 产品信息在桥模式下也由 MCU 本地处理 ───
+
 /**
- * @brief 0x01 — 查询产品信息
- * APP 发送: [timestamp:4B] → MCU 返回设备信息
+ * @brief 0x01 — 查询产品信息（桥模式/本地模式均可用）
+ *
+ * APP 发送: [timestamp:4B]（时间戳，当前仅接收不处理）
+ * MCU 返回: 73 字节设备信息
+ *   布局: bt_name(16B) + version(8B) + model(10B) + MAC(6B) + SN(32B) + color(1B)
+ *   例: "AR0MA-NY_0000\0\0\0" + "01.00.00" + "SF101\0..." + MAC + SN + color
  */
 static u8 lb_handler_product_info(lb_rx_frame_t *rx)
 {
@@ -495,6 +542,8 @@ static u8 lb_handler_product_info(lb_rx_frame_t *rx)
     lunchbox_uart_send_response(LB_CMD_PRODUCT_INFO, rx->msg_flag, LB_ERR_SUCCESS, buf, off);
     return LB_ERR_SUCCESS;
 }
+
+#if !LB_BRIDGE_MODE
 
 /**
  * @brief 0x02 — 查询设备动态属性
@@ -533,7 +582,15 @@ static u8 lb_handler_schedule_list(lb_rx_frame_t *rx)
 
 /**
  * @brief 0x05 — 新增预约
- * APP 发送: 预约数据(40B) → MCU 返回分配的 ID
+ *
+ * APP 发送: 41 字节预约数据
+ *   布局: id(1B) + name(32B) + time(4B,BE) + temp(1B) + duration(1B) + enabled(1B) + repeat(1B)
+ * MCU 行为:
+ *   ① 检查 data_len >= 41（不够则返回失败）
+ *   ② 检查 lb_schedule_count < 10（已满则返回失败）
+ *   ③ 解析预约数据，自动分配新 ID（忽略 APP 传入的 id 字段）
+ *   ④ 存入 lb_schedules[] 数组末尾，schedule_count++
+ *   ⑤ 返回分配的 ID（1 字节）
  */
 static u8 lb_handler_schedule_add(lb_rx_frame_t *rx)
 {
@@ -612,8 +669,16 @@ static u8 lb_handler_schedule_delete(lb_rx_frame_t *rx)
 
 /**
  * @brief 0x08 — 获取指定模式信息
- * APP 发送: 无数据(查全部3种) 或 1字节模式标志(1-3, 查指定模式)
- * MCU 返回: 每条3字节(模式标志+温度+时长), 共3~9字节
+ *
+ * APP 发送:
+ *   - 无数据：查询全部 5 种模式（自定义/鸡腿/意面/预约/保温）
+ *   - 1 字节 mode(1~5)：查询指定模式
+ * MCU 返回: 每条 3 字节（模式标志 + 温度档位 + 加热时长）
+ *   查全部 → 15 字节（5 × 3）
+ *   查单个 → 3 字节
+ *
+ * 温度档位: 0=40°C, 1=50°C, 2=60°C, 3=70°C, 4=80°C, 5=90°C
+ * 加热时长: 分钟（0~210）
  */
 static u8 lb_handler_mode_query(lb_rx_frame_t *rx)
 {
@@ -641,7 +706,16 @@ static u8 lb_handler_mode_query(lb_rx_frame_t *rx)
 
 /**
  * @brief 0x09 — 修改指定模式信息
- * APP 发送: 3字节(模式标志+温度+时长) → MCU 返回成功/失败
+ *
+ * APP 发送: 3 字节（模式标志 + 温度档位 + 加热时长）
+ *   例: 01 05 23 → 自定义模式, 90°C, 35 分钟
+ * MCU 行为:
+ *   ① 检查 data_len >= 3（不够则返回失败）
+ *   ② 检查 mode 在 1~5 范围内（超出则返回失败）
+ *   ③ 写入 lb_mode_temp[mode] 和 lb_mode_duration[mode]
+ *   ④ 返回成功
+ *
+ * 有效模式: 1=自定义, 2=鸡腿, 3=意面, 4=预约, 5=保温
  */
 static u8 lb_handler_mode_modify(lb_rx_frame_t *rx)
 {
@@ -705,7 +779,25 @@ static u8 lb_handler_ota_end(lb_rx_frame_t *rx)
 // 注册 / 初始化 / 主循环
 //-----------------------------------------------------------------------------
 
-/** @brief 注册所有命令处理器 */
+/**
+ * @brief 注册所有协议命令的业务处理器（初始化时调用一次）
+ *
+ * 向 cmd_handler[16] 数组填入函数指针，建立 命令字→处理函数 的映射：
+ *   cmd_handler[0x01] = lb_handler_product_info   → 查询产品信息
+ *   cmd_handler[0x02] = lb_handler_dynamic_attr   → 查询动态属性
+ *   cmd_handler[0x04] = lb_handler_schedule_list  → 查询预约列表
+ *   cmd_handler[0x05] = lb_handler_schedule_add   → 新增预约
+ *   cmd_handler[0x06] = lb_handler_schedule_modify → 修改预约
+ *   cmd_handler[0x07] = lb_handler_schedule_delete → 删除预约
+ *   cmd_handler[0x08] = lb_handler_mode_query      → 获取模式信息
+ *   cmd_handler[0x09] = lb_handler_mode_modify     → 修改模式信息
+ *   cmd_handler[0x0a] = lb_handler_ota_query       → 升级查询(桩)
+ *   cmd_handler[0x0b] = lb_handler_ota_start       → 升级启动(桩)
+ *   cmd_handler[0x0c] = lb_handler_ota_data        → 升级包传输(桩)
+ *   cmd_handler[0x0d] = lb_handler_ota_end         → 升级结束(桩)
+ *
+ * 此后收到帧 → 取帧中 cmd 字段 → 查 cmd_handler[cmd] → 调用对应函数
+ */
 void lunchbox_uart_init_handlers(void)
 {
     lunchbox_uart_reg_handler(LB_CMD_PRODUCT_INFO,    lb_handler_product_info);
@@ -720,29 +812,63 @@ void lunchbox_uart_init_handlers(void)
     lunchbox_uart_reg_handler(LB_CMD_OTA_START,       lb_handler_ota_start);
     lunchbox_uart_reg_handler(LB_CMD_OTA_DATA,        lb_handler_ota_data);
     lunchbox_uart_reg_handler(LB_CMD_OTA_END,         lb_handler_ota_end);
-
-    // 初始化默认设备信息
-    memset(&lb_dev_info, 0, sizeof(lb_dev_info));
-    memcpy(lb_dev_info.bt_name, "AR0MA-NY_0000\0\0\0", 16);
-    memcpy(lb_dev_info.version, "01.00.00", 8);
-    memcpy(lb_dev_info.model,  "SF101\0\0\0\0\0", 10);
-    // MAC/SN/Color 由应用层通过 lunchbox_set_device_info() 写入
 }
 
-/** @brief 为指定命令字注册处理回调，后注册覆盖先注册 */
+/**
+ * @brief 为指定命令字注册处理回调
+ *
+ * 一个 cmd 只能对应一个 handler，后注册的覆盖先注册的。
+ * 只支持 0x00~0x0F（16 个槽位），超出范围直接忽略。
+ *
+ * 例: lunchbox_uart_reg_handler(0x05, lb_handler_schedule_add);
+ *     含义: 收到帧中 cmd==0x05 且校验通过 → 调 lb_handler_schedule_add()
+ *
+ * @param cmd      命令字（0x00~0x0F）
+ * @param handler  处理回调函数指针
+ */
 void  lunchbox_uart_reg_handler(u8 cmd, lb_cmd_handler_t h) { if (cmd < 16) cmd_handler[cmd] = h; }
+
+#endif // !LB_BRIDGE_MODE
 
 //-----------------------------------------------------------------------------
 // BLE 通道实现
 //-----------------------------------------------------------------------------
 
-/** @brief 注册 BLE 发送函数 */
+/**
+ * @brief 注册 BLE 发送函数 — 启用蓝牙通道
+ *
+ * 注册后 lb_send_frame() 组帧完成时调用 fn 走 BLE，而非 uart_bufs_tx() 走串口。
+ * 传 NULL 则切回串口模式。
+ *
+ * 调用方: ble_app_watch_init() 中传入 lb_ble_tx_wrapper，连接蓝牙后自动切到 BLE。
+ *
+ * @param fn  BLE 发送回调（NULL = 切回串口模式）
+ */
 void lunchbox_ble_set_tx_fn(lb_ble_tx_fn_t fn)
 {
     lb_ble_tx_fn = fn;
 }
 
-/** @brief BLE 帧解析（无需从 UART 环形缓冲取数据，直接解析内存 buffer） */
+/**
+ * @brief BLE 帧解析 — 校验并拆解收到的饭盒协议帧
+ *
+ * 与 UART 的 lb_frame_parse() 不同：
+ *   - UART 方式：字节流逐个收进 lb_rx_buf，状态机边收边解析
+ *   - BLE 方式：一次性拿到完整帧（BLE 协议栈已保证完整性），直接解析内存 buffer
+ *
+ * 校验流程（5 道关卡，任何一步失败返回 false）：
+ *   ① 长度检查：至少 9 字节（帧头2+版1+标志1+命令1+错误1+长度2+校验1）
+ *   ② 帧头校验：raw[0]==0x55 && raw[1]==0xAA
+ *   ③ data_len 解析：大端序 raw[6]<<8 | raw[7]
+ *   ④ 总长校验：raw_len == 9 + data_len
+ *   ⑤ 校验和：累加前 raw_len-1 字节对256取余，与最后1字节比较
+ *
+ * @param raw      原始帧字节数组
+ * @param raw_len  原始帧长度
+ * @param frame    输出参数，校验通过后填入各字段
+ * @return true  解析成功，frame 有效
+ * @return false 帧格式错误/校验失败
+ */
 static bool lb_ble_frame_parse(u8 *raw, u16 raw_len, lb_rx_frame_t *frame)
 {
     // 最小帧：帧头(2) + 版本(1) + msg_flag(1) + cmd(1) + err_flag(1) + data_len(2) + checksum(1) = 9
@@ -767,9 +893,53 @@ static bool lb_ble_frame_parse(u8 *raw, u16 raw_len, lb_rx_frame_t *frame)
     return true;
 }
 
-/** @brief 处理 BLE 接收到的饭盒协议帧 */
-void lunchbox_ble_rx_handle(u8 *data, u16 len)
+/**
+ * @brief BLE 饭盒帧入口 — BLE→UART 透传（桥模式）/ 解析分发（本地模式）
+ *
+ * 完整调用链：
+ *   手机 BLE Write → gatt_callback_app() → ble_app_watch_process()
+ *   → ble_app_blue_fit_rx_callback() → 本函数 → cmd_handler[cmd]()
+ *
+ * 与 UART 接收的关键区别：
+ *   - UART 的 lb_frame_parse() 会在调 handler 前临时设 lb_ble_tx_fn=NULL，
+ *     保证串口来的请求走串口应答
+ *   - BLE 来的请求直接使用当前 lb_ble_tx_fn（已注册为非 NULL），
+ *     应答自动通过蓝牙发出
+ *
+ * @param data  原始帧数据（从 BLE Write 回调拿到）
+ * @param len   数据长度
+ */
+void   lunchbox_ble_rx_handle(u8 *data, u16 len)
 {
+    // ──── BLE 收包日志 ────
+    printf("BLE==>RX [%d]: ", len);
+    for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
+    printf("\n");
+
+#if LB_BRIDGE_MODE
+    // ──── 桥模式：0x01 本地处理，其他透传到 UART ────
+    lb_rx_frame_t frame;
+    memset(&frame, 0, sizeof(frame));
+    bool is_0x01 = lb_ble_frame_parse(data, len, &frame)
+                && frame.cmd == LB_CMD_PRODUCT_INFO;
+
+    if (is_0x01) {
+        // 0x01 产品信息 → MCU 本地回复，不转发到加热模块
+        lb_handler_product_info(&frame);
+    } else {
+        // 其他命令 → 原帧透传到串口给加热模块
+        printf("UART==>TX [%d]: ", len);
+        for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
+        printf("\n");
+        uart_bufs_tx(UART_TYPE_1, data, len);
+    }
+#else
+    // ──── 本地模式：原帧转发到串口 + 解析分发给 cmd_handler ────
+    printf("UART==>TX [%d]: ", len);
+    for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
+    printf("\n");
+    uart_bufs_tx(UART_TYPE_1, data, len);
+
     lb_rx_frame_t frame;
     memset(&frame, 0, sizeof(frame));
 
@@ -783,16 +953,35 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
     if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
         cmd_handler[frame.cmd](&frame);
     }
+#endif
 }
 
-/** @brief 初始化 UART1 及协议模块内部状态，见 func_lunchbox_uart.h */
+/**
+ * @brief 初始化 UART1 硬件及协议模块内部状态
+ *
+ * 完成三件事：
+ *   1. 清空内部状态：帧缓冲区(lb_rx_buf)、命令回调表(cmd_handler)、预约列表(lb_schedules)
+ *   2. 配置 UART1 硬件：TX=PB8, RX=PB9，波特率(baud)，环形缓冲区(256字节)
+ *   3. 注册空 ISR（lb_dummy_isr）占位；实际接收在主循环中轮询 bsp_uart1_get_char()
+ *
+ * @param baud  波特率，如 115200
+ */
 void lunchbox_uart_init(u32 baud)
 {
     memset(lb_rx_buf, 0, sizeof(lb_rx_buf));
     lb_rx_idx = 0;
+#if !LB_BRIDGE_MODE
     memset(cmd_handler, 0, sizeof(cmd_handler));
     memset(lb_schedules, 0, sizeof(lb_schedules));
     lb_schedule_count = 0;
+#endif
+
+    // 默认设备信息（桥模式和本地模式都需要，0x01 查询时用）
+    memset(&lb_dev_info, 0, sizeof(lb_dev_info));
+    memcpy(lb_dev_info.bt_name, "AR0MA-NY_0000\0\0\0", 16);
+    memcpy(lb_dev_info.version, "01.00.00", 8);
+    memcpy(lb_dev_info.model,  "SF101\0\0\0\0\0", 10);
+    // MAC/SN/Color 由应用层通过 lunchbox_set_device_info() 写入
 
     uart_t uart1;
     memset(&uart1, 0, sizeof(uart1));
