@@ -36,5 +36,6 @@ void panel_led_init(void);
 void panel_led_all_off(void);
 void panel_led_set(panel_led_id_t id, bool on);
 void panel_led_scan(void);
+u8 panel_led_get_last_tch(void);
 
 #endif // _PORT_PANEL_LED_H

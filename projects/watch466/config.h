@@ -116,7 +116,7 @@
 /*****************************************************************************
  * Module    : 屏幕驱动配置
  *****************************************************************************/
-#define GUI_SELECT                      GUI_TFT_240_ST789_i80 //GUI_OLED_466_ICNA3310B    		//GUI Display Select
+#define GUI_SELECT                       //GUI_OLED_466_ICNA3310B    		//GUI Display Select
 
 #if (GUI_SELECT == GUI_TFT_240_ST789_i80)
 #define PORT_TFT_INT                    IO_PE9                      //TE
@@ -196,6 +196,7 @@
 
 #if ELUNCHBOX_PANEL_EN
 #define ELUNCHBOX_KEEP_AWAKE            1           /* 禁止自动熄屏/深度休眠 */
+#define FUNC_RESERVATION_UI_EN          0           /* 0=关闭所有预约界面入口 */
 /* 日志走全局 UART0_PRINTF_SEL（PRINTF_PB3 / PRINTF_NONE）；TRACE_EN 仅控各文件 TRACE() 宏 */
 /* LEVEL_HIGH_PRI 定时器在 tmr 线程执行；饭盒须保持 BT_EMIT_EN=0，避免额外高优先级 co_timer */
 /* 保持 FUNC_BT_EN=1，否则 libapp(rf.c) 缺 rfphy_* / modem_init 链接符号 */
@@ -225,8 +226,14 @@
 #define VIDEO_RECODE_TAKE_PHOTO_EN      0           /* 勿占 PE2/PE4(PT8028 D0/D2) */
 #undef  IMG_SENSOR_BF03A2_EN
 #define IMG_SENSOR_BF03A2_EN            0
+#undef  DEFAULE_START_FUNC
+#define DEFAULE_START_FUNC              FUNC_HOME   /* 饭盒上电默认进 Home 页 */
 #else
 #define ELUNCHBOX_KEEP_AWAKE            0
+#endif
+
+#ifndef FUNC_RESERVATION_UI_EN
+#define FUNC_RESERVATION_UI_EN          1
 #endif
 
 /*****************************************************************************
@@ -265,7 +272,9 @@
 #define GUI_USE_SCREENSHOOT             0                       //无PSRAM须关
 #define GUI_USE_BLUR                    0                       //无PSRAM须关(config_extra会在BLUR=1时强开)
 #define GUI_SPU_PSRAM                   0                       //使用PSRAM推屏
-#define DEFAULE_START_FUNC              FUNC_HOME            //默认启动页为版本信息页
+#ifndef DEFAULE_START_FUNC
+#define DEFAULE_START_FUNC              FUNC_CLOCK           //默认启动页（手表：表盘）
+#endif
 
 /*****************************************************************************
  * Module    : UI场景相关配置
@@ -572,18 +581,31 @@
 #define PT8028_KEY_DEBOUNCE_SCANS       1           //保留兼容；释放沿不再依赖此值
 #define PT8028_KEY_LATCH_MS             80          //保留，兼容旧配置
 #if ELUNCHBOX_PANEL_EN
-#define PT8028_KEY_DEBUG                0           //饭盒默认关，避免 printf 阻塞 tmr 线程
+#define PT8028_KEY_DEBUG                1           //边沿/按键日志经 pt8028_log_flush 主线程输出
 #else
 #define PT8028_KEY_DEBUG                1           //边沿/按键日志经 pt8028_log_flush 输出
 #endif
 #define PT8028_GPIO_MONITOR_EN          0           //1=主循环打印 GPIO(易刷屏/卡死，默认关)
 #if ELUNCHBOX_PANEL_EN
-#define PT8028_BCD_SAMPLE_CNT           3           //主线程扫描，略减采样次数
+#define PT8028_BCD_SAMPLE_CNT           8
+#define PT8028_BCD_SAMPLE_US            100         /* vote 连采间隔(us) */
+#define PT8028_BCD_STABLE_CNT           2
+#define PT8028_PRESS_SETTLE_SCANS       8           /* FLAG 变 0 后等 BCD 更新 */
+#define PT8028_TCH7_CONFIRM_SCANS       15          /* 111 且无 TCH0~6 才当预约 */
+#define PT8028_RELEASE_HOLD_SCANS       4
+#define PT8028_HOLD_READ_CNT            8           /* 释放沿 Hold 连采次数 */
+#define PT8028_POLL_REINIT_MS           500         /* 主线程恢复 PE1~4，勿过频 */
+/* D 线高阻：板载/PT8028 推挽；勿开 MCU 内部上拉以免干扰读 0 */
 #else
 #define PT8028_BCD_SAMPLE_CNT           5           //每次读 BCD 连采次数(多数表决)
 #endif
+#ifndef PT8028_BCD_STABLE_CNT
 #define PT8028_BCD_STABLE_CNT           2           //释放/消息：连续 2 次 5ms 相同 BCD
+#endif
+#ifndef PT8028_PRESS_SETTLE_SCANS
 #define PT8028_PRESS_SETTLE_SCANS       2           //OUT_FLAG 变 0 后约 10ms 再采 BCD
+#endif
+#define PT8028_RES_LONG_MS              2000        //预约键长按(ms)；短按/误读 BCD7 当模式键
 
 #define USER_PANEL_LED                  1           //面板白色 LED1~6（原理图 510Ω 到 GND）
 #define PANEL_LED_ACTIVE_HIGH           1           //1=GPIO 高电平点亮 LED
@@ -874,8 +896,13 @@
 #define VIDEO_RECODE_TAKE_PHOTO_EN          0                               //摄像头录像与拍照功能
 #define VIDEO_RECOED_TAKE_PHOTO_SCALE_EN    0                               //拍照和录像时是否缩放, 缩放要用3个摄像头分变率大小
 #define WATER_MARK_EN                       (1)*VIDEO_RECODE_TAKE_PHOTO_EN  //摄像头录像拍照水印
+#if ELUNCHBOX_PANEL_EN
+#define CAMERA_POWER_ENABLE()               ((void)0)   /* PE2=PT8028 D0，禁止占用为 LDO 输出 */
+#define CAMERA_POWER_DISABLE()              ((void)0)
+#else
 #define CAMERA_POWER_ENABLE()               {ldo1_enable(IO_PE2);}          //摄像头电源开
 #define CAMERA_POWER_DISABLE()              {ldo1_disable(IO_PE2);}         //摄像头电源关
+#endif
 #define DVP_CLK_SEL                         SYS_192M                        //打开摄像头选择的系统时钟
 #define CAMERA_USE_SD                       (1)*VIDEO_RECODE_TAKE_PHOTO_EN  //摄像头是否使用SD卡，录像必要SD卡
 #define CAMERA_USE_PSRAM                    (1)*VIDEO_RECODE_TAKE_PHOTO_EN*CHIP_PACKAGE_SUPPORT_PSRAM  //是否使用psram内存区驱动摄像头
@@ -917,7 +944,11 @@
 #define PORT_IMAGE_SENSOR_DVP_D3            IO_NONE
 #define PORT_IMAGE_SENSOR_DVP_D2            IO_NONE
 #define PORT_IMAGE_SENSOR_DVP_D1            IO_NONE
+#if ELUNCHBOX_PANEL_EN
+#define PORT_IMAGE_SENSOR_DVP_D0            IO_NONE   /* PE4 = PT8028 D2 */
+#else
 #define PORT_IMAGE_SENSOR_DVP_D0            IO_PE4
+#endif
 
 #define PORT_IMAGE_SENSOR_HSYNC             IO_NONE
 #define PORT_IMAGE_SENSOR_VSYNC             IO_NONE

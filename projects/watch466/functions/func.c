@@ -73,11 +73,16 @@ void func_process(void)
     pt8028_gpio_ensure_periodic();
 #if ELUNCHBOX_PANEL_EN
     pt8028_key_scan();
+#if FUNC_RESERVATION_UI_EN
+    if (pt8028_take_res_key_pending() && func_cb.sta != FUNC_RESERVATION) {
+        func_res_allow_switch = 1;
+        func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        func_res_allow_switch = 0;
+    }
+#endif
 #endif
     pt8028_log_flush();
-#if !ELUNCHBOX_PANEL_EN
     pt8028_poll_reinit();
-#endif
 #if PT8028_GPIO_MONITOR_EN
     pt8028_gpio_monitor();
 #endif
@@ -279,6 +284,14 @@ void func_switch_prev(bool flag_auto)
     } else {
         sta = func_cb.tbl_sort[idx - 1];
     }
+#if !FUNC_RESERVATION_UI_EN
+    if (sta == FUNC_RESERVATION) {
+#if VIDEO_PLAY_EN
+        compo_video_exit_unlock(video);
+#endif
+        return;
+    }
+#endif
 #if GUI_USE_SCREENSHOOT
     compo_form_t *frm_cur = NULL;
     func_switching3d_form_create(switch_mode, sta, &frm_cur, &frm);
@@ -351,6 +364,15 @@ void func_switch_next(bool flag_auto, bool flag_loop)
         sta = func_cb.tbl_sort[idx + 1];
     }
 
+#if !FUNC_RESERVATION_UI_EN
+    if (sta == FUNC_RESERVATION) {
+#if VIDEO_PLAY_EN
+        compo_video_exit_unlock(video);
+#endif
+        return;
+    }
+#endif
+
 #if GUI_USE_SCREENSHOOT
     compo_form_t *frm_cur = NULL;
     func_switching3d_form_create(switch_mode, sta, &frm_cur, &frm);
@@ -401,7 +423,17 @@ void func_switch_next(bool flag_auto, bool flag_loop)
 //切换
 void func_switch_to(u8 sta, u16 switch_mode)
 {
+#if !FUNC_RESERVATION_UI_EN
+    if (sta == FUNC_RESERVATION) {
+        return;
+    }
+#endif
 #if ELUNCHBOX_PANEL_EN
+#if FUNC_RESERVATION_UI_EN
+    if (sta == FUNC_RESERVATION && !func_res_allow_switch) {
+        return;
+    }
+#endif
     home_gpu_wait_idle();
 #endif
 #if VIDEO_PLAY_EN
@@ -623,7 +655,11 @@ void func_backing_to(void)
     u8 stack_top = task_stack_pop();
 
     if (!stack_top) {
+#if ELUNCHBOX_PANEL_EN
+        stack_top = FUNC_HOME;                                  //异常返回 Home
+#else
         stack_top = FUNC_CLOCK;                                 //异常返回表盘
+#endif
     }
 
     if (stack_top == FUNC_MENU
@@ -657,7 +693,11 @@ void func_back_to(void)
     u8 stack_top = task_stack_pop();
 
     if (!stack_top) {
+#if ELUNCHBOX_PANEL_EN
+        stack_top = FUNC_HOME;                                  //异常返回 Home
+#else
         stack_top = FUNC_CLOCK;                                 //异常返回表盘
+#endif
     }
 
     if (stack_top == FUNC_MENU
@@ -919,12 +959,24 @@ void func_message(size_msg_t msg)
         break;
 
     case KU_NEXT:
+#if !FUNC_RESERVATION_UI_EN
+        break;
+#elif ELUNCHBOX_PANEL_EN
+        /* 饭盒：预约 UI 由 pt8028_take_res_key_pending 专用入口进入 */
+        break;
+#else
         if (func_cb.sta != FUNC_RESERVATION) {
             func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         }
+#endif
         break;
 
     case KU_BACK:
+#if ELUNCHBOX_PANEL_EN
+        if (func_cb.sta == FUNC_HOME) {
+            break;
+        }
+#endif
         if (func_cb.flag_sort) {
             func_switch_to_clock();                     //切换回主时钟
         } else if (func_cb.sta == FUNC_CLOCK) {
@@ -944,7 +996,12 @@ void func_message(size_msg_t msg)
             break;
 #endif
 
-        case KU_MODE:
+    case KU_MODE:
+#if ELUNCHBOX_PANEL_EN
+            if (func_cb.sta == FUNC_HOME) {
+                break;
+            }
+#endif
             if (func_cb.sta == FUNC_HOME) {
                 func_home_mode_key();
             } else if (func_cb.sta != FUNC_HEAT && func_cb.sta != FUNC_MODE &&
@@ -1112,6 +1169,12 @@ void func_run(void)
     void (*func_entry)(void) = NULL;
     printf("%s\n", __func__);
     memset(func_cb.tbl_sort, 0, sizeof(func_cb.tbl_sort));
+#if ELUNCHBOX_PANEL_EN
+    func_cb.tbl_sort[0] = FUNC_HOME;
+    func_cb.sort_cnt = 1;
+    func_cb.flag_sort = false;
+    func_cb.sta = FUNC_HOME;
+#else
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.tbl_sort[1] = FUNC_VIDEO_SHOWLIST;
     func_cb.tbl_sort[2] = FUNC_ACTIVITY;
@@ -1121,6 +1184,7 @@ void func_run(void)
     func_cb.tbl_sort[6] = FUNC_COMPO_SELECT;
     func_cb.sort_cnt = 7;
     func_cb.sta = DEFAULE_START_FUNC;
+#endif
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
 #if ELUNCHBOX_PANEL_EN && USER_PANEL_LED

@@ -1276,6 +1276,11 @@ void func_reservation_poll(void)
 {
     tm_t tm;
 
+#if ELUNCHBOX_PANEL_EN
+    if (func_cb.sta == FUNC_HOME) {
+        return;
+    }
+#endif
     if (!g_res.setup_done || g_res.phase != RES_PHASE_WAITING) {
         return;
     }
@@ -1288,6 +1293,20 @@ void func_reservation_poll(void)
 
     if (tm.hour == g_res.appt_hour && tm.min == g_res.appt_min) {
         g_res.phase = RES_PHASE_HEATING;
+#if FUNC_RESERVATION_UI_EN
+#if ELUNCHBOX_PANEL_EN
+        /* 到点仅在已在预约页时开加热，不从其它页强跳预约 UI */
+        if (func_cb.sta == FUNC_RESERVATION) {
+            f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
+
+            if (f_res != NULL) {
+                f_res->heat_hour = g_res.heat_hour;
+                f_res->heat_min = g_res.heat_min;
+                f_res->temp_idx = g_res.temp_idx;
+                func_res_start_heating(f_res);
+            }
+        }
+#else
         if (func_cb.sta != FUNC_RESERVATION) {
             func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         } else {
@@ -1300,6 +1319,8 @@ void func_reservation_poll(void)
                 func_res_start_heating(f_res);
             }
         }
+#endif
+#endif
     }
 }
 
@@ -1380,6 +1401,11 @@ static void func_reservation_message(size_msg_t msg)
             func_res_lock_icon_apply(f_res);
         }
         break;
+
+#if ELUNCHBOX_PANEL_EN
+    case KU_NEXT:
+        break;
+#endif
 
     default:
         func_message(msg);

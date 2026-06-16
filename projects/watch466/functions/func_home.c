@@ -13,10 +13,11 @@
 
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
+#include "port_pt8028_key.h"
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-#define HOME_DBG(...)
+#define HOME_DBG(...)           printf(__VA_ARGS__)
 #else
 #define HOME_DBG(...)           printf(__VA_ARGS__)
 #endif
@@ -55,7 +56,7 @@
  *   PT8028（原理图 TCH0~TCH7）：
  *     TCH0 锁键(KU_LEFT) | TCH1 加热(KU_PREV) | TCH2 减(KU_VOL_DOWN) | TCH3 模式(KU_MODE)
  *     TCH4 确认(KU_BACK) | TCH5 开关(KU_RIGHT) | TCH6 加(KU_VOL_UP) | TCH7 预约(KU_NEXT)
- *   Home：TCH3 循环 Tab；TCH4 进入当前 Tab 页
+ *   Home：TCH3(011) Tab 切换；TCH4(100) 进入 Tab 子页（表2 按下编码，释放 Hold）
  */
 #define UI_HOME_ICON_PLACEHOLDER UI_BUF_ICON_ACTIVITY_BIN         
 
@@ -960,42 +961,111 @@ compo_form_t *func_home_form_create(void)
     return frm;
 }
 
-#if USER_PT8028_KEY
-/* 表2 主线程：OUT_FLAG 1->0 锁存 BCD，0->1 松开触发动作 */
-static void func_home_pt8028_poll(f_home_t *f_home)
+#if ELUNCHBOX_PANEL_EN
+u8 func_res_allow_switch;
+#endif
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+static void func_home_drain_stale_key_msgs(void)
 {
-    static u8 last_flag = 1;
-    static u8 session_bcd = 0xff;
-    u8 flag, bcd, d0, d1, d2;
+    msg_queue_detach(KU_NEXT, 0);
+    msg_queue_detach(KU_MODE, 0);
+    msg_queue_detach(KU_BACK, 0);
+    msg_queue_detach(KU_PREV, 0);
+    msg_queue_detach(KU_LEFT, 0);
+    msg_queue_detach(KU_RIGHT, 0);
+    msg_queue_detach(KU_VOL_UP, 0);
+    msg_queue_detach(KU_VOL_DOWN, 0);
+}
 
-    pt8028_get_raw_state(&flag, &bcd, &d0, &d1, &d2);
+void func_home_switch_to_reservation(void)
+{
+#if !FUNC_RESERVATION_UI_EN
+    return;
+#endif
+    func_res_allow_switch = 1;
+    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    func_res_allow_switch = 0;
+}
 
-    if (flag == 0 && bcd <= PT8028_KEY_TCH7 && bcd != PT8028_KEY_TCH7) {
-        session_bcd = bcd;
-    } else if (flag == 0) {
-        u8 tch = pt8028_get_press_tch();
-        if (tch <= PT8028_KEY_TCH6) {
-            session_bcd = tch;
-        }
+/* Home：模式/确认仅在释放沿处理一次（pt8028_take_home_action） */
+static void func_home_pt8028_do_confirm(f_home_t *f_home)
+{
+    if (f_home == NULL) {
+        return;
     }
+    HOME_DBG("Home: 确认 -> 进入 Tab 子页 (tab=%d)\n", f_home->tab);
+    func_home_tab_enter(f_home);
+}
 
-    if (last_flag == 0 && flag == 1 && session_bcd <= PT8028_KEY_TCH7) {
-        switch (session_bcd) {
-        case PT8028_KEY_TCH3:
-            HOME_DBG("Home: 模式键 TCH3 (FLAG,D2,D1,D0=0,0,1,1)\n");
-            func_home_mode_key();
-            break;
-        case PT8028_KEY_TCH4:
-            HOME_DBG("Home: 确认键 TCH4\n");
-            func_home_tab_enter(f_home);
-            break;
-        default:
-            break;
-        }
-        session_bcd = 0xff;
+static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
+{
+    static u32 last_ms;
+    static u8 last_tch = 0xff;
+
+    if (f_home == NULL || tch > PT8028_KEY_TCH6) {
+        return;
     }
+    if (tch == PT8028_KEY_TCH3 || tch == PT8028_KEY_TCH4) {
+        return;
+    }
+    if (tch == last_tch && !tick_check_expire(last_ms, 80)) {
+        return;
+    }
+    last_ms = tick_get();
+    last_tch = tch;
 
-    last_flag = flag;
+    switch (tch) {
+    case PT8028_KEY_TCH1:
+        HOME_DBG("Home: TCH1 加热键按下\n");
+        home_gpu_wait_idle();
+        func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        break;
+
+    case PT8028_KEY_TCH2:
+        HOME_DBG("Home: TCH2 减号按下\n");
+        func_home_countdown_adjust_min(f_home, -1);
+        break;
+
+    case PT8028_KEY_TCH6:
+        HOME_DBG("Home: TCH6 加号按下\n");
+        func_home_countdown_adjust_min(f_home, 1);
+        break;
+
+    case PT8028_KEY_TCH0:
+        HOME_DBG("Home: TCH0 锁键按下\n");
+        break;
+
+    case PT8028_KEY_TCH5:
+        HOME_DBG("Home: TCH5 开关键按下\n");
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void func_home_pt8028_handle_release(f_home_t *f_home, u8 tch)
+{
+    static u32 last_ms;
+    static u8 last_tch = 0xff;
+
+    if (f_home == NULL || tch > PT8028_KEY_TCH6) {
+        return;
+    }
+    if (tch == PT8028_KEY_TCH3 || tch == PT8028_KEY_TCH4) {
+        return;
+    }
+    if (tch == last_tch && !tick_check_expire(last_ms, 80)) {
+        return;
+    }
+    last_ms = tick_get();
+    last_tch = tch;
+
+    switch (tch) {
+    default:
+        break;
+    }
 }
 #endif
 
@@ -1003,20 +1073,52 @@ void func_home_process(void)
 {
     f_home_t *f_home = (f_home_t *)func_cb.f_cb;
 
-#if USER_PT8028_KEY && !ELUNCHBOX_PANEL_EN
+    func_process();
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     if (f_home != NULL) {
-        func_home_pt8028_poll(f_home);
+        u8 act = pt8028_take_home_action();
+        u8 press_tch = pt8028_take_press_tch();
+        u8 release_tch = pt8028_take_release_tch();
+
+        func_home_drain_stale_key_msgs();
+
+        if (act == PT8028_HOME_ACT_MODE) {
+            HOME_DBG("Home: 模式键 -> Tab 切换\n");
+            func_home_mode_key();
+        } else if (act == PT8028_HOME_ACT_CONFIRM) {
+            func_home_pt8028_do_confirm(f_home);
+        }
+
+        if (press_tch <= PT8028_KEY_TCH6 &&
+            press_tch != PT8028_KEY_TCH3 && press_tch != PT8028_KEY_TCH4) {
+            u16 kd = (u16)(tbl_pt8028_bcd_to_key[press_tch] | KEY_SHORT);
+
+            msg_queue_detach(kd, 0);
+            func_home_pt8028_handle_press(f_home, press_tch);
+        }
+        if (release_tch <= PT8028_KEY_TCH6 &&
+            release_tch != PT8028_KEY_TCH3 && release_tch != PT8028_KEY_TCH4) {
+            u16 ku = (u16)(tbl_pt8028_bcd_to_key[release_tch] | KEY_SHORT_UP);
+
+            msg_queue_detach(ku, 0);
+            func_home_pt8028_handle_release(f_home, release_tch);
+        }
     }
 #endif
+
     if (f_home != NULL) {
         func_home_status_refresh(f_home);
     }
-    func_process();
 }
 
 void func_home_message(size_msg_t msg)
 {
     f_home_t *f_home = (f_home_t *)func_cb.f_cb;
+
+    if (msg == NO_MSG) {
+        return;
+    }
 
     switch (msg) {
     case MSG_CTP_CLICK:
@@ -1024,24 +1126,36 @@ void func_home_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
+#if ELUNCHBOX_PANEL_EN
+        break;
+#else
         HOME_DBG("Home: 锁键\n");
+#endif
         break;
 
     case KU_PREV:
         HOME_DBG("Home: 加热键 -> 跳转加热页\n");
         home_gpu_wait_idle();
-        func_message(msg);
+        func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
     case KU_MODE:
     case K_MODE:
-        HOME_DBG("Home: 模式键 -> 切换 Tab (msg=0x%04X)\n", (unsigned)msg);
+#if ELUNCHBOX_PANEL_EN
+        break;
+#else
+        HOME_DBG("Home msg: 模式键 KU_MODE\n");
         func_home_mode_key();
+#endif
         break;
 
     case KU_BACK:
-        HOME_DBG("Home: 确认键 -> 进入当前 Tab\n");
+#if ELUNCHBOX_PANEL_EN
+        break;
+#else
+        HOME_DBG("Home msg: 确认键 KU_BACK\n");
         func_home_tab_enter(f_home);
+#endif
         break;
 
     case KU_RIGHT:
@@ -1049,24 +1163,29 @@ void func_home_message(size_msg_t msg)
         break;
 
     case KU_NEXT:
-        HOME_DBG("Home: 预约键 -> 跳转预约页\n");
-        home_gpu_wait_idle();
-        func_message(msg);
+        /* 预约键走 pt8028_take_res_key_pending()，此处忽略残留 KU_NEXT */
         break;
 
     case KU_VOL_UP:
-        HOME_DBG("Home: 加号 -> 倒计时+1分钟\n");
+        HOME_DBG("Home msg: 加号\n");
+        home_gpu_wait_idle();
         func_home_countdown_adjust_min(f_home, 1);
         break;
 
     case KU_VOL_DOWN:
-        HOME_DBG("Home: 减号 -> 倒计时-1分钟\n");
+        HOME_DBG("Home msg: 减号\n");
+        home_gpu_wait_idle();
         func_home_countdown_adjust_min(f_home, -1);
         break;
 
     default:
+#if ELUNCHBOX_PANEL_EN
+        /* 不把未识别按键交给 func_message，避免误跳预约页等全局副作用 */
+        break;
+#else
         func_message(msg);
         break;
+#endif
     }
 }
 
@@ -1074,6 +1193,10 @@ void func_home_enter(void)
 {
     f_home_t *f_home;
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
     if (!func_home_tab_label_ram_alloc()) {
         HOME_DBG("func_home: tab label ram alloc fail\n");
     }
@@ -1117,11 +1240,16 @@ void func_home_enter(void)
     os_gui_draw_force();
 #if ELUNCHBOX_PANEL_EN
     func_home_gui_mark_dirty();     /* 首帧进主循环仍需 gui_process 一次 */
+    pt8028_release_clear();
 #endif
 }
 
 void func_home_exit(void)
 {
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_set_home_msg_block(0);
+    pt8028_release_clear();
+#endif
 #if USER_PANEL_LED
     panel_led_all_off();
 #endif
@@ -1131,13 +1259,17 @@ void func_home_exit(void)
 
 void func_home(void)
 {
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_set_home_msg_block(1);
+    pt8028_release_clear();
+#endif
 #if !ELUNCHBOX_PANEL_EN
     printf("%s\n", __func__);
 #endif
     func_home_enter();
     while (func_cb.sta == FUNC_HOME) {
-        func_home_message(msg_dequeue());
         func_home_process();
+        func_home_message(msg_dequeue());
     }
     func_home_exit();
 }

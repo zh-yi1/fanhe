@@ -25,7 +25,7 @@ static void tft_240_st7789_i80_init(void)
 
     WriteComm(0x36);
 #if GUI_SPU_ROTATE_90 == 0
-    WriteData(0xA0);
+    WriteData(0x60);
 #else
     WriteData(0x00);
 #endif

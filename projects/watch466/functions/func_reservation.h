@@ -1,6 +1,8 @@
 #ifndef _FUNC_RESERVATION_H
 #define _FUNC_RESERVATION_H
 
+/* 预约 UI 总开关见 config.h FUNC_RESERVATION_UI_EN；0 时 func_switch_to 拒绝进入预约页 */
+
 #include "include.h"
 
 typedef enum {

@@ -99,7 +99,7 @@ typedef u16 size_msg_t;                      //定义MSG的SIZE
 #define EVT_VOX_RECORD_DIS     0x201
 
 //普通按键定义，可以支持短按，长按，双击等。范围：0 ~ 0xf
-#define NO_KEY                  0x08
+#define NO_KEY                  0xFF
 #define KEY_1                   0x04
 #define KEY_2                   0x00
 #define KEY_3                   0x05

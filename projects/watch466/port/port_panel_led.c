@@ -10,7 +10,10 @@
 #include "bsp_pt8028_key.h"
 
 /*
- * 原理图 PT8028 TCH -> LED，按下亮、松开灭
+ * 原理图 U3 PT8028 TCH -> 面板 LED（MCU PB4~PB9 驱动）：
+ *   TCH0 锁键 -> LED5(PB8) | TCH1 加热 -> LED6(PB9) | TCH3 模式 -> LED3(PB6)
+ *   TCH4 确认 -> LED2(PB5) | TCH5 开关 -> LED1(PB4) | TCH7 预约 -> LED4(PB7)
+ *   TCH2 减号 / TCH6 加号 无 LED
  */
 AT(.com_rodata.port.panel_led)
 static const u8 tbl_tch_to_led[8] = {
@@ -111,6 +114,12 @@ void panel_led_scan(void)
     } else {
         panel_led_all_off();
     }
+}
+
+AT(.com_text.port.panel_led)
+u8 panel_led_get_last_tch(void)
+{
+    return panel_led_last_tch;
 }
 
 #endif // USER_PANEL_LED
