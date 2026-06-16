@@ -775,6 +775,46 @@ static u8 lb_handler_ota_end(lb_rx_frame_t *rx)
     return LB_ERR_SUCCESS;
 }
 
+/**
+ * @brief 0x0e — 立即加热/停止加热
+ *
+ * APP 发送: 1 字节（1=开启加热，0=停止加热）
+ * MCU 行为:
+ *   ① 检查 data_len >= 1（不够则返回失败）
+ *   ② 根据 data[0] 执行加热开启或停止
+ *   ③ 返回成功
+ *
+ * 协议参考：蓝牙通讯协议1.0.4 §5.5
+ */
+static u8 lb_handler_heat_ctrl(lb_rx_frame_t *rx)
+{
+    if (!rx->data || rx->data_len < 1) {
+        lunchbox_uart_send_response(LB_CMD_HEAT_CTRL, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return LB_ERR_EXEC_FAIL;
+    }
+
+    u8 action = rx->data[0];  // 1=开启, 0=停止
+
+    if (action == 1) {
+        // =============================================
+        // TODO: MCU 开发人员在此处对接加热硬件
+        //       例: gpio_set(HEAT_PIN, 1);
+        //          heat_timer_start();
+        // =============================================
+        printf("lb: HEAT START (cmd=0x0E, data=1)\n");
+    } else {
+        // =============================================
+        // TODO: MCU 开发人员在此处对接停止硬件
+        //       例: gpio_set(HEAT_PIN, 0);
+        //          heat_timer_stop();
+        // =============================================
+        printf("lb: HEAT STOP (cmd=0x0E, data=0)\n");
+    }
+
+    lunchbox_uart_send_response(LB_CMD_HEAT_CTRL, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
+    return LB_ERR_SUCCESS;
+}
+
 //-----------------------------------------------------------------------------
 // 注册 / 初始化 / 主循环
 //-----------------------------------------------------------------------------
@@ -795,6 +835,7 @@ static u8 lb_handler_ota_end(lb_rx_frame_t *rx)
  *   cmd_handler[0x0b] = lb_handler_ota_start       → 升级启动(桩)
  *   cmd_handler[0x0c] = lb_handler_ota_data        → 升级包传输(桩)
  *   cmd_handler[0x0d] = lb_handler_ota_end         → 升级结束(桩)
+ *   cmd_handler[0x0e] = lb_handler_heat_ctrl       → 立即加热/停止加热
  *
  * 此后收到帧 → 取帧中 cmd 字段 → 查 cmd_handler[cmd] → 调用对应函数
  */
@@ -812,6 +853,7 @@ void lunchbox_uart_init_handlers(void)
     lunchbox_uart_reg_handler(LB_CMD_OTA_START,       lb_handler_ota_start);
     lunchbox_uart_reg_handler(LB_CMD_OTA_DATA,        lb_handler_ota_data);
     lunchbox_uart_reg_handler(LB_CMD_OTA_END,         lb_handler_ota_end);
+    lunchbox_uart_reg_handler(LB_CMD_HEAT_CTRL,      lb_handler_heat_ctrl);
 }
 
 /**
@@ -829,6 +871,54 @@ void lunchbox_uart_init_handlers(void)
 void  lunchbox_uart_reg_handler(u8 cmd, lb_cmd_handler_t h) { if (cmd < 16) cmd_handler[cmd] = h; }
 
 #endif // !LB_BRIDGE_MODE
+
+//-----------------------------------------------------------------------------
+// 加热控制 API（公共 — 桥模式/本地模式均可用）
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief 立即加热 — 发送 0x0E (data=0x01) 到加热模块
+ *
+ * 强制走 UART 通道发送（通过临时清空 lb_ble_tx_fn），确保命令直达加热模块
+ * 而非经 BLE 回传手机。APP 侧调用此函数后，加热模块 MCU 收到 0x0E 帧即启动加热。
+ *
+ * 调用示例：
+ *   // 用户按下物理"加热"按键
+ *   lunchbox_heat_start();
+ */
+void lunchbox_heat_start(void)
+{
+    u8 data = 0x01;  // 1 = 开启加热（协议 §5.5）
+    printf("lb: heat_start -> UART\n");
+
+    // 保存 BLE TX 函数指针，临时清空以强制走 UART
+    lb_ble_tx_fn_t saved_ble = lb_ble_tx_fn;
+    lb_ble_tx_fn = NULL;
+    lunchbox_uart_send(LB_CMD_HEAT_CTRL, 0x00, &data, 1);
+    lb_ble_tx_fn = saved_ble;
+}
+
+/**
+ * @brief 立即停止加热 — 发送 0x0E (data=0x00) 到加热模块
+ *
+ * 强制走 UART 通道发送（通过临时清空 lb_ble_tx_fn），确保命令直达加热模块
+ * 而非经 BLE 回传手机。APP 侧调用此函数后，加热模块 MCU 收到 0x0E 帧即停止加热。
+ *
+ * 调用示例：
+ *   // 用户按下物理"停止"按键
+ *   lunchbox_heat_stop();
+ */
+void lunchbox_heat_stop(void)
+{
+    u8 data = 0x00;  // 0 = 停止加热（协议 §5.5）
+    printf("lb: heat_stop -> UART\n");
+
+    // 保存 BLE TX 函数指针，临时清空以强制走 UART
+    lb_ble_tx_fn_t saved_ble = lb_ble_tx_fn;
+    lb_ble_tx_fn = NULL;
+    lunchbox_uart_send(LB_CMD_HEAT_CTRL, 0x00, &data, 1);
+    lb_ble_tx_fn = saved_ble;
+}
 
 //-----------------------------------------------------------------------------
 // BLE 通道实现
