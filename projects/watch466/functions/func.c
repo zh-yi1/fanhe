@@ -154,27 +154,6 @@ void func_process(void)
 
     WDT_CLR();
 
-#if USER_PT8028_KEY
-    pt8028_gpio_ensure_periodic();
-#if ELUNCHBOX_PANEL_EN
-    pt8028_key_scan();
-    
-#endif
-    pt8028_log_flush();
-    pt8028_poll_reinit();
-#if PT8028_GPIO_MONITOR_EN
-    pt8028_gpio_monitor();
-#endif
-#endif
-
-#if (UART0_PRINTF_SEL != PRINTF_NONE)
-    uart0_printf_ensure();
-#endif
-
-#if USER_PANEL_LED
-    panel_led_scan();                       /* 主线程刷新 LED，勿放 5ms 中断(易花屏) */
-#endif
-
 #if CPU_USAGE_MONITOT_EN
     cpu_trace_monitor();
 #endif
@@ -261,7 +240,7 @@ void func_process(void)
 #endif // CHARGE_EN
 
     if(bt_cb.bt_is_inited) {
-        bt_thread_check_trigger();
+        bt_thread_check_trigger(); //经典蓝牙线程
 #if LE_EN
         ble_app_process();
 #endif
@@ -298,6 +277,9 @@ void func_process(void)
         sys_clk_free(INDEX_GUI);
    }
 
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_uart_process();
+#endif
 }
 
 //根据任务名创建窗体。此处调用的创建窗体函数不要调用子任务的控制结构体

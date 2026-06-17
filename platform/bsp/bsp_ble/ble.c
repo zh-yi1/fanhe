@@ -183,7 +183,7 @@ void ble_init_att(void)
     memset(&ble_cb, 0, sizeof(ble_cb));
     ble_gatts_init(gatts_profile_table, sizeof(gatts_profile_table),
                     characteristic_cb_info,
-                    LE_ATT_NUM);
+                    LE_ATT_NUM);  //注册gatt属性
     ble_app_init();
     ble_ams_var_init();
 #if FUNC_BLE_GATTS_EN

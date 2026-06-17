@@ -796,7 +796,7 @@ AT(.text.bsp.sys.init)
 void bsp_sys_init(void)
 {
     /// config
-    if (!xcfg_init(&xcfg_cb, sizeof(xcfg_cb))) {           //获取配置参数
+    if (!xcfg_init(&xcfg_cb, sizeof(xcfg_cb))) {   //获取配置参数
         printf("xcfg init error\n");
     }
     print_comm_info();
@@ -804,7 +804,7 @@ void bsp_sys_init(void)
     // io init
     bsp_io_init();
 
-    // var init
+    // var init 全局变量/堆/消息队列初始化
     bsp_var_init();
 
 #if 0//(USE_APP_TYPE == APP_BLUE_FIT)
@@ -857,7 +857,7 @@ void bsp_sys_init(void)
 #endif
 
     key_init();
-    rtc_init();
+    rtc_init();  //RTC 时钟
 
     /// enable user timer for display & dac
     sys_set_tmr_enable(1, 1);
@@ -881,10 +881,10 @@ void bsp_sys_init(void)
 
 #if FUNC_BT_EN
     if(!get_vio0v_func_en() || !bsp_charge_check_vio0v_bit())  //0v启动，vddbt下电，不能运行bt相关
-        bt_init();
+        bt_init();   //经典蓝牙协议栈启动 → bt_setup()
 #if BT_BACKSTAGE_EN
     if(!get_vio0v_func_en() || !bsp_charge_check_vio0v_bit())  //0v启动，vddbt下电，不能运行bt相关
-        func_bt_init();
+        func_bt_init();  //蓝牙后台任务初始化
 #endif
 #endif // FUNC_BT_EN
 

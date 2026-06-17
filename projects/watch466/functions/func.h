@@ -19,6 +19,9 @@
 #if FUNC_BLE_GATTS_EN
 #include "func_ble_gatts.h"
 #endif
+#if FUNC_LUNCHBOX_UART_EN
+#include "func_lunchbox_uart.h"
+#endif
 
 #define TICK_IGNORE_KEY            700      //忽略700ms内的部分消息
 

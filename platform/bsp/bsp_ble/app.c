@@ -8,14 +8,15 @@ void ble_app_init(void)
 #endif
 
 #if (USE_APP_TYPE == APP_BLUE_FIT)
-    ble_app_watch_init();
+    ble_app_watch_init();  //蓝牙信息初始化
 #endif
 
 #if LE_ANCS_CLIENT_EN
-    ble_ancs_var_init();
+    ble_ancs_var_init(); //ancs_msg_cb初始化
 #endif
 }
 
+//BLE数据处理
 void ble_app_process(void)
 {
 #if (USE_APP_TYPE == APP_AB_LINK)
