@@ -407,7 +407,7 @@
 #define BT_SCO_FAR_DUMP_EN              0                           //是否打开通话下行数据dump功能，dump:算法前 + 算法后
 #define BT_SCO_EQ_DUMP_EN               0                           //是否打开上行EQ的数据dump功能（单MIC优先用），dump:算法前主麦 + 算法后 + EQ后
 
-#define BT_SCO_EQ_DRC_EN                1                           //DRC参数调试在 bt_mic_8k.drc //(msbc)bt_mic_16k.drc
+#define BT_SCO_EQ_DRC_EN                0                           //DRC参数调试在 bt_mic_8k.drc //(msbc)bt_mic_16k.drc
 
 #define BT_SCO_MAV_EN                   0                           //是否打开蓝牙通话变声功能
 
@@ -415,17 +415,17 @@
 #define BT_SCO_AGC_TARGET_DB            3                           //AGC均衡后目标值(-DB)
 #define BT_SCO_AGC_COMPRESSION_DB       12                          //AGC最大抬升增益能力(DB)
 
-#define BT_PLC_EN                       1
+#define BT_PLC_EN                       0
 #define BT_ANL_GAIN                     3                           //MIC模拟增益(0~12DB)
 #define BT_CALL_MAX_GAIN                xcfg_cb.bt_call_max_gain    //配置通话时DAC最大模拟增益
 
-#define BT_AEC_EN                       1
+#define BT_AEC_EN                       0
 #define BT_AEC_FF_MIC_REF_EN            0                           //如果aec的ff_mic回声比talk_mic回声大，可使能这功能，用于双mic降噪
 #define BT_AEC_NLP_BYPASS_EN            0                           //是否打开nlp bypass
 #define BT_ECHO_LEVEL                   xcfg_cb.bt_echo_level       //回声消除级别（级别越高，回声衰减越明显，但通话效果越差）(0~15)
 #define BT_FAR_OFFSET                   xcfg_cb.bt_far_offset       //远端补偿值(0~255)
 
-#define BT_ALC_EN                       1                           //是否使能ALC
+#define BT_ALC_EN                       0                           //是否使能ALC
 #define BT_ALC_FADE_IN_DELAY            26                          //近端淡入延时(n*15ms)
 #define BT_ALC_FADE_IN_STEP             1                           //近端淡入速度(64ms)
 #define BT_ALC_FADE_OUT_DELAY           2                           //远端淡入延时(n*15ms)
@@ -433,7 +433,7 @@
 #define BT_ALC_VOICE_THR                0x30000
 
 //通话近端降噪算法(耳机MIC采集数据降噪, AINS4/DNN/DMDNN/AIAEC只能四选一)
-#define BT_SCO_AINS4_EN					1	                        //是否打开MIC的AINS4降噪
+#define BT_SCO_AINS4_EN					0	                        //是否打开MIC的AINS4降噪
 #define BT_SCO_AINS4_LEVEL				xcfg_cb.bt_sco_nr_level	    //0-30级
 
 #define BT_SCO_DNN_EN                   0                           //是否打开自研单麦DNN降噪算法
@@ -454,7 +454,7 @@
 #define BT_SCO_DMIC_AIAEC_NLP_REF       0                           //0代表主mic，1代表副mic
 
 //通话远端降噪算法(接收远端手机的通话数据降噪)
-#define BT_SCO_FAR_NR_EN                1                           //是否打开远端降噪算法(Code: 2KB, Ram: 2.1KB)
+#define BT_SCO_FAR_NR_EN                0                           //是否打开远端降噪算法(Code: 2KB, Ram: 2.1KB)
 #define BT_SCO_FAR_NR_LEVEL             5                           //强度: 0~5
 #define BT_SCO_FAR_NOISE_THR            1                           //范围: 0~20
 #define BT_SCO_FAR_VALUE_NS             3                           //范围: 0~50

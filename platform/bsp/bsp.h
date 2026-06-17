@@ -26,9 +26,13 @@
 #include "bsp_sleep.h"
 #include "bsp_vusb.h"
 #include "bsp_uitool_phrase.h"
+#if MODEM_CAT1_EN
 #include "bsp_modem.h"
+#endif
 #include "bsp_opus.h"
+#if CALL_MGR_EN
 #include "bsp_call_mgr.h"
+#endif
 #include "bsp_spi.h"
 #include "bsp_spi1flash.h"
 #include "bsp_uart.h"
@@ -36,12 +40,18 @@
 #include "bsp_asr.h"
 #include "bsp_auphy.h"
 #include "bsp_sensor_hub.h"
+#if VIDEO_RECODE_TAKE_PHOTO_EN
 #include "bsp_image_sensor.h"
+#endif
+#if VIDEO_PLAY_EN
 #include "bsp_video_play.h"
+#endif
+#if VIDEO_RECODE_TAKE_PHOTO_EN
 #include "bsp_video_recode.h"
 #include "bsp_take_photo.h"
 #include "bsp_photo_view.h"
 #include "bsp_video_watermark.h"
+#endif
 #include "bsp_gpio.h"
 #include "mic_effect.h"
 #include "bsp_fmrx.h"

@@ -12,31 +12,6 @@
 				<Option type="1" />
 				<Option compiler="riscv32-v3" />
 				<Linker>
-					<Add library="../../platform/libs/alipay_secure_sdk/app/trans_code/lib/app_trans_code_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/quickjs/lib/3rdparty_quickjs_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/js_api/lib/fwk_js_api_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/quickjs_adapt/lib/fwk_quickjs_adapt_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/sm2/lib/fwk_sm2_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/cJSON/lib/3rdparty_cJSON_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/mbedtls/lib/3rdparty_mbedtls_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/protobuf-c/lib/3rdparty_protobuf-c_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/regex/lib/3rdparty_regex_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/sm3/lib/3rdparty_sm3_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/uEcc/lib/3rdparty_uEcc_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/app/aid_code/lib/app_aid_code_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/app/bind_ble/lib/app_bind_ble_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/app/pay_code/lib/app_pay_code_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/app/provision/lib/app_provision_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/app/setting/lib/app_setting_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/bind_status/lib/fwk_bind_status_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/common/lib/fwk_common_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/ble_communicate/lib/fwk_ble_communicate_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/crypt/lib/fwk_crypt_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/crypt_ext/lib/fwk_crypt_ext_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/device_certificate/lib/fwk_device_certificate_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/storage/lib/fwk_storage_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/network/lib/fwk_network_rv32_bluetrum.lib" />
-					<Add library="../../platform/libs/alipay_secure_sdk/fwk/secure_mode_se_v2/lib/fwk_secure_mode_se_v2_rv32_bluetrum.lib" />
 					<Add library="../../platform/libs/libm.a" />
 					<Add library="../../platform/libs/libgcc.a" />
 					<Add library="../../platform/libs/libc.a" />
@@ -65,44 +40,18 @@
 			<Add directory="../../platform/bsp/bsp_sensor" />
 			<Add directory="../../platform/bsp/bsp_music" />
 			<Add directory="../../platform/bsp/bsp_effect" />
-			<Add directory="../../platform/bsp/bsp_modem" />
-			<Add directory="../../platform/bsp/bsp_sensor/hx3602" />
-			<Add directory="../../platform/bsp/bsp_video" />
 			<Add directory="../../platform/gui" />
 			<Add directory="../../platform/gui/rotate_disp" />
 			<Add directory="../../platform/gui/components" />
 			<Add directory="../../platform/gui/tft" />
 			<Add directory="../../platform/gui/ctp" />
 			<Add directory="../../platform/gui/lcd" />
-			<Add directory="../../platform/bsp/bsp_sensor/internal_sensor" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/app/aid_code/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/app/bind_ble/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/app/pay_code/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/app/provision/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/app/setting/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/app/trans_code/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/hal/bluetooth/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/hal/device_info/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/hal/file/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/hal/network/interface" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/hal/os/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/port" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/se/hsec/hsc32i3" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/se/hed" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/share/common/inc" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/softse" />
 			<Add directory="../../platform/gui/ctp/axs5106" />
 			<Add directory="functions/common" />
-			<Add directory="../../platform/libs/alipay_secure_sdk/hal/cert" />
-			<Add directory="../../platform/modules/yj" />
-			<Add directory="../../platform/modules/awk_map" />
-			<Add directory="../../platform/libs/awk" />
 			<Add directory="../../platform/libs/libfixmath" />
 			<Add directory="../../platform/libs/net/include" />
 			<Add directory="../../platform/libs/net/include/lwip" />
 			<Add directory="../../platform/libs/net/include/lwip/ports" />
-			<Add directory="../../platform/bsp/bsp_image_sensor" />
 			<Add directory="../../platform/bsp/bsp_fs" />
 			<Add directory="../../platform/bsp/bsp_record" />
 		</Compiler>
@@ -115,7 +64,6 @@
 			<Add library="libbtstack" />
 			<Add library="libcodecs" />
 			<Add library="libdrivers_v2" />
-			<Add library="libvoices" />
 			<Add library="libimg" />
 			<Add library="libttf" />
 			<Add library="libgui" />
@@ -129,42 +77,12 @@
 			<Add library="../../platform/libs/libgcc.a" />
 			<Add library="../../platform/libs/libc.a" />
 			<Add library="../../platform/libs/libapp.a" />
-			<Add library="../../platform/libs/alipay_secure_sdk/app/trans_code/lib/app_trans_code_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/quickjs/lib/3rdparty_quickjs_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/js_api/lib/fwk_js_api_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/quickjs_adapt/lib/fwk_quickjs_adapt_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/sm2/lib/fwk_sm2_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/cJSON/lib/3rdparty_cJSON_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/mbedtls/lib/3rdparty_mbedtls_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/protobuf-c/lib/3rdparty_protobuf-c_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/regex/lib/3rdparty_regex_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/sm3/lib/3rdparty_sm3_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/3rdparty/uEcc/lib/3rdparty_uEcc_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/app/aid_code/lib/app_aid_code_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/app/bind_ble/lib/app_bind_ble_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/app/pay_code/lib/app_pay_code_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/app/provision/lib/app_provision_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/app/setting/lib/app_setting_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/bind_status/lib/fwk_bind_status_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/common/lib/fwk_common_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/ble_communicate/lib/fwk_ble_communicate_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/crypt/lib/fwk_crypt_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/secure_mode_se_v2/lib/fwk_secure_mode_se_v2_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/crypt_ext/lib/fwk_crypt_ext_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/device_certificate/lib/fwk_device_certificate_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/storage/lib/fwk_storage_rv32_bluetrum.lib" />
-			<Add library="../../platform/libs/alipay_secure_sdk/fwk/network/lib/fwk_network_rv32_bluetrum.lib" />
-			<Add library="../../platform/modules/asr_using/libasr.a" />
-			<Add library="../../platform/modules/asr_using/libasr_air.a" />
-			<Add library="../../platform/bsp/bsp_sensor/hx3602/libhx3602.a" />
-			<Add library="../../platform/libs/awk/lib_map.a" />
 			<Add library="../../platform/bsp/bsp_sensor/qmc6309/lib_qst_ical.a" />
 			<Add directory="../../platform/libs" />
 			<Add directory="../../platform/libs/net" />
 		</Linker>
 		<ExtraCommands>
 			<Add before="Output\bin\prebuild.bat $(PROJECT_NAME)" />
-			<Add before="Output\bin\prebuild_se.bat SE_VERSION_V3" />
 			<Add after="Output\bin\postbuild.bat $(PROJECT_NAME)" />
 			<Add after="Output\bin\postbuild_ble_ota.bat $(PROJECT_NAME)" />
 		</ExtraCommands>
@@ -269,55 +187,16 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_ble/hid/hid_usage.h" />
-		<Unit filename="../../platform/bsp/bsp_bt/a2dp.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="../../platform/bsp/bsp_bt/bsp_bt.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_bt/bsp_bt.h" />
-		<Unit filename="../../platform/bsp/bsp_bt/bsp_bt_call.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_bt/bsp_bt_ring.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_bt/bsp_emit.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="../../platform/bsp/bsp_bt/bt.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_bt/bt_id3_tag.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="../../platform/bsp/bsp_bt/bt_sco_app_dbg.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_bt/bt_sco_app_dbg.h" />
-		<Unit filename="../../platform/bsp/bsp_bt/bt_sco_nr_dbg.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_bt/dev_vol.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_bt/hfhs.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_bt/hid.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_bt/pbap.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_bt/pbap.h" />
-		<Unit filename="../../platform/bsp/bsp_bt/profile.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_call_mgr.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_call_mgr.h" />
 		<Unit filename="../../platform/bsp/bsp_charge.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -385,22 +264,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_i2c.h" />
-		<Unit filename="../../platform/bsp/bsp_image_sensor/bsp_image_sensor.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_image_sensor/bsp_image_sensor.h" />
-		<Unit filename="../../platform/bsp/bsp_image_sensor/bsp_image_sensor_drv.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_image_sensor/drv_bf03a2.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_image_sensor/drv_gc0308.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_image_sensor/drv_spa0a39.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="../../platform/bsp/bsp_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -425,20 +288,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_mem/tlsf.h" />
-		<Unit filename="../../platform/bsp/bsp_modem/bsp_modem.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_modem/bsp_modem.h" />
-		<Unit filename="../../platform/bsp/bsp_modem/bsp_modem_call.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_modem/bsp_modem_sleep.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_modem/modem_custom.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_modem/modem_custom.h" />
 		<Unit filename="../../platform/bsp/bsp_music/bsp_fs.h" />
 		<Unit filename="../../platform/bsp/bsp_music/bsp_func_music.h" />
 		<Unit filename="../../platform/bsp/bsp_music/bsp_music.c">
@@ -617,26 +466,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_vbat.h" />
-		<Unit filename="../../platform/bsp/bsp_video/bsp_photo_view.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_video/bsp_photo_view.h" />
-		<Unit filename="../../platform/bsp/bsp_video/bsp_take_photo.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_video/bsp_take_photo.h" />
-		<Unit filename="../../platform/bsp/bsp_video/bsp_video_play.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_video/bsp_video_play.h" />
-		<Unit filename="../../platform/bsp/bsp_video/bsp_video_recode.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_video/bsp_video_recode.h" />
-		<Unit filename="../../platform/bsp/bsp_video/bsp_video_watermark.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_video/bsp_video_watermark.h" />
 		<Unit filename="../../platform/gui/api_gui.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -704,10 +533,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/gui/components/compo_jpg.h" />
-		<Unit filename="../../platform/gui/components/compo_kaleidoscope.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/gui/components/compo_kaleidoscope.h" />
 		<Unit filename="../../platform/gui/components/compo_label.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -847,129 +672,6 @@
 		<Unit filename="../../platform/header/s_common.h" />
 		<Unit filename="../../platform/header/sfr.h" />
 		<Unit filename="../../platform/header/typedef.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/app/aid_code/inc/aid_code.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/app/bind_ble/inc/alipay_bind.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/app/pay_code/inc/alipay_pay.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/app/provision/inc/alipay_activation.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/app/provision/inc/alipay_cert.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/app/setting/inc/alipay_account_manage.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/app/trans_code/inc/alipay_transit.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/bluetooth/inc/csi_ble.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/bluetooth/inc/hal_ble.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/bluetooth/inc/vendor_ble.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/bluetooth/sample/vendor_ble.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/cert/inc/vendor_cert.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/cert/sample/test_cert.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/cert/sample/vendor_cert.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/inc/csi_device_info.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/inc/hal_device_info.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/inc/vendor_device_info.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/sample/test_device_info.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/device_info/sample/vendor_device_info.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/file/inc/vendor_file.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/file/sample/test_file.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/file/src/vendor_file.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/alipay_ble_common.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/alipay_blue_tcp.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/alipay_iot_type.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/alipay_net_kal.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/data.pb-c.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/iot_err.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/interface/protobuf-c.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/alipay_ble_os.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/alipay_blue.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/alipay_blue_tcp.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/alipay_iot_kal.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/data.pb-c.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/sample/protobuf-c.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/network/test/test_netwotk_ble.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/os/inc/csi_os.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/os/inc/hal_os.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/os/inc/vendor_os.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/hal/os/sample/vendor_os.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/port/iotsec.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/common.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d/hed_private.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d/hed_private.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d/port_hed_i2c.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/hed_98d/port_hed_i2c.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/vendor_api.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hed/vendor_api.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hsec/hsc32i3/hs_private.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hsec/hsc32i3/hs_private.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/hsec/vendor_ssp.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/vendor_crypto.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/se/vendor_product.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/share/common/inc/alipay_common.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/share/common/inc/alipay_mem.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/share/common/inc/csi_common.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/share/common/inc/hal_common.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/aes.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/aes.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/kdf.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/kdf.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/list.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/list.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/sha256.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/sha256.h" />
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/utils.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/libs/alipay_secure_sdk/softse/utils.h" />
 		<Unit filename="../../platform/libs/api.h" />
 		<Unit filename="../../platform/libs/api_app.h" />
 		<Unit filename="../../platform/libs/api_ble.h" />
@@ -1029,109 +731,9 @@
 		<Unit filename="../../platform/libs/strong_bt.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="../../platform/libs/strong_sco.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="../../platform/libs/strong_symbol.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="../../platform/modules/awk_map/awk_fs.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/awk_map/awk_interface.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/awk_map/awk_json.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/awk_map/awk_mem.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/awk_map/awk_mem.h" />
-		<Unit filename="../../platform/modules/awk_map/awk_net.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/awk_map/awk_pr.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/awk_map/awk_pr.h" />
-		<Unit filename="../../platform/modules/awk_map/awk_render.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws/asr.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws/asr.h" />
-		<Unit filename="../../platform/modules/ws/asr_prefetch.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws/asr_process.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws/asr_strong_symbol.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws/fst_graph.h" />
-		<Unit filename="../../platform/modules/ws/fst_words.h" />
-		<Unit filename="../../platform/modules/ws_air/air/asr_config.h" />
-		<Unit filename="../../platform/modules/ws_air/air/func_api_air.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws_air/air/func_api_air.h" />
-		<Unit filename="../../platform/modules/ws_air/air/ir.h" />
-		<Unit filename="../../platform/modules/ws_air/air/ir_cap.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws_air/air/ir_cap.h" />
-		<Unit filename="../../platform/modules/ws_air/air/ir_code.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws_air/air/ir_data_parse.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws_air/air/ir_index #.h" />
-		<Unit filename="../../platform/modules/ws_air/air/ir_index.h" />
-		<Unit filename="../../platform/modules/ws_air/air/isd_pwm_ir_send.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws_air/air/wanson_ir.h" />
-		<Unit filename="../../platform/modules/ws_air/asr.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws_air/asr.h" />
-		<Unit filename="../../platform/modules/ws_air/asr_prefetch.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws_air/asr_process.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws_air/asr_strong_symbol.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/ws_air/fst_graph.h" />
-		<Unit filename="../../platform/modules/ws_air/fst_words.h" />
-		<Unit filename="../../platform/modules/yj/bsp_et_asr_ctrl.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/yj/bsp_et_asr_ctrl.h" />
-		<Unit filename="../../platform/modules/yj/et_collects.h" />
-		<Unit filename="../../platform/modules/yj/et_keyword.h" />
-		<Unit filename="../../platform/modules/yj/et_kws_labels.h" />
-		<Unit filename="../../platform/modules/yj/et_thres_list.h" />
-		<Unit filename="../../platform/modules/yj/lib_et_asr.h" />
-		<Unit filename="../../platform/modules/yj/lib_et_ui_io.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/yj/lib_et_ui_io.h" />
-		<Unit filename="../../platform/modules/yj/third_bsp_sys.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/yj/third_bsp_sys.h" />
-		<Unit filename="../../platform/modules/yj/third_func.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/modules/yj/third_func.h" />
-		<Unit filename="../../platform/modules/yj/third_kws_event.h" />
 		<Unit filename="Output/bin/app.xm">
 			<Option compile="1" />
 			<Option compiler="riscv32-v3" use="1" buildCommand="$compiler $options $includes -E -P -x c -c $file -o $(TARGET_OUTPUT_DIR)appxm.o" />
@@ -1164,10 +766,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="config.h" />
-		<Unit filename="demo/flash_fatfs_demo.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="demo/flash_fatfs_demo.h" />
 		<Unit filename="functions/common/func_bt_update.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1236,10 +834,6 @@
 		<Unit filename="functions/func_alarm_clock_sub_set.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_alipay.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_alipay.h" />
 		<Unit filename="functions/func_altitude.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1269,16 +863,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_bt.h" />
-		<Unit filename="functions/func_bt_call.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_bt_dut.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_bt_dut.h" />
-		<Unit filename="functions/func_bt_ring.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/func_calculator.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1289,59 +873,10 @@
 		<Unit filename="functions/func_calendar.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_call.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_call_mgr.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_call_sub_dial.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_call_sub_record.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/func_camera.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_charge.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock.h" />
-		<Unit filename="functions/func_clock_butterfly.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_cube.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_fish.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_preview.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_sub_card2.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_sub_dropdown.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_sub_pullup.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_sub_rotary.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_sub_side.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_sub_sidebar.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_clock_windmill.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_compass.c">
@@ -1419,9 +954,6 @@
 		<Unit filename="functions/func_lunchbox_uart.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_map.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/func_mode.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1463,9 +995,6 @@
 		<Unit filename="functions/func_menu_sub_honeycomb.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_menu_sub_kaleidoscope.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/func_menu_sub_list.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1487,19 +1016,7 @@
 		<Unit filename="functions/func_message.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_modem_call.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_modem_ring.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_music.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/func_music.h" />
-		<Unit filename="functions/func_music_source.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/func_passwod_sub_disp.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1520,9 +1037,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_setting_sub_about.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_setting_sub_about_4g.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_setting_sub_disturd.c">
@@ -1599,12 +1113,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_usbdev.h" />
-		<Unit filename="functions/func_video_play.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_video_recode.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/func_video_showlist.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1666,6 +1174,9 @@
 		</Unit>
 		<Unit filename="port/port_sd.h" />
 		<Unit filename="port/port_update.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="port/stubs_elunchbox.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="ram.ld">

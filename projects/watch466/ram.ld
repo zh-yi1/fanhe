@@ -647,7 +647,7 @@ SECTIONS
         *(.nr_buf*)
         *(.sco_data.pcm.aec*)
         *(.nr_far_buf.*)
-        . = 0x1A00;
+        . = 0x1E00;
     } > cram
 
     .music_cram __cram_vma (NOLOAD) : {
