@@ -59,20 +59,20 @@ compo_form_t *func_style_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_STYLE]);
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_STYLE]);
 
-	//创建按键
-    compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_ICON_MENU_BIN);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 190);
+	// //创建按键
+    // compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_ICON_MENU_BIN);
+    // compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 190);
 
-	compo_textbox_t *txt_style = compo_textbox_create(frm, 30);
-	compo_setid(txt_style, 8);
-    compo_textbox_set_pos(txt_style, GUI_SCREEN_CENTER_X, 310);
-    compo_textbox_set(txt_style, style_str_list[func_cb.menu_style]);
+	// compo_textbox_t *txt_style = compo_textbox_create(frm, 30);
+	// compo_setid(txt_style, 8);
+    // compo_textbox_set_pos(txt_style, GUI_SCREEN_CENTER_X, 310);
+    // compo_textbox_set(txt_style, style_str_list[func_cb.menu_style]);
 
-    func_cb.menu_idx = 0;           //切换风格后进入回中心位置
+    // func_cb.menu_idx = 0;           //切换风格后进入回中心位置
 
     return frm;
 }

@@ -49,13 +49,6 @@ u32 system_get_main_stack_priopity(void)
 #endif
 
 #if	ASR_USBKEY_PSD
-// const u8 tbl_secret_key[16] = {0xA8, 0xE7, 0xB7, 0x74, 0xD1, 0x04, 0x97, 0x3E, 0x8E, 0xB4, 0x7E, 0x4A, 0x36, 0x99, 0xF2, 0xD7};
-// const u8 tbl_secret_key[16] = {0xF6, 0x7C, 0xB6, 0xBD, 0x50, 0xE8, 0x33, 0xAF, 0x05, 0x15, 0x12, 0x76, 0x18, 0x56, 0x90, 0x99};
-// const u8* get_alg_tbl(void)
-// {
-//     return tbl_secret_key;
-// }
-
 WEAK const u8* get_soft_key(void)
 {
 #if ASR_USBKEY_PSD
@@ -73,7 +66,7 @@ void run_test()
 #endif // FLASH_EXTERNAL_EN
 
 #if FLASH_DISK_EN
-    printf("\t**flash_fatfs_demo**\n"); 
+    printf("\t**flash_fatfs_demo**\n");
     flash_fatfs_demo();
 #endif // FLASH_DISK_EN
 }
@@ -86,7 +79,6 @@ int main(void)
     rst_reason = LVDCON;
     rtccon10 = RTCCON10;
     printf("Hello **AB5790**: %08x, CPUID: %d\n", rst_reason, CPUID);
-    printf("float print test: %.3f, %f, %f, %f\n", -1.23546f, 1.23546f, -0.0000000000235f, 798956256225.0f);
 
     if (rst_reason & BIT(24)) {
         bsp_rtc_recode_set(1);
@@ -124,8 +116,6 @@ int main(void)
         printf("Dongle authorization verification successful!\n");
     }
 #endif
-    
-    //run_test();
 
     bsp_flash_disk_mount();
 

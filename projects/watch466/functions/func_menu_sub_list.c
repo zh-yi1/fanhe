@@ -31,34 +31,34 @@ typedef struct f_menu_list_t_ {
 } f_menu_list_t;
 
 static const compo_listbox_item_t tbl_menu_list[] = {
-    {STR_CLOCK,                  UI_BUF_ICON_CLOCK_BG_BIN,          .func_sta = FUNC_CLOCK},                //时钟
-    {STR_SPORTS,                 UI_BUF_ICON_SPORT_BIN,             .func_sta = FUNC_SPORT},                //运动
-//    {STR_STEP,                   UI_BUF_ICON_STEP_BIN,            .func_sta = FUNC_NULL},                 //计步
-    {STR_SLEEP,                  UI_BUF_ICON_SLEEP_BIN,             .func_sta = FUNC_SLEEP},                //睡眠
-    {STR_ACTIVITY_RECORD,        UI_BUF_ICON_ACTIVITY_BIN,          .func_sta = FUNC_ACTIVITY},             //活动记录
-    {STR_HEART_RATE,             UI_BUF_ICON_HEART_RATE_BIN,        .func_sta = FUNC_HEARTRATE},            //心率
-    {STR_BLOOD_PRESSURE,         UI_BUF_ICON_BLOOD_PRESSURE_BIN,    .func_sta = FUNC_BLOOD_PRESSURE},       //血压
-    {STR_BLOOD_OXYGEN,           UI_BUF_ICON_BLOOD_OXYGEN_BIN,      .func_sta = FUNC_BLOOD_OXYGEN},         //血氧
-    {STR_MESSAGE,                UI_BUF_ICON_MESSAGE_BIN,           .func_sta = FUNC_MESSAGE},              //消息
-    {STR_PHONE,                  UI_BUF_ICON_CALL_BIN,              .func_sta = FUNC_CALL},                 //电话
-    {STR_MUSIC,                  UI_BUF_ICON_MUSIC_BIN,             .func_sta = FUNC_BT},                   //音乐
-    {STR_WEATHER,                UI_BUF_ICON_WEATHER_BIN,           .func_sta = FUNC_WEATHER},              //天气
-    {STR_BREATHE,                UI_BUF_ICON_BREATHE_BIN,           .func_sta = FUNC_BREATHE},              //呼吸
-    {STR_CALCULATOR,             UI_BUF_ICON_CALCULATOR_BIN,        .func_sta = FUNC_CALCULATOR},           //计算器
-    {STR_ALARM_CLOCK,            UI_BUF_ICON_ALARM_CLOCK_BIN,       .func_sta = FUNC_ALARM_CLOCK},          //闹钟
-    {STR_TIMER,                  UI_BUF_ICON_TIMER_BIN,             .func_sta = FUNC_TIMER},                //定时器
-    {STR_STOP_WATCH,             UI_BUF_ICON_STOPWATCH_BIN,         .func_sta = FUNC_STOPWATCH},            //秒表
-    {STR_CAMERA,                 UI_BUF_ICON_CAMERA_BIN,            .func_sta = FUNC_CAMERA},               //相机
-    {STR_VOICE_ASSISTANT,        UI_BUF_ICON_VOICE_BIN,             .func_sta = FUNC_VOICE},                //语音助手
-    {STR_FIND_PHONE,             UI_BUF_ICON_FINDPHONE_BIN,         .func_sta = FUNC_FINDPHONE},            //查找手机
-    {STR_GAME,                   UI_BUF_ICON_GAME_BIN,              .func_sta = FUNC_GAME},                 //游戏
-    {STR_SETTING,                UI_BUF_ICON_SETTING_BIN,           .func_sta = FUNC_SETTING},              //设置
-    {STR_STYLE,                  UI_BUF_ICON_MENU_BIN,              .func_sta = FUNC_STYLE},                //风格
-#if FUNC_BLE_GATTS_EN
-    //{STR_BT,                     UI_BUF_ICON_BT_BIN,                .func_sta = FUNC_BLE_GATTS},            //BLE GATTS Demo
-    {STR_SETTING,                UI_BUF_ICON_SETTING_BIN,           .func_sta = FUNC_BLE_GATTS},              //设置
-    {STR_STYLE,                  UI_BUF_ICON_MENU_BIN,              .func_sta = FUNC_PHOTO_VIEW},                //风格
-#endif
+//     {STR_CLOCK,                  UI_BUF_ICON_CLOCK_BG_BIN,          .func_sta = FUNC_CLOCK},                //时钟
+//     {STR_SPORTS,                 UI_BUF_ICON_SPORT_BIN,             .func_sta = FUNC_SPORT},                //运动
+// //    {STR_STEP,                   UI_BUF_ICON_STEP_BIN,            .func_sta = FUNC_NULL},                 //计步
+//     {STR_SLEEP,                  UI_BUF_ICON_SLEEP_BIN,             .func_sta = FUNC_SLEEP},                //睡眠
+//     {STR_ACTIVITY_RECORD,        UI_BUF_ICON_ACTIVITY_BIN,          .func_sta = FUNC_ACTIVITY},             //活动记录
+//     {STR_HEART_RATE,             UI_BUF_ICON_HEART_RATE_BIN,        .func_sta = FUNC_HEARTRATE},            //心率
+//     {STR_BLOOD_PRESSURE,         UI_BUF_ICON_BLOOD_PRESSURE_BIN,    .func_sta = FUNC_BLOOD_PRESSURE},       //血压
+//     {STR_BLOOD_OXYGEN,           UI_BUF_ICON_BLOOD_OXYGEN_BIN,      .func_sta = FUNC_BLOOD_OXYGEN},         //血氧
+//     {STR_MESSAGE,                UI_BUF_ICON_MESSAGE_BIN,           .func_sta = FUNC_MESSAGE},              //消息
+//     {STR_PHONE,                  UI_BUF_ICON_CALL_BIN,              .func_sta = FUNC_CALL},                 //电话
+//     {STR_MUSIC,                  UI_BUF_ICON_MUSIC_BIN,             .func_sta = FUNC_BT},                   //音乐
+//     {STR_WEATHER,                UI_BUF_ICON_WEATHER_BIN,           .func_sta = FUNC_WEATHER},              //天气
+//     {STR_BREATHE,                UI_BUF_ICON_BREATHE_BIN,           .func_sta = FUNC_BREATHE},              //呼吸
+//     {STR_CALCULATOR,             UI_BUF_ICON_CALCULATOR_BIN,        .func_sta = FUNC_CALCULATOR},           //计算器
+//     {STR_ALARM_CLOCK,            UI_BUF_ICON_ALARM_CLOCK_BIN,       .func_sta = FUNC_ALARM_CLOCK},          //闹钟
+//     {STR_TIMER,                  UI_BUF_ICON_TIMER_BIN,             .func_sta = FUNC_TIMER},                //定时器
+//     {STR_STOP_WATCH,             UI_BUF_ICON_STOPWATCH_BIN,         .func_sta = FUNC_STOPWATCH},            //秒表
+//     {STR_CAMERA,                 UI_BUF_ICON_CAMERA_BIN,            .func_sta = FUNC_CAMERA},               //相机
+//     {STR_VOICE_ASSISTANT,        UI_BUF_ICON_VOICE_BIN,             .func_sta = FUNC_VOICE},                //语音助手
+//     {STR_FIND_PHONE,             UI_BUF_ICON_FINDPHONE_BIN,         .func_sta = FUNC_FINDPHONE},            //查找手机
+//     {STR_GAME,                   UI_BUF_ICON_GAME_BIN,              .func_sta = FUNC_GAME},                 //游戏
+//     {STR_SETTING,                UI_BUF_ICON_SETTING_BIN,           .func_sta = FUNC_SETTING},              //设置
+//     {STR_STYLE,                  UI_BUF_ICON_MENU_BIN,              .func_sta = FUNC_STYLE},                //风格
+// #if FUNC_BLE_GATTS_EN
+//     //{STR_BT,                     UI_BUF_ICON_BT_BIN,                .func_sta = FUNC_BLE_GATTS},            //BLE GATTS Demo
+//     {STR_SETTING,                UI_BUF_ICON_SETTING_BIN,           .func_sta = FUNC_BLE_GATTS},              //设置
+//     {STR_STYLE,                  UI_BUF_ICON_MENU_BIN,              .func_sta = FUNC_PHOTO_VIEW},                //风格
+// #endif
 };
 
 //菜单栏自定义图标更新
@@ -99,55 +99,55 @@ compo_form_t *func_menu_sub_list_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(false);       //菜单一般创建在底层
     //新建菜单列表
-    compo_listbox_t *listbox;
-    if (func_cb.menu_style == MENU_STYLE_CUM_FOURGRID) {
-        listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_MENU_FOURGRID);
-        compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TIME | COMPO_FORM_MODE_SHOW_ICON);
-        //电池电量
-        compo_textbox_t *battery_txt = compo_textbox_create(frm, 4);
-        compo_textbox_set_location(battery_txt, 100, 35, 0, 0);
-        compo_textbox_set_autosize(battery_txt, true);
-        compo_bonddata(battery_txt, COMPO_BOND_BATTERY);
+    // compo_listbox_t *listbox;
+    // if (func_cb.menu_style == MENU_STYLE_CUM_FOURGRID) {
+    //     listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_MENU_FOURGRID);
+    //     compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TIME | COMPO_FORM_MODE_SHOW_ICON);
+    //     //电池电量
+    //     compo_textbox_t *battery_txt = compo_textbox_create(frm, 4);
+    //     compo_textbox_set_location(battery_txt, 100, 35, 0, 0);
+    //     compo_textbox_set_autosize(battery_txt, true);
+    //     compo_bonddata(battery_txt, COMPO_BOND_BATTERY);
 
-        if (menu_idx < 3) {
-            menu_idx = 3;
-        }
-    } else {
-        listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_MENU_CIRCLE);
-        compo_listbox_set_item_width(listbox, 412);
-        compo_listbox_set_item_height(listbox, 134);
-        if (menu_idx < 1) {
-            menu_idx = 1;
-        }
-    }
+    //     if (menu_idx < 3) {
+    //         menu_idx = 3;
+    //     }
+    // } else {
+    //     listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_MENU_CIRCLE);
+    //     compo_listbox_set_item_width(listbox, 412);
+    //     compo_listbox_set_item_height(listbox, 134);
+    //     if (menu_idx < 1) {
+    //         menu_idx = 1;
+    //     }
+    // }
 
-    //compo_listbox_cycle_en(listbox, true);  //循环滑动
-    compo_listbox_set(listbox, tbl_menu_list, MENU_LIST_CNT);
-    compo_setid(listbox, COMPO_ID_LISTBOX);
-    compo_listbox_set_focus_byidx(listbox, menu_idx);
+    // //compo_listbox_cycle_en(listbox, true);  //循环滑动
+    // compo_listbox_set(listbox, tbl_menu_list, MENU_LIST_CNT);
+    // compo_setid(listbox, COMPO_ID_LISTBOX);
+    // compo_listbox_set_focus_byidx(listbox, menu_idx);
 
-    compo_listbox_add_time(listbox, COMPO_LISTBOX_TIME_TYPE_HOUR, UI_BUF_ICON_CLOCK_H_BIN, 1, 2);
-    compo_listbox_add_time(listbox, COMPO_LISTBOX_TIME_TYPE_MIN, UI_BUF_ICON_CLOCK_M_BIN, 1, 2);
-    compo_listbox_add_time(listbox, COMPO_LISTBOX_TIME_TYPE_SEC, UI_BUF_ICON_CLOCK_S_BIN, 9, 2);
-    compo_listbox_set_start_angle(listbox, 900);
-    compo_listbox_set_time_idx(listbox, 0);
+    // compo_listbox_add_time(listbox, COMPO_LISTBOX_TIME_TYPE_HOUR, UI_BUF_ICON_CLOCK_H_BIN, 1, 2);
+    // compo_listbox_add_time(listbox, COMPO_LISTBOX_TIME_TYPE_MIN, UI_BUF_ICON_CLOCK_M_BIN, 1, 2);
+    // compo_listbox_add_time(listbox, COMPO_LISTBOX_TIME_TYPE_SEC, UI_BUF_ICON_CLOCK_S_BIN, 9, 2);
+    // compo_listbox_set_start_angle(listbox, 900);
+    // compo_listbox_set_time_idx(listbox, 0);
 
-    compo_listbox_update(listbox);
+    // compo_listbox_update(listbox);
 
-    if (func_cb.flag_animation) {
-        widget_set_visible(listbox->page, false);
-    }
+    // if (func_cb.flag_animation) {
+    //     widget_set_visible(listbox->page, false);
+    // }
 
-    if (func_cb.menu_style == MENU_STYLE_LIST) {
-        compo_scroll_t* scroll = compo_scroll_create(frm, SCROLL_TYPE_ARC);
-        compo_setid(scroll, COMPO_ID_SCROLLBAR);
-        compo_scroll_set_w_r(scroll, 8, GUI_SCREEN_CENTER_X);
-        compo_scroll_set_color(scroll, make_color(29,29,29), COLOR_BLACK, COLOR_BLACK);
-        compo_scroll_set_range(scroll, 600, 1200);
-        compo_scroll_set_pos(scroll, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-        compo_scroll_set_value(scroll, 0);
-        compo_scroll_set_edge_circle(scroll, true);
-    }
+    // if (func_cb.menu_style == MENU_STYLE_LIST) {
+    //     compo_scroll_t* scroll = compo_scroll_create(frm, SCROLL_TYPE_ARC);
+    //     compo_setid(scroll, COMPO_ID_SCROLLBAR);
+    //     compo_scroll_set_w_r(scroll, 8, GUI_SCREEN_CENTER_X);
+    //     compo_scroll_set_color(scroll, make_color(29,29,29), COLOR_BLACK, COLOR_BLACK);
+    //     compo_scroll_set_range(scroll, 600, 1200);
+    //     compo_scroll_set_pos(scroll, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    //     compo_scroll_set_value(scroll, 0);
+    //     compo_scroll_set_edge_circle(scroll, true);
+    // }
 
     return frm;
 }

@@ -244,9 +244,9 @@ compo_form_t *func_disturd_sub_set_form_create(void)
     compo_setid(btn, COMPO_ID_BTN_ACLOCK_MIN);
     compo_button_set_location(btn, 225, 160, 100, 170);
 
-    btn = compo_button_create_by_image(frm, UI_BUF_ALARM_CLOCK_YES_BIN);
-    compo_setid(btn, COMPO_ID_BTN_YES_CLICK);
-    compo_button_set_pos(btn, 160, 321);
+    // btn = compo_button_create_by_image(frm, UI_BUF_ALARM_CLOCK_YES_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_YES_CLICK);
+    // compo_button_set_pos(btn, 160, 321);
 
     return frm;
 }

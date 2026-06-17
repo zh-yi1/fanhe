@@ -1,6 +1,6 @@
 #include "include.h"
 
-#define TRACE_EN                1
+#define TRACE_EN                0
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -10,6 +10,9 @@
 
 
 static tft_cb_t tft_cb;
+
+/* ELUNCHBOX 模式：TE block 标志，用于在关键 GPU 操作期间屏蔽 TE 中断的 os_gui_draw */
+volatile u8 elunchbox_te_block_flag = 0;
 
 tft_cb_t* tft_get_tft_cb(void)
 {
@@ -27,7 +30,15 @@ static void tft_te_refresh(void)
     if (!gui_get_screenshot())
 #endif
 	{
+#if ELUNCHBOX_PANEL_EN
+        /* ELUNCHBOX 模式：如果 TE block 标志设置，跳过 os_gui_draw，避免在关键 GPU 操作期间冲突 */
+        extern volatile u8 elunchbox_te_block_flag;
+        if (!elunchbox_te_block_flag) {
+            os_gui_draw();
+        }
+#else
         os_gui_draw();
+#endif
     }
 }
 
@@ -161,6 +172,25 @@ void tft_bglight_frist_set_check(void)
         sys_cb.light_level = 5;
     }
     lcd_drv_set_brightness(tft_cb.tft_bglight_duty);
+}
+
+void tft_bglight_open(void)
+{
+    LCD_BL_EN();
+    tft_cb.tft_bglight_first_set = true;
+    tft_bglight_frist_set_check();
+}
+
+void tft_bglight_force_on(void)
+{
+    tft_cb.te_bglight_cnt = 0;
+    tft_cb.tft_bglight_kick = false;
+    tft_cb.tft_bglight_first_set = true;
+    if (tft_cb.tft_bglight_duty == 0) {
+        tft_cb.tft_bglight_duty = GUI_DEFAULT_BK;
+    }
+    tft_bglight_frist_set_check();
+    LCD_BL_EN();
 }
 
 //设置TE MODE

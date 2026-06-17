@@ -99,15 +99,15 @@ typedef u16 size_msg_t;                      //定义MSG的SIZE
 #define EVT_VOX_RECORD_DIS     0x201
 
 //普通按键定义，可以支持短按，长按，双击等。范围：0 ~ 0xf
-#define NO_KEY                  0x00
-#define KEY_1                   0x01
-#define KEY_2                   0x02
-#define KEY_3                   0x03
-#define KEY_4                   0x04
-#define KEY_5                   0x05
-#define KEY_6                   0x06
-#define KEY_7                   0x07
-#define KEY_8                   0x08
+#define NO_KEY                  0xFF
+#define KEY_1                   0x04
+#define KEY_2                   0x00
+#define KEY_3                   0x05
+#define KEY_4                   0x06
+#define KEY_5                   0x02
+#define KEY_6                   0x07
+#define KEY_7                   0x01
+#define KEY_8                   0x03
 
 #define KEY_BACK                KEY_1
 #define KEY_LEFT                KEY_2
@@ -167,6 +167,17 @@ typedef u16 size_msg_t;                      //定义MSG的SIZE
 #define KLU_MODE                (KEY_MODE | KEY_LONG_UP)
 #define KH_MODE                 (KEY_MODE | KEY_HOLD)
 #define KD_MODE                 (KEY_MODE | KEY_DOUBLE)
+
+
+#define K_PREV                  (KEY_PREV | KEY_SHORT)
+#define KU_PREV                 (KEY_PREV | KEY_SHORT_UP)
+#define KL_PREV                 (KEY_PREV | KEY_LONG)
+#define KLU_PREV                (KEY_PREV | KEY_LONG_UP)
+
+#define K_NEXT                  (KEY_NEXT | KEY_SHORT)
+#define KU_NEXT                 (KEY_NEXT | KEY_SHORT_UP)
+#define KL_NEXT                 (KEY_NEXT | KEY_LONG)
+#define KLU_NEXT                (KEY_NEXT | KEY_LONG_UP)
 
 
 //按键消抖参数

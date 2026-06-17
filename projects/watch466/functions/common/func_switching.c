@@ -1036,9 +1036,13 @@ bool func_switching(u16 switch_mode, void *param)
         res = func_switching_zoom(switch_mode, flag_auto, param);              //缩放进出
     } else if (mode < FUNC_SWITCH3D) {
         res = func_switching_zoom_fade(switch_mode, flag_auto);                //缩放加淡入淡出
+#if GUI_USE_SCREENSHOOT
     } else {
         res = func_switching3d(switch_mode, flag_auto, param);                  //3D转场效果
     }
+#else
+    }
+#endif
     sys_cb.flag_swithing = false;
 
 #if ASR_SELECT

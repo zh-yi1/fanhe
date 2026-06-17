@@ -71,35 +71,35 @@ compo_form_t *func_set_sub_language_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_SETTING_LANGUAGE]);
+    // //设置标题栏
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_SETTING_LANGUAGE]);
 
-    //新建列表
-    compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_MENU_CIRCLE);
-    compo_listbox_set_item_width(listbox, 412);
-    compo_listbox_set_item_height(listbox, 82);
-    compo_listbox_set(listbox, tbl_language_list, LANGUAGE_LIST_CNT);
-    compo_listbox_set_sta_icon(listbox, UI_BUF_COMMON_SELECT_YES_BIN, UI_BUF_COMMON_SELECT_NO_BIN);
-    compo_listbox_set_bithook(listbox, func_set_sub_language_get_bit);
-    compo_listbox_set_sta_icon_top(listbox, false);
-    compo_setid(listbox, COMPO_ID_LISTBOX);
+    // //新建列表
+    // compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_MENU_CIRCLE);
+    // compo_listbox_set_item_width(listbox, 412);
+    // compo_listbox_set_item_height(listbox, 82);
+    // compo_listbox_set(listbox, tbl_language_list, LANGUAGE_LIST_CNT);
+    // compo_listbox_set_sta_icon(listbox, UI_BUF_COMMON_SELECT_YES_BIN, UI_BUF_COMMON_SELECT_NO_BIN);
+    // compo_listbox_set_bithook(listbox, func_set_sub_language_get_bit);
+    // compo_listbox_set_sta_icon_top(listbox, false);
+    // compo_setid(listbox, COMPO_ID_LISTBOX);
 
-    compo_listbox_set_focus_byidx(listbox, 1);
-    compo_listbox_update(listbox);
+    // compo_listbox_set_focus_byidx(listbox, 1);
+    // compo_listbox_update(listbox);
 
-    func_set_sub_language_set_bit(sys_cb.lang_id, 1);
+    // func_set_sub_language_set_bit(sys_cb.lang_id, 1);
 
-    //新建按钮
-	compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON1_BIN);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 418);
-    compo_setid(btn, COMPO_ID_BTN_OK);
+    // //新建按钮
+	// compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON1_BIN);
+    // compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 418);
+    // compo_setid(btn, COMPO_ID_BTN_OK);
 
-	//创建文本
-	compo_textbox_t *txt_start = compo_textbox_create(frm, 10);
-	compo_textbox_set_pos(txt_start, GUI_SCREEN_CENTER_X, 418);
-    compo_textbox_set(txt_start, "OK");
+	// //创建文本
+	// compo_textbox_t *txt_start = compo_textbox_create(frm, 10);
+	// compo_textbox_set_pos(txt_start, GUI_SCREEN_CENTER_X, 418);
+    // compo_textbox_set(txt_start, "OK");
 
     return frm;
 }

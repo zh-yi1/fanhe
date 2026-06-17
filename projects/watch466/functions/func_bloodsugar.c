@@ -40,29 +40,29 @@ compo_form_t *func_bloodsugar_form_create(void)
 {
     //新建窗体和背景
     compo_form_t *frm = compo_form_create(true);
-    compo_form_add_image(frm, UI_BUF_ICON_BLOODSUGAR_BIN, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // compo_form_add_image(frm, UI_BUF_ICON_BLOODSUGAR_BIN, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_BLOOD_SUGAR]);
+    // //设置标题栏
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_BLOOD_SUGAR]);
 
-	//新建按钮
-	compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON_BIN);
-    compo_setid(btn, COMPO_ID_BTN_IDLE);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 356);
+	// //新建按钮
+	// compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_COMMON_BUTTON_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_IDLE);
+    // compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 356);
 
-    //创建文本
-    compo_textbox_t *txt_idle = compo_textbox_create(frm, 10);
-    compo_setid(txt_idle, COMPO_ID_TXT_IDLE);
-    compo_textbox_set_pos(txt_idle, GUI_SCREEN_CENTER_X, 356);
-    compo_textbox_set(txt_idle, i18n[STR_START]);
+    // //创建文本
+    // compo_textbox_t *txt_idle = compo_textbox_create(frm, 10);
+    // compo_setid(txt_idle, COMPO_ID_TXT_IDLE);
+    // compo_textbox_set_pos(txt_idle, GUI_SCREEN_CENTER_X, 356);
+    // compo_textbox_set(txt_idle, i18n[STR_START]);
 
-    compo_textbox_t *txt_working = compo_textbox_create(frm, 10);
-    compo_setid(txt_working, COMPO_ID_TXT_WORKING);
-    compo_textbox_set_pos(txt_working, GUI_SCREEN_CENTER_X, 356);
-    compo_textbox_set(txt_working, i18n[STR_MEASURING]);
-    compo_textbox_set_visible(txt_working, false);
+    // compo_textbox_t *txt_working = compo_textbox_create(frm, 10);
+    // compo_setid(txt_working, COMPO_ID_TXT_WORKING);
+    // compo_textbox_set_pos(txt_working, GUI_SCREEN_CENTER_X, 356);
+    // compo_textbox_set(txt_working, i18n[STR_MEASURING]);
+    // compo_textbox_set_visible(txt_working, false);
 
     return frm;
 }

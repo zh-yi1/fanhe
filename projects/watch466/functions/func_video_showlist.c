@@ -26,7 +26,7 @@ static const compo_listbox_item_t tbl_3d_showlist[] = {
 #else
         STR_UNKNOWN,
 #endif // VIDEO_PLAY_EN
-        UI_BUF_SETTING_ABOUT_BIN,
+        //UI_BUF_SETTING_ABOUT_BIN,
 
 #if VIDEO_PLAY_EN
         .func_sta = FUNC_VIDEO_PLAY
@@ -41,7 +41,7 @@ static const compo_listbox_item_t tbl_3d_showlist[] = {
 #else
         STR_UNKNOWN,
 #endif // PHOTO_VIEW_EN
-        UI_BUF_SETTING_ABOUT_BIN,
+        //UI_BUF_SETTING_ABOUT_BIN,
 #if PHOTO_VIEW_EN
         .func_sta = FUNC_PHOTO_VIEW
 #else
@@ -52,7 +52,7 @@ static const compo_listbox_item_t tbl_3d_showlist[] = {
     {
 
         STR_GIF_VIEW,
-        UI_BUF_SETTING_ABOUT_BIN,
+        //UI_BUF_SETTING_ABOUT_BIN,
         .func_sta = FUNC_GIF
     },
 
@@ -62,7 +62,7 @@ static const compo_listbox_item_t tbl_3d_showlist[] = {
 #else
         STR_UNKNOWN,
 #endif // VIDEO_RECODE_TAKE_PHOTO_EN
-        UI_BUF_SETTING_ABOUT_BIN,
+       // UI_BUF_SETTING_ABOUT_BIN,
 #if VIDEO_RECODE_TAKE_PHOTO_EN
         .func_sta = FUNC_VIDEO_RECODE
 #else
@@ -75,7 +75,7 @@ static const compo_listbox_item_t tbl_3d_showlist[] = {
 #else
         STR_UNKNOWN,
 #endif // VIDEO_RECODE_TAKE_PHOTO_EN
-        UI_BUF_SETTING_ABOUT_BIN,
+       // UI_BUF_SETTING_ABOUT_BIN,
 #if VIDEO_RECODE_TAKE_PHOTO_EN
         .func_sta = FUNC_TAKE_PHOTO
 #else

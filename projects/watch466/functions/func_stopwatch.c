@@ -46,52 +46,52 @@ compo_form_t *func_stopwatch_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_STOP_WATCH]);
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_STOP_WATCH]);
 
-	//新建按钮
-    u32 res_addr;
-    compo_button_t *btn;
-    res_addr = sys_cb.stopwatch_sta ? UI_BUF_COMMON_PAUSE_BIN : UI_BUF_COMMON_START_BIN;    //开始/暂停
-    btn = compo_button_create_by_image(frm, res_addr);
-    compo_setid(btn, COMPO_ID_BTN_START_REC);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 404);
-    btn = compo_button_create_by_image(frm, UI_BUF_STOPWATCH_AFRESH_BIN);    //复位
-    compo_setid(btn, COMPO_ID_BTN_AFRESH);
-    compo_button_set_pos(btn, 108, 363);
-    compo_button_set_visible(btn, sys_cb.stopwatch_total_msec > 0);
-    btn = compo_button_create_by_image(frm, UI_BUF_STOPWATCH_RECORD_BIN);    //计次
-    compo_setid(btn, COMPO_ID_BTN_RECORD);
-    compo_button_set_pos(btn, 358, 363);
-    compo_button_set_visible(btn, sys_cb.stopwatch_sta != 0);
-    btn = compo_button_create_by_image(frm, UI_BUF_STOPWATCH_RECORD1_BIN);    //计次详情
-    compo_setid(btn, COMPO_ID_BTN_RECORD_VIEW);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 135);
-    compo_button_set_visible(btn, sys_cb.stopwatch_rec_cnt > 0);
+	// //新建按钮
+    // u32 res_addr;
+    // compo_button_t *btn;
+    // res_addr = sys_cb.stopwatch_sta ? UI_BUF_COMMON_PAUSE_BIN : UI_BUF_COMMON_START_BIN;    //开始/暂停
+    // btn = compo_button_create_by_image(frm, res_addr);
+    // compo_setid(btn, COMPO_ID_BTN_START_REC);
+    // compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 404);
+    // btn = compo_button_create_by_image(frm, UI_BUF_STOPWATCH_AFRESH_BIN);    //复位
+    // compo_setid(btn, COMPO_ID_BTN_AFRESH);
+    // compo_button_set_pos(btn, 108, 363);
+    // compo_button_set_visible(btn, sys_cb.stopwatch_total_msec > 0);
+    // btn = compo_button_create_by_image(frm, UI_BUF_STOPWATCH_RECORD_BIN);    //计次
+    // compo_setid(btn, COMPO_ID_BTN_RECORD);
+    // compo_button_set_pos(btn, 358, 363);
+    // compo_button_set_visible(btn, sys_cb.stopwatch_sta != 0);
+    // btn = compo_button_create_by_image(frm, UI_BUF_STOPWATCH_RECORD1_BIN);    //计次详情
+    // compo_setid(btn, COMPO_ID_BTN_RECORD_VIEW);
+    // compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 135);
+    // compo_button_set_visible(btn, sys_cb.stopwatch_rec_cnt > 0);
 
-	//创建数字文本
-	compo_textbox_t *txt_num;
-	char str_buff[9];
-    u8 min, sec;
-    u16 msec;
-    min = ((sys_cb.stopwatch_total_msec / 1000) % 3600) / 60;
-    sec = (sys_cb.stopwatch_total_msec / 1000) % 60;
-    msec = sys_cb.stopwatch_total_msec % 1000;
-	txt_num = compo_textbox_create(frm, 8);     //当前计时
-	compo_setid(txt_num, COMPO_ID_NUM_STOPWATCH_TIME);
-	compo_textbox_set_location(txt_num, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y, 300, 60);
-	compo_textbox_set_font(txt_num, UI_BUF_0FONT_FONT_NUM_46_BIN);
-	snprintf(str_buff, sizeof(str_buff), "%02d:%02d.%02d", min, sec, msec / 10);
-	compo_textbox_set(txt_num, str_buff);
-	txt_num = compo_textbox_create(frm, 2);     //记录数
-	compo_setid(txt_num, COMPO_ID_NUM_STOPWATCH_REC);
-	compo_textbox_set_location(txt_num, 260, 135, 50, 60);
-	compo_textbox_set_font(txt_num, UI_BUF_0FONT_FONT_NUM_24_BIN);
-	snprintf(str_buff, sizeof(str_buff), "%02d", sys_cb.stopwatch_rec_cnt);
-	compo_textbox_set(txt_num, str_buff);
-	compo_textbox_set_forecolor(txt_num, NUM_REC_COLOR);
-	compo_textbox_set_visible(txt_num, sys_cb.stopwatch_rec_cnt > 0);
+	// //创建数字文本
+	// compo_textbox_t *txt_num;
+	// char str_buff[9];
+    // u8 min, sec;
+    // u16 msec;
+    // min = ((sys_cb.stopwatch_total_msec / 1000) % 3600) / 60;
+    // sec = (sys_cb.stopwatch_total_msec / 1000) % 60;
+    // msec = sys_cb.stopwatch_total_msec % 1000;
+	// txt_num = compo_textbox_create(frm, 8);     //当前计时
+	// compo_setid(txt_num, COMPO_ID_NUM_STOPWATCH_TIME);
+	// compo_textbox_set_location(txt_num, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y, 300, 60);
+	// compo_textbox_set_font(txt_num, UI_BUF_0FONT_FONT_NUM_46_BIN);
+	// snprintf(str_buff, sizeof(str_buff), "%02d:%02d.%02d", min, sec, msec / 10);
+	// compo_textbox_set(txt_num, str_buff);
+	// txt_num = compo_textbox_create(frm, 2);     //记录数
+	// compo_setid(txt_num, COMPO_ID_NUM_STOPWATCH_REC);
+	// compo_textbox_set_location(txt_num, 260, 135, 50, 60);
+	// compo_textbox_set_font(txt_num, UI_BUF_0FONT_FONT_NUM_24_BIN);
+	// snprintf(str_buff, sizeof(str_buff), "%02d", sys_cb.stopwatch_rec_cnt);
+	// compo_textbox_set(txt_num, str_buff);
+	// compo_textbox_set_forecolor(txt_num, NUM_REC_COLOR);
+	// compo_textbox_set_visible(txt_num, sys_cb.stopwatch_rec_cnt > 0);
 
     return frm;
 }
@@ -132,9 +132,9 @@ static void func_stopwatch_button_touch_handle(void)
         break;
 
     case COMPO_ID_BTN_START_REC:
-        res_addr = sys_cb.stopwatch_sta ? UI_BUF_COMMON_PAUSE_BIN : UI_BUF_COMMON_START_BIN;
-        compo_button_set_bgimg(btn_start, res_addr);
-        compo_button_set_alpha(btn_start, UI_BTN_CLICK_EFFECT_ALPHA);
+        // res_addr = sys_cb.stopwatch_sta ? UI_BUF_COMMON_PAUSE_BIN : UI_BUF_COMMON_START_BIN;
+        // compo_button_set_bgimg(btn_start, res_addr);
+        // compo_button_set_alpha(btn_start, UI_BTN_CLICK_EFFECT_ALPHA);
         break;
 
     default:
@@ -146,29 +146,29 @@ static void func_stopwatch_button_touch_handle(void)
 static void func_stopwatch_button_release_handle(void)
 {
     //获取按钮组件的地址
-    compo_button_t *btn_start = compo_getobj_byid(COMPO_ID_BTN_START_REC);
-    compo_button_t *btn_afresh = compo_getobj_byid(COMPO_ID_BTN_AFRESH);
-    compo_button_t *btn_record = compo_getobj_byid(COMPO_ID_BTN_RECORD);
-    compo_button_t *btn_record1 = compo_getobj_byid(COMPO_ID_BTN_RECORD_VIEW);
+    // compo_button_t *btn_start = compo_getobj_byid(COMPO_ID_BTN_START_REC);
+    // compo_button_t *btn_afresh = compo_getobj_byid(COMPO_ID_BTN_AFRESH);
+    // compo_button_t *btn_record = compo_getobj_byid(COMPO_ID_BTN_RECORD);
+    // compo_button_t *btn_record1 = compo_getobj_byid(COMPO_ID_BTN_RECORD_VIEW);
 
-    u32 res_addr = sys_cb.stopwatch_sta ? UI_BUF_COMMON_PAUSE_BIN : UI_BUF_COMMON_START_BIN;
-    compo_button_set_bgimg(btn_start, res_addr);
-    compo_button_set_alpha(btn_start, UI_BTN_NORMAL_EFFECT_ALPHA);
+    // u32 res_addr = sys_cb.stopwatch_sta ? UI_BUF_COMMON_PAUSE_BIN : UI_BUF_COMMON_START_BIN;
+    // compo_button_set_bgimg(btn_start, res_addr);
+    // compo_button_set_alpha(btn_start, UI_BTN_NORMAL_EFFECT_ALPHA);
 
-    compo_button_set_bgimg(btn_afresh, UI_BUF_STOPWATCH_AFRESH_BIN);  //复位
-    compo_button_set_alpha(btn_afresh, UI_BTN_NORMAL_EFFECT_ALPHA);
-    compo_button_set_visible(btn_afresh, sys_cb.stopwatch_total_msec > 0 || sys_cb.stopwatch_sta);
-    compo_button_set_bgimg(btn_record, UI_BUF_STOPWATCH_RECORD_BIN);  //计次
-    compo_button_set_visible(btn_record, sys_cb.stopwatch_sta != 0);
-    compo_button_set_alpha(btn_record, UI_BTN_NORMAL_EFFECT_ALPHA);
-    compo_button_set_bgimg(btn_record1, UI_BUF_STOPWATCH_RECORD1_BIN);    //计次详情
-    compo_button_set_visible(btn_record1, sys_cb.stopwatch_rec_cnt > 0);
-    compo_button_set_alpha(btn_record1, UI_BTN_NORMAL_EFFECT_ALPHA);
-    //获取数字组件的地址
-    compo_textbox_t *num_rec = compo_getobj_byid(COMPO_ID_NUM_STOPWATCH_REC);
+    // compo_button_set_bgimg(btn_afresh, UI_BUF_STOPWATCH_AFRESH_BIN);  //复位
+    // compo_button_set_alpha(btn_afresh, UI_BTN_NORMAL_EFFECT_ALPHA);
+    // compo_button_set_visible(btn_afresh, sys_cb.stopwatch_total_msec > 0 || sys_cb.stopwatch_sta);
+    // compo_button_set_bgimg(btn_record, UI_BUF_STOPWATCH_RECORD_BIN);  //计次
+    // compo_button_set_visible(btn_record, sys_cb.stopwatch_sta != 0);
+    // compo_button_set_alpha(btn_record, UI_BTN_NORMAL_EFFECT_ALPHA);
+    // compo_button_set_bgimg(btn_record1, UI_BUF_STOPWATCH_RECORD1_BIN);    //计次详情
+    // compo_button_set_visible(btn_record1, sys_cb.stopwatch_rec_cnt > 0);
+    // compo_button_set_alpha(btn_record1, UI_BTN_NORMAL_EFFECT_ALPHA);
+    // //获取数字组件的地址
+    // compo_textbox_t *num_rec = compo_getobj_byid(COMPO_ID_NUM_STOPWATCH_REC);
 
-    compo_textbox_set_forecolor(num_rec, NUM_REC_COLOR);
-    compo_textbox_set_visible(num_rec, sys_cb.stopwatch_rec_cnt > 0);
+    // compo_textbox_set_forecolor(num_rec, NUM_REC_COLOR);
+    // compo_textbox_set_visible(num_rec, sys_cb.stopwatch_rec_cnt > 0);
 }
 
 //50ms秒表毫秒刷新回调函数（10ms误差大）

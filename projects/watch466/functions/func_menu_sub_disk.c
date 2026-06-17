@@ -48,29 +48,29 @@ typedef struct f_menu_disk_t_ {
 } f_menu_disk_t;
 
 static const compo_disklist_item_t tbl_menu_disk[] = {
-    {STR_CLOCK,                  UI_BUF_ICON_CLOCK_BG_BIN,          .func_sta = FUNC_CLOCK},                //时钟
-    {STR_SPORTS,                 UI_BUF_ICON_SPORT_BIN,             .func_sta = FUNC_SPORT},                //运动
-//    {STR_STEP,                   UI_BUF_ICON_STEP_BIN,              .func_sta = FUNC_NULL},                 //计步
-    {STR_SLEEP,                  UI_BUF_ICON_SLEEP_BIN,             .func_sta = FUNC_SLEEP},                //睡眠
-    {STR_ACTIVITY_RECORD,        UI_BUF_ICON_ACTIVITY_BIN,          .func_sta = FUNC_ACTIVITY},             //活动记录
-    {STR_HEART_RATE,             UI_BUF_ICON_HEART_RATE_BIN,        .func_sta = FUNC_HEARTRATE},            //心率
-    {STR_BLOOD_PRESSURE,         UI_BUF_ICON_BLOOD_PRESSURE_BIN,    .func_sta = FUNC_BLOOD_PRESSURE},       //血压
-    {STR_BLOOD_OXYGEN,           UI_BUF_ICON_BLOOD_OXYGEN_BIN,      .func_sta = FUNC_BLOOD_OXYGEN},         //血氧
-    {STR_MESSAGE,                UI_BUF_ICON_MESSAGE_BIN,           .func_sta = FUNC_MESSAGE},              //消息
-    {STR_PHONE,                  UI_BUF_ICON_CALL_BIN,              .func_sta = FUNC_CALL},                 //电话
-    {STR_MUSIC,                  UI_BUF_ICON_MUSIC_BIN,             .func_sta = FUNC_BT},                   //音乐
-    {STR_WEATHER,                UI_BUF_ICON_WEATHER_BIN,           .func_sta = FUNC_WEATHER},              //天气
-    {STR_BREATHE,                UI_BUF_ICON_BREATHE_BIN,           .func_sta = FUNC_BREATHE},              //呼吸
-    {STR_CALCULATOR,             UI_BUF_ICON_CALCULATOR_BIN,        .func_sta = FUNC_CALCULATOR},           //计算器
-    {STR_ALARM_CLOCK,            UI_BUF_ICON_ALARM_CLOCK_BIN,       .func_sta = FUNC_ALARM_CLOCK},          //闹钟
-    {STR_TIMER,                  UI_BUF_ICON_TIMER_BIN,             .func_sta = FUNC_TIMER},                //定时器
-    {STR_STOP_WATCH,             UI_BUF_ICON_STOPWATCH_BIN,         .func_sta = FUNC_STOPWATCH},            //秒表
-    {STR_CAMERA,                 UI_BUF_ICON_CAMERA_BIN,            .func_sta = FUNC_CAMERA},               //相机
-    {STR_VOICE_ASSISTANT,        UI_BUF_ICON_VOICE_BIN,             .func_sta = FUNC_VOICE},                //语音助手
-    {STR_FIND_PHONE,             UI_BUF_ICON_FINDPHONE_BIN,         .func_sta = FUNC_FINDPHONE},            //查找手机
-    {STR_GAME,                   UI_BUF_ICON_GAME_BIN,              .func_sta = FUNC_GAME},                 //游戏
-    {STR_SETTING,                UI_BUF_ICON_SETTING_BIN,           .func_sta = FUNC_SETTING},              //设置
-    {STR_STYLE,                  UI_BUF_ICON_MENU_BIN,              .func_sta = FUNC_STYLE},                //风格
+//     {STR_CLOCK,                  UI_BUF_ICON_CLOCK_BG_BIN,          .func_sta = FUNC_CLOCK},                //时钟
+//     {STR_SPORTS,                 UI_BUF_ICON_SPORT_BIN,             .func_sta = FUNC_SPORT},                //运动
+// //    {STR_STEP,                   UI_BUF_ICON_STEP_BIN,              .func_sta = FUNC_NULL},                 //计步
+//     {STR_SLEEP,                  UI_BUF_ICON_SLEEP_BIN,             .func_sta = FUNC_SLEEP},                //睡眠
+//     {STR_ACTIVITY_RECORD,        UI_BUF_ICON_ACTIVITY_BIN,          .func_sta = FUNC_ACTIVITY},             //活动记录
+//     {STR_HEART_RATE,             UI_BUF_ICON_HEART_RATE_BIN,        .func_sta = FUNC_HEARTRATE},            //心率
+//     {STR_BLOOD_PRESSURE,         UI_BUF_ICON_BLOOD_PRESSURE_BIN,    .func_sta = FUNC_BLOOD_PRESSURE},       //血压
+//     {STR_BLOOD_OXYGEN,           UI_BUF_ICON_BLOOD_OXYGEN_BIN,      .func_sta = FUNC_BLOOD_OXYGEN},         //血氧
+//     {STR_MESSAGE,                UI_BUF_ICON_MESSAGE_BIN,           .func_sta = FUNC_MESSAGE},              //消息
+//     {STR_PHONE,                  UI_BUF_ICON_CALL_BIN,              .func_sta = FUNC_CALL},                 //电话
+//     {STR_MUSIC,                  UI_BUF_ICON_MUSIC_BIN,             .func_sta = FUNC_BT},                   //音乐
+//     {STR_WEATHER,                UI_BUF_ICON_WEATHER_BIN,           .func_sta = FUNC_WEATHER},              //天气
+//     {STR_BREATHE,                UI_BUF_ICON_BREATHE_BIN,           .func_sta = FUNC_BREATHE},              //呼吸
+//     {STR_CALCULATOR,             UI_BUF_ICON_CALCULATOR_BIN,        .func_sta = FUNC_CALCULATOR},           //计算器
+//     {STR_ALARM_CLOCK,            UI_BUF_ICON_ALARM_CLOCK_BIN,       .func_sta = FUNC_ALARM_CLOCK},          //闹钟
+//     {STR_TIMER,                  UI_BUF_ICON_TIMER_BIN,             .func_sta = FUNC_TIMER},                //定时器
+//     {STR_STOP_WATCH,             UI_BUF_ICON_STOPWATCH_BIN,         .func_sta = FUNC_STOPWATCH},            //秒表
+//     {STR_CAMERA,                 UI_BUF_ICON_CAMERA_BIN,            .func_sta = FUNC_CAMERA},               //相机
+//     {STR_VOICE_ASSISTANT,        UI_BUF_ICON_VOICE_BIN,             .func_sta = FUNC_VOICE},                //语音助手
+//     {STR_FIND_PHONE,             UI_BUF_ICON_FINDPHONE_BIN,         .func_sta = FUNC_FINDPHONE},            //查找手机
+//     {STR_GAME,                   UI_BUF_ICON_GAME_BIN,              .func_sta = FUNC_GAME},                 //游戏
+//     {STR_SETTING,                UI_BUF_ICON_SETTING_BIN,           .func_sta = FUNC_SETTING},              //设置
+//     {STR_STYLE,                  UI_BUF_ICON_MENU_BIN,              .func_sta = FUNC_STYLE},                //风格
 };
 
 //创建主菜单窗体，创建窗体中不要使用功能结构体 func_cb.f_cb
@@ -79,29 +79,29 @@ compo_form_t *func_menu_sub_disk_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(false);       //菜单一般创建在底层
 
-    //新建菜单列表
-    compo_disklist_t *disklist = compo_disklist_create(frm);
-    compo_disklist_set(disklist, tbl_menu_disk, MENU_DISK_CNT);
+    // //新建菜单列表
+    // compo_disklist_t *disklist = compo_disklist_create(frm);
+    // compo_disklist_set(disklist, tbl_menu_disk, MENU_DISK_CNT);
 
-    compo_disklist_set_time_idx(disklist, 0);
-    compo_disklist_add_time(disklist, COMPO_ICONLIST_TIME_TYPE_HOUR, UI_BUF_ICON_CLOCK_H_BIN, 1, 2);
-    compo_disklist_add_time(disklist, COMPO_ICONLIST_TIME_TYPE_MIN, UI_BUF_ICON_CLOCK_M_BIN, 1, 2);
-    compo_disklist_add_time(disklist, COMPO_ICONLIST_TIME_TYPE_SEC, UI_BUF_ICON_CLOCK_S_BIN, 9, 2);
-    compo_disklist_set_start_angle(disklist, 900);
+    // compo_disklist_set_time_idx(disklist, 0);
+    // compo_disklist_add_time(disklist, COMPO_ICONLIST_TIME_TYPE_HOUR, UI_BUF_ICON_CLOCK_H_BIN, 1, 2);
+    // compo_disklist_add_time(disklist, COMPO_ICONLIST_TIME_TYPE_MIN, UI_BUF_ICON_CLOCK_M_BIN, 1, 2);
+    // compo_disklist_add_time(disklist, COMPO_ICONLIST_TIME_TYPE_SEC, UI_BUF_ICON_CLOCK_S_BIN, 9, 2);
+    // compo_disklist_set_start_angle(disklist, 900);
 
-    if (func_cb.flag_animation) {
-        compo_disklist_set_iconsize(disklist, ICON_START_SIZE);
-    }
+    // if (func_cb.flag_animation) {
+    //     compo_disklist_set_iconsize(disklist, ICON_START_SIZE);
+    // }
 
-    compo_setid(disklist, COMPO_ID_DISKLIST);
+    // compo_setid(disklist, COMPO_ID_DISKLIST);
 
-    compo_disklist_set_focus_byidx(disklist, func_cb.menu_idx);
-    compo_disklist_update(disklist);
+    // compo_disklist_set_focus_byidx(disklist, func_cb.menu_idx);
+    // compo_disklist_update(disklist);
 
     //齿轮背景图
-    compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_MENU_GEAR_BIN);
-    compo_setid(pic, COMPO_ID_GEAR);
-    compo_picturebox_set_pos(pic, 0, GUI_SCREEN_CENTER_Y);
+    // compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_MENU_GEAR_BIN);
+    // compo_setid(pic, COMPO_ID_GEAR);
+    // compo_picturebox_set_pos(pic, 0, GUI_SCREEN_CENTER_Y);
 
     return frm;
 }

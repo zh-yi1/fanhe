@@ -53,7 +53,7 @@ compo_form_t *func_alarm_clock_form_create(void)
         compo_listbox_set_rect_visible(listbox, true);
         compo_listbox_set(listbox, tbl_aclock_list, sys_cb.alarm_enable_cnt);
         compo_setid(listbox, COMPO_ID_LISTBOX);
-        compo_listbox_set_sta_icon(listbox, UI_BUF_ALARM_CLOCK_SELECT1_ON_BIN, UI_BUF_ALARM_CLOCK_SELECT1_BIN);
+        //compo_listbox_set_sta_icon(listbox, UI_BUF_ALARM_CLOCK_SELECT1_ON_BIN, UI_BUF_ALARM_CLOCK_SELECT1_BIN);
         compo_listbox_set_bithook(listbox, bsp_sys_get_ctlbit);
         if (sys_cb.alarm_enable_cnt == 1) {
             compo_listbox_set_location(listbox, GUI_SCREEN_CENTER_X, 120, GUI_SCREEN_WIDTH, 200);
@@ -77,18 +77,18 @@ compo_form_t *func_alarm_clock_form_create(void)
 
     } else {
         //创建文本
-        compo_form_add_image(frm, UI_BUF_COMMON_BG_BIN, GUI_GET_SCREEN_CENTER_X, 140);
-        compo_textbox_t *txt_null = compo_textbox_create(frm, 10);
-        compo_textbox_set_pos(txt_null, GUI_GET_SCREEN_CENTER_X, 140);
-        compo_textbox_set(txt_null, i18n[STR_NO_ALARM]);
+        // compo_form_add_image(frm, UI_BUF_COMMON_BG_BIN, GUI_GET_SCREEN_CENTER_X, 140);
+        // compo_textbox_t *txt_null = compo_textbox_create(frm, 10);
+        // compo_textbox_set_pos(txt_null, GUI_GET_SCREEN_CENTER_X, 140);
+        // compo_textbox_set(txt_null, i18n[STR_NO_ALARM]);
     }
 
 
 	//新建按钮
 	compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_ALARM_CLOCK_ADD_BIN);
-    compo_setid(btn, COMPO_ID_BTN_ADD);
-    compo_button_set_pos(btn, GUI_GET_SCREEN_CENTER_X, GUI_GET_SCREEN_CENTER_Y + GUI_GET_SCREEN_HEIGHT/4);
+    //btn = compo_button_create_by_image(frm, UI_BUF_ALARM_CLOCK_ADD_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_ADD);
+    // compo_button_set_pos(btn, GUI_GET_SCREEN_CENTER_X, GUI_GET_SCREEN_CENTER_Y + GUI_GET_SCREEN_HEIGHT/4);
 
     return frm;
 }

@@ -33,9 +33,9 @@ compo_form_t *func_findphone_form_create(void)
 
     //新建图像
     compo_picturebox_t *pic;
-    pic = compo_picturebox_create(frm, UI_BUF_COMMON_FIND_PHONE_BIN);
-    compo_setid(pic, COMPO_ID_PIC_FIND);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, 200);
+    // pic = compo_picturebox_create(frm, UI_BUF_COMMON_FIND_PHONE_BIN);
+    // compo_setid(pic, COMPO_ID_PIC_FIND);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, 200);
 
     //新建文字
     compo_label_t *txt = compo_label_create(frm, 20);

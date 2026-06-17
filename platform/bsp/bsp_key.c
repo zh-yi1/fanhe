@@ -1,5 +1,12 @@
 #include "include.h"
 #include "func.h"
+#if USER_PT8028_KEY
+#include "bsp_pt8028_key.h"
+#include "port_pt8028_key.h"
+#endif
+#if USER_PANEL_LED
+#include "port_panel_led.h"
+#endif
 
 void rtc_alarm_disable(void);
 
@@ -352,6 +359,15 @@ void key_init(void)
     io_key_init();
 #endif
 
+#if USER_PT8028_KEY
+    pt8028_port_gpio_init();
+    pt8028_key_init();
+#endif
+
+#if USER_PANEL_LED
+    panel_led_init();
+#endif
+
 #if USER_ADKEY
     saradc_set_channel(BIT(ADKEY_CH));
 //    adcch_io_pu10k_enable(ADKEY_CH);          //开内部10K上拉
@@ -427,6 +443,9 @@ AT(.com_text.bsp.key)
 u8 bsp_key_scan(void)
 {
     static bool flag_detach_delay_key = false;
+#if USER_PT8028_KEY && !ELUNCHBOX_PANEL_EN
+    static u16 pt8028_block_ku = NO_KEY;
+#endif
     u8 key_val = NO_KEY;
     u16 key = NO_KEY;
 
@@ -441,6 +460,24 @@ u8 bsp_key_scan(void)
     sys_cb.vusb = bsp_vusb_get_voltage();
 #endif
 
+#if USER_PT8028_KEY && !ELUNCHBOX_PANEL_EN
+    key_val = get_pt8028_key();
+
+    key = pt8028_pop_short_up();
+    if (key != NO_KEY) {
+        pt8028_block_ku = key;
+        if (sys_cb.gui_sleep_sta) {
+            sys_cb.gui_need_wakeup = 1;
+        }
+        if (sys_cb.gui_sleep_sta == 0) {
+            msg_enqueue(key);
+        } else {
+            flag_detach_delay_key = true;
+        }
+        reset_sleep_delay_all();
+    }
+#endif
+
 #if USER_ADKEY
     if (key_val == NO_KEY) {
         key_val = get_adkey(saradc_get_value8(ADKEY_CH));
@@ -448,9 +485,8 @@ u8 bsp_key_scan(void)
 #endif // USER_ADKEY
 
 #if USER_PWRKEY
-    if (key_val == NO_KEY) {
+    if (key_val == NO_KEY && !pt8028_key_busy()) {
         key_val = get_pwrkey();
-        //printf("key_val: %d\n", key_val);
     }
 #endif // USER_PWRKEY
 
@@ -461,6 +497,12 @@ u8 bsp_key_scan(void)
 #endif // USER_IOKEY
 
     key = bsp_key_process(key_val);
+#if USER_PT8028_KEY && !ELUNCHBOX_PANEL_EN
+    if (key != NO_KEY && key == pt8028_block_ku) {
+        key = NO_KEY;
+        pt8028_block_ku = NO_KEY;
+    }
+#endif
     if (key != NO_KEY) {
         //防止enqueue多次HOLD消息
         if ((key & KEY_TYPE_MASK) == KEY_LONG) {

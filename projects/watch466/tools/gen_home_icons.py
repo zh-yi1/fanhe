@@ -45,6 +45,8 @@ NATIVE_DIGIT_ITEMS = [
     *(f"w{d}x.png" for d in range(10)),
     *(f"b{d}x.png" for d in range(10)),
     "wbx.png",
+    "whx.png",
+    "wsx.png",
     "bhx.png",
 ]
 
@@ -199,6 +201,40 @@ def require_src(name: str) -> Path:
     return path
 
 
+def recolor_fg_white(im: Image.Image) -> Image.Image:
+    out = im.copy()
+    px = out.load()
+    w, h = out.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 32 or (r, g, b) == (0, 0, 0):
+                continue
+            px[x, y] = (255, 255, 255, a)
+    return out
+
+
+def ensure_heat_sym_pngs() -> None:
+    """Synthesize whx/wsx from bhx when designer PNGs are not yet provided."""
+    bhx = SRC_DIR / "bhx.png"
+    if not bhx.exists():
+        return
+
+    im = Image.open(bhx).convert("RGBA")
+    w, h = im.size
+    # bhx: ° 占 0..17，18..21 为留白，F 从 22 起
+    deg_box = (0, 0, min(18, w), h)
+    suf_box = (min(22, w), 0, w, h)
+
+    for out_name, box in (("whx.png", deg_box), ("wsx.png", suf_box)):
+        path = SRC_DIR / out_name
+        if path.exists():
+            continue
+        crop = im.crop(box)
+        recolor_fg_white(crop).save(path)
+        print(f"generated {out_name} from bhx.png crop {box}")
+
+
 def require_time_src(name: str) -> Path:
     for base in (BIN_DIR, SRC_DIR):
         path = base / name
@@ -262,6 +298,8 @@ SETUP_ICON_ITEMS = (
     "black_pm.png",
     "blue_am.png",
     "blue_pm.png",
+    "Hm.png",
+    "Minm.png",
 )
 
 KNOWN_SRC_PNGS = frozenset(
@@ -291,8 +329,43 @@ def convert_extra_pngs(keep: set[str]) -> None:
             break
 
 
+def gpu_size_from_bin(path: Path) -> tuple[int, int, int]:
+    data = path.read_bytes()
+    if len(data) < 8:
+        raise SystemExit(f"invalid bin (too short): {path.name}")
+    magic, w, h = struct.unpack("<IHH", data[:8])
+    if magic != 0x24150 or w == 0 or h == 0:
+        raise SystemExit(f"invalid GPU bin: {path.name}")
+    need = 8 + w * h * 2
+    if need != len(data):
+        raise SystemExit(f"size mismatch {path.name}: file {len(data)} need {need}")
+    return w, h, len(data)
+
+
+def timeing_suffix_block() -> str:
+    hm_w, hm_h, hm_sz = 7, 10, 148
+    minm_w, minm_h, minm_sz = 19, 10, 388
+    hm_path = BIN_DIR / "Hm.bin"
+    minm_path = BIN_DIR / "Minm.bin"
+    if hm_path.exists():
+        hm_w, hm_h, hm_sz = gpu_size_from_bin(hm_path)
+    if minm_path.exists():
+        minm_w, minm_h, minm_sz = gpu_size_from_bin(minm_path)
+    suffix_max = max(hm_sz, minm_sz)
+    return "\n".join([
+        "/* Time setting page H/Min suffix (same visual size as AMm/PMm) */",
+        f"#define HOME_TIMEING_HM_W                 {hm_w}",
+        f"#define HOME_TIMEING_HM_H                 {hm_h}",
+        f"#define HOME_TIMEING_MINM_W               {minm_w}",
+        f"#define HOME_TIMEING_MINM_H               {minm_h}",
+        f"#define HOME_TIMEING_SUFFIX_RAM_MAX_SIZE  {suffix_max}",
+        "",
+    ])
+
+
 def main() -> None:
     ensure_src_layout()
+    ensure_heat_sym_pngs()
     keep: set[str] = set()
     digit_max_size = 0
     colon_size = 0
@@ -391,6 +464,20 @@ def main() -> None:
             f"#define HEAT_WBX_W                      {w}\n"
             f"#define HEAT_WBX_H                      {h}\n"
             f"#define HEAT_WBX_RAM_SIZE               {sz}\n"
+        )
+    if "whx" in heat_sizes:
+        w, h, sz = heat_sizes["whx"]
+        heat_detail += (
+            f"#define HEAT_WHX_W                      {w}\n"
+            f"#define HEAT_WHX_H                      {h}\n"
+            f"#define HEAT_WHX_RAM_SIZE               {sz}\n"
+        )
+    if "wsx" in heat_sizes:
+        w, h, sz = heat_sizes["wsx"]
+        heat_detail += (
+            f"#define HEAT_WSX_W                      {w}\n"
+            f"#define HEAT_WSX_H                      {h}\n"
+            f"#define HEAT_WSX_RAM_SIZE               {sz}\n"
         )
     if "bhx" in heat_sizes:
         w, h, sz = heat_sizes["bhx"]
@@ -499,7 +586,7 @@ def main() -> None:
                 "#define MODE_STATUS_TEMPF_W             HOME_STATUS_TEMPF_W",
                 "#define MODE_STATUS_TEMPF_H             HOME_STATUS_TEMPF_H",
                 "",
-                "/* func_heat.c: w0x=白字时, b0x=灰字分/温度, wbx=冒号, bhx=灰°F */",
+                "/* func_heat.c: w0x=白字时, b0x=灰字, wbx=冒号, whx+wsx=白°F, bhx=灰°F */",
                 f"#define HEAT_W_DIGIT_MAX_H              {heat_w_max_h}",
                 f"#define HEAT_B_DIGIT_MAX_H              {heat_b_max_h}",
                 f"#define HEAT_W_DIGIT_RAM_MAX_SIZE       {heat_w_digit_max}",
@@ -507,6 +594,7 @@ def main() -> None:
                 heat_detail.rstrip(),
                 "",
                 time_block,
+                timeing_suffix_block(),
                 mode_blocks,
                 "#endif",
                 "",

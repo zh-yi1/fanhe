@@ -246,6 +246,7 @@ bool bsp_get_mute_sta(void);
 void bsp_loudspeaker_mute(void);
 void bsp_loudspeaker_unmute(void);
 void uart0_mapping_sel(void);
+void uart0_printf_ensure(void);
 void linein_detect(void);
 bool linein_micl_is_online(void);
 void get_usb_chk_sta_convert(void);

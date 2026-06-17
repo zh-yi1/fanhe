@@ -97,13 +97,13 @@ typedef struct timer_pic_item_t_ {
 //PAGE_SELECT
 #define TIMER_BTN_ITEM_CNT  ((int)(sizeof(tbl_timer_btn_item) / sizeof(tbl_timer_btn_item[0])))
 static const timer_btn_item_t tbl_timer_btn_item[] = {
-    {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_1MIN,      64,     128,    true},
-    {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_2MIN,      160,    128,    true},
-    {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_3MIN,      256,    128,    true},
-    {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_5MIN,      64,     228,    true},
-    {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_10MIN,     160,    228,    true},
-    {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_30MIN,     256,    228,    true},
-    {UI_BUF_COMMON_BUTTON2_BIN,      COMPO_ID_BTN_CUSTOM,    160,    336+60,    true},
+    //{UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_1MIN,      64,     128,    true},
+    // {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_2MIN,      160,    128,    true},
+    // {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_3MIN,      256,    128,    true},
+    // {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_5MIN,      64,     228,    true},
+    // {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_10MIN,     160,    228,    true},
+    // {UI_BUF_TIMER_BG_BIN,           COMPO_ID_BTN_30MIN,     256,    228,    true},
+    // {UI_BUF_COMMON_BUTTON2_BIN,      COMPO_ID_BTN_CUSTOM,    160,    336+60,    true},
 };
 
 #define TIMER_TXT_ITEM_CNT  ((int)(sizeof(tbl_timer_txt_item) / sizeof(tbl_timer_txt_item[0])))
@@ -120,13 +120,13 @@ static const timer_txt_item_t tbl_timer_txt_item[] = {
 //PAGE_CUSTOM
 #define TIMER_CUSTOM_BTN_ITEM_CNT   ((int)(sizeof(tbl_timer_custom_btn_item) / sizeof(tbl_timer_custom_btn_item[0])))
 static const timer_btn_item_t tbl_timer_custom_btn_item[] = {
-    {UI_BUF_COMMON_INCREASE_BIN,        COMPO_ID_BTN_HOUR_INC,      65,     100,    true},
-    {UI_BUF_COMMON_INCREASE_BIN,        COMPO_ID_BTN_MIN_INC,       160,    100,    true},
-    {UI_BUF_COMMON_INCREASE_BIN,        COMPO_ID_BTN_SEC_INC,       255,    100,    true},
-    {UI_BUF_COMMON_REDUCE_BIN,          COMPO_ID_BTN_HOUR_RED,      65,     239,    true},
-    {UI_BUF_COMMON_REDUCE_BIN,          COMPO_ID_BTN_MIN_RED,       160,    239,    true},
-    {UI_BUF_COMMON_REDUCE_BIN,          COMPO_ID_BTN_SEC_RED,       255,    239,    true},
-    {UI_BUF_COMMON_BUTTON1_BIN,          COMPO_ID_BTN_OK,            160,    336+60,    true},
+    // {UI_BUF_COMMON_INCREASE_BIN,        COMPO_ID_BTN_HOUR_INC,      65,     100,    true},
+    // {UI_BUF_COMMON_INCREASE_BIN,        COMPO_ID_BTN_MIN_INC,       160,    100,    true},
+    // {UI_BUF_COMMON_INCREASE_BIN,        COMPO_ID_BTN_SEC_INC,       255,    100,    true},
+    // {UI_BUF_COMMON_REDUCE_BIN,          COMPO_ID_BTN_HOUR_RED,      65,     239,    true},
+    // {UI_BUF_COMMON_REDUCE_BIN,          COMPO_ID_BTN_MIN_RED,       160,    239,    true},
+    // {UI_BUF_COMMON_REDUCE_BIN,          COMPO_ID_BTN_SEC_RED,       255,    239,    true},
+    // {UI_BUF_COMMON_BUTTON1_BIN,          COMPO_ID_BTN_OK,            160,    336+60,    true},
 };
 
 //创建定时器窗体，文件内调用
@@ -192,23 +192,23 @@ static compo_form_t *func_timer_form_create_by_type(u8 page_type)
 
     case TIMER_PAGE_COUNTDOWN:
         //新建按钮
-        res_addr = sys_cb.timer_sta == TIMER_STA_WORKING ? UI_BUF_COMMON_PAUSE_BIN : (sys_cb.timer_sta == TIMER_STA_DONE ? UI_BUF_TIMER_AGAIN_BIN : UI_BUF_COMMON_START_BIN);
-        btn = compo_button_create_by_image(frm, res_addr); //start/pause/again
-        compo_setid(btn, COMPO_ID_BTN_START);
-        compo_button_set_pos(btn, 233+70, 321);
-        btn = compo_button_create_by_image(frm, UI_BUF_COMMON_NO_BIN);  //close
-        compo_setid(btn, COMPO_ID_BTN_NO);
-        compo_button_set_pos(btn, 87+70, 321);
-        //新建数字
-        hour = SEC_TO_HOUR(sys_cb.timer_left_sec);
-        min = SEC_TO_MIN(sys_cb.timer_left_sec);
-        sec = SEC_TO_SEC(sys_cb.timer_left_sec);
-        txt = compo_textbox_create(frm, 12);
-        compo_setid(txt, COMPO_ID_NUM_COUNTDOWN);
-        compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 165);
-        compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
-        snprintf(str_buff, sizeof(str_buff), "%02d:%02d:%02d", hour, min, sec);
-        compo_textbox_set(txt, str_buff);
+        // res_addr = sys_cb.timer_sta == TIMER_STA_WORKING ? UI_BUF_COMMON_PAUSE_BIN : (sys_cb.timer_sta == TIMER_STA_DONE ? UI_BUF_TIMER_AGAIN_BIN : UI_BUF_COMMON_START_BIN);
+        // btn = compo_button_create_by_image(frm, res_addr); //start/pause/again
+        // compo_setid(btn, COMPO_ID_BTN_START);
+        // compo_button_set_pos(btn, 233+70, 321);
+        // btn = compo_button_create_by_image(frm, UI_BUF_COMMON_NO_BIN);  //close
+        // compo_setid(btn, COMPO_ID_BTN_NO);
+        // compo_button_set_pos(btn, 87+70, 321);
+        // //新建数字
+        // hour = SEC_TO_HOUR(sys_cb.timer_left_sec);
+        // min = SEC_TO_MIN(sys_cb.timer_left_sec);
+        // sec = SEC_TO_SEC(sys_cb.timer_left_sec);
+        // txt = compo_textbox_create(frm, 12);
+        // compo_setid(txt, COMPO_ID_NUM_COUNTDOWN);
+        // compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 165);
+        // compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_NUM_46_BIN);
+        // snprintf(str_buff, sizeof(str_buff), "%02d:%02d:%02d", hour, min, sec);
+        // compo_textbox_set(txt, str_buff);
         break;
 
     default:
@@ -245,32 +245,32 @@ compo_form_t *func_timer_form_create(void)
 //触摸按钮效果处理
 static void func_timer_button_touch_handle(void)
 {
-    compo_button_t *btn;
-    int id = compo_get_button_id();
+    // compo_button_t *btn;
+    // int id = compo_get_button_id();
 
-    switch (id) {
-    case COMPO_ID_BTN_START:
-        btn = compo_getobj_byid(COMPO_ID_BTN_START);
-        if (sys_cb.timer_sta == TIMER_STA_WORKING) {
-            compo_button_set_bgimg(btn, UI_BUF_COMMON_PAUSE_BIN);
-            compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA);
-        } else if (sys_cb.timer_sta == TIMER_STA_DONE) {
-            ;
-        } else {
-            compo_button_set_bgimg(btn, UI_BUF_COMMON_START_BIN);
-            compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA);
-        }
-        break;
+    // switch (id) {
+    // case COMPO_ID_BTN_START:
+    //     btn = compo_getobj_byid(COMPO_ID_BTN_START);
+    //     if (sys_cb.timer_sta == TIMER_STA_WORKING) {
+    //         compo_button_set_bgimg(btn, UI_BUF_COMMON_PAUSE_BIN);
+    //         compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA);
+    //     } else if (sys_cb.timer_sta == TIMER_STA_DONE) {
+    //         ;
+    //     } else {
+    //         compo_button_set_bgimg(btn, UI_BUF_COMMON_START_BIN);
+    //         compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA);
+    //     }
+    //     break;
 
-    case COMPO_ID_BTN_NO:
-        btn = compo_getobj_byid(COMPO_ID_BTN_NO);
+    // case COMPO_ID_BTN_NO:
+    //     btn = compo_getobj_byid(COMPO_ID_BTN_NO);
 
-        compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA);
-        break;
+    //     compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA);
+    //     break;
 
-    default:
-        break;
-    }
+    // default:
+    //     break;
+    // }
 
 }
 
@@ -281,9 +281,9 @@ static void func_timer_button_release_handle(void)
     compo_button_t *btn;
 
     if ((btn = compo_getobj_byid(COMPO_ID_BTN_START)) != NULL) {
-        res_addr = sys_cb.timer_sta == TIMER_STA_WORKING ? UI_BUF_COMMON_PAUSE_BIN : (sys_cb.timer_sta == TIMER_STA_DONE ? UI_BUF_TIMER_AGAIN_BIN : UI_BUF_COMMON_START_BIN);
-        compo_button_set_bgimg(btn, res_addr);
-        compo_button_set_alpha(btn, UI_BTN_NORMAL_EFFECT_ALPHA);
+        // res_addr = sys_cb.timer_sta == TIMER_STA_WORKING ? UI_BUF_COMMON_PAUSE_BIN : (sys_cb.timer_sta == TIMER_STA_DONE ? UI_BUF_TIMER_AGAIN_BIN : UI_BUF_COMMON_START_BIN);
+        // compo_button_set_bgimg(btn, res_addr);
+        // compo_button_set_alpha(btn, UI_BTN_NORMAL_EFFECT_ALPHA);
     }
     if ((btn = compo_getobj_byid(COMPO_ID_BTN_NO)) != NULL) {
 
@@ -456,8 +456,8 @@ static void func_timer_process(void)
             compo_textbox_set(txt_num, str_buff);
         }
         if (sys_cb.timer_sta == TIMER_STA_DONE) {
-            btn = compo_getobj_byid(COMPO_ID_BTN_START);
-            compo_button_set_bgimg(btn, UI_BUF_TIMER_AGAIN_BIN);
+            // btn = compo_getobj_byid(COMPO_ID_BTN_START);
+            // compo_button_set_bgimg(btn, UI_BUF_TIMER_AGAIN_BIN);
         }
         break;
 

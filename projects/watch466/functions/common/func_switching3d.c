@@ -86,15 +86,15 @@ compo_form_t *func_form_create_by_screenshoot(bool flag_next)
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
 
-    void *sc_ptr = flag_next ? next_scbuf : cur_scbuf;
+    // void *sc_ptr = flag_next ? next_scbuf : cur_scbuf;
 
-    //新建图标
-    compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_ICON_ACTIVITY_BIN);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    compo_picturebox_set_ram(pic, sc_ptr);
-    if (flag_next && sys_cb.nav_index == NAV_FLIP) {
-        widget_set_visible(frm->page, false);
-    }
+    // //新建图标
+    // compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_ICON_ACTIVITY_BIN);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // compo_picturebox_set_ram(pic, sc_ptr);
+    // if (flag_next && sys_cb.nav_index == NAV_FLIP) {
+    //     widget_set_visible(frm->page, false);
+    // }
 
     return frm;
 }

@@ -47,18 +47,18 @@ compo_form_t *func_password_sub_select_form_create(void)
 
     //创建按钮
     compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_NO_BIN);
-    compo_setid(btn, COMPO_ID_BTN_NO);
-    compo_button_set_pos(btn, 120, 350);
-    compo_button_set_visible(btn, false);
+    // btn = compo_button_create_by_image(frm, UI_BUF_COMMON_NO_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_NO);
+    // compo_button_set_pos(btn, 120, 350);
+    // compo_button_set_visible(btn, false);
 
-    if (!sys_cb.password_change) {
-        compo_button_set_visible(btn, true);
-    }
+    // if (!sys_cb.password_change) {
+    //     compo_button_set_visible(btn, true);
+    // }
 
-    btn = compo_button_create_by_image(frm, UI_BUF_ALARM_CLOCK_YES_BIN);
-    compo_setid(btn, COMPO_ID_BTN_YES);
-    compo_button_set_pos(btn, 340, 350);
+    // btn = compo_button_create_by_image(frm, UI_BUF_ALARM_CLOCK_YES_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_YES);
+    // compo_button_set_pos(btn, 340, 350);
 
     return frm;
 }

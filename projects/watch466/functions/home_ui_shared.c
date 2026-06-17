@@ -34,3 +34,9 @@ void home_ui_shared_dash_init(void)
     os_spiflash_read(home_ui_shared_dash_runtime_nor, UI_BUF_HOME_BLUE_LINE_BIN, UI_LEN_HOME_BLUE_LINE_BIN);
     home_ui_shared_dash_inited = true;
 }
+
+void home_gpu_wait_idle(void)
+{
+    os_gui_draw_w4_done();
+    os_gui_draw_w4_done();
+}

@@ -23,8 +23,12 @@ void de_fill_num(void *buf, u32 num, int ln);
 bool gui_set_ram_check(void* ptr, const char* func_name);
 void* psram_switch_cache(void* ptr);
 u8 is_gpu_init(void);
+#if GUI_USE_SCREENSHOOT
 extern u8 cur_scbuf[GUI_SCREEN_WIDTH*GUI_SCREEN_HEIGHT*2+8] AT(.psram_buf.lcd);
 extern u8 next_scbuf[GUI_SCREEN_WIDTH*GUI_SCREEN_HEIGHT*2+8] AT(.psram_buf.lcd);
+#if GUI_USE_BLUR
 extern u8 blur_obuf[GUI_SCREEN_WIDTH*GUI_SCREEN_HEIGHT*2+8] AT(.psram_buf.lcd);
 extern u8 blur_tbuf[GUI_SCREEN_WIDTH*GUI_SCREEN_HEIGHT*2*2] AT(.psram_buf.lcd);
+#endif
+#endif
 #endif

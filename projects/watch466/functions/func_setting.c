@@ -22,30 +22,30 @@ typedef struct f_set_list_t_ {
 
 static const compo_listbox_item_t tbl_setting_list[] = {
 #if AVI_DVP_DEMOLIST
-    {STR_VIDEO_MODE,                    UI_BUF_SETTING_ABOUT_BIN,                       .func_sta = FUNC_VIDEO_SHOWLIST,            .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //3D效果内容演示
+   //{STR_VIDEO_MODE,                    UI_BUF_SETTING_ABOUT_BIN,                       .func_sta = FUNC_VIDEO_SHOWLIST,            .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //3D效果内容演示
 #endif // AVI_DVP_DEMOLIST
-    {STR_SETTING_LIGHT,                  UI_BUF_SETTING_LIGHT_BIN,                      .func_sta = FUNC_LIGHT,                     .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //亮度调节
-    {STR_SETTING_MENU_NAVGAITON,         UI_BUF_SETTING_ABOUT_BIN,                      .func_sta = FUNC_SET_SUB_MENU_NAVIGATION,   .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //亮度调节
-    //{STR_SETTING_DOUSING,                UI_BUF_SETTING_BREATHING_SCREEN_CLICK_BIN,     .func_sta = FUNC_SET_SUB_DOUSING,         .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //息屏时长
-    {STR_SETTING_DOUSING,                UI_BUF_SETTING_BREATHING_SCREEN_BIN,           .func_sta = FUNC_SET_SUB_DOUSING,           .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //息屏时长
-    {STR_SETTING_UP,                     UI_BUF_SETTING_WRIST_BIN,                      .func_sta = FUNC_SET_SUB_WRIST,             .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //抬腕亮屏
-    //{STR_SETTING_DISTURD,                UI_BUF_SETTING_DISTURB_CLICK_BIN,              .func_sta = FUNC_SET_SUB_DISTURD,         .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //勿扰模式
-    {STR_SETTING_DISTURD,                UI_BUF_SETTING_DISTURB_BIN,                    .func_sta = FUNC_SET_SUB_DISTURD,           .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //勿扰模式
-    {STR_SETTING_SAV,                    UI_BUF_SETTING_SOUND_AND_VIBRATION_BIN,        .func_sta = FUNC_SET_SUB_SAV,               .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //声音与振动
-    {STR_SETTING_LANGUAGE,               UI_BUF_SETTING_LANGUAGE_BIN,                   .func_sta = FUNC_SET_SUB_LANGUAGE,          .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //语言设置
-    {STR_SETTING_TIME,                   UI_BUF_SETTING_TIME_BIN,                       .func_sta = FUNC_SET_SUB_TIME,              .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //时间设置
-    {STR_SETTING_CALENDAR,               UI_BUF_SETTING_CALENDAR_BIN,                   .func_sta = FUNC_CALENDAER,                 .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //日期设置
-    {STR_SETTING_PASSWORD,               UI_BUF_SETTING_PASSWORD_BIN,                   .func_sta = FUNC_SET_SUB_PASSWORD,          .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //密码锁
-    {STR_SETTING_ABOUT,                  UI_BUF_SETTING_ABOUT_BIN,                      .func_sta = FUNC_SET_SUB_ABOUT,             .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //关于
-    {STR_SETTING_4G,                     UI_BUF_SETTING_ABOUT_BIN,                      .func_sta = FUNC_SET_SUB_4G,                .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //4G
-    {STR_SETTING_RESTART,                UI_BUF_SETTING_RESTART_BIN,                    .func_sta = FUNC_SET_SUB_RESTART,           .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //重启
-    {STR_SETTING_RSTFY,                  UI_BUF_SETTING_RESTORE_FACTORY_BIN,            .func_sta = FUNC_SET_SUB_RSTFY,             .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //恢复出厂
-    {STR_SETTING_OFF,                    UI_BUF_SETTING_OFF_BIN,                        .func_sta = FUNC_SET_SUB_OFF,               .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //关机
+    // {STR_SETTING_LIGHT,                  UI_BUF_SETTING_LIGHT_BIN,                      .func_sta = FUNC_LIGHT,                     .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //亮度调节
+    // {STR_SETTING_MENU_NAVGAITON,         UI_BUF_SETTING_ABOUT_BIN,                      .func_sta = FUNC_SET_SUB_MENU_NAVIGATION,   .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //亮度调节
+    // //{STR_SETTING_DOUSING,                UI_BUF_SETTING_BREATHING_SCREEN_CLICK_BIN,     .func_sta = FUNC_SET_SUB_DOUSING,         .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //息屏时长
+    // {STR_SETTING_DOUSING,                UI_BUF_SETTING_BREATHING_SCREEN_BIN,           .func_sta = FUNC_SET_SUB_DOUSING,           .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //息屏时长
+    // {STR_SETTING_UP,                     UI_BUF_SETTING_WRIST_BIN,                      .func_sta = FUNC_SET_SUB_WRIST,             .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //抬腕亮屏
+    // //{STR_SETTING_DISTURD,                UI_BUF_SETTING_DISTURB_CLICK_BIN,              .func_sta = FUNC_SET_SUB_DISTURD,         .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //勿扰模式
+    // {STR_SETTING_DISTURD,                UI_BUF_SETTING_DISTURB_BIN,                    .func_sta = FUNC_SET_SUB_DISTURD,           .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //勿扰模式
+    // {STR_SETTING_SAV,                    UI_BUF_SETTING_SOUND_AND_VIBRATION_BIN,        .func_sta = FUNC_SET_SUB_SAV,               .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //声音与振动
+    // {STR_SETTING_LANGUAGE,               UI_BUF_SETTING_LANGUAGE_BIN,                   .func_sta = FUNC_SET_SUB_LANGUAGE,          .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //语言设置
+    // {STR_SETTING_TIME,                   UI_BUF_SETTING_TIME_BIN,                       .func_sta = FUNC_SET_SUB_TIME,              .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //时间设置
+    // {STR_SETTING_CALENDAR,               UI_BUF_SETTING_CALENDAR_BIN,                   .func_sta = FUNC_CALENDAER,                 .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //日期设置
+    // {STR_SETTING_PASSWORD,               UI_BUF_SETTING_PASSWORD_BIN,                   .func_sta = FUNC_SET_SUB_PASSWORD,          .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //密码锁
+    // {STR_SETTING_ABOUT,                  UI_BUF_SETTING_ABOUT_BIN,                      .func_sta = FUNC_SET_SUB_ABOUT,             .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //关于
+    // {STR_SETTING_4G,                     UI_BUF_SETTING_ABOUT_BIN,                      .func_sta = FUNC_SET_SUB_4G,                .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //4G
+    // {STR_SETTING_RESTART,                UI_BUF_SETTING_RESTART_BIN,                    .func_sta = FUNC_SET_SUB_RESTART,           .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //重启
+    // {STR_SETTING_RSTFY,                  UI_BUF_SETTING_RESTORE_FACTORY_BIN,            .func_sta = FUNC_SET_SUB_RSTFY,             .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //恢复出厂
+    // {STR_SETTING_OFF,                    UI_BUF_SETTING_OFF_BIN,                        .func_sta = FUNC_SET_SUB_OFF,               .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //关机
 #if FUNC_MUSIC_EN
-    {STR_SD_MUSIC,                      UI_BUF_SETTING_ABOUT_BIN,                       .func_sta = FUNC_MUSIC,                     .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //3D效果内容演示
+    //{STR_SD_MUSIC,                      UI_BUF_SETTING_ABOUT_BIN,                       .func_sta = FUNC_MUSIC,                     .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},              //3D效果内容演示
 #endif // FUNC_MUSIC_EN
 #if FUNC_RECORDER_EN
-    {STR_MIC_RECORD,                    UI_BUF_SETTING_ABOUT_BIN,                       .func_sta = FUNC_RECORDER,                  .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},
+    //{STR_MIC_RECORD,                    UI_BUF_SETTING_ABOUT_BIN,                       .func_sta = FUNC_RECORDER,                  .item_mode = COMPO_LISTBOX_ITEM_MODE_SWITCH,},
 #endif // FUNC_RECORDER_EN
 };
 
@@ -65,7 +65,7 @@ compo_form_t *func_set_sub_list_form_create(void)
     compo_listbox_set_rect_size(listbox, GUI_SCREEN_WIDTH, 134, 70);
     compo_listbox_set_rect_color(listbox, make_color(29, 29, 29));
     compo_listbox_set_rect_visible(listbox, true);
-    compo_listbox_set_sta_icon_res(listbox, UI_BUF_COMMON_OPEN_BIN, UI_BUF_COMMON_OPEN_BIN);
+    //compo_listbox_set_sta_icon_res(listbox, UI_BUF_COMMON_OPEN_BIN, UI_BUF_COMMON_OPEN_BIN);
     compo_listbox_set(listbox, tbl_setting_list, SET_LIST_CNT);
     compo_listbox_set_sta_icon_pos(listbox, listbox->item_width - 30, 0);
     compo_listbox_set_bithook(listbox, func_setting_get_bit);

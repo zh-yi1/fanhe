@@ -96,65 +96,65 @@ compo_form_t *func_set_sub_disturd_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_SETTING_DISTURD]);
+    // //设置标题栏
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_SETTING_DISTURD]);
 
-    //创建按钮
-    compo_button_t *btn;
-    for (u8 idx_btn = 0; idx_btn < DISURD_DISP_BTN_ITEM_CNT; idx_btn++) {
-        if (idx_btn < 2) {
-            btn = compo_button_create_by_image(frm, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
-            compo_setid(btn, tbl_disturd_disp_btn_item[idx_btn].btn_id);
-            compo_button_set_pos(btn, tbl_disturd_disp_btn_item[idx_btn].x, tbl_disturd_disp_btn_item[idx_btn].y);
-        } else {
-            btn = compo_button_create(frm);
-            compo_setid(btn, tbl_disturd_disp_btn_item[idx_btn].btn_id);
-            compo_button_set_location(btn, tbl_disturd_disp_btn_item[idx_btn].x, tbl_disturd_disp_btn_item[idx_btn].y, tbl_disturd_disp_btn_item[idx_btn].h, tbl_disturd_disp_btn_item[idx_btn].l);
+    // //创建按钮
+    // compo_button_t *btn;
+    // for (u8 idx_btn = 0; idx_btn < DISURD_DISP_BTN_ITEM_CNT; idx_btn++) {
+    //     if (idx_btn < 2) {
+    //         btn = compo_button_create_by_image(frm, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
+    //         compo_setid(btn, tbl_disturd_disp_btn_item[idx_btn].btn_id);
+    //         compo_button_set_pos(btn, tbl_disturd_disp_btn_item[idx_btn].x, tbl_disturd_disp_btn_item[idx_btn].y);
+    //     } else {
+    //         btn = compo_button_create(frm);
+    //         compo_setid(btn, tbl_disturd_disp_btn_item[idx_btn].btn_id);
+    //         compo_button_set_location(btn, tbl_disturd_disp_btn_item[idx_btn].x, tbl_disturd_disp_btn_item[idx_btn].y, tbl_disturd_disp_btn_item[idx_btn].h, tbl_disturd_disp_btn_item[idx_btn].l);
 
-            // compo_shape_t *shape_bg = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
-            // compo_shape_set_color(shape_bg, COLOR_BLUE);
-            // compo_shape_set_location(shape_bg, tbl_disturd_disp_btn_item[idx_btn].x, tbl_disturd_disp_btn_item[idx_btn].y, tbl_disturd_disp_btn_item[idx_btn].h, tbl_disturd_disp_btn_item[idx_btn].l);
-        }
-    }
+    //         // compo_shape_t *shape_bg = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
+    //         // compo_shape_set_color(shape_bg, COLOR_BLUE);
+    //         // compo_shape_set_location(shape_bg, tbl_disturd_disp_btn_item[idx_btn].x, tbl_disturd_disp_btn_item[idx_btn].y, tbl_disturd_disp_btn_item[idx_btn].h, tbl_disturd_disp_btn_item[idx_btn].l);
+    //     }
+    // }
 
-    //创建文本
-    compo_textbox_t *textbox;
-    for (int i=0; i < DISURD_DISP_TXT_ITEM_CNT; i++) {
-        textbox = compo_textbox_create(frm, 20);
-        compo_setid(textbox, COMPO_ID_TXT_ALL + i);
-        compo_textbox_set_pos(textbox, disturd_disp_txt_item[i].x, disturd_disp_txt_item[i].y);
-        compo_textbox_set_align_center(textbox, false);
-        compo_textbox_set(textbox, i18n[disturd_disp_txt_item[i].str_id]);
-        compo_textbox_set_visible(textbox, disturd_disp_txt_item[i].visible_en);
-    }
+    // //创建文本
+    // compo_textbox_t *textbox;
+    // for (int i=0; i < DISURD_DISP_TXT_ITEM_CNT; i++) {
+    //     textbox = compo_textbox_create(frm, 20);
+    //     compo_setid(textbox, COMPO_ID_TXT_ALL + i);
+    //     compo_textbox_set_pos(textbox, disturd_disp_txt_item[i].x, disturd_disp_txt_item[i].y);
+    //     compo_textbox_set_align_center(textbox, false);
+    //     compo_textbox_set(textbox, i18n[disturd_disp_txt_item[i].str_id]);
+    //     compo_textbox_set_visible(textbox, disturd_disp_txt_item[i].visible_en);
+    // }
 
-    //获取显示时间
-    u32 hour_start = sys_cb.disturd_start_time_sec / 3600;
-    u32 min_start  = (sys_cb.disturd_start_time_sec % 3600) / 60;
-    u32 hour_end   = sys_cb.disturd_end_time_sec / 3600;
-    u32 min_end  = (sys_cb.disturd_end_time_sec % 3600) / 60;
+    // //获取显示时间
+    // u32 hour_start = sys_cb.disturd_start_time_sec / 3600;
+    // u32 min_start  = (sys_cb.disturd_start_time_sec % 3600) / 60;
+    // u32 hour_end   = sys_cb.disturd_end_time_sec / 3600;
+    // u32 min_end  = (sys_cb.disturd_end_time_sec % 3600) / 60;
 
-    //创建数字
-    compo_textbox_t *num_txt;
-    char start_time_buff[12];
-    char end_time_buff[12];
-    for (u8 idx = 0; idx < DISTURD_NUM_ITEM_CNT; idx++) {
-        num_txt = compo_textbox_create(frm, tbl_disturd_num_item[idx].num_cnt);
-        compo_textbox_set_font(num_txt, tbl_disturd_num_item[idx].res_addr);
-        compo_setid(num_txt, tbl_disturd_num_item[idx].num_id);
-        compo_textbox_set_pos(num_txt, tbl_disturd_num_item[idx].x, tbl_disturd_num_item[idx].y);
-        compo_textbox_set_visible(num_txt, tbl_disturd_num_item[idx].visible_en);
+    // //创建数字
+    // compo_textbox_t *num_txt;
+    // char start_time_buff[12];
+    // char end_time_buff[12];
+    // for (u8 idx = 0; idx < DISTURD_NUM_ITEM_CNT; idx++) {
+    //     num_txt = compo_textbox_create(frm, tbl_disturd_num_item[idx].num_cnt);
+    //     compo_textbox_set_font(num_txt, tbl_disturd_num_item[idx].res_addr);
+    //     compo_setid(num_txt, tbl_disturd_num_item[idx].num_id);
+    //     compo_textbox_set_pos(num_txt, tbl_disturd_num_item[idx].x, tbl_disturd_num_item[idx].y);
+    //     compo_textbox_set_visible(num_txt, tbl_disturd_num_item[idx].visible_en);
 
-        if (tbl_disturd_num_item[idx].num_id == COMPO_ID_NUM_DISP_START) {
-            snprintf(start_time_buff, sizeof(start_time_buff), "%02ld:%02ld", hour_start, min_start);
-            compo_textbox_set(num_txt, start_time_buff);
-        } else if (tbl_disturd_num_item[idx].num_id == COMPO_ID_NUM_DISP_END) {
-            snprintf(end_time_buff, sizeof(end_time_buff), "%02ld:%02ld", hour_end, min_end);
-            compo_textbox_set(num_txt, end_time_buff);
-        }
-    }
+    //     if (tbl_disturd_num_item[idx].num_id == COMPO_ID_NUM_DISP_START) {
+    //         snprintf(start_time_buff, sizeof(start_time_buff), "%02ld:%02ld", hour_start, min_start);
+    //         compo_textbox_set(num_txt, start_time_buff);
+    //     } else if (tbl_disturd_num_item[idx].num_id == COMPO_ID_NUM_DISP_END) {
+    //         snprintf(end_time_buff, sizeof(end_time_buff), "%02ld:%02ld", hour_end, min_end);
+    //         compo_textbox_set(num_txt, end_time_buff);
+    //     }
+    // }
 
     return frm;
 }
@@ -168,44 +168,44 @@ static void func_set_sub_disturd_process(void)
 //更新显示勿扰模式界面
 static void func_set_sub_disturd_disp(void)
 {
-    //获取按钮组件的地址
-    compo_button_t *btn_allday  = compo_getobj_byid(COMPO_ID_BIN_ALLDAY_ON);
-    compo_button_t *btn_timing  = compo_getobj_byid(COMPO_ID_BIN_TIMING_ON);
-    compo_button_t *btn_start_time  = compo_getobj_byid(COMPO_ID_BIN_START_TIME);
-    compo_button_t *btn_end_time  = compo_getobj_byid(COMPO_ID_BIN_END_TIME);
-    //获取文本组件的地址
-    compo_textbox_t *txt_disp[DISURD_DISP_TXT_ITEM_CNT - 2];
-    compo_textbox_t *num_disp[DISTURD_NUM_ITEM_CNT];
+    // //获取按钮组件的地址
+    // compo_button_t *btn_allday  = compo_getobj_byid(COMPO_ID_BIN_ALLDAY_ON);
+    // compo_button_t *btn_timing  = compo_getobj_byid(COMPO_ID_BIN_TIMING_ON);
+    // compo_button_t *btn_start_time  = compo_getobj_byid(COMPO_ID_BIN_START_TIME);
+    // compo_button_t *btn_end_time  = compo_getobj_byid(COMPO_ID_BIN_END_TIME);
+    // //获取文本组件的地址
+    // compo_textbox_t *txt_disp[DISURD_DISP_TXT_ITEM_CNT - 2];
+    // compo_textbox_t *num_disp[DISTURD_NUM_ITEM_CNT];
 
-    for (int i=0; i<DISURD_DISP_TXT_ITEM_CNT - 2; i++) {
-        txt_disp[i] = compo_getobj_byid(COMPO_ID_TXT_ALL + i);
-        num_disp[i] = compo_getobj_byid(COMPO_ID_NUM_DISP_START + i);
-    }
+    // for (int i=0; i<DISURD_DISP_TXT_ITEM_CNT - 2; i++) {
+    //     txt_disp[i] = compo_getobj_byid(COMPO_ID_TXT_ALL + i);
+    //     num_disp[i] = compo_getobj_byid(COMPO_ID_NUM_DISP_START + i);
+    // }
 
-    //显示界面各个组件
-    if (sys_cb.disturd_adl) {
-        compo_button_set_bgimg(btn_allday, UI_BUF_COMMON_SWITCH_BUTTON_ON_BIN);
-    } else {
-        compo_button_set_bgimg(btn_allday, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
-    }
+    // //显示界面各个组件
+    // if (sys_cb.disturd_adl) {
+    //     compo_button_set_bgimg(btn_allday, UI_BUF_COMMON_SWITCH_BUTTON_ON_BIN);
+    // } else {
+    //     compo_button_set_bgimg(btn_allday, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
+    // }
 
-    if (sys_cb.disturd_tim == 0) {
-        compo_button_set_bgimg(btn_timing, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
-        compo_button_set_visible(btn_start_time, false);
-        compo_button_set_visible(btn_end_time, false);
-        for (int i=0; i<DISURD_DISP_TXT_ITEM_CNT - 2; i++) {
-            compo_textbox_set_visible(txt_disp[i], false);
-            compo_textbox_set_visible(num_disp[i], false);
-        }
-    } else {
-        compo_button_set_bgimg(btn_timing, UI_BUF_COMMON_SWITCH_BUTTON_ON_BIN);
-        compo_button_set_visible(btn_start_time, true);
-        compo_button_set_visible(btn_end_time, true);
-        for (int i=0; i<DISURD_DISP_TXT_ITEM_CNT - 2; i++) {
-            compo_textbox_set_visible(txt_disp[i], true);
-            compo_textbox_set_visible(num_disp[i], true);
-        }
-    }
+    // if (sys_cb.disturd_tim == 0) {
+    //     compo_button_set_bgimg(btn_timing, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
+    //     compo_button_set_visible(btn_start_time, false);
+    //     compo_button_set_visible(btn_end_time, false);
+    //     for (int i=0; i<DISURD_DISP_TXT_ITEM_CNT - 2; i++) {
+    //         compo_textbox_set_visible(txt_disp[i], false);
+    //         compo_textbox_set_visible(num_disp[i], false);
+    //     }
+    // } else {
+    //     compo_button_set_bgimg(btn_timing, UI_BUF_COMMON_SWITCH_BUTTON_ON_BIN);
+    //     compo_button_set_visible(btn_start_time, true);
+    //     compo_button_set_visible(btn_end_time, true);
+    //     for (int i=0; i<DISURD_DISP_TXT_ITEM_CNT - 2; i++) {
+    //         compo_textbox_set_visible(txt_disp[i], true);
+    //         compo_textbox_set_visible(num_disp[i], true);
+    //     }
+    // }
 }
 
 //单击按钮

@@ -20,17 +20,17 @@ compo_form_t *func_map_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_MAP]);
+//     compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+//     compo_form_set_title_center(frm, true);
+//     compo_form_set_title(frm, i18n[STR_MAP]);
 
-	//创建按键
-    compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_ICON_MAP_BIN);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 200);
+// 	//创建按键
+//     compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_ICON_MAP_BIN);
+//     compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 200);
 
-#if AWK_MAP_EN
-    awk_map_tile_init(frm);
-#endif
+// #if AWK_MAP_EN
+//     awk_map_tile_init(frm);
+// #endif
     return frm;
 }
 

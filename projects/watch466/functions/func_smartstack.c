@@ -247,33 +247,33 @@ compo_form_t * func_smartstack_form_create(void)
     compo_form_t *frm = compo_form_create(true);
 
     //无堆栈记录
-    compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_SMARTSTACK_NULL_BIN);
-    compo_setid(pic, COMPO_ID_PIC_NONE_BG);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
-    if (total_cnt) {
-        compo_picturebox_set_visible(pic, false);
-    }
+    // compo_picturebox_t *pic = compo_picturebox_create(frm, UI_BUF_SMARTSTACK_NULL_BIN);
+    // compo_setid(pic, COMPO_ID_PIC_NONE_BG);
+    // compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
+    // if (total_cnt) {
+    //     compo_picturebox_set_visible(pic, false);
+    // }
 
-    //创建卡片和设置背景框
-    for (u8 i = 0; i < sizeof(card_item) / sizeof(card_item[0]); i++) {
-        cardbox = compo_cardbox_create(frm, CARD_RECT_COUNT_MAX, CARD_ICON_COUNT_MAX, CARD_TEXT_COUNT_MAX, card_bg[CARD_POS_MID].wid, card_bg[CARD_POS_MID].hei);
-        compo_setid(cardbox, COMPO_ID_CARD_UP_BK + i);
-        compo_cardbox_rect_set_location(cardbox, 0, 0, 0, card_bg[CARD_POS_MID].wid, card_bg[CARD_POS_MID].hei, 30);
-        compo_cardbox_set_location(cardbox, card_bg[card_item[i]].x, card_bg[card_item[i]].y, card_bg[card_item[i]].wid, card_bg[card_item[i]].hei);
-        if ((func_start + i) > 0 && (func_start + i) < total_cnt) {
-            func_smartstack_card_content_refresh(cardbox, card_item[i], latest_task_get(func_start + i));
-        } else {
-            compo_cardbox_set_visible(cardbox, false);
-        }
-        if (!total_cnt) {
-            compo_cardbox_set_visible(cardbox, false);
-        }
-    }
+    // //创建卡片和设置背景框
+    // for (u8 i = 0; i < sizeof(card_item) / sizeof(card_item[0]); i++) {
+    //     cardbox = compo_cardbox_create(frm, CARD_RECT_COUNT_MAX, CARD_ICON_COUNT_MAX, CARD_TEXT_COUNT_MAX, card_bg[CARD_POS_MID].wid, card_bg[CARD_POS_MID].hei);
+    //     compo_setid(cardbox, COMPO_ID_CARD_UP_BK + i);
+    //     compo_cardbox_rect_set_location(cardbox, 0, 0, 0, card_bg[CARD_POS_MID].wid, card_bg[CARD_POS_MID].hei, 30);
+    //     compo_cardbox_set_location(cardbox, card_bg[card_item[i]].x, card_bg[card_item[i]].y, card_bg[card_item[i]].wid, card_bg[card_item[i]].hei);
+    //     if ((func_start + i) > 0 && (func_start + i) < total_cnt) {
+    //         func_smartstack_card_content_refresh(cardbox, card_item[i], latest_task_get(func_start + i));
+    //     } else {
+    //         compo_cardbox_set_visible(cardbox, false);
+    //     }
+    //     if (!total_cnt) {
+    //         compo_cardbox_set_visible(cardbox, false);
+    //     }
+    // }
 
-    //删除按钮
-    compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_SMARTSTACK_DELET_BIN);
-    compo_setid(btn, COMPO_ID_BTN_DEL);
-    compo_button_set_visible(btn, false);
+    // //删除按钮
+    // compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_SMARTSTACK_DELET_BIN);
+    // compo_setid(btn, COMPO_ID_BTN_DEL);
+    // compo_button_set_visible(btn, false);
 
     return frm;
 }

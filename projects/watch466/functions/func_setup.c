@@ -10,10 +10,14 @@
 #endif
 
 /*
- * Setup 页：返回 + 标题 + 状态栏；Time / Language / Ver. Info. 列表。
- * PT8028：TCH3 模式键循环选中；TCH4 OK 进入；TCH5 开关返回主界面。
- * 图标：left/time/language/info/right + 状态栏 bluetooth/lock/battery_level
- * GPU 0x24150：os_spiflash_read + compo_picturebox_set_ram
+ * Setup 页 UI（320×240 / 466×466）：返回 + SETUP 标题 + 状态栏；Time / Language / Ver. Info. 列表。
+ * 图标 bin 保持原始尺寸，不缩放。
+ *
+ * 320×240 设计图布局（严格按效果图）：
+ *   顶栏 0~44：Y=22 垂直居中 — 返回(11×17) + SETUP 左对齐 + 右上 BT/锁/电量
+ *   分隔线 Y=44
+ *   列表三行各 60px：行1 Y=46~105，行2 Y=106~165，行3 Y=166~225（选中行 #1A1A1A 底）
+ *   行内：图标左距 18，文字 X=60，箭头右距 16；行间分隔线 Y=106/166
  */
 #define UI_SETUP_PLACEHOLDER              UI_BUF_ICON_ACTIVITY_BIN
 
@@ -52,6 +56,14 @@
 #define SETUP_COLOR_ROW_BG                make_color(29, 29, 29)
 #define SETUP_COLOR_DIVIDER               make_color(60, 60, 60)
 
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define SETUP_COLOR_ROW_BG_SEL            make_color(26, 26, 26)
+#define SETUP_COLOR_DIVIDER_LINE          make_color(51, 51, 51)
+#else
+#define SETUP_COLOR_ROW_BG_SEL            SETUP_COLOR_ROW_BG
+#define SETUP_COLOR_DIVIDER_LINE          SETUP_COLOR_DIVIDER
+#endif
+
 #define SETUP_LEFT_W                      11
 #define SETUP_LEFT_H                      17
 #define SETUP_LEFT_RAM_SIZE               (8 + SETUP_LEFT_W * SETUP_LEFT_H * 2)
@@ -64,34 +76,114 @@
 #define SETUP_RIGHT_H                     13
 #define SETUP_RIGHT_RAM_SIZE              (8 + SETUP_RIGHT_W * SETUP_RIGHT_H * 2)
 
-#define SETUP_HEADER_Y                    48
-#define SETUP_BACK_X                      36
-#define SETUP_TITLE_CENTER_X              130
-#define SETUP_TITLE_W                     260
-#define SETUP_TITLE_H                     36
-#define SETUP_STATUS_Y                    48
-#define SETUP_STATUS_BAT_X                (GUI_SCREEN_WIDTH - 24 - HOME_STATUS_BAT_W / 2)
-#define SETUP_STATUS_LOCK_X               (SETUP_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - 10 - HOME_STATUS_LOCK_W / 2)
-#define SETUP_STATUS_BT_X                 (SETUP_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - 10 - HOME_STATUS_BT_W / 2)
+/* 466×466 参考布局；320×240 横屏按设计图固定坐标 */
+#define SETUP_REF_W                       466
+#define SETUP_REF_H                       466
+#define SETUP_SX(v)                       ((s16)((s32)(v) * GUI_SCREEN_WIDTH / SETUP_REF_W))
+#define SETUP_SY(v)                       ((s16)((s32)(v) * GUI_SCREEN_HEIGHT / SETUP_REF_H))
 
-#define SETUP_DIVIDER_Y                   90
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+/* 顶栏高约 45px，元素 Y=22 垂直居中 */
+#define SETUP_HEADER_Y                    22
+#define SETUP_STATUS_Y                    22
+#define SETUP_STATUS_RIGHT_MARGIN         10
+#define SETUP_STATUS_GAP                  6
+#define SETUP_BACK_X                      16
+#define SETUP_BACK_BTN_X                  6
+#define SETUP_BACK_BTN_Y                  4
+#define SETUP_BACK_BTN_W                  48
+#define SETUP_BACK_BTN_H                  38
+#define SETUP_TITLE_LEFT                  28
+#define SETUP_TITLE_Y                     22
+#define SETUP_TITLE_H                     36
+#define SETUP_TITLE_TOP                   (SETUP_TITLE_Y - SETUP_TITLE_H / 2)
+#define SETUP_DIVIDER_Y                   44
+#define SETUP_LIST_TOP                    46
+#define SETUP_LIST_BOTTOM                 226
+#define SETUP_ROW_H                       60
+#define SETUP_ROW_ICON_LEFT               18
+#define SETUP_ROW_ARROW_RIGHT             16
+#define SETUP_ROW_TEXT_GAP                14
+#else
+#define SETUP_HEADER_Y                    SETUP_SY(48)
+#define SETUP_STATUS_Y                    SETUP_SY(48)
+#define SETUP_STATUS_RIGHT_MARGIN         SETUP_SX(24)
+#define SETUP_STATUS_GAP                  SETUP_SX(10)
+#define SETUP_BACK_X                      SETUP_SX(36)
+#define SETUP_BACK_BTN_X                  SETUP_SX(16)
+#define SETUP_BACK_BTN_Y                  SETUP_SY(28)
+#define SETUP_BACK_BTN_W                  SETUP_SX(56)
+#define SETUP_BACK_BTN_H                  SETUP_SY(40)
+#define SETUP_TITLE_X                     SETUP_SX(130)
+#define SETUP_TITLE_Y                     SETUP_SY(48)
+#define SETUP_TITLE_W                     SETUP_SX(260)
+#define SETUP_TITLE_H                     SETUP_SY(36)
+#define SETUP_TITLE_TOP                   (SETUP_TITLE_Y - SETUP_TITLE_H / 2)
+#define SETUP_DIVIDER_Y                   SETUP_SY(90)
+#define SETUP_LIST_TOP                    (SETUP_DIVIDER_Y + SETUP_DIVIDER_H / 2 + SETUP_SY(4))
+#define SETUP_LIST_BOTTOM                 (GUI_SCREEN_HEIGHT - SETUP_SY(8))
+#define SETUP_ROW_ICON_LEFT               SETUP_SX(36)
+#define SETUP_ROW_ARROW_RIGHT             SETUP_SX(24)
+#define SETUP_ROW_TEXT_GAP                SETUP_SX(6)
+#endif
+
 #define SETUP_DIVIDER_H                   1
 
-#define SETUP_LIST_TOP                    (SETUP_DIVIDER_Y + SETUP_DIVIDER_H / 2 + 4)
-#define SETUP_LIST_BOTTOM                 (GUI_SCREEN_HEIGHT - 8)
+#define SETUP_STATUS_BAT_X                (GUI_SCREEN_WIDTH - SETUP_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
+#define SETUP_STATUS_LOCK_X               (SETUP_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - SETUP_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
+#define SETUP_STATUS_BT_X                 (SETUP_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - SETUP_STATUS_GAP - HOME_STATUS_BT_W / 2)
+
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+/* 标题区延伸至状态栏左侧，避免 "SETUP" 被裁切 */
+#define SETUP_TITLE_W                     (SETUP_STATUS_BT_X - HOME_STATUS_BT_W / 2 - SETUP_STATUS_GAP - SETUP_TITLE_LEFT)
+#endif
+
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define SETUP_ROW_STEP                    SETUP_ROW_H
+#else
 #define SETUP_ROW_H                       ((SETUP_LIST_BOTTOM - SETUP_LIST_TOP) / 3)
 #define SETUP_ROW_STEP                    SETUP_ROW_H
-
-#define SETUP_ROW_ICON_LEFT               36
+#endif
 #define SETUP_ROW_ICON_X                  (SETUP_ROW_ICON_LEFT + SETUP_MENU_ICON_W / 2)
-#define SETUP_ROW_ARROW_X                 (GUI_SCREEN_WIDTH - 24 - SETUP_RIGHT_W / 2)
-#define SETUP_ROW_TEXT_GAP                6
+#define SETUP_ROW_ARROW_X                 (GUI_SCREEN_WIDTH - SETUP_ROW_ARROW_RIGHT - SETUP_RIGHT_W / 2)
 #define SETUP_ROW_TEXT_LEFT               (SETUP_ROW_ICON_LEFT + SETUP_MENU_ICON_W + SETUP_ROW_TEXT_GAP)
 #define SETUP_ROW_TEXT_RIGHT              (SETUP_ROW_ARROW_X - SETUP_RIGHT_W / 2 - SETUP_ROW_TEXT_GAP)
 #define SETUP_ROW_LABEL_W                 (SETUP_ROW_TEXT_RIGHT - SETUP_ROW_TEXT_LEFT)
-
 #define SETUP_MSG_OK                      KU_BACK
 #define SETUP_MSG_POWER                   (KEY_RIGHT | KEY_SHORT_UP)
+
+static void func_setup_config_title(compo_textbox_t *txt)
+{
+    widget_text_t *widget = txt->txt;
+    rect_t rect;
+    area_t text_area;
+
+    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+    compo_textbox_set_align_center(txt, false);
+    widget_set_align_center(widget, false);
+    compo_textbox_set_location(txt, SETUP_TITLE_LEFT, SETUP_TITLE_TOP,
+                               SETUP_TITLE_W, SETUP_TITLE_H);
+#else
+    compo_textbox_set_align_center(txt, true);
+    compo_textbox_set_location(txt, SETUP_TITLE_X, SETUP_TITLE_TOP,
+                               SETUP_TITLE_W, SETUP_TITLE_H);
+#endif
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+    compo_textbox_set_forecolor(txt, COLOR_WHITE);
+    compo_textbox_set(txt, "SETUP");
+
+    rect = widget_get_location(widget);
+    text_area = widget_text_get_area(widget);
+    if (rect.hei > text_area.hei) {
+        widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
+}
 
 static void func_setup_config_row_label(compo_textbox_t *txt, const char *text, s16 row_y)
 {
@@ -342,7 +434,7 @@ static void func_setup_row_icon_ram_apply(u8 *ram, u16 len, bool selected)
         u8 *px = &ram[8 + i * 2];
 
         if (GET_LE16(px) == 0x0000) {
-            PUT_LE16(px, selected ? SETUP_COLOR_ROW_BG : 0x0000);
+            PUT_LE16(px, selected ? SETUP_COLOR_ROW_BG_SEL : 0x0000);
         }
     }
 }
@@ -358,10 +450,8 @@ static void func_setup_row_icon_update(f_setup_t *f_setup, u8 idx)
 
     os_spiflash_read(setup_menu_icon_ram[idx], tbl_setup_row_icon_addr[idx], tbl_setup_row_icon_len[idx]);
     func_setup_row_icon_ram_apply(setup_menu_icon_ram[idx], tbl_setup_row_icon_len[idx], selected);
-    if (func_setup_gpu_ram_set(setup_menu_icon_ram[idx], SETUP_MENU_ICON_RAM_SIZE,
-                               tbl_setup_row_icon_len[idx], row->icon)) {
-        compo_picturebox_set_size(row->icon, SETUP_MENU_ICON_W, SETUP_MENU_ICON_H);
-    }
+    func_setup_gpu_ram_set(setup_menu_icon_ram[idx], SETUP_MENU_ICON_RAM_SIZE,
+                           tbl_setup_row_icon_len[idx], row->icon);
 }
 
 static void func_setup_row_focus_refresh(f_setup_t *f_setup)
@@ -411,7 +501,7 @@ static void func_setup_row_create(compo_form_t *frm, u8 idx)
     s16 y = func_setup_row_center_y(idx);
 
     bg = func_setup_shape_create(frm, tbl_setup_row_id_bg[idx], GUI_SCREEN_CENTER_X, y,
-                                 GUI_SCREEN_WIDTH, SETUP_ROW_H, SETUP_COLOR_ROW_BG);
+                                 GUI_SCREEN_WIDTH, SETUP_ROW_H, SETUP_COLOR_ROW_BG_SEL);
     compo_shape_set_visible(bg, false);
 
     pic = compo_picturebox_create(frm, UI_SETUP_PLACEHOLDER);
@@ -433,7 +523,7 @@ static void func_setup_row_create(compo_form_t *frm, u8 idx)
     if (tbl_setup_row_id_divider[idx] != 0) {
         func_setup_shape_create(frm, tbl_setup_row_id_divider[idx], GUI_SCREEN_CENTER_X,
                                 func_setup_row_divider_y(idx), GUI_SCREEN_WIDTH, 1,
-                                SETUP_COLOR_DIVIDER);
+                                SETUP_COLOR_DIVIDER_LINE);
     }
 
     btn = compo_button_create(frm);
@@ -509,18 +599,12 @@ compo_form_t *func_setup_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_BACK);
-    compo_button_set_location(btn, 16, 28, 56, 40);
+    compo_button_set_location(btn, SETUP_BACK_BTN_X, SETUP_BACK_BTN_Y,
+                              SETUP_BACK_BTN_W, SETUP_BACK_BTN_H);
 
     txt = compo_textbox_create(frm, 16);
     compo_setid(txt, COMPO_ID_TITLE);
-    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_textbox_set_align_center(txt, true);
-    compo_textbox_set_autoroll(txt, false);
-    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
-    compo_textbox_set_location(txt, SETUP_TITLE_CENTER_X, SETUP_HEADER_Y,
-                               SETUP_TITLE_W, SETUP_TITLE_H);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, "SETUP");
+    func_setup_config_title(txt);
 
     pic = compo_picturebox_create(frm, UI_SETUP_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_BT);
@@ -541,7 +625,7 @@ compo_form_t *func_setup_form_create(void)
     compo_picturebox_set_visible(pic, false);
 
     func_setup_shape_create(frm, COMPO_ID_HEADER_DIVIDER, GUI_SCREEN_CENTER_X, SETUP_DIVIDER_Y,
-                            GUI_SCREEN_WIDTH, SETUP_DIVIDER_H, SETUP_COLOR_DIVIDER);
+                            GUI_SCREEN_WIDTH, SETUP_DIVIDER_H, SETUP_COLOR_DIVIDER_LINE);
 
     for (i = 0; i < SETUP_ROW_CNT; i++) {
         func_setup_row_create(frm, i);

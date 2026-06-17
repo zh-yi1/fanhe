@@ -10,7 +10,14 @@
 #endif
 
 /*
- * Time 设置页：返回 + 标题 + 状态栏；小时/分钟调节 + AM/PM；底部 NO / YES。
+ * Time 设置页 UI（320×240 / 466×466）：返回 + 标题 + 状态栏；时/分 + AM/PM；底部 NO/YES。
+ * 图标 bin 保持原始尺寸，不缩放。
+ *
+ * 320×240 设计图布局（严格按效果图坐标）：
+ *   顶栏 0~44：Y=22 — 返回 + "Time" + BT/锁/电量；分隔线 Y=44
+ *   时/分框中心 Y=118，框 68×42；箭头 Y=71/165；冒号 X=129
+ *   时列 X=76，分列 X=182，AM/PM X=270（AM Y=100，PM Y=136）
+ *   H/Min 为文字（与 AMm 同高 10px：H 7×10，Min 19×10）；底部 NO/YES 118×44，中心 (95,219)/(225,219)
  * PT8028：OK 逐步切换 时→分→AM/PM→底部；模式键在 AM/PM 与 NO/YES 间循环；+/- 调节时/分。
  */
 #define UI_TIMEING_PLACEHOLDER            UI_BUF_ICON_ACTIVITY_BIN
@@ -69,9 +76,16 @@
 #endif
 
 #define TIMEING_COLOR_DIVIDER             make_color(60, 60, 60)
-#define TIMEING_COLOR_ROW_BG              make_color(29, 29, 29)
 #define TIMEING_COLOR_MIN_BORDER          make_color(60, 60, 60)
 #define TIMEING_COLOR_YES                 make_color(4, 109, 217)
+
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define TIMEING_COLOR_ROW_BG              make_color(34, 34, 34)
+#define TIMEING_COLOR_DIVIDER_LINE        make_color(51, 51, 51)
+#else
+#define TIMEING_COLOR_ROW_BG              make_color(29, 29, 29)
+#define TIMEING_COLOR_DIVIDER_LINE        TIMEING_COLOR_DIVIDER
+#endif
 
 #define TIMEING_LEFT_W                    11
 #define TIMEING_LEFT_H                    17
@@ -92,48 +106,123 @@
 #define TIMEING_DIGIT_RAM_MAX_SIZE        1436
 #define TIMEING_DIGIT_SLOT_CNT            4
 
-#define TIMEING_HEADER_Y                  48
-#define TIMEING_BACK_X                    36
-#define TIMEING_TITLE_LEFT                58
-#define TIMEING_TITLE_W                   220
+#define TIMEING_REF_W                     466
+#define TIMEING_REF_H                     466
+#define TIMEING_SX(v)                     ((s16)((s32)(v) * GUI_SCREEN_WIDTH / TIMEING_REF_W))
+#define TIMEING_SY(v)                     ((s16)((s32)(v) * GUI_SCREEN_HEIGHT / TIMEING_REF_H))
+
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define TIMEING_HEADER_Y                  22
+#define TIMEING_STATUS_Y                  22
+#define TIMEING_STATUS_RIGHT_MARGIN       10
+#define TIMEING_STATUS_GAP                6
+#define TIMEING_BACK_X                    16
+#define TIMEING_BACK_BTN_X                6
+#define TIMEING_BACK_BTN_Y                4
+#define TIMEING_BACK_BTN_W                48
+#define TIMEING_BACK_BTN_H                38
+#define TIMEING_TITLE_LEFT                28
+#define TIMEING_TITLE_Y                   22
 #define TIMEING_TITLE_H                   36
-#define TIMEING_STATUS_Y                  48
-#define TIMEING_STATUS_BAT_X              (GUI_SCREEN_WIDTH - 24 - HOME_STATUS_BAT_W / 2)
-#define TIMEING_STATUS_LOCK_X             (TIMEING_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - 10 - HOME_STATUS_LOCK_W / 2)
-#define TIMEING_STATUS_BT_X               (TIMEING_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - 10 - HOME_STATUS_BT_W / 2)
-
-#define TIMEING_DIVIDER_Y                 90
+#define TIMEING_TITLE_TOP                 (TIMEING_TITLE_Y - TIMEING_TITLE_H / 2)
+#define TIMEING_DIVIDER_Y                 44
 #define TIMEING_DIVIDER_H                 1
-
-#define TIMEING_HOUR_COL_X                108
-#define TIMEING_MIN_COL_X                 268
-#define TIMEING_COLON_X                   188
-#define TIMEING_AMPM_COL_X                396
-#define TIMEING_BOX_Y                     210
-#define TIMEING_BOX_W                     96
-#define TIMEING_BOX_H                     78
+#define TIMEING_HOUR_COL_X                76
+#define TIMEING_MIN_COL_X                 182
+#define TIMEING_COLON_X                   129
+#define TIMEING_AMPM_COL_X                270
+#define TIMEING_BOX_Y                     118
+#define TIMEING_BOX_W                     78
+#define TIMEING_BOX_H                     44
+#define TIMEING_BOX_INSET                 3
 #define TIMEING_BOX_RADIUS                8
-#define TIMEING_ARROW_UP_Y                118
-#define TIMEING_ARROW_DOWN_Y              302
-#define TIMEING_AM_Y                      178
-#define TIMEING_PM_Y                      248
-#define TIMEING_DIGIT_GAP                 10
-#define TIMEING_DIGIT_Y                   (TIMEING_BOX_Y - 10)
-#define TIMEING_SUFFIX_RIGHT_PAD          6
-#define TIMEING_SUFFIX_BOTTOM_PAD         6
-#define TIMEING_SUFFIX_H_W                20
-#define TIMEING_SUFFIX_MIN_W              38
-#define TIMEING_SUFFIX_H                  20
-#define TIMEING_H_SUFFIX_LEFT             (TIMEING_HOUR_COL_X + TIMEING_BOX_W / 2 - TIMEING_SUFFIX_RIGHT_PAD - TIMEING_SUFFIX_H_W)
-#define TIMEING_MIN_SUFFIX_LEFT           (TIMEING_MIN_COL_X + TIMEING_BOX_W / 2 - TIMEING_SUFFIX_RIGHT_PAD - TIMEING_SUFFIX_MIN_W)
-#define TIMEING_SUFFIX_TOP                (TIMEING_BOX_Y + TIMEING_BOX_H / 2 - TIMEING_SUFFIX_BOTTOM_PAD - TIMEING_SUFFIX_H)
-
-#define TIMEING_BTN_W                     145
-#define TIMEING_BTN_H                     48
+#define TIMEING_ARROW_UP_Y                71
+#define TIMEING_ARROW_DOWN_Y              165
+#define TIMEING_AM_Y                      100
+#define TIMEING_PM_Y                      136
+#define TIMEING_DIGIT_GAP                 2
+#define TIMEING_SUFFIX_FONT               UI_BUF_FONT_TIMEING_SUFFIX
+#define TIMEING_SUFFIX_RIGHT_PAD          0
+#define TIMEING_SUFFIX_BOTTOM_PAD         0
+#define TIMEING_SUFFIX_DIGIT_GAP          0
+#define TIMEING_SUFFIX_H_W                7
+#define TIMEING_SUFFIX_MIN_W              19
+#define TIMEING_SUFFIX_H                  10
+#define TIMEING_ARROW_BTN_DX              18
+#define TIMEING_ARROW_BTN_DY              12
+#define TIMEING_ARROW_BTN_W               40
+#define TIMEING_ARROW_BTN_H               24
+#define TIMEING_AMPM_BTN_DX               22
+#define TIMEING_AMPM_BTN_DY               14
+#define TIMEING_AMPM_BTN_W                48
+#define TIMEING_AMPM_BTN_H                28
+#define TIMEING_BTN_W                     118
+#define TIMEING_BTN_H                     44
 #define TIMEING_BTN_RADIUS                8
-#define TIMEING_BTN_NO_X                  118
-#define TIMEING_BTN_YES_X                 348
-#define TIMEING_BTN_BOTTOM_Y              418
+#define TIMEING_BTN_NO_X                  95
+#define TIMEING_BTN_YES_X                 225
+#define TIMEING_BTN_BOTTOM_Y              219
+#else
+#define TIMEING_HEADER_Y                  TIMEING_SY(48)
+#define TIMEING_STATUS_Y                  TIMEING_SY(48)
+#define TIMEING_STATUS_RIGHT_MARGIN       TIMEING_SX(24)
+#define TIMEING_STATUS_GAP                TIMEING_SX(10)
+#define TIMEING_BACK_X                    TIMEING_SX(36)
+#define TIMEING_BACK_BTN_X                TIMEING_SX(16)
+#define TIMEING_BACK_BTN_Y                TIMEING_SY(28)
+#define TIMEING_BACK_BTN_W                TIMEING_SX(56)
+#define TIMEING_BACK_BTN_H                TIMEING_SY(40)
+#define TIMEING_TITLE_LEFT                TIMEING_SX(58)
+#define TIMEING_TITLE_Y                   TIMEING_SY(48)
+#define TIMEING_TITLE_H                   TIMEING_SY(36)
+#define TIMEING_TITLE_TOP                 (TIMEING_TITLE_Y - TIMEING_TITLE_H / 2)
+#define TIMEING_DIVIDER_Y                 TIMEING_SY(90)
+#define TIMEING_DIVIDER_H                 1
+#define TIMEING_HOUR_COL_X                TIMEING_SX(108)
+#define TIMEING_MIN_COL_X                 TIMEING_SX(268)
+#define TIMEING_COLON_X                   TIMEING_SX(188)
+#define TIMEING_AMPM_COL_X                TIMEING_SX(396)
+#define TIMEING_BOX_Y                     TIMEING_SY(210)
+#define TIMEING_BOX_W                     TIMEING_SX(96)
+#define TIMEING_BOX_H                     TIMEING_SY(78)
+#define TIMEING_BOX_INSET                 TIMEING_SX(4)
+#define TIMEING_BOX_RADIUS                TIMEING_SX(8)
+#define TIMEING_ARROW_UP_Y                TIMEING_SY(118)
+#define TIMEING_ARROW_DOWN_Y              TIMEING_SY(302)
+#define TIMEING_AM_Y                      TIMEING_SY(178)
+#define TIMEING_PM_Y                      TIMEING_SY(248)
+#define TIMEING_DIGIT_GAP                 TIMEING_SX(10)
+#define TIMEING_SUFFIX_FONT               UI_BUF_FONT_TIMEING_SUFFIX
+#define TIMEING_SUFFIX_RIGHT_PAD          0
+#define TIMEING_SUFFIX_BOTTOM_PAD         0
+#define TIMEING_SUFFIX_DIGIT_GAP          TIMEING_SX(2)
+#define TIMEING_SUFFIX_H_W                TIMEING_SX(7)
+#define TIMEING_SUFFIX_MIN_W              TIMEING_SX(19)
+#define TIMEING_SUFFIX_H                  TIMEING_SY(10)
+#define TIMEING_ARROW_BTN_DX              TIMEING_SX(24)
+#define TIMEING_ARROW_BTN_DY              TIMEING_SY(16)
+#define TIMEING_ARROW_BTN_W               TIMEING_SX(48)
+#define TIMEING_ARROW_BTN_H               TIMEING_SY(32)
+#define TIMEING_AMPM_BTN_DX               TIMEING_SX(28)
+#define TIMEING_AMPM_BTN_DY               TIMEING_SY(16)
+#define TIMEING_AMPM_BTN_W                TIMEING_SX(56)
+#define TIMEING_AMPM_BTN_H                TIMEING_SY(32)
+#define TIMEING_BTN_W                     TIMEING_SX(145)
+#define TIMEING_BTN_H                     TIMEING_SY(48)
+#define TIMEING_BTN_RADIUS                TIMEING_SX(8)
+#define TIMEING_BTN_NO_X                  TIMEING_SX(118)
+#define TIMEING_BTN_YES_X                 TIMEING_SX(348)
+#define TIMEING_BTN_BOTTOM_Y              TIMEING_SY(418)
+#define TIMEING_TITLE_W                   TIMEING_SX(220)
+#endif
+
+#define TIMEING_STATUS_BAT_X              (GUI_SCREEN_WIDTH - TIMEING_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
+#define TIMEING_STATUS_LOCK_X             (TIMEING_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - TIMEING_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
+#define TIMEING_STATUS_BT_X               (TIMEING_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - TIMEING_STATUS_GAP - HOME_STATUS_BT_W / 2)
+
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define TIMEING_TITLE_W                   (TIMEING_STATUS_BT_X - HOME_STATUS_BT_W / 2 - TIMEING_STATUS_GAP - TIMEING_TITLE_LEFT)
+#endif
 
 enum {
     TIMEING_FOCUS_HOUR = 0,
@@ -210,6 +299,8 @@ typedef struct f_timeing_t_ {
     compo_picturebox_t *pic_m1;
     compo_picturebox_t *pic_am;
     compo_picturebox_t *pic_pm;
+    compo_textbox_t *txt_h_suffix;
+    compo_textbox_t *txt_min_suffix;
 } f_timeing_t;
 
 static u8 timeing_left_ram[TIMEING_LEFT_RAM_SIZE];
@@ -237,6 +328,143 @@ static const u16 tbl_timeing_digit_w[10] = {
 static const u16 tbl_timeing_digit_h[10] = {
     34, 32, 34, 34, 32, 34, 34, 33, 34, 34,
 };
+
+typedef struct timeing_pair_layout_t_ {
+    s16 d10_x;
+    s16 d1_x;
+    s16 digit_y;
+    u16 digit_h;
+    s16 suffix_left;
+    s16 suffix_top;
+} timeing_pair_layout_t;
+
+static void func_timeing_box_bounds(s16 col_cx, s16 *left, s16 *right, s16 *top, s16 *bottom)
+{
+    *left = (s16)(col_cx - TIMEING_BOX_W / 2 + TIMEING_BOX_INSET);
+    *right = (s16)(col_cx + TIMEING_BOX_W / 2 - TIMEING_BOX_INSET);
+    *top = (s16)(TIMEING_BOX_Y - TIMEING_BOX_H / 2 + TIMEING_BOX_INSET);
+    *bottom = (s16)(TIMEING_BOX_Y + TIMEING_BOX_H / 2 - TIMEING_BOX_INSET);
+}
+
+static void func_timeing_pair_layout(s16 col_cx, u8 d10, u8 d1, s16 suffix_w, s16 suffix_h,
+                                     timeing_pair_layout_t *layout)
+{
+    s16 box_l;
+    s16 box_r;
+    s16 box_t;
+    s16 box_b;
+    u16 w10;
+    u16 w1;
+    u16 digit_h;
+    s16 group_w;
+    s16 group_left;
+    s16 group_right;
+    s16 shift;
+
+    if (layout == NULL || suffix_w <= 0 || suffix_h <= 0 || d10 > 9 || d1 > 9) {
+        return;
+    }
+
+    memset(layout, 0, sizeof(*layout));
+
+    w10 = tbl_timeing_digit_w[d10];
+    w1 = tbl_timeing_digit_w[d1];
+    digit_h = tbl_timeing_digit_h[d10];
+    if (tbl_timeing_digit_h[d1] > digit_h) {
+        digit_h = tbl_timeing_digit_h[d1];
+    }
+
+    func_timeing_box_bounds(col_cx, &box_l, &box_r, &box_t, &box_b);
+
+    group_w = (s16)(w10 + TIMEING_DIGIT_GAP + w1 + TIMEING_SUFFIX_DIGIT_GAP + suffix_w);
+    group_left = (s16)(col_cx - group_w / 2);
+
+    layout->d10_x = (s16)(group_left + w10 / 2);
+    layout->d1_x = (s16)(layout->d10_x + w10 / 2 + TIMEING_DIGIT_GAP + w1 / 2);
+    layout->digit_y = TIMEING_BOX_Y;
+    layout->digit_h = digit_h;
+    layout->suffix_left = (s16)(layout->d1_x + w1 / 2 + TIMEING_SUFFIX_DIGIT_GAP);
+    layout->suffix_top = (s16)(layout->digit_y + digit_h / 2 - suffix_h);
+
+    group_right = (s16)(layout->suffix_left + suffix_w);
+    if (group_right > box_r) {
+        shift = (s16)(box_r - group_right);
+        layout->d10_x += shift;
+        layout->d1_x += shift;
+        layout->suffix_left += shift;
+    }
+    group_left = (s16)(layout->d10_x - (s16)(w10 / 2));
+    if (group_left < box_l) {
+        shift = (s16)(box_l - group_left);
+        layout->d10_x += shift;
+        layout->d1_x += shift;
+        layout->suffix_left += shift;
+    }
+
+    if (layout->digit_y - (s16)(digit_h / 2) < box_t) {
+        layout->digit_y = (s16)(box_t + digit_h / 2);
+    }
+    if (layout->digit_y + (s16)(digit_h / 2) > box_b) {
+        layout->digit_y = (s16)(box_b - digit_h / 2);
+    }
+    layout->suffix_top = (s16)(layout->digit_y + digit_h / 2 - suffix_h);
+    if (layout->suffix_top < box_t) {
+        layout->suffix_top = box_t;
+    }
+
+    if (layout->suffix_left + suffix_w > box_r) {
+        layout->suffix_left = (s16)(box_r - suffix_w);
+        layout->d1_x = (s16)(layout->suffix_left - TIMEING_SUFFIX_DIGIT_GAP - w1 / 2);
+        layout->d10_x = (s16)(layout->d1_x - (s16)(w1 / 2) - TIMEING_DIGIT_GAP - w10 / 2);
+    }
+    if (layout->d10_x - (s16)(w10 / 2) < box_l) {
+        layout->d10_x = (s16)(box_l + w10 / 2);
+        layout->d1_x = (s16)(layout->d10_x + w10 / 2 + TIMEING_DIGIT_GAP + w1 / 2);
+        layout->suffix_left = (s16)(layout->d1_x + w1 / 2 + TIMEING_SUFFIX_DIGIT_GAP);
+        if (layout->suffix_left + suffix_w > box_r) {
+            layout->suffix_left = (s16)(box_r - suffix_w);
+        }
+    }
+}
+
+static void func_timeing_suffix_set_pos(compo_textbox_t *txt, s16 left, s16 top, s16 w, s16 h,
+                                        s16 digit_y, u16 digit_h)
+{
+    widget_text_t *widget;
+    area_t text_area;
+    s16 draw_w;
+    s16 draw_h;
+    s16 draw_top;
+
+    if (txt == NULL || w <= 0 || h <= 0) {
+        return;
+    }
+
+    widget = txt->txt;
+    text_area = widget_text_get_area(widget);
+    draw_w = w;
+    draw_h = h;
+    if (text_area.wid > 0 && text_area.wid > (u16)draw_w) {
+        draw_w = (s16)(text_area.wid + 1);
+    }
+    if (text_area.hei > 0 && text_area.hei > (u16)draw_h) {
+        draw_h = (s16)text_area.hei;
+    }
+
+    draw_top = (s16)(digit_y + (s16)(digit_h / 2) - draw_h);
+    if (draw_top < top) {
+        top = draw_top;
+    }
+
+    compo_textbox_set_location(txt, left, top, draw_w, draw_h);
+    text_area = widget_text_get_area(widget);
+    if (text_area.hei > 0 && draw_h > (s16)text_area.hei) {
+        widget_text_set_client(widget, 0, (s16)(draw_h - (s16)text_area.hei));
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
+    compo_textbox_set_visible(txt, true);
+}
 
 static bool func_timeing_gpu_ram_set(u8 *ram, u16 buf_size, u16 data_len, compo_picturebox_t *pic)
 {
@@ -297,8 +525,7 @@ static compo_shape_t *func_timeing_shape_create(compo_form_t *frm, u16 id, s16 x
     return shape;
 }
 
-static void func_timeing_config_suffix_label(compo_textbox_t *txt, const char *text,
-                                             s16 left, s16 top, s16 w, s16 h)
+static void func_timeing_config_title(compo_textbox_t *txt)
 {
     widget_text_t *widget = txt->txt;
     rect_t rect;
@@ -311,9 +538,10 @@ static void func_timeing_config_suffix_label(compo_textbox_t *txt, const char *t
     compo_textbox_set_autoroll(txt, false);
     compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
     widget_text_set_ellipsis(widget, false);
-    compo_textbox_set_location(txt, left, top, w, h);
+    compo_textbox_set_location(txt, TIMEING_TITLE_LEFT, TIMEING_TITLE_TOP,
+                               TIMEING_TITLE_W, TIMEING_TITLE_H);
     compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, text);
+    compo_textbox_set(txt, "Time");
 
     rect = widget_get_location(widget);
     text_area = widget_text_get_area(widget);
@@ -322,6 +550,24 @@ static void func_timeing_config_suffix_label(compo_textbox_t *txt, const char *t
     } else {
         widget_text_set_client(widget, 0, 0);
     }
+}
+
+static void func_timeing_config_suffix_label(compo_textbox_t *txt, const char *text,
+                                             s16 left, s16 top, s16 w, s16 h)
+{
+    widget_text_t *widget = txt->txt;
+
+    compo_textbox_set_font(txt, TIMEING_SUFFIX_FONT);
+    compo_textbox_set_align_center(txt, false);
+    widget_set_align_center(widget, false);
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+    compo_textbox_set_autosize(txt, false);
+    compo_textbox_set_forecolor(txt, COLOR_WHITE);
+    compo_textbox_set_location(txt, left, top, w, h);
+    compo_textbox_set(txt, text);
 }
 
 static void func_timeing_config_center_label(compo_textbox_t *txt, const char *text,
@@ -372,19 +618,9 @@ static bool func_timeing_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic)
     if (func_timeing_gpu_flash_to_ram(timeing_digit_ram[slot], TIMEING_DIGIT_RAM_MAX_SIZE,
                                       tbl_timeing_digit_addr[digit],
                                       tbl_timeing_digit_len[digit], pic)) {
-        compo_picturebox_set_size(pic, tbl_timeing_digit_w[digit], tbl_timeing_digit_h[digit]);
         return true;
     }
     return false;
-}
-
-static s16 func_timeing_digit10_center_x(s16 col_x, u8 d10, u8 d1, u16 suffix_reserve)
-{
-    u16 w10 = tbl_timeing_digit_w[d10];
-    u16 w1 = tbl_timeing_digit_w[d1];
-    u16 total = (u16)(w10 + TIMEING_DIGIT_GAP + w1);
-
-    return (s16)(col_x - suffix_reserve / 2 - total / 2 + w10 / 2);
 }
 
 static void func_timeing_ampm_apply(f_timeing_t *f_timeing)
@@ -418,27 +654,36 @@ static void func_timeing_digits_apply(f_timeing_t *f_timeing)
     u8 h1 = (u8)(f_timeing->disp_h % 10);
     u8 m10 = (u8)(f_timeing->min / 10);
     u8 m1 = (u8)(f_timeing->min % 10);
-    s16 hx;
-    s16 mx;
+    timeing_pair_layout_t hour_layout;
+    timeing_pair_layout_t min_layout;
 
-    hx = func_timeing_digit10_center_x(TIMEING_HOUR_COL_X, h10, h1,
-                                       (u16)(TIMEING_SUFFIX_H_W + 4));
-    mx = func_timeing_digit10_center_x(TIMEING_MIN_COL_X, m10, m1,
-                                       (u16)(TIMEING_SUFFIX_MIN_W + 4));
+    if (f_timeing == NULL) {
+        return;
+    }
+
+    func_timeing_pair_layout(TIMEING_HOUR_COL_X, h10, h1,
+                             TIMEING_SUFFIX_H_W, TIMEING_SUFFIX_H, &hour_layout);
+    func_timeing_pair_layout(TIMEING_MIN_COL_X, m10, m1,
+                             TIMEING_SUFFIX_MIN_W, TIMEING_SUFFIX_H, &min_layout);
 
     func_timeing_load_digit(0, h10, f_timeing->pic_h10);
-    compo_picturebox_set_pos(f_timeing->pic_h10, hx, TIMEING_DIGIT_Y);
+    compo_picturebox_set_pos(f_timeing->pic_h10, hour_layout.d10_x, hour_layout.digit_y);
 
-    hx += (s16)(tbl_timeing_digit_w[h10] / 2 + TIMEING_DIGIT_GAP + tbl_timeing_digit_w[h1] / 2);
     func_timeing_load_digit(1, h1, f_timeing->pic_h1);
-    compo_picturebox_set_pos(f_timeing->pic_h1, hx, TIMEING_DIGIT_Y);
+    compo_picturebox_set_pos(f_timeing->pic_h1, hour_layout.d1_x, hour_layout.digit_y);
 
     func_timeing_load_digit(2, m10, f_timeing->pic_m10);
-    compo_picturebox_set_pos(f_timeing->pic_m10, mx, TIMEING_DIGIT_Y);
+    compo_picturebox_set_pos(f_timeing->pic_m10, min_layout.d10_x, min_layout.digit_y);
 
-    mx += (s16)(tbl_timeing_digit_w[m10] / 2 + TIMEING_DIGIT_GAP + tbl_timeing_digit_w[m1] / 2);
     func_timeing_load_digit(3, m1, f_timeing->pic_m1);
-    compo_picturebox_set_pos(f_timeing->pic_m1, mx, TIMEING_DIGIT_Y);
+    compo_picturebox_set_pos(f_timeing->pic_m1, min_layout.d1_x, min_layout.digit_y);
+
+    func_timeing_suffix_set_pos(f_timeing->txt_h_suffix, hour_layout.suffix_left, hour_layout.suffix_top,
+                                TIMEING_SUFFIX_H_W, TIMEING_SUFFIX_H,
+                                hour_layout.digit_y, hour_layout.digit_h);
+    func_timeing_suffix_set_pos(f_timeing->txt_min_suffix, min_layout.suffix_left, min_layout.suffix_top,
+                                TIMEING_SUFFIX_MIN_W, TIMEING_SUFFIX_H,
+                                min_layout.digit_y, min_layout.digit_h);
 
     func_timeing_ampm_apply(f_timeing);
 }
@@ -720,20 +965,12 @@ compo_form_t *func_timeing_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_BACK);
-    compo_button_set_location(btn, 16, 28, 56, 40);
+    compo_button_set_location(btn, TIMEING_BACK_BTN_X, TIMEING_BACK_BTN_Y,
+                              TIMEING_BACK_BTN_W, TIMEING_BACK_BTN_H);
 
     txt = compo_textbox_create(frm, 8);
     compo_setid(txt, COMPO_ID_TITLE);
-    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_textbox_set_align_center(txt, false);
-    widget_set_align_center(txt->txt, false);
-    compo_textbox_set_autoroll(txt, false);
-    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
-    widget_text_set_ellipsis(txt->txt, false);
-    compo_textbox_set_location(txt, TIMEING_TITLE_LEFT, TIMEING_HEADER_Y - TIMEING_TITLE_H / 2,
-                               TIMEING_TITLE_W, TIMEING_TITLE_H);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, "Time");
+    func_timeing_config_title(txt);
 
     pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_BT);
@@ -754,7 +991,7 @@ compo_form_t *func_timeing_form_create(void)
     compo_picturebox_set_visible(pic, false);
 
     func_timeing_shape_create(frm, COMPO_ID_HEADER_DIVIDER, GUI_SCREEN_CENTER_X, TIMEING_DIVIDER_Y,
-                              GUI_SCREEN_WIDTH, TIMEING_DIVIDER_H, TIMEING_COLOR_DIVIDER, 0);
+                              GUI_SCREEN_WIDTH, TIMEING_DIVIDER_H, TIMEING_COLOR_DIVIDER_LINE, 0);
 
     func_timeing_shape_create(frm, COMPO_ID_SHAPE_HOUR_BG, TIMEING_HOUR_COL_X, TIMEING_BOX_Y,
                               TIMEING_BOX_W, TIMEING_BOX_H, TIMEING_COLOR_ROW_BG, TIMEING_BOX_RADIUS);
@@ -772,7 +1009,9 @@ compo_form_t *func_timeing_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_HOUR_UP);
-    compo_button_set_location(btn, TIMEING_HOUR_COL_X - 24, TIMEING_ARROW_UP_Y - 16, 48, 32);
+    compo_button_set_location(btn, TIMEING_HOUR_COL_X - TIMEING_ARROW_BTN_DX,
+                              TIMEING_ARROW_UP_Y - TIMEING_ARROW_BTN_DY,
+                              TIMEING_ARROW_BTN_W, TIMEING_ARROW_BTN_H);
 
     pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_HOUR_DOWN);
@@ -782,7 +1021,9 @@ compo_form_t *func_timeing_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_HOUR_DOWN);
-    compo_button_set_location(btn, TIMEING_HOUR_COL_X - 24, TIMEING_ARROW_DOWN_Y - 16, 48, 32);
+    compo_button_set_location(btn, TIMEING_HOUR_COL_X - TIMEING_ARROW_BTN_DX,
+                              TIMEING_ARROW_DOWN_Y - TIMEING_ARROW_BTN_DY,
+                              TIMEING_ARROW_BTN_W, TIMEING_ARROW_BTN_H);
 
     pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_MIN_UP);
@@ -792,7 +1033,9 @@ compo_form_t *func_timeing_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_MIN_UP);
-    compo_button_set_location(btn, TIMEING_MIN_COL_X - 24, TIMEING_ARROW_UP_Y - 16, 48, 32);
+    compo_button_set_location(btn, TIMEING_MIN_COL_X - TIMEING_ARROW_BTN_DX,
+                              TIMEING_ARROW_UP_Y - TIMEING_ARROW_BTN_DY,
+                              TIMEING_ARROW_BTN_W, TIMEING_ARROW_BTN_H);
 
     pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_MIN_DOWN);
@@ -802,7 +1045,9 @@ compo_form_t *func_timeing_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_MIN_DOWN);
-    compo_button_set_location(btn, TIMEING_MIN_COL_X - 24, TIMEING_ARROW_DOWN_Y - 16, 48, 32);
+    compo_button_set_location(btn, TIMEING_MIN_COL_X - TIMEING_ARROW_BTN_DX,
+                              TIMEING_ARROW_DOWN_Y - TIMEING_ARROW_BTN_DY,
+                              TIMEING_ARROW_BTN_W, TIMEING_ARROW_BTN_H);
 
     pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_H10);
@@ -826,16 +1071,6 @@ compo_form_t *func_timeing_form_create(void)
     compo_setid(pic, COMPO_ID_PIC_M1);
     compo_picturebox_set_visible(pic, false);
 
-    txt = compo_textbox_create(frm, 2);
-    compo_setid(txt, COMPO_ID_TXT_H_SUFFIX);
-    func_timeing_config_suffix_label(txt, "H", TIMEING_H_SUFFIX_LEFT, TIMEING_SUFFIX_TOP,
-                                     TIMEING_SUFFIX_H_W, TIMEING_SUFFIX_H);
-
-    txt = compo_textbox_create(frm, 4);
-    compo_setid(txt, COMPO_ID_TXT_MIN_SUFFIX);
-    func_timeing_config_suffix_label(txt, "Min", TIMEING_MIN_SUFFIX_LEFT, TIMEING_SUFFIX_TOP,
-                                     TIMEING_SUFFIX_MIN_W, TIMEING_SUFFIX_H);
-
     pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_AM);
     compo_picturebox_set_pos(pic, TIMEING_AMPM_COL_X, TIMEING_AM_Y);
@@ -844,7 +1079,9 @@ compo_form_t *func_timeing_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_AM);
-    compo_button_set_location(btn, TIMEING_AMPM_COL_X - 28, TIMEING_AM_Y - 16, 56, 32);
+    compo_button_set_location(btn, TIMEING_AMPM_COL_X - TIMEING_AMPM_BTN_DX,
+                              TIMEING_AM_Y - TIMEING_AMPM_BTN_DY,
+                              TIMEING_AMPM_BTN_W, TIMEING_AMPM_BTN_H);
 
     pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_PM);
@@ -854,7 +1091,17 @@ compo_form_t *func_timeing_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_PM);
-    compo_button_set_location(btn, TIMEING_AMPM_COL_X - 28, TIMEING_PM_Y - 16, 56, 32);
+    compo_button_set_location(btn, TIMEING_AMPM_COL_X - TIMEING_AMPM_BTN_DX,
+                              TIMEING_PM_Y - TIMEING_AMPM_BTN_DY,
+                              TIMEING_AMPM_BTN_W, TIMEING_AMPM_BTN_H);
+
+    txt = compo_textbox_create(frm, 2);
+    compo_setid(txt, COMPO_ID_TXT_H_SUFFIX);
+    func_timeing_config_suffix_label(txt, "H", 0, 0, TIMEING_SUFFIX_H_W, TIMEING_SUFFIX_H);
+
+    txt = compo_textbox_create(frm, 4);
+    compo_setid(txt, COMPO_ID_TXT_MIN_SUFFIX);
+    func_timeing_config_suffix_label(txt, "Min", 0, 0, TIMEING_SUFFIX_MIN_W, TIMEING_SUFFIX_H);
 
     func_timeing_shape_create(frm, COMPO_ID_SHAPE_NO_BG, TIMEING_BTN_NO_X, TIMEING_BTN_BOTTOM_Y,
                               TIMEING_BTN_W, TIMEING_BTN_H, TIMEING_COLOR_ROW_BG, TIMEING_BTN_RADIUS);
@@ -957,6 +1204,8 @@ void func_timeing_enter(void)
     f_timeing->pic_m1 = compo_getobj_byid(COMPO_ID_PIC_M1);
     f_timeing->pic_am = compo_getobj_byid(COMPO_ID_PIC_AM);
     f_timeing->pic_pm = compo_getobj_byid(COMPO_ID_PIC_PM);
+    f_timeing->txt_h_suffix = compo_getobj_byid(COMPO_ID_TXT_H_SUFFIX);
+    f_timeing->txt_min_suffix = compo_getobj_byid(COMPO_ID_TXT_MIN_SUFFIX);
 
     func_timeing_parse_rtc(&f_timeing->disp_h, &f_timeing->min, &f_timeing->is_pm);
 

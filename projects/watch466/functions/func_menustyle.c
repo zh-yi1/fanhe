@@ -20,22 +20,22 @@ typedef struct f_menustyle_t_ {
 } f_menustyle_t;
 
 static const compo_rotary_item_t tbl_rotary_item[] = {
-    [MENU_STYLE_HONEYCOMB]          = {UI_BUF_MENUSTYLE_HONEYCOMB_BIN,              STR_STYLE_HONEYCOMB},
-    [MENU_STYLE_WATERFALL]          = {UI_BUF_MENUSTYLE_WATERFALL_BIN,              STR_STYLE_WATERFALL},
-    [MENU_STYLE_CUM_HONEYGRID]      = {UI_BUF_MENUSTYLE_HONEYCOMB_BIN,              STR_STYLE_HONEYCOMB},
-    [MENU_STYLE_LIST]               = {UI_BUF_MENUSTYLE_LIST_BIN,                   STR_STYLE_LIST_1},
-    [MENU_STYLE_FOOTBALL]           = {UI_BUF_MENUSTYLE_FOOTBALL_BIN,               STR_STYLE_FOOTBALL},
-    [MENU_STYLE_SUDOKU]             = {UI_BUF_MENUSTYLE_SUDOKU_BIN,                 STR_STYLE_SUDOKU_1},
-    [MENU_STYLE_SUDOKU_HRZ]         = {UI_BUF_MENUSTYLE_SUDOKU_BIN,                 STR_STYLE_SUDOKU_2},
-    [MENU_STYLE_GRID]               = {UI_BUF_MENUSTYLE_GRID_BIN,                   STR_STYLE_GRID_1},
-    [MENU_STYLE_DISK]               = {UI_BUF_MENUSTYLE_DISK_BIN,                   STR_STYLE_DISK},
-    [MENU_STYLE_RING]               = {UI_BUF_MENUSTYLE_RING_BIN,                   STR_STYLE_RING},
-    [MENU_STYLE_KALE]               = {UI_BUF_MENUSTYLE_KALEIDOSCOPE_BIN,           STR_STYLE_KALEIDOSCOPE},
-    [MENU_STYLE_SKYRER]             = {UI_BUF_MENUSTYLE_SKYRER_BIN,                 STR_STYLE_SKYRER},
-    [MENU_STYLE_CUM_SUDOKU]         = {UI_BUF_MENUSTYLE_CUM_SUDOKU_BIN,             STR_STYLE_SUDOKU_3},
-    [MENU_STYLE_CUM_GRID]           = {UI_BUF_MENUSTYLE_CUM_GRID_BIN,               STR_STYLE_GRID_2},
-    [MENU_STYLE_CUM_HEXAGON]        = {UI_BUF_MENUSTYLE_HEXAGON_BIN,                STR_STYLE_HEXAGON},
-    [MENU_STYLE_CUM_FOURGRID]       = {UI_BUF_MENUSTYLE_LIST_FOURGRID_BIN,          STR_STYLE_LIST_2},
+    // [MENU_STYLE_HONEYCOMB]          = {UI_BUF_MENUSTYLE_HONEYCOMB_BIN,              STR_STYLE_HONEYCOMB},
+    // [MENU_STYLE_WATERFALL]          = {UI_BUF_MENUSTYLE_WATERFALL_BIN,              STR_STYLE_WATERFALL},
+    // [MENU_STYLE_CUM_HONEYGRID]      = {UI_BUF_MENUSTYLE_HONEYCOMB_BIN,              STR_STYLE_HONEYCOMB},
+    // [MENU_STYLE_LIST]               = {UI_BUF_MENUSTYLE_LIST_BIN,                   STR_STYLE_LIST_1},
+    // [MENU_STYLE_FOOTBALL]           = {UI_BUF_MENUSTYLE_FOOTBALL_BIN,               STR_STYLE_FOOTBALL},
+    // [MENU_STYLE_SUDOKU]             = {UI_BUF_MENUSTYLE_SUDOKU_BIN,                 STR_STYLE_SUDOKU_1},
+    // [MENU_STYLE_SUDOKU_HRZ]         = {UI_BUF_MENUSTYLE_SUDOKU_BIN,                 STR_STYLE_SUDOKU_2},
+    // [MENU_STYLE_GRID]               = {UI_BUF_MENUSTYLE_GRID_BIN,                   STR_STYLE_GRID_1},
+    // [MENU_STYLE_DISK]               = {UI_BUF_MENUSTYLE_DISK_BIN,                   STR_STYLE_DISK},
+    // [MENU_STYLE_RING]               = {UI_BUF_MENUSTYLE_RING_BIN,                   STR_STYLE_RING},
+    // [MENU_STYLE_KALE]               = {UI_BUF_MENUSTYLE_KALEIDOSCOPE_BIN,           STR_STYLE_KALEIDOSCOPE},
+    // [MENU_STYLE_SKYRER]             = {UI_BUF_MENUSTYLE_SKYRER_BIN,                 STR_STYLE_SKYRER},
+    // [MENU_STYLE_CUM_SUDOKU]         = {UI_BUF_MENUSTYLE_CUM_SUDOKU_BIN,             STR_STYLE_SUDOKU_3},
+    // [MENU_STYLE_CUM_GRID]           = {UI_BUF_MENUSTYLE_CUM_GRID_BIN,               STR_STYLE_GRID_2},
+    // [MENU_STYLE_CUM_HEXAGON]        = {UI_BUF_MENUSTYLE_HEXAGON_BIN,                STR_STYLE_HEXAGON},
+    // [MENU_STYLE_CUM_FOURGRID]       = {UI_BUF_MENUSTYLE_LIST_FOURGRID_BIN,          STR_STYLE_LIST_2},
 };
 
 //创建转盘，创建窗体中不要使用功能结构体 func_cb.f_cb

@@ -316,6 +316,13 @@ void tft_bglight_set_level(uint8_t level, bool stepless_en);
  **/
 void tft_bglight_frist_set_check(void);
 
+/**
+ * @brief 立即打开背光（不等待 TE 首帧），上电/唤醒时调用
+ */
+void tft_bglight_open(void);
+
+void tft_bglight_force_on(void);
+
 void tft_te_isr(void);
 
 #endif

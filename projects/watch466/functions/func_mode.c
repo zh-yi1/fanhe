@@ -4,6 +4,7 @@
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
 #include "home_top_time.h"
+#include "home_tab_label.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -12,17 +13,11 @@
 #endif
 
 /*
- * Mode 页：顶栏时间 + 绿色温度 + 状态图标；中部白色 HH:MM 倒计时；底部 Pasta/Chicken/Warm Tab。
- * PT8028：TCH3 模式键(KU_MODE)循环底部 Tab；TCH4 OK(KU_BACK)开始加热；TCH5 开关回主界面。
- * 加热 30s 自动锁屏，锁屏仅 ON/OFF 有效，右上角显示 lock.bin。
- *
- * 底部 Tab 图标（ui/home PNG -> 同名 .bin -> ui.bin）：
- *   pasta.png / chicken.png / insulation.png
- * 底部横线：
- *   while_line.png（选中）、blue_line.png（未选中）
- * 顶部绿色温度：g0.png..g9.png + gh.png（°F）-> 同名 .bin -> ui.bin。
- * 左上 RTC：0m..9m + colonm + AMm/PMm -> ui.bin（home_top_time.c）。
- * GPU 0x24150：os_spiflash_read + compo_picturebox_set_ram。
+ * Mode 页 UI（320×240 横屏设计图）：
+ *   顶栏 Y≈20：左上 RTC + 绿色温度 + 右上 BT/锁/电量
+ *   中部：白色 HH:MM 倒计时（bin 原始尺寸）
+ *   底部 Tab 80×65：Pasta / Chicken / Warm（图标 bin 原始尺寸，文字 5×7 点阵）
+ * PT8028：TCH3 模式循环 Tab；TCH4 确认开始加热；TCH5 开关回 Home；TCH0 锁键解锁童锁
  */
 #define UI_MODE_PLACEHOLDER               UI_BUF_ICON_ACTIVITY_BIN
 #define MODE_COLOR_BLUE                   make_color(4, 109, 217)
@@ -76,36 +71,69 @@
 #error "Missing battery_level.bin: add res/home/battery_level.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
-#define MODE_TAB_BTN_W                    118
-#define MODE_TAB_BTN_H                    96
-#define MODE_TAB_BTN_R                    18
-#define MODE_TAB_BTN_R_IN                 16
-#define MODE_TAB_BTN_Y                    390
-#define MODE_TAB_PAD_TOP                  12
-#define MODE_TAB_PAD_BOTTOM               10
-#define MODE_TAB_PAD_MID                  8
-#define MODE_TAB_FONT_H                   11
-#define MODE_TAB_ICON_Y                   (MODE_TAB_BTN_Y - MODE_TAB_BTN_H / 2 + MODE_TAB_PAD_TOP + MODE_TAB_ICON_MAX_H / 2)
-#define MODE_TAB_LABEL_Y                  (MODE_TAB_ICON_Y + MODE_TAB_ICON_MAX_H / 2 + MODE_TAB_PAD_MID + MODE_TAB_FONT_H / 2)
-#define MODE_TAB_DASH_Y                   (MODE_TAB_BTN_Y + MODE_TAB_BTN_H / 2 - MODE_TAB_PAD_BOTTOM - MODE_TAB_LINE_H / 2)
-#define MODE_TAB_X0                       87
-#define MODE_TAB_X1                       233
-#define MODE_TAB_X2                       379
+/* 466×466 参考布局；320×240 横屏按设计图固定坐标，图标 bin 保持原始尺寸 */
+#define MODE_REF_W                        466
+#define MODE_REF_H                        466
+#define MODE_SX(v)                        ((s16)((s32)(v) * GUI_SCREEN_WIDTH / MODE_REF_W))
+#define MODE_SY(v)                        ((s16)((s32)(v) * GUI_SCREEN_HEIGHT / MODE_REF_H))
 
-#define MODE_STATUS_Y                     48
-#define MODE_STATUS_RIGHT_MARGIN          24
-#define MODE_STATUS_GAP                   10
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define MODE_STATUS_Y                     20
+#define MODE_STATUS_RIGHT_MARGIN          10
+#define MODE_STATUS_GAP                   6
+#define MODE_STATUS_H                     18
+#define MODE_STATUS_TEMP_Y                20
+#define MODE_STATUS_TEMP_CENTER_OFFSET    (-10)
+#define MODE_TAB_BTN_W                    80
+#define MODE_TAB_BTN_H                    65
+#define MODE_TAB_BTN_R                    8
+#define MODE_TAB_BTN_R_IN                 7
+#define MODE_TAB_BTN_Y                    200
+#define MODE_TAB_PAD_TOP                  6
+#define MODE_TAB_PAD_BOTTOM               5
+#define MODE_TAB_PAD_MID                  2
+#define MODE_TAB_X0                       60
+#define MODE_TAB_X1                       160
+#define MODE_TAB_X2                       260
+#define MODE_TIMER_Y                      ((MODE_STATUS_Y + MODE_STATUS_H + MODE_TAB_BTN_Y - MODE_TAB_BTN_H / 2) / 2)
+#else
+#define MODE_STATUS_Y                     MODE_SY(48)
+#define MODE_STATUS_RIGHT_MARGIN          MODE_SX(24)
+#define MODE_STATUS_GAP                   MODE_SX(10)
+#define MODE_STATUS_H                     MODE_SY(36)
+#define MODE_STATUS_TEMP_Y                MODE_SY(48)
+#define MODE_STATUS_TEMP_CENTER_OFFSET    MODE_SX(-20)
+#define MODE_TAB_BTN_W                    MODE_SX(118)
+#define MODE_TAB_BTN_H                    MODE_SY(96)
+#define MODE_TAB_BTN_R                    MODE_SX(18)
+#define MODE_TAB_BTN_R_IN                 MODE_SX(16)
+#define MODE_TAB_BTN_Y                    MODE_SY(390)
+#define MODE_TAB_PAD_TOP                  MODE_SY(12)
+#define MODE_TAB_PAD_BOTTOM               MODE_SY(10)
+#define MODE_TAB_PAD_MID                  MODE_SY(8)
+#define MODE_TAB_X0                       MODE_SX(87)
+#define MODE_TAB_X1                       MODE_SX(233)
+#define MODE_TAB_X2                       MODE_SX(379)
+#define MODE_TIMER_Y                      MODE_SY(195)
+#endif
+
+#define MODE_TAB_ICON_Y                   (MODE_TAB_BTN_Y - MODE_TAB_BTN_H / 2 + MODE_TAB_PAD_TOP + MODE_TAB_ICON_MAX_H / 2)
+#define MODE_TAB_LABEL_W                  (MODE_TAB_BTN_W - 6)
+#define MODE_TAB_LABEL_H                  (MODE_TAB_BTN_H - MODE_TAB_PAD_TOP - MODE_TAB_ICON_MAX_H \
+                                           - MODE_TAB_PAD_MID - MODE_TAB_PAD_BOTTOM - MODE_TAB_LINE_H)
+#define MODE_TAB_LABEL_ZONE_TOP           (MODE_TAB_BTN_Y - MODE_TAB_BTN_H / 2 + MODE_TAB_PAD_TOP \
+                                           + MODE_TAB_ICON_MAX_H + MODE_TAB_PAD_MID)
+#define MODE_TAB_LABEL_Y                  (MODE_TAB_LABEL_ZONE_TOP + MODE_TAB_LABEL_H / 2)
+#define MODE_TAB_DASH_Y                   (MODE_TAB_BTN_Y + MODE_TAB_BTN_H / 2 - MODE_TAB_PAD_BOTTOM - MODE_TAB_LINE_H / 2)
+
 #define MODE_STATUS_BAT_X                 (GUI_SCREEN_WIDTH - MODE_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
 #define MODE_STATUS_LOCK_X                (MODE_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - MODE_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
 #define MODE_STATUS_BT_X                  (MODE_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - MODE_STATUS_GAP - HOME_STATUS_BT_W / 2)
 
-#define MODE_TIMER_Y                      195
 #define MODE_DIGIT_GAP                    4
-#define MODE_STATUS_TEMP_Y                48
 #define MODE_STATUS_TEMP_DIGIT_GAP        3
 #define MODE_STATUS_TEMP_NARROW_EXTRA     7   /* 含数字 1 等窄字时加宽（如 212 的 21） */
 #define MODE_STATUS_TEMP_SYMBOL_GAP       3
-#define MODE_STATUS_TEMP_CENTER_OFFSET    (-20)
 #define MODE_LOCK_MS                      30000
 #define MODE_MSG_OK                       KU_BACK
 #define MODE_MSG_POWER                    (KEY_RIGHT | KEY_SHORT_UP)
@@ -190,8 +218,51 @@ typedef struct mode_tab_ui_t_ {
     compo_picturebox_t *pic;
     compo_picturebox_t *pic_dash;
     compo_button_t *btn;
-    compo_textbox_t *label;
+    compo_picturebox_t *label;
 } mode_tab_ui_t;
+
+/* 仅在 Mode 页生命周期内分配，避免常驻 BSS 挤占 ab_malloc 动态堆 */
+static u8 *mode_tab_label_ram_ptr[MODE_TAB_CNT];
+
+static const char * const tbl_mode_tab_label[MODE_TAB_CNT] = {
+    "Pasta",
+    "Chicken",
+    "Warm",
+};
+
+static void func_mode_tab_label_ram_free(void);
+
+static bool func_mode_tab_label_ram_alloc(void)
+{
+    u8 i;
+
+    for (i = 0; i < MODE_TAB_CNT; i++) {
+        u16 sz = home_tab_label_ram_size(tbl_mode_tab_label[i]);
+
+        if (sz == 0) {
+            func_mode_tab_label_ram_free();
+            return false;
+        }
+        mode_tab_label_ram_ptr[i] = func_zalloc(sz);
+        if (mode_tab_label_ram_ptr[i] == NULL) {
+            func_mode_tab_label_ram_free();
+            return false;
+        }
+    }
+    return true;
+}
+
+static void func_mode_tab_label_ram_free(void)
+{
+    u8 i;
+
+    for (i = 0; i < MODE_TAB_CNT; i++) {
+        if (mode_tab_label_ram_ptr[i] != NULL) {
+            func_free(mode_tab_label_ram_ptr[i]);
+            mode_tab_label_ram_ptr[i] = NULL;
+        }
+    }
+}
 
 typedef struct f_mode_t_ {
     u8 tab;
@@ -303,12 +374,6 @@ static const u16 tbl_mode_status_temp_id[MODE_TEMP_IDX_CNT] = {
     COMPO_ID_PIC_STATUS_TEMP_H,
     COMPO_ID_PIC_STATUS_TEMP_T10,
     COMPO_ID_PIC_STATUS_TEMP_T1,
-};
-
-static const char * const tbl_mode_tab_label[MODE_TAB_CNT] = {
-    "Pasta",
-    "Chicken",
-    "Warm",
 };
 
 static const s16 tbl_mode_tab_x[MODE_TAB_CNT] = {
@@ -851,6 +916,24 @@ static void func_mode_tab_dash_update(f_mode_t *f_mode, u8 idx)
     }
 }
 
+static void func_mode_tab_label_apply(compo_picturebox_t *pic, u8 *ram, u16 buf_size,
+                                      const char *label, s16 cx, bool selected)
+{
+    home_tab_label_apply(pic, ram, buf_size, label, cx, MODE_TAB_LABEL_Y, selected, MODE_COLOR_BLUE);
+}
+
+static void func_mode_tab_label_update(f_mode_t *f_mode, u8 idx)
+{
+    bool selected = (idx == f_mode->tab);
+
+    if (mode_tab_label_ram_ptr[idx] == NULL) {
+        return;
+    }
+    func_mode_tab_label_apply(f_mode->tabs[idx].label, mode_tab_label_ram_ptr[idx],
+                              home_tab_label_ram_size(tbl_mode_tab_label[idx]),
+                              tbl_mode_tab_label[idx], tbl_mode_tab_x[idx], selected);
+}
+
 static void func_mode_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const char *label, s16 x)
 {
     compo_shape_t *sel_bg;
@@ -858,8 +941,8 @@ static void func_mode_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     compo_shape_t *border_in;
     compo_picturebox_t *pic;
     compo_picturebox_t *pic_dash;
+    compo_picturebox_t *pic_label;
     compo_button_t *btn;
-    compo_textbox_t *txt;
 
     sel_bg = func_mode_shape_create(frm, id_base + 0, x, MODE_TAB_BTN_Y,
                                     MODE_TAB_BTN_W, MODE_TAB_BTN_H, MODE_COLOR_BLUE, MODE_TAB_BTN_R);
@@ -878,13 +961,12 @@ static void func_mode_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     }
     compo_picturebox_set_pos(pic, x, MODE_TAB_ICON_Y);
 
-    txt = compo_textbox_create(frm, 8);
-    compo_setid(txt, id_base + 4);
-    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_textbox_set_pos(txt, x, MODE_TAB_LABEL_Y);
-    compo_textbox_set_align_center(txt, true);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, label);
+    pic_label = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
+    compo_setid(pic_label, id_base + 4);
+    compo_picturebox_set_visible(pic_label, false);
+    func_mode_tab_label_apply(pic_label, mode_tab_label_ram_ptr[idx],
+                              home_tab_label_ram_size(label), label, x,
+                              (idx == MODE_TAB_PASTA));
 
     pic_dash = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic_dash, tbl_mode_tab_dash_id[idx]);
@@ -928,6 +1010,7 @@ static void func_mode_tab_refresh(f_mode_t *f_mode)
         compo_shape_set_visible(tab->border_in, !selected);
         func_mode_tab_icon_update(f_mode, i);
         func_mode_tab_dash_update(f_mode, i);
+        func_mode_tab_label_update(f_mode, i);
     }
 }
 
@@ -1059,6 +1142,13 @@ static void func_mode_message(size_msg_t msg)
         func_mode_power_key(f_mode);
         break;
 
+    case KU_LEFT:
+        if (f_mode != NULL && f_mode->ui_state == MODE_UI_HEATING && f_mode->screen_locked) {
+            f_mode->screen_locked = false;
+            func_mode_lock_icon_apply(f_mode);
+        }
+        break;
+
     default:
         if (func_mode_key_allowed(f_mode, msg)) {
             func_message(msg);
@@ -1071,6 +1161,9 @@ void func_mode_enter(void)
 {
     f_mode_t *f_mode;
 
+    if (!func_mode_tab_label_ram_alloc()) {
+        printf("func_mode: tab label ram alloc fail\n");
+    }
     func_cb.f_cb = func_zalloc(sizeof(f_mode_t));
     func_cb.frm_main = func_mode_form_create();
 
@@ -1117,6 +1210,7 @@ void func_mode_enter(void)
 void func_mode_exit(void)
 {
     func_mode_countdown_stop();
+    func_mode_tab_label_ram_free();
     func_cb.last = FUNC_MODE;
 }
 

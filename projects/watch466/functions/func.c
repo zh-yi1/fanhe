@@ -2,6 +2,18 @@
 #include "func_menu.h"
 #include "func_tbl.h"
 #include "func.h"
+#include "func_reservation.h"
+#if ELUNCHBOX_PANEL_EN
+#include "home_ui_shared.h"
+/* ELUNCHBOX 模式：TE block 标志声明 */
+extern volatile u8 elunchbox_te_block_flag;
+#endif
+#if USER_PT8028_KEY
+#include "bsp_pt8028_key.h"
+#endif
+#if USER_PANEL_LED
+#include "port_panel_led.h"
+#endif
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -49,6 +61,89 @@ void func_watch_bt_process(void)
 }
 #endif // BT_BACKSTAGE_EN
 bool gui_get_auto_power_en(void);
+
+#if ELUNCHBOX_PANEL_EN
+static bool func_elunchbox_res_key_page_ok(void)
+{
+    switch (func_cb.sta) {
+    case FUNC_HOME:
+    case FUNC_MODE:
+    case FUNC_SETUP:
+    case FUNC_HEAT:
+    case FUNC_LANGUAGEING:
+    case FUNC_TIMEING:
+    case FUNC_VERINFO:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void func_elunchbox_switch_to_reservation(void)
+{
+#if !FUNC_RESERVATION_UI_EN
+    return;
+#endif
+    if (func_cb.sta == FUNC_RESERVATION) {
+        return;
+    }
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
+    home_gpu_wait_idle();
+    /* 关键修复：直接 destroy Home 的 frm（跳过 Home exit 的 detach 逻辑），
+     * 然后多次 GPU 同步 + 多次干净帧提交，确保 GPU 完全空闲。
+     * 这样可以避免 GPU 资源描述符冲突导致 C241。
+     */
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 1;
+#endif
+    if (func_cb.frm_main != NULL) {
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        compo_form_destroy(func_cb.frm_main);
+        home_gpu_wait_idle();
+        compos_init();
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        func_cb.frm_main = NULL;
+    }
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 0;
+#endif
+    /* 释放 Home 的 f_cb */
+    if (func_cb.f_cb != NULL) {
+        func_free(func_cb.f_cb);
+        func_cb.f_cb = NULL;
+    }
+    func_res_allow_switch = 1;
+    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
+    func_res_allow_switch = 0;
+}
+
+void func_elunchbox_res_key_poll(void)
+{
+#if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    if (pt8028_take_res_key_pending() && func_elunchbox_res_key_page_ok()) {
+        func_elunchbox_switch_to_reservation();
+    }
+#endif
+}
+#endif
+
 AT(.text.func.process)
 void func_process(void)
 {
@@ -58,10 +153,6 @@ void func_process(void)
    }
 
     WDT_CLR();
-
-#if FUNC_LUNCHBOX_UART_EN
-    lunchbox_uart_process();
-#endif
 
 #if CPU_USAGE_MONITOT_EN
     cpu_trace_monitor();
@@ -80,9 +171,26 @@ void func_process(void)
 	if (!sys_cb.gui_sleep_sta && !sys_cb.flag_halt) {
 	#endif
 
+#if ELUNCHBOX_PANEL_EN
+        bool gui_do_refresh = true;
+
+        if (sys_cb.flag_swithing) {
+            gui_do_refresh = false;
+        }
+        compo_update();
+        if (gui_do_refresh) {
+            gui_process();
+        }
+#if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
+        func_elunchbox_res_key_poll();
+#endif
+#else
         compo_update();                                     //更新组件
 
         gui_process();                                      //刷新UI
+#endif
+
+        func_reservation_poll();
 
     }
 
@@ -240,6 +348,14 @@ void func_switch_prev(bool flag_auto)
     } else {
         sta = func_cb.tbl_sort[idx - 1];
     }
+#if !FUNC_RESERVATION_UI_EN
+    if (sta == FUNC_RESERVATION) {
+#if VIDEO_PLAY_EN
+        compo_video_exit_unlock(video);
+#endif
+        return;
+    }
+#endif
 #if GUI_USE_SCREENSHOOT
     compo_form_t *frm_cur = NULL;
     func_switching3d_form_create(switch_mode, sta, &frm_cur, &frm);
@@ -312,6 +428,15 @@ void func_switch_next(bool flag_auto, bool flag_loop)
         sta = func_cb.tbl_sort[idx + 1];
     }
 
+#if !FUNC_RESERVATION_UI_EN
+    if (sta == FUNC_RESERVATION) {
+#if VIDEO_PLAY_EN
+        compo_video_exit_unlock(video);
+#endif
+        return;
+    }
+#endif
+
 #if GUI_USE_SCREENSHOOT
     compo_form_t *frm_cur = NULL;
     func_switching3d_form_create(switch_mode, sta, &frm_cur, &frm);
@@ -362,6 +487,22 @@ void func_switch_next(bool flag_auto, bool flag_loop)
 //切换
 void func_switch_to(u8 sta, u16 switch_mode)
 {
+#if !FUNC_RESERVATION_UI_EN
+    if (sta == FUNC_RESERVATION) {
+        return;
+    }
+#endif
+#if ELUNCHBOX_PANEL_EN
+#if FUNC_RESERVATION_UI_EN
+    if (sta == FUNC_RESERVATION && !func_res_allow_switch) {
+        return;
+    }
+#endif
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    home_gpu_wait_idle();
+#endif
 #if VIDEO_PLAY_EN
     compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
     compo_video_exit_lock(video);
@@ -384,15 +525,36 @@ void func_switch_to(u8 sta, u16 switch_mode)
     compo_form_destroy(frm_cur);                                      //切换完成或取消，销毁窗体
 #else
     u8 mode = switch_mode & 0x7fff;
-    if (mode != FUNC_SWITCH_FADE_OUT) {
-        frm = func_create_form(sta);                                  //创建下一个任务的窗体
+    /* ELUNCHBOX：DIRECT 和 FADE_OUT 都不在此预创建目标窗体。 */
+    if (mode != FUNC_SWITCH_FADE_OUT && mode != FUNC_SWITCH_DIRECT) {
+        frm = func_create_form(sta);
     }
 
-    bool res = func_switching(switch_mode, NULL);         			  //切换动画
+    bool res = func_switching(switch_mode, NULL);
+
+#if ELUNCHBOX_PANEL_EN
+    if (res) {
+        home_gpu_wait_idle();
+    }
+#endif
 
     if (frm) {
-        compo_form_destroy(frm);                                      //切换完成或取消，销毁窗体
+        compo_form_destroy(frm);
     }
+
+#if ELUNCHBOX_PANEL_EN
+    /* ELUNCHBOX 切页：源 frm 应该已经在 func_elunchbox_switch_to_reservation 里被 destroy 了。
+     * 这里只是额外确保（防御性编程）。
+     */
+    if ((mode == FUNC_SWITCH_DIRECT || mode == FUNC_SWITCH_FADE_OUT) && func_cb.frm_main != NULL) {
+        home_gpu_wait_idle();
+        compo_form_destroy(func_cb.frm_main);
+        home_gpu_wait_idle();
+        compos_init();
+        home_gpu_wait_idle();
+        func_cb.frm_main = NULL;
+    }
+#endif
 
 #endif
 
@@ -581,7 +743,11 @@ void func_backing_to(void)
     u8 stack_top = task_stack_pop();
 
     if (!stack_top) {
+#if ELUNCHBOX_PANEL_EN
+        stack_top = FUNC_HOME;                                  //异常返回 Home
+#else
         stack_top = FUNC_CLOCK;                                 //异常返回表盘
+#endif
     }
 
     if (stack_top == FUNC_MENU
@@ -615,7 +781,11 @@ void func_back_to(void)
     u8 stack_top = task_stack_pop();
 
     if (!stack_top) {
+#if ELUNCHBOX_PANEL_EN
+        stack_top = FUNC_HOME;                                  //异常返回 Home
+#else
         stack_top = FUNC_CLOCK;                                 //异常返回表盘
+#endif
     }
 
     if (stack_top == FUNC_MENU
@@ -844,7 +1014,9 @@ void func_message(size_msg_t msg)
         break;
 
     case MSG_CTP_COVER:
+#if !ELUNCHBOX_KEEP_AWAKE
         sys_cb.sleep_delay = 1; //100ms后进入休眠
+#endif
         break;
 
     case MSG_QDEC_FORWARD:
@@ -868,7 +1040,31 @@ void func_message(size_msg_t msg)
         }
         break;
 
+    case KU_PREV:
+        if (func_cb.sta != FUNC_HEAT) {
+            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
+        break;
+
+    case KU_NEXT:
+#if !FUNC_RESERVATION_UI_EN
+        break;
+#elif ELUNCHBOX_PANEL_EN
+        /* 饭盒：预约 UI 由 pt8028_take_res_key_pending 专用入口进入 */
+        break;
+#else
+        if (func_cb.sta != FUNC_RESERVATION) {
+            func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
+#endif
+        break;
+
     case KU_BACK:
+#if ELUNCHBOX_PANEL_EN
+        if (func_cb.sta == FUNC_HOME) {
+            break;
+        }
+#endif
         if (func_cb.flag_sort) {
             func_switch_to_clock();                     //切换回主时钟
         } else if (func_cb.sta == FUNC_CLOCK) {
@@ -888,8 +1084,20 @@ void func_message(size_msg_t msg)
             break;
 #endif
 
-        case KU_MODE:
-            func_cb.sta = FUNC_NULL;
+    case KU_MODE:
+#if ELUNCHBOX_PANEL_EN
+            if (func_cb.sta == FUNC_HOME) {
+                break;
+            }
+#endif
+            if (func_cb.sta == FUNC_HOME) {
+                func_home_mode_key();
+            } else if (func_cb.sta != FUNC_HEAT && func_cb.sta != FUNC_MODE &&
+                       func_cb.sta != FUNC_SETUP && func_cb.sta != FUNC_RESERVATION &&
+                       func_cb.sta != FUNC_TIMEING && func_cb.sta != FUNC_LANGUAGEING &&
+                       func_cb.sta != FUNC_VERINFO) {
+                func_cb.sta = FUNC_NULL;
+            }
             break;
 
         case KL_BACK:   //堆栈后台
@@ -1020,7 +1228,15 @@ void func_exit(void)
 #endif
     //销毁窗体
     if (func_cb.frm_main != NULL) {
+#if ELUNCHBOX_PANEL_EN
+        home_gpu_wait_idle();
+#endif
         compo_form_destroy(func_cb.frm_main);
+#if ELUNCHBOX_PANEL_EN
+        home_gpu_wait_idle();
+        compos_init();
+        home_gpu_wait_idle();
+#endif
     }
     //释放FUNC控制结构体
     if (func_cb.f_cb != NULL) {
@@ -1049,6 +1265,12 @@ void func_run(void)
     void (*func_entry)(void) = NULL;
     printf("%s\n", __func__);
     memset(func_cb.tbl_sort, 0, sizeof(func_cb.tbl_sort));
+#if ELUNCHBOX_PANEL_EN
+    func_cb.tbl_sort[0] = FUNC_HOME;
+    func_cb.sort_cnt = 1;
+    func_cb.flag_sort = false;
+    func_cb.sta = FUNC_HOME;
+#else
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.tbl_sort[1] = FUNC_VIDEO_SHOWLIST;
     func_cb.tbl_sort[2] = FUNC_ACTIVITY;
@@ -1058,14 +1280,22 @@ void func_run(void)
     func_cb.tbl_sort[6] = FUNC_COMPO_SELECT;
     func_cb.sort_cnt = 7;
     func_cb.sta = DEFAULE_START_FUNC;
+#endif
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
+#if ELUNCHBOX_PANEL_EN && USER_PANEL_LED
+    panel_led_set(PANEL_LED_ID_SWITCH, true);   /* 进 func_run 点亮 LED1，便于无屏时确认固件已跑 */
+#endif
     // func.c
     
     for (;;) {
+#if !ELUNCHBOX_PANEL_EN
         printf("func_enter <<\n");
+#endif
         func_enter();
+#if !ELUNCHBOX_PANEL_EN
         printf("pwrkey usage_id: %d\n", bsp_pwrkey_get_usage_id());
+#endif
         for (int i = 0; i < FUNC_ENTRY_CNT; i++) {
             if (tbl_func_entry[i].func_idx == func_cb.sta) {
                 task_stack_push(func_cb.sta);
@@ -1075,6 +1305,7 @@ void func_run(void)
                 break;
             }
         }
+#if !ELUNCHBOX_PANEL_EN
         printf("func_cb.sta:%d\n", func_cb.sta);
         if (func_cb.sta == FUNC_PWROFF) {
             printf("func_pwroff <<\n");
@@ -1082,7 +1313,13 @@ void func_run(void)
             printf("func_pwroff >>\n");
         }
         printf("func_exit <<\n");
+#endif
+        if (func_cb.sta == FUNC_PWROFF) {
+            func_pwroff(1);
+        }
         func_exit();
+#if !ELUNCHBOX_PANEL_EN
         printf("func_exit >>\n");
+#endif
     }
 }

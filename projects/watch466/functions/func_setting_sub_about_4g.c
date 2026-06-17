@@ -21,19 +21,19 @@ compo_form_t *func_set_sub_4g_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_SETTING_4G]);
+    // //设置标题栏
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_SETTING_4G]);
 
-    compo_textbox_t *txt_shake = compo_textbox_create(frm, 20);
-    compo_textbox_set_align_center(txt_shake, false);
-    compo_textbox_set_pos(txt_shake, 30, 194);
-    compo_textbox_set(txt_shake, i18n[STR_SETTING_4G_SWI]);
+    // compo_textbox_t *txt_shake = compo_textbox_create(frm, 20);
+    // compo_textbox_set_align_center(txt_shake, false);
+    // compo_textbox_set_pos(txt_shake, 30, 194);
+    // compo_textbox_set(txt_shake, i18n[STR_SETTING_4G_SWI]);
 
-    compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
-    compo_setid(btn, COMPO_ID_BIN_4G);
-    compo_button_set_pos(btn, 380, 214);
+    // compo_button_t *btn = compo_button_create_by_image(frm, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
+    // compo_setid(btn, COMPO_ID_BIN_4G);
+    // compo_button_set_pos(btn, 380, 214);
 
     return frm;
 }
@@ -41,14 +41,14 @@ compo_form_t *func_set_sub_4g_form_create(void)
 //更新显示界面
 static void func_set_sub_4g_disp(void)
 {
-    f_about_t *about = (f_about_t *)func_cb.f_cb;
-    compo_button_t *btn = compo_getobj_byid(COMPO_ID_BIN_4G);
+    // f_about_t *about = (f_about_t *)func_cb.f_cb;
+    // compo_button_t *btn = compo_getobj_byid(COMPO_ID_BIN_4G);
 
-    if (about->value) {
-        compo_button_set_bgimg(btn, UI_BUF_COMMON_SWITCH_BUTTON_ON_BIN);
-    } else {
-        compo_button_set_bgimg(btn, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
-    }
+    // if (about->value) {
+    //     compo_button_set_bgimg(btn, UI_BUF_COMMON_SWITCH_BUTTON_ON_BIN);
+    // } else {
+    //     compo_button_set_bgimg(btn, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
+    // }
 }
 
 //单击按钮
@@ -110,7 +110,7 @@ void func_set_sub_4g_enter(void)
 //退出关于功能
 void func_set_sub_4g_exit(void)
 {
-    func_cb.last = FUNC_SET_SUB_4G;
+   // func_cb.last = FUNC_SET_SUB_4G;
 }
 
 //关于功能

@@ -254,9 +254,21 @@ void gui_init(void)
     ctp_init();
 #endif // CTP_SELECT
     tft_init();
+    tft_bglight_open();
+
+#if ELUNCHBOX_PANEL_EN
+    tft_bglight_force_on();
+#endif
 
     sys_cb.sleep_en = 1;            //允许进休眠
+#if ELUNCHBOX_KEEP_AWAKE
+    sys_cb.sleep_en = 0;
     sys_cb.gui_sleep_sta = 0;
+    sys_cb.sleep_delay = -1L;
+    sys_cb.guioff_delay = -1L;
+#else
+    sys_cb.gui_sleep_sta = 0;
+#endif
 
 }
 
@@ -332,6 +344,7 @@ void gui_wakeup(void)
         ctp_init();
 #endif // CTP_SELECT
         tft_init();
+        tft_bglight_open();
         gui_widget_refresh();
         sys_cb.gui_sleep_sta = 0;
         sys_cb.gui_need_wakeup = 1;
@@ -385,7 +398,7 @@ void gui_halt(u32 halt_no)
     for (i=0; i<20000; i++) {
         asm("nop");                  //足够的延时，保证前面SPI推完
     }
-    FUNCMCON0 = (1 << 4);           //SPI0 Map To G1
+    FUNCMCON0 = (FUNCMCON0 & ((0xf << 12) | (0xf << 8))) | (1 << 4);   //保留 UART 映射
     tft_frame_start();
     for (i=0; i<GUI_SCREEN_HEIGHT; i++) {
         de_fill_rgb565(gui_lines_buf, COLOR_BLUE, GUI_SCREEN_WIDTH);

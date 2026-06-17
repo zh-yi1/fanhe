@@ -75,29 +75,29 @@ compo_form_t *func_set_sub_menu_navigation_form_create(void)
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
 
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_SETTING_MENU_NAVGAITON]);
+    // //设置标题栏
+    // compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
+    // compo_form_set_title_center(frm, true);
+    // compo_form_set_title(frm, i18n[STR_SETTING_MENU_NAVGAITON]);
 
-    //新建菜单列表
-    compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_TITLE);
-    compo_listbox_set_rect_size(listbox, GUI_SCREEN_WIDTH, 90, 60);
-    compo_listbox_set_rect_color(listbox, make_color(29, 29, 29));
-    compo_listbox_set_rect_visible(listbox, true);
-    compo_listbox_set(listbox, tbl_menu_navigation_list, MENU_NAVIGATION_LIST_CNT);
-    compo_listbox_set_item_text(listbox, GUI_SCREEN_WIDTH/2, 40, GUI_SCREEN_WIDTH, 40, true);
-    compo_setid(listbox, COMPO_ID_LISTBOX);
-    compo_listbox_set_sta_icon(listbox, UI_BUF_COMMON_HOOK_BIN, 0);
-    compo_listbox_set_sta_icon_pos(listbox, listbox->item_width - 70, 0);
-    compo_listbox_set_bithook(listbox, func_set_sub_menu_navigation_get_bit);
-    compo_listbox_set_sta_icon_top(listbox, false);
+    // //新建菜单列表
+    // compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_TITLE);
+    // compo_listbox_set_rect_size(listbox, GUI_SCREEN_WIDTH, 90, 60);
+    // compo_listbox_set_rect_color(listbox, make_color(29, 29, 29));
+    // compo_listbox_set_rect_visible(listbox, true);
+    // compo_listbox_set(listbox, tbl_menu_navigation_list, MENU_NAVIGATION_LIST_CNT);
+    // compo_listbox_set_item_text(listbox, GUI_SCREEN_WIDTH/2, 40, GUI_SCREEN_WIDTH, 40, true);
+    // compo_setid(listbox, COMPO_ID_LISTBOX);
+    // compo_listbox_set_sta_icon(listbox, UI_BUF_COMMON_HOOK_BIN, 0);
+    // compo_listbox_set_sta_icon_pos(listbox, listbox->item_width - 70, 0);
+    // compo_listbox_set_bithook(listbox, func_set_sub_menu_navigation_get_bit);
+    // compo_listbox_set_sta_icon_top(listbox, false);
 
-    compo_listbox_set_item_text(listbox, 80, 25, 380, 40, false);
-    compo_listbox_set_focus_byidx(listbox, 1);
-    compo_listbox_update(listbox);
+    // compo_listbox_set_item_text(listbox, 80, 25, 380, 40, false);
+    // compo_listbox_set_focus_byidx(listbox, 1);
+    // compo_listbox_update(listbox);
 
-    func_set_sub_menu_navigation_set_bit(sys_cb.nav_index, 1);
+    // func_set_sub_menu_navigation_set_bit(sys_cb.nav_index, 1);
     return frm;
 }
 

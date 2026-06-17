@@ -5,8 +5,13 @@
 #if (GUI_SELECT == GUI_TFT_240_ST789_i80)
 static void tft_240_st7789_i80_init(void)
 {
-    port_gpio_set_out(IO_PA7, 1);
+    port_gpio_set_out(IO_PA6, 1);
+#if !ELUNCHBOX_PANEL_EN
+//     port_gpio_set_out(IO_PA6, 1);   /* 参考板 TE/使能；饭盒 RST=PE8 TE=PE9，勿动 PA6 */
+// #endif
+// #if !ELUNCHBOX_PANEL_EN
     printf("tft_240_st7789_i80_init\n");
+#endif
     delay_ms(120);
 
     WriteComm(0x11);
@@ -20,7 +25,7 @@ static void tft_240_st7789_i80_init(void)
 
     WriteComm(0x36);
 #if GUI_SPU_ROTATE_90 == 0
-    WriteData(0xA0);
+    WriteData(0x60);
 #else
     WriteData(0x00);
 #endif

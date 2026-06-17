@@ -10,8 +10,13 @@
 #endif
 
 /*
- * Ver. Info 页：返回 + 标题 + 状态栏；中部显示版本号。
- * 图标：left + 状态栏 bluetooth/lock/battery_level
+ * Ver. Info 页 UI（320×240 / 466×466）：返回 + 标题 + 状态栏；中部显示版本号。
+ * 图标 bin 保持原始尺寸，不缩放。
+ *
+ * 320×240 设计图布局：
+ *   顶栏 0~44：Y=22 — 返回(11×17) + "Ver. Info." 左对齐 + 右上 BT/锁/电量
+ *   分隔线 Y=44
+ *   版本号 "3E 610317-V1.0" 水平/垂直居中，Y≈145（内容区 46~240 中线）
  */
 #define UI_VERINFO_PLACEHOLDER            UI_BUF_ICON_ACTIVITY_BIN
 
@@ -33,26 +38,71 @@
 
 #define VERINFO_COLOR_DIVIDER             make_color(60, 60, 60)
 
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define VERINFO_COLOR_DIVIDER_LINE        make_color(51, 51, 51)
+#else
+#define VERINFO_COLOR_DIVIDER_LINE        VERINFO_COLOR_DIVIDER
+#endif
+
 #define VERINFO_LEFT_W                    11
 #define VERINFO_LEFT_H                    17
 #define VERINFO_LEFT_RAM_SIZE             (8 + VERINFO_LEFT_W * VERINFO_LEFT_H * 2)
 
-#define VERINFO_HEADER_Y                  48
-#define VERINFO_BACK_X                    36
-#define VERINFO_TITLE_LEFT                58
-#define VERINFO_TITLE_W                   220
-#define VERINFO_TITLE_H                   36
-#define VERINFO_STATUS_Y                  48
-#define VERINFO_STATUS_BAT_X              (GUI_SCREEN_WIDTH - 24 - HOME_STATUS_BAT_W / 2)
-#define VERINFO_STATUS_LOCK_X             (VERINFO_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - 10 - HOME_STATUS_LOCK_W / 2)
-#define VERINFO_STATUS_BT_X               (VERINFO_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - 10 - HOME_STATUS_BT_W / 2)
+#define VERINFO_REF_W                     466
+#define VERINFO_REF_H                     466
+#define VERINFO_SX(v)                     ((s16)((s32)(v) * GUI_SCREEN_WIDTH / VERINFO_REF_W))
+#define VERINFO_SY(v)                     ((s16)((s32)(v) * GUI_SCREEN_HEIGHT / VERINFO_REF_H))
 
-#define VERINFO_DIVIDER_Y                 90
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define VERINFO_HEADER_Y                  22
+#define VERINFO_STATUS_Y                  22
+#define VERINFO_STATUS_RIGHT_MARGIN       10
+#define VERINFO_STATUS_GAP                6
+#define VERINFO_BACK_X                    16
+#define VERINFO_BACK_BTN_X                6
+#define VERINFO_BACK_BTN_Y                4
+#define VERINFO_BACK_BTN_W                48
+#define VERINFO_BACK_BTN_H                38
+#define VERINFO_TITLE_LEFT                28
+#define VERINFO_TITLE_Y                   22
+#define VERINFO_TITLE_H                   36
+#define VERINFO_TITLE_TOP                 (VERINFO_TITLE_Y - VERINFO_TITLE_H / 2)
+#define VERINFO_DIVIDER_Y                 44
 #define VERINFO_DIVIDER_H                 1
-#define VERINFO_CONTENT_TOP               (VERINFO_DIVIDER_Y + VERINFO_DIVIDER_H / 2 + 4)
+#define VERINFO_CONTENT_TOP               46
 #define VERINFO_CONTENT_Y                 ((VERINFO_CONTENT_TOP + GUI_SCREEN_HEIGHT) / 2)
-#define VERINFO_VERSION_W                 420
-#define VERINFO_VERSION_H                 40
+#define VERINFO_VERSION_W                 (GUI_SCREEN_WIDTH - 16)
+#define VERINFO_VERSION_H                 36
+#else
+#define VERINFO_HEADER_Y                  VERINFO_SY(48)
+#define VERINFO_STATUS_Y                  VERINFO_SY(48)
+#define VERINFO_STATUS_RIGHT_MARGIN       VERINFO_SX(24)
+#define VERINFO_STATUS_GAP                VERINFO_SX(10)
+#define VERINFO_BACK_X                    VERINFO_SX(36)
+#define VERINFO_BACK_BTN_X                VERINFO_SX(16)
+#define VERINFO_BACK_BTN_Y                VERINFO_SY(28)
+#define VERINFO_BACK_BTN_W                VERINFO_SX(56)
+#define VERINFO_BACK_BTN_H                VERINFO_SY(40)
+#define VERINFO_TITLE_LEFT                VERINFO_SX(58)
+#define VERINFO_TITLE_Y                   VERINFO_SY(48)
+#define VERINFO_TITLE_H                   VERINFO_SY(36)
+#define VERINFO_TITLE_TOP                 (VERINFO_TITLE_Y - VERINFO_TITLE_H / 2)
+#define VERINFO_DIVIDER_Y                 VERINFO_SY(90)
+#define VERINFO_DIVIDER_H                 1
+#define VERINFO_CONTENT_TOP               (VERINFO_DIVIDER_Y + VERINFO_DIVIDER_H / 2 + VERINFO_SY(4))
+#define VERINFO_CONTENT_Y                 ((VERINFO_CONTENT_TOP + GUI_SCREEN_HEIGHT) / 2)
+#define VERINFO_TITLE_W                   VERINFO_SX(220)
+#define VERINFO_VERSION_W                 VERINFO_SX(420)
+#define VERINFO_VERSION_H                 VERINFO_SY(40)
+#endif
+
+#define VERINFO_STATUS_BAT_X              (GUI_SCREEN_WIDTH - VERINFO_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
+#define VERINFO_STATUS_LOCK_X             (VERINFO_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - VERINFO_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
+#define VERINFO_STATUS_BT_X               (VERINFO_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - VERINFO_STATUS_GAP - HOME_STATUS_BT_W / 2)
+
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define VERINFO_TITLE_W                   (VERINFO_STATUS_BT_X - HOME_STATUS_BT_W / 2 - VERINFO_STATUS_GAP - VERINFO_TITLE_LEFT)
+#endif
 
 #ifndef VERINFO_VERSION_STR
 #define VERINFO_VERSION_STR               "3E 610317-V1.0"
@@ -81,6 +131,60 @@ typedef struct f_verinfo_t_ {
 } f_verinfo_t;
 
 static u8 verinfo_left_ram[VERINFO_LEFT_RAM_SIZE];
+
+static void func_verinfo_config_title(compo_textbox_t *txt)
+{
+    widget_text_t *widget = txt->txt;
+    rect_t rect;
+    area_t text_area;
+
+    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
+    compo_textbox_set_align_center(txt, false);
+    widget_set_align_center(widget, false);
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+    compo_textbox_set_location(txt, VERINFO_TITLE_LEFT, VERINFO_TITLE_TOP,
+                               VERINFO_TITLE_W, VERINFO_TITLE_H);
+    compo_textbox_set_forecolor(txt, COLOR_WHITE);
+    compo_textbox_set(txt, "Ver. Info.");
+
+    rect = widget_get_location(widget);
+    text_area = widget_text_get_area(widget);
+    if (rect.hei > text_area.hei) {
+        widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
+}
+
+static void func_verinfo_config_version(compo_textbox_t *txt)
+{
+    widget_text_t *widget = txt->txt;
+    rect_t rect;
+    area_t text_area;
+
+    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
+    compo_textbox_set_align_center(txt, true);
+    widget_set_align_center(widget, true);
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, VERINFO_CONTENT_Y,
+                               VERINFO_VERSION_W, VERINFO_VERSION_H);
+    compo_textbox_set_forecolor(txt, COLOR_WHITE);
+    compo_textbox_set(txt, VERINFO_VERSION_STR);
+
+    rect = widget_get_location(widget);
+    text_area = widget_text_get_area(widget);
+    if (rect.hei > text_area.hei) {
+        widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
+}
 
 static bool func_verinfo_gpu_ram_set(u8 *ram, u16 buf_size, u16 data_len, compo_picturebox_t *pic)
 {
@@ -186,20 +290,12 @@ compo_form_t *func_verinfo_form_create(void)
 
     btn = compo_button_create(frm);
     compo_setid(btn, COMPO_ID_BTN_BACK);
-    compo_button_set_location(btn, 16, 28, 56, 40);
+    compo_button_set_location(btn, VERINFO_BACK_BTN_X, VERINFO_BACK_BTN_Y,
+                              VERINFO_BACK_BTN_W, VERINFO_BACK_BTN_H);
 
     txt = compo_textbox_create(frm, 16);
     compo_setid(txt, COMPO_ID_TITLE);
-    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_textbox_set_align_center(txt, false);
-    widget_set_align_center(txt->txt, false);
-    compo_textbox_set_autoroll(txt, false);
-    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
-    widget_text_set_ellipsis(txt->txt, false);
-    compo_textbox_set_location(txt, VERINFO_TITLE_LEFT, VERINFO_HEADER_Y - VERINFO_TITLE_H / 2,
-                               VERINFO_TITLE_W, VERINFO_TITLE_H);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, "Ver. Info.");
+    func_verinfo_config_title(txt);
 
     pic = compo_picturebox_create(frm, UI_VERINFO_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_BT);
@@ -220,19 +316,11 @@ compo_form_t *func_verinfo_form_create(void)
     compo_picturebox_set_visible(pic, false);
 
     func_verinfo_shape_create(frm, COMPO_ID_HEADER_DIVIDER, GUI_SCREEN_CENTER_X, VERINFO_DIVIDER_Y,
-                              GUI_SCREEN_WIDTH, VERINFO_DIVIDER_H, VERINFO_COLOR_DIVIDER);
+                              GUI_SCREEN_WIDTH, VERINFO_DIVIDER_H, VERINFO_COLOR_DIVIDER_LINE);
 
     txt = compo_textbox_create(frm, 32);
     compo_setid(txt, COMPO_ID_VERSION);
-    compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_ASC_BIN);
-    compo_textbox_set_align_center(txt, true);
-    compo_textbox_set_autoroll(txt, false);
-    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
-    widget_text_set_ellipsis(txt->txt, false);
-    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, VERINFO_CONTENT_Y,
-                               VERINFO_VERSION_W, VERINFO_VERSION_H);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set(txt, VERINFO_VERSION_STR);
+    func_verinfo_config_version(txt);
 
     return frm;
 }

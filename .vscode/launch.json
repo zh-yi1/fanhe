@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "d:/C_Code/fanhe/elunchbox/projects/watch466/functions",
-      "program": "d:/C_Code/fanhe/elunchbox/projects/watch466/functions/build/Debug/outDebug",
+      "cwd": "d:/C_Code/fanhe/elunchbox/platform/bsp",
+      "program": "d:/C_Code/fanhe/elunchbox/platform/bsp/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

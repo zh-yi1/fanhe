@@ -48,33 +48,33 @@ compo_form_t *func_set_sub_password_form_create(void)
 
     //创建按钮
     compo_button_t *btn;
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
-    compo_setid(btn, COMPO_ID_BIN_OFF);
-    compo_button_set_pos(btn, 388, 140);
-    compo_button_set_visible(btn, false);
-
-    if (sys_cb.password_cnt != 4) {
-        compo_button_set_visible(btn, true);
-    }
-
-    btn = compo_button_create_by_image(frm, UI_BUF_COMMON_SWITCH_BUTTON_ON_BIN);
-    compo_setid(btn, COMPO_ID_BIN_ON);
-    compo_button_set_pos(btn, 388, 140);
-    compo_button_set_visible(btn, false);
-
-    if (sys_cb.password_cnt == 4) {
-        compo_button_set_visible(btn, true);
-    }
-
-    btn = compo_button_create(frm);
-    compo_setid(btn, COMPO_ID_BIN_CHANGE);
-    compo_button_set_location(btn, 390, 210, 60, 60);
+    // btn = compo_button_create_by_image(frm, UI_BUF_COMMON_SWITCH_BUTTON_OFF_BIN);
+    // compo_setid(btn, COMPO_ID_BIN_OFF);
+    // compo_button_set_pos(btn, 388, 140);
     // compo_button_set_visible(btn, false);
 
-    if (sys_cb.password_cnt == 4) {
-        compo_button_set_visible(btn, true);
-        compo_form_add_image(frm, UI_BUF_SETTING_PASSWORD_OPEN_BIN, 390, 210);
-    }
+    // if (sys_cb.password_cnt != 4) {
+    //     compo_button_set_visible(btn, true);
+    // }
+
+    // btn = compo_button_create_by_image(frm, UI_BUF_COMMON_SWITCH_BUTTON_ON_BIN);
+    // compo_setid(btn, COMPO_ID_BIN_ON);
+    // compo_button_set_pos(btn, 388, 140);
+    // compo_button_set_visible(btn, false);
+
+    // if (sys_cb.password_cnt == 4) {
+    //     compo_button_set_visible(btn, true);
+    // }
+
+    // btn = compo_button_create(frm);
+    // compo_setid(btn, COMPO_ID_BIN_CHANGE);
+    // compo_button_set_location(btn, 390, 210, 60, 60);
+    // // compo_button_set_visible(btn, false);
+
+    // if (sys_cb.password_cnt == 4) {
+    //     compo_button_set_visible(btn, true);
+    //    // compo_form_add_image(frm, UI_BUF_SETTING_PASSWORD_OPEN_BIN, 390, 210);
+    // }
 
     return frm;
 }

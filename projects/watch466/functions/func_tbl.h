@@ -331,6 +331,7 @@ extern void func_languageing(void);
 extern void func_verinfo(void);
 void func_home_process(void);
 void func_home_message(size_msg_t msg);
+void func_home_mode_key(void);
 
 extern void func_music(void);
 extern void func_music_src(void);

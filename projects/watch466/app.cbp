@@ -405,6 +405,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_key.h" />
+		<Unit filename="../../platform/bsp/bsp_pt8028_key.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_pt8028_key.h" />
 		<Unit filename="../../platform/bsp/bsp_map.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1395,12 +1399,20 @@
 		<Unit filename="functions/home_ui_shared.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/home_tab_label.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/home_tab_label.h" />
 		<Unit filename="functions/home_top_time.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/home_ui_ram.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/home_ui_gpu_detach.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/home_ui_gpu_detach.h" />
 		<Unit filename="functions/func_light.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1416,6 +1428,7 @@
 		<Unit filename="functions/func_reservation.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_reservation.h" />
 		<Unit filename="functions/func_setup.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1637,6 +1650,14 @@
 		<Unit filename="port/port_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="port/port_pt8028_key.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="port/port_pt8028_key.h" />
+		<Unit filename="port/port_panel_led.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="port/port_panel_led.h" />
 		<Unit filename="port/port_mute.c">
 			<Option compilerVar="CC" />
 		</Unit>
