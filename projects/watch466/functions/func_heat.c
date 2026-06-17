@@ -929,6 +929,10 @@ static void func_heat_message(size_msg_t msg)
 {
     f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
 
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+
     switch (msg) {
     case HEAT_MSG_OK:
         func_heat_ok_key(f_heat);

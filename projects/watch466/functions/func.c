@@ -94,40 +94,13 @@ void func_elunchbox_switch_to_reservation(void)
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
 #endif
-    home_gpu_wait_idle();
-    /* 关键修复：直接 destroy Home 的 frm（跳过 Home exit 的 detach 逻辑），
-     * 然后多次 GPU 同步 + 多次干净帧提交，确保 GPU 完全空闲。
-     * 这样可以避免 GPU 资源描述符冲突导致 C241。
+    /* 与加热/模式/设置子页一致：FADE_OUT 切页 + func_exit 统一销毁源 frm。
+     * 勿在 func_home_process 内抢先 destroy/free（易 use-after-free / 长时间阻塞触发 WDT）。
      */
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 1;
-#endif
-    if (func_cb.frm_main != NULL) {
-        home_gpu_wait_idle();
-        os_gui_draw_force();
-        home_gpu_wait_idle();
-        os_gui_draw_force();
-        home_gpu_wait_idle();
-        compo_form_destroy(func_cb.frm_main);
-        home_gpu_wait_idle();
-        compos_init();
-        home_gpu_wait_idle();
-        os_gui_draw_force();
-        home_gpu_wait_idle();
-        os_gui_draw_force();
-        home_gpu_wait_idle();
-        func_cb.frm_main = NULL;
-    }
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 0;
-#endif
-    /* 释放 Home 的 f_cb */
-    if (func_cb.f_cb != NULL) {
-        func_free(func_cb.f_cb);
-        func_cb.f_cb = NULL;
-    }
+    home_gpu_wait_idle();
+    WDT_CLR();
     func_res_allow_switch = 1;
-    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
+    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
     func_res_allow_switch = 0;
 }
 
@@ -177,6 +150,13 @@ void func_process(void)
         if (sys_cb.flag_swithing) {
             gui_do_refresh = false;
         }
+#if USER_PT8028_KEY
+        /* Home 在 func_home_process 内扫键；子页（加热/模式/设置/预约等）须在此扫键 */
+        if (func_cb.sta != FUNC_HOME) {
+            pt8028_gpio_ensure_periodic();
+            pt8028_key_scan();
+        }
+#endif
         compo_update();
         if (gui_do_refresh) {
             gui_process();
@@ -543,9 +523,7 @@ void func_switch_to(u8 sta, u16 switch_mode)
     }
 
 #if ELUNCHBOX_PANEL_EN
-    /* ELUNCHBOX 切页：源 frm 应该已经在 func_elunchbox_switch_to_reservation 里被 destroy 了。
-     * 这里只是额外确保（防御性编程）。
-     */
+    /* ELUNCHBOX DIRECT/FADE_OUT：切页成功后销毁源 frm，compos_init 清 GPU 池 */
     if ((mode == FUNC_SWITCH_DIRECT || mode == FUNC_SWITCH_FADE_OUT) && func_cb.frm_main != NULL) {
         home_gpu_wait_idle();
         compo_form_destroy(func_cb.frm_main);

@@ -1231,16 +1231,17 @@ void func_home_process(void)
 
     func_process();
 
-    if (f_home != NULL) {
-        func_home_status_refresh(f_home);
+    if (func_cb.sta != FUNC_HOME || func_cb.f_cb == NULL) {
+        return;
     }
+    func_home_status_refresh((f_home_t *)func_cb.f_cb);
 }
 
 void func_home_message(size_msg_t msg)
 {
     f_home_t *f_home = (f_home_t *)func_cb.f_cb;
 
-    if (msg == NO_MSG) {
+    if (msg == NO_MSG || func_cb.sta != FUNC_HOME) {
         return;
     }
 
@@ -1326,6 +1327,9 @@ void func_home_enter(void)
     }
     func_cb.f_cb = func_zalloc(sizeof(f_home_t));
     func_cb.frm_main = func_home_form_create();
+#if ELUNCHBOX_PANEL_EN
+    tft_bglight_force_on();
+#endif
 
     f_home = (f_home_t *)func_cb.f_cb;
     f_home->tab = HOME_TAB_HEAT;
@@ -1339,6 +1343,7 @@ void func_home_enter(void)
 
     func_home_tab_icons_cache_load();
     func_home_tab_refresh(f_home);
+    WDT_CLR();
     os_gui_draw_force();
     home_gpu_wait_idle();
     tft_bglight_force_on();
@@ -1376,8 +1381,9 @@ void func_home_enter(void)
     os_gui_draw_force();
     home_gpu_wait_idle();
     tft_bglight_force_on();
+    WDT_CLR();
 #if ELUNCHBOX_PANEL_EN
-    home_gui_dirty = 0;
+    home_gui_dirty = 1;
     pt8028_release_clear();
 #endif
 }
