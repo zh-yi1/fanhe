@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# crc — 饭盒协议校验和计算
+# 用法: crc 55aa00000e00000101
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec bash "$SCRIPT_DIR/checksum.sh" "$@"

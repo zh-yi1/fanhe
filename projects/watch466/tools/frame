@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# frame — 饭盒协议帧解析
+# 用法: frame 55aa00000e000001010f
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec bash "$SCRIPT_DIR/parse_frame.sh" "$@"

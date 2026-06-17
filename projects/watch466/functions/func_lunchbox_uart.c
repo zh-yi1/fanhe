@@ -134,7 +134,7 @@ static bool lb_frame_parse(void)
     };
 
     // ──── UART 收包日志 ────
-    printf("UART==>RX [%d]: ", total);
+    printf("UART==>RX[%d]: ", total);
     for (u16 i = 0; i < total; i++) printf("%02X ", lb_rx_buf[i]);
     printf("\n");
 
@@ -1018,14 +1018,14 @@ void   lunchbox_ble_rx_handle(u8 *data, u16 len)
         lb_handler_product_info(&frame);
     } else {
         // 其他命令 → 原帧透传到串口给加热模块
-        printf("UART==>TX [%d]: ", len);
+        printf("UART==>TX[%d]: ", len);
         for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
         printf("\n");
         uart_bufs_tx(UART_TYPE_1, data, len);
     }
 #else
     // ──── 本地模式：原帧转发到串口 + 解析分发给 cmd_handler ────
-    printf("UART==>TX [%d]: ", len);
+    printf("UART==>TX[%d]: ", len);
     for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
     printf("\n");
     uart_bufs_tx(UART_TYPE_1, data, len);
