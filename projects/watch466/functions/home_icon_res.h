@@ -61,7 +61,7 @@
 #define MODE_STATUS_TEMPF_W             HOME_STATUS_TEMPF_W
 #define MODE_STATUS_TEMPF_H             HOME_STATUS_TEMPF_H
 
-/* func_heat.c: w0x=白字时, b0x=灰字分/温度, wbx=冒号, bhx=灰°F */
+/* func_heat.c: w0x=白字时, b0x=灰字, wbx=冒号, whx+wsx=白°F, bhx=灰°F */
 #define HEAT_W_DIGIT_MAX_H              61
 #define HEAT_B_DIGIT_MAX_H              61
 #define HEAT_W_DIGIT_RAM_MAX_SIZE       4522
@@ -109,6 +109,12 @@
 #define HEAT_WBX_W                      9
 #define HEAT_WBX_H                      61
 #define HEAT_WBX_RAM_SIZE               1106
+#define HEAT_WHX_W                      18
+#define HEAT_WHX_H                      49
+#define HEAT_WHX_RAM_SIZE               1772
+#define HEAT_WSX_W                      28
+#define HEAT_WSX_H                      49
+#define HEAT_WSX_RAM_SIZE               2752
 #define HEAT_BHX_W                      50
 #define HEAT_BHX_H                      49
 #define HEAT_BHX_RAM_SIZE               4908
@@ -145,6 +151,13 @@
 #define HOME_TOP_TIME_PMM_W                 17
 #define HOME_TOP_TIME_PMM_H                 10
 #define HOME_TOP_TIME_AMPM_RAM_MAX_SIZE     388
+
+/* Time setting page H/Min suffix (same visual size as AMm/PMm) */
+#define HOME_TIMEING_HM_W                 7
+#define HOME_TIMEING_HM_H                 10
+#define HOME_TIMEING_MINM_W               19
+#define HOME_TIMEING_MINM_H               10
+#define HOME_TIMEING_SUFFIX_RAM_MAX_SIZE  388
 
 /* Mode tab icons/lines (tools/gen_mode_icons.py) */
 #define MODE_TAB_PASTA_W                 38

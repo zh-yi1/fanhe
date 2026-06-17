@@ -194,124 +194,136 @@
 #define UI_BUF_HOME_HEAT_SEL_BIN                   UI_ADDR_BASE(0x487db)
 #define UI_LEN_HOME_HEAT_SEL_BIN                   0x548
 
-#define UI_BUF_HOME_INFO_BIN                       UI_ADDR_BASE(0x48d23)
+#define UI_BUF_HOME_HM_BIN                         UI_ADDR_BASE(0x48d23)
+#define UI_LEN_HOME_HM_BIN                         0x94
+
+#define UI_BUF_HOME_INFO_BIN                       UI_ADDR_BASE(0x48db7)
 #define UI_LEN_HOME_INFO_BIN                       0x628
 
-#define UI_BUF_HOME_INSULATION_BIN                 UI_ADDR_BASE(0x4934b)
+#define UI_BUF_HOME_INSULATION_BIN                 UI_ADDR_BASE(0x493df)
 #define UI_LEN_HOME_INSULATION_BIN                 0x660
 
-#define UI_BUF_HOME_LANGUAGE_BIN                   UI_ADDR_BASE(0x499ab)
+#define UI_BUF_HOME_LANGUAGE_BIN                   UI_ADDR_BASE(0x49a3f)
 #define UI_LEN_HOME_LANGUAGE_BIN                   0x628
 
-#define UI_BUF_HOME_LEFT_BIN                       UI_ADDR_BASE(0x49fd3)
+#define UI_BUF_HOME_LEFT_BIN                       UI_ADDR_BASE(0x4a067)
 #define UI_LEN_HOME_LEFT_BIN                       0x17e
 
-#define UI_BUF_HOME_LOCK_BIN                       UI_ADDR_BASE(0x4a151)
+#define UI_BUF_HOME_LOCK_BIN                       UI_ADDR_BASE(0x4a1e5)
 #define UI_LEN_HOME_LOCK_BIN                       0x1a8
 
-#define UI_BUF_HOME_MODE_BIN                       UI_ADDR_BASE(0x4a2f9)
+#define UI_BUF_HOME_MINM_BIN                       UI_ADDR_BASE(0x4a38d)
+#define UI_LEN_HOME_MINM_BIN                       0x184
+
+#define UI_BUF_HOME_MODE_BIN                       UI_ADDR_BASE(0x4a511)
 #define UI_LEN_HOME_MODE_BIN                       0x418
 
-#define UI_BUF_HOME_MODE_SEL_BIN                   UI_ADDR_BASE(0x4a711)
+#define UI_BUF_HOME_MODE_SEL_BIN                   UI_ADDR_BASE(0x4a929)
 #define UI_LEN_HOME_MODE_SEL_BIN                   0x418
 
-#define UI_BUF_HOME_NO_BIN                         UI_ADDR_BASE(0x4ab29)
+#define UI_BUF_HOME_NO_BIN                         UI_ADDR_BASE(0x4ad41)
 #define UI_LEN_HOME_NO_BIN                         0x28d0
 
-#define UI_BUF_HOME_PASTA_BIN                      UI_ADDR_BASE(0x4d3f9)
+#define UI_BUF_HOME_PASTA_BIN                      UI_ADDR_BASE(0x4d611)
 #define UI_LEN_HOME_PASTA_BIN                      0x8a4
 
-#define UI_BUF_HOME_PMM_BIN                        UI_ADDR_BASE(0x4dc9d)
+#define UI_BUF_HOME_PMM_BIN                        UI_ADDR_BASE(0x4deb5)
 #define UI_LEN_HOME_PMM_BIN                        0x15c
 
-#define UI_BUF_HOME_RIGHT_BIN                      UI_ADDR_BASE(0x4ddf9)
+#define UI_BUF_HOME_RIGHT_BIN                      UI_ADDR_BASE(0x4e011)
 #define UI_LEN_HOME_RIGHT_BIN                      0xf2
 
-#define UI_BUF_HOME_SETUP_BIN                      UI_ADDR_BASE(0x4deeb)
+#define UI_BUF_HOME_SETUP_BIN                      UI_ADDR_BASE(0x4e103)
 #define UI_LEN_HOME_SETUP_BIN                      0x550
 
-#define UI_BUF_HOME_SETUP_SEL_BIN                  UI_ADDR_BASE(0x4e43b)
+#define UI_BUF_HOME_SETUP_SEL_BIN                  UI_ADDR_BASE(0x4e653)
 #define UI_LEN_HOME_SETUP_SEL_BIN                  0x550
 
-#define UI_BUF_HOME_TIME_BIN                       UI_ADDR_BASE(0x4e98b)
+#define UI_BUF_HOME_TIME_BIN                       UI_ADDR_BASE(0x4eba3)
 #define UI_LEN_HOME_TIME_BIN                       0x628
 
-#define UI_BUF_HOME_UP_BIN                         UI_ADDR_BASE(0x4efb3)
+#define UI_BUF_HOME_UP_BIN                         UI_ADDR_BASE(0x4f1cb)
 #define UI_LEN_HOME_UP_BIN                         0x1b8
 
-#define UI_BUF_HOME_W0M_BIN                        UI_ADDR_BASE(0x4f16b)
+#define UI_BUF_HOME_W0M_BIN                        UI_ADDR_BASE(0x4f383)
 #define UI_LEN_HOME_W0M_BIN                        0x558
 
-#define UI_BUF_HOME_W0X_BIN                        UI_ADDR_BASE(0x4f6c3)
+#define UI_BUF_HOME_W0X_BIN                        UI_ADDR_BASE(0x4f8db)
 #define UI_LEN_HOME_W0X_BIN                        0x11aa
 
-#define UI_BUF_HOME_W1M_BIN                        UI_ADDR_BASE(0x5086d)
+#define UI_BUF_HOME_W1M_BIN                        UI_ADDR_BASE(0x50a85)
 #define UI_LEN_HOME_W1M_BIN                        0x148
 
-#define UI_BUF_HOME_W1X_BIN                        UI_ADDR_BASE(0x509b5)
+#define UI_BUF_HOME_W1X_BIN                        UI_ADDR_BASE(0x50bcd)
 #define UI_LEN_HOME_W1X_BIN                        0x342
 
-#define UI_BUF_HOME_W2M_BIN                        UI_ADDR_BASE(0x50cf7)
+#define UI_BUF_HOME_W2M_BIN                        UI_ADDR_BASE(0x50f0f)
 #define UI_LEN_HOME_W2M_BIN                        0x558
 
-#define UI_BUF_HOME_W2X_BIN                        UI_ADDR_BASE(0x5124f)
+#define UI_BUF_HOME_W2X_BIN                        UI_ADDR_BASE(0x51467)
 #define UI_LEN_HOME_W2X_BIN                        0x11aa
 
-#define UI_BUF_HOME_W3M_BIN                        UI_ADDR_BASE(0x523f9)
+#define UI_BUF_HOME_W3M_BIN                        UI_ADDR_BASE(0x52611)
 #define UI_LEN_HOME_W3M_BIN                        0x514
 
-#define UI_BUF_HOME_W3X_BIN                        UI_ADDR_BASE(0x5290d)
+#define UI_BUF_HOME_W3X_BIN                        UI_ADDR_BASE(0x52b25)
 #define UI_LEN_HOME_W3X_BIN                        0x1130
 
-#define UI_BUF_HOME_W4M_BIN                        UI_ADDR_BASE(0x53a3d)
+#define UI_BUF_HOME_W4M_BIN                        UI_ADDR_BASE(0x53c55)
 #define UI_LEN_HOME_W4M_BIN                        0x508
 
-#define UI_BUF_HOME_W4X_BIN                        UI_ADDR_BASE(0x53f45)
+#define UI_BUF_HOME_W4X_BIN                        UI_ADDR_BASE(0x5415d)
 #define UI_LEN_HOME_W4X_BIN                        0x1116
 
-#define UI_BUF_HOME_W5_BIN                         UI_ADDR_BASE(0x5505b)
+#define UI_BUF_HOME_W5_BIN                         UI_ADDR_BASE(0x55273)
 #define UI_LEN_HOME_W5_BIN                         0x558
 
-#define UI_BUF_HOME_W5X_BIN                        UI_ADDR_BASE(0x555b3)
+#define UI_BUF_HOME_W5X_BIN                        UI_ADDR_BASE(0x557cb)
 #define UI_LEN_HOME_W5X_BIN                        0x11aa
 
-#define UI_BUF_HOME_W6M_BIN                        UI_ADDR_BASE(0x5675d)
+#define UI_BUF_HOME_W6M_BIN                        UI_ADDR_BASE(0x56975)
 #define UI_LEN_HOME_W6M_BIN                        0x59c
 
-#define UI_BUF_HOME_W6X_BIN                        UI_ADDR_BASE(0x56cf9)
+#define UI_BUF_HOME_W6X_BIN                        UI_ADDR_BASE(0x56f11)
 #define UI_LEN_HOME_W6X_BIN                        0x11aa
 
-#define UI_BUF_HOME_W7M_BIN                        UI_ADDR_BASE(0x57ea3)
+#define UI_BUF_HOME_W7M_BIN                        UI_ADDR_BASE(0x580bb)
 #define UI_LEN_HOME_W7M_BIN                        0x4ee
 
-#define UI_BUF_HOME_W7X_BIN                        UI_ADDR_BASE(0x58391)
+#define UI_BUF_HOME_W7X_BIN                        UI_ADDR_BASE(0x585a9)
 #define UI_LEN_HOME_W7X_BIN                        0x10e8
 
-#define UI_BUF_HOME_W8M_BIN                        UI_ADDR_BASE(0x59479)
+#define UI_BUF_HOME_W8M_BIN                        UI_ADDR_BASE(0x59691)
 #define UI_LEN_HOME_W8M_BIN                        0x558
 
-#define UI_BUF_HOME_W8X_BIN                        UI_ADDR_BASE(0x599d1)
+#define UI_BUF_HOME_W8X_BIN                        UI_ADDR_BASE(0x59be9)
 #define UI_LEN_HOME_W8X_BIN                        0x11aa
 
-#define UI_BUF_HOME_W9M_BIN                        UI_ADDR_BASE(0x5ab7b)
+#define UI_BUF_HOME_W9M_BIN                        UI_ADDR_BASE(0x5ad93)
 #define UI_LEN_HOME_W9M_BIN                        0x558
 
-#define UI_BUF_HOME_W9X_BIN                        UI_ADDR_BASE(0x5b0d3)
+#define UI_BUF_HOME_W9X_BIN                        UI_ADDR_BASE(0x5b2eb)
 #define UI_LEN_HOME_W9X_BIN                        0x11aa
 
-#define UI_BUF_HOME_WBX_BIN                        UI_ADDR_BASE(0x5c27d)
+#define UI_BUF_HOME_WBX_BIN                        UI_ADDR_BASE(0x5c495)
 #define UI_LEN_HOME_WBX_BIN                        0x452
 
-#define UI_BUF_HOME_WCM_BIN                        UI_ADDR_BASE(0x5c6cf)
+#define UI_BUF_HOME_WCM_BIN                        UI_ADDR_BASE(0x5c8e7)
 #define UI_LEN_HOME_WCM_BIN                        0x12a
 
-#define UI_BUF_HOME_WHILE_LINE_BIN                 UI_ADDR_BASE(0x5c7f9)
+#define UI_BUF_HOME_WHILE_LINE_BIN                 UI_ADDR_BASE(0x5ca11)
 #define UI_LEN_HOME_WHILE_LINE_BIN                 0x80
 
-#define UI_BUF_HOME_YES_BIN                        UI_ADDR_BASE(0x5c879)
+#define UI_BUF_HOME_WHX_BIN                        UI_ADDR_BASE(0x5ca91)
+#define UI_LEN_HOME_WHX_BIN                        0x6ec
+
+#define UI_BUF_HOME_WSX_BIN                        UI_ADDR_BASE(0x5d17d)
+#define UI_LEN_HOME_WSX_BIN                        0xac0
+
+#define UI_BUF_HOME_YES_BIN                        UI_ADDR_BASE(0x5dc3d)
 #define UI_LEN_HOME_YES_BIN                        0x28d0
 
-#define UI_BUF_ICON_ACTIVITY_BIN                   UI_ADDR_BASE(0x5f149)
+#define UI_BUF_ICON_ACTIVITY_BIN                   UI_ADDR_BASE(0x6050d)
 #define UI_LEN_ICON_ACTIVITY_BIN                   0x20f7
 
 #endif

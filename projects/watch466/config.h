@@ -89,7 +89,7 @@
  * Module    : FLASH配置
  *****************************************************************************/
 #define FLASH_DISK_EN                   1                                                   //是否支持FLASH DISK 功能
-#define FLASH_SIZE                      FSIZE_8M                                            //根据芯片信息配置实际FLASH SIZE
+#define FLASH_SIZE                      FSIZE_4M                                            //根据芯片信息配置实际FLASH SIZE
 #define FLASH_CODE_BASE_SIZE            0x1C0000                                            //代码区(须<=FLASH_UI_BASE-0x2000)
 #define FLASH_UI_BASE                   0x200000                                            //UI资源起始地址(最小值为FLASH_CODE_SIZE)
 #define FLASH_UI_SIZE                   0x100000                                            //UI资源大小(ui.bin的大小)
@@ -116,7 +116,7 @@
 /*****************************************************************************
  * Module    : 屏幕驱动配置
  *****************************************************************************/
-#define GUI_SELECT                       //GUI_OLED_466_ICNA3310B    		//GUI Display Select
+#define GUI_SELECT                      GUI_TFT_240_ST789_i80   // 饭盒 320x240 I8080
 
 #if (GUI_SELECT == GUI_TFT_240_ST789_i80)
 #define PORT_TFT_INT                    IO_PE9                      //TE
@@ -196,7 +196,7 @@
 
 #if ELUNCHBOX_PANEL_EN
 #define ELUNCHBOX_KEEP_AWAKE            1           /* 禁止自动熄屏/深度休眠 */
-#define FUNC_RESERVATION_UI_EN          0           /* 0=关闭所有预约界面入口 */
+#define FUNC_RESERVATION_UI_EN          1           /* 1=预约键(TCH7)可进预约页 */
 /* 日志走全局 UART0_PRINTF_SEL（PRINTF_PB3 / PRINTF_NONE）；TRACE_EN 仅控各文件 TRACE() 宏 */
 /* LEVEL_HIGH_PRI 定时器在 tmr 线程执行；饭盒须保持 BT_EMIT_EN=0，避免额外高优先级 co_timer */
 /* 保持 FUNC_BT_EN=1，否则 libapp(rf.c) 缺 rfphy_* / modem_init 链接符号 */

@@ -45,6 +45,8 @@ NATIVE_DIGIT_ITEMS = [
     *(f"w{d}x.png" for d in range(10)),
     *(f"b{d}x.png" for d in range(10)),
     "wbx.png",
+    "whx.png",
+    "wsx.png",
     "bhx.png",
 ]
 
@@ -199,6 +201,40 @@ def require_src(name: str) -> Path:
     return path
 
 
+def recolor_fg_white(im: Image.Image) -> Image.Image:
+    out = im.copy()
+    px = out.load()
+    w, h = out.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 32 or (r, g, b) == (0, 0, 0):
+                continue
+            px[x, y] = (255, 255, 255, a)
+    return out
+
+
+def ensure_heat_sym_pngs() -> None:
+    """Synthesize whx/wsx from bhx when designer PNGs are not yet provided."""
+    bhx = SRC_DIR / "bhx.png"
+    if not bhx.exists():
+        return
+
+    im = Image.open(bhx).convert("RGBA")
+    w, h = im.size
+    # bhx: ° 占 0..17，18..21 为留白，F 从 22 起
+    deg_box = (0, 0, min(18, w), h)
+    suf_box = (min(22, w), 0, w, h)
+
+    for out_name, box in (("whx.png", deg_box), ("wsx.png", suf_box)):
+        path = SRC_DIR / out_name
+        if path.exists():
+            continue
+        crop = im.crop(box)
+        recolor_fg_white(crop).save(path)
+        print(f"generated {out_name} from bhx.png crop {box}")
+
+
 def require_time_src(name: str) -> Path:
     for base in (BIN_DIR, SRC_DIR):
         path = base / name
@@ -329,6 +365,7 @@ def timeing_suffix_block() -> str:
 
 def main() -> None:
     ensure_src_layout()
+    ensure_heat_sym_pngs()
     keep: set[str] = set()
     digit_max_size = 0
     colon_size = 0
@@ -427,6 +464,20 @@ def main() -> None:
             f"#define HEAT_WBX_W                      {w}\n"
             f"#define HEAT_WBX_H                      {h}\n"
             f"#define HEAT_WBX_RAM_SIZE               {sz}\n"
+        )
+    if "whx" in heat_sizes:
+        w, h, sz = heat_sizes["whx"]
+        heat_detail += (
+            f"#define HEAT_WHX_W                      {w}\n"
+            f"#define HEAT_WHX_H                      {h}\n"
+            f"#define HEAT_WHX_RAM_SIZE               {sz}\n"
+        )
+    if "wsx" in heat_sizes:
+        w, h, sz = heat_sizes["wsx"]
+        heat_detail += (
+            f"#define HEAT_WSX_W                      {w}\n"
+            f"#define HEAT_WSX_H                      {h}\n"
+            f"#define HEAT_WSX_RAM_SIZE               {sz}\n"
         )
     if "bhx" in heat_sizes:
         w, h, sz = heat_sizes["bhx"]
@@ -535,7 +586,7 @@ def main() -> None:
                 "#define MODE_STATUS_TEMPF_W             HOME_STATUS_TEMPF_W",
                 "#define MODE_STATUS_TEMPF_H             HOME_STATUS_TEMPF_H",
                 "",
-                "/* func_heat.c: w0x=白字时, b0x=灰字分/温度, wbx=冒号, bhx=灰°F */",
+                "/* func_heat.c: w0x=白字时, b0x=灰字, wbx=冒号, whx+wsx=白°F, bhx=灰°F */",
                 f"#define HEAT_W_DIGIT_MAX_H              {heat_w_max_h}",
                 f"#define HEAT_B_DIGIT_MAX_H              {heat_b_max_h}",
                 f"#define HEAT_W_DIGIT_RAM_MAX_SIZE       {heat_w_digit_max}",

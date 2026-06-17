@@ -229,6 +229,8 @@ bool func_video_allow_warning_tone(void);
 void func_home_gui_mark_dirty(void);
 bool func_home_gui_need_refresh(void);
 extern u8 func_res_allow_switch;
+void func_elunchbox_switch_to_reservation(void);
+void func_elunchbox_res_key_poll(void);
 void func_home_switch_to_reservation(void);
 #endif
 

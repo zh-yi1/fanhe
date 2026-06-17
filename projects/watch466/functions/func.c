@@ -59,6 +59,53 @@ void func_watch_bt_process(void)
 }
 #endif // BT_BACKSTAGE_EN
 bool gui_get_auto_power_en(void);
+
+#if ELUNCHBOX_PANEL_EN
+static bool func_elunchbox_res_key_page_ok(void)
+{
+    switch (func_cb.sta) {
+    case FUNC_HOME:
+    case FUNC_MODE:
+    case FUNC_SETUP:
+    case FUNC_HEAT:
+    case FUNC_LANGUAGEING:
+    case FUNC_TIMEING:
+    case FUNC_VERINFO:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void func_elunchbox_switch_to_reservation(void)
+{
+#if !FUNC_RESERVATION_UI_EN
+    return;
+#endif
+    if (func_cb.sta == FUNC_RESERVATION) {
+        return;
+    }
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    func_res_allow_switch = 1;
+    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    func_res_allow_switch = 0;
+}
+
+void func_elunchbox_res_key_poll(void)
+{
+#if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    if (pt8028_take_res_key_pending() && func_elunchbox_res_key_page_ok()) {
+        func_elunchbox_switch_to_reservation();
+    }
+#endif
+}
+#endif
+
 AT(.text.func.process)
 void func_process(void)
 {
@@ -73,13 +120,7 @@ void func_process(void)
     pt8028_gpio_ensure_periodic();
 #if ELUNCHBOX_PANEL_EN
     pt8028_key_scan();
-#if FUNC_RESERVATION_UI_EN
-    if (pt8028_take_res_key_pending() && func_cb.sta != FUNC_RESERVATION) {
-        func_res_allow_switch = 1;
-        func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-        func_res_allow_switch = 0;
-    }
-#endif
+    
 #endif
     pt8028_log_flush();
     pt8028_poll_reinit();
@@ -116,13 +157,16 @@ void func_process(void)
 #if ELUNCHBOX_PANEL_EN
         bool gui_do_refresh = true;
 
-        if (func_cb.sta == FUNC_HOME) {
-            gui_do_refresh = func_home_gui_need_refresh();
+        if (sys_cb.flag_swithing) {
+            gui_do_refresh = false;
         }
         compo_update();
         if (gui_do_refresh) {
             gui_process();
         }
+#if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
+        func_elunchbox_res_key_poll();
+#endif
 #else
         compo_update();                                     //更新组件
 
@@ -434,6 +478,9 @@ void func_switch_to(u8 sta, u16 switch_mode)
         return;
     }
 #endif
+    if (sys_cb.flag_swithing) {
+        return;
+    }
     home_gpu_wait_idle();
 #endif
 #if VIDEO_PLAY_EN
@@ -463,6 +510,12 @@ void func_switch_to(u8 sta, u16 switch_mode)
     }
 
     bool res = func_switching(switch_mode, NULL);         			  //切换动画
+
+#if ELUNCHBOX_PANEL_EN
+    if (res) {
+        home_gpu_wait_idle();
+    }
+#endif
 
     if (frm) {
         compo_form_destroy(frm);                                      //切换完成或取消，销毁窗体
@@ -1140,6 +1193,9 @@ void func_exit(void)
 #endif
     //销毁窗体
     if (func_cb.frm_main != NULL) {
+#if ELUNCHBOX_PANEL_EN
+        home_gpu_wait_idle();
+#endif
         compo_form_destroy(func_cb.frm_main);
     }
     //释放FUNC控制结构体

@@ -1026,6 +1026,10 @@ u8 get_pt8028_key(void)
             }
             if (tch <= PT8028_KEY_TCH6) {
                 pt8028_emit_release(tch);
+#if FUNC_RESERVATION_UI_EN
+            } else if (tch == PT8028_KEY_TCH7) {
+                pt8028_cb.res_key_pending = 1;
+#endif
             } else if (!pt8028_cb.press_emitted) {
                 /* Hold 无效且按下阶段无有效键 */
             } else {

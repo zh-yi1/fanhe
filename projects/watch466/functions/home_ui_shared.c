@@ -38,4 +38,5 @@ void home_ui_shared_dash_init(void)
 void home_gpu_wait_idle(void)
 {
     os_gui_draw_w4_done();
+    os_gui_draw_w4_done();
 }

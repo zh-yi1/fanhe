@@ -9,4 +9,8 @@
 extern u8 home_ui_digit_ram[HOME_UI_DIGIT_SLOTS][HOME_DIGIT_RAM_MAX_SIZE];
 extern u8 home_ui_colon_ram[HOME_COLON_RAM_SIZE];
 
+/* 预约页专用，与 Home 倒计时数字/冒号分离，避免切页时 GPU 读 home_ui_* 触发 C241 */
+extern u8 res_ui_digit_ram[HOME_UI_DIGIT_SLOTS][HOME_DIGIT_RAM_MAX_SIZE];
+extern u8 res_ui_colon_ram[HOME_COLON_RAM_SIZE];
+
 #endif
