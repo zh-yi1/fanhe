@@ -5,6 +5,7 @@
 #include "home_ui_shared.h"
 #include "home_top_time.h"
 #include "home_tab_label.h"
+#include "home_ui_gpu_detach.h"
 #include "func_reservation.h"
 
 #if USER_PANEL_LED
@@ -1074,7 +1075,7 @@ u8 func_res_allow_switch;
 #endif
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-static void func_home_drain_stale_key_msgs(void)
+void func_home_drain_stale_key_msgs(void)
 {
     msg_queue_detach(KU_NEXT, 0);
     msg_queue_detach(KU_MODE, 0);
@@ -1381,6 +1382,37 @@ void func_home_enter(void)
 #endif
 }
 
+void func_home_gpu_detach_for_leave(void)
+{
+    f_home_t *f_home = (f_home_t *)func_cb.f_cb;
+    u8 i;
+
+    if (f_home == NULL) {
+        return;
+    }
+
+    home_gpu_wait_idle();
+    home_top_time_gpu_detach(&f_home->top_time);
+
+    for (i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
+        home_ui_gpu_pic_detach(f_home->pic_clock[i]);
+    }
+    home_ui_gpu_pic_detach(f_home->pic_clock_colon);
+    home_ui_gpu_pic_detach(f_home->pic_bt);
+    home_ui_gpu_pic_detach(f_home->pic_lock);
+    home_ui_gpu_pic_detach(f_home->pic_bat);
+
+    for (i = 0; i < HOME_TAB_CNT; i++) {
+        home_ui_gpu_pic_detach(f_home->tabs[i].pic);
+        home_ui_gpu_pic_detach(f_home->tabs[i].label);
+        if (f_home->tabs[i].line != NULL) {
+            compo_shape_set_visible(f_home->tabs[i].line, false);
+        }
+    }
+
+    home_gpu_wait_idle();
+}
+
 void func_home_exit(void)
 {
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -1390,6 +1422,11 @@ void func_home_exit(void)
 #if USER_PANEL_LED
     panel_led_all_off();
 #endif
+    /* ELUNCHBOX 模式：完全跳过 detach 操作。
+     * GPU 资源释放由 common exit 里的 frm destroy + compos_init 负责。
+     * detach 操作可能导致 GPU 资源描述符不一致 → C241。
+     */
+    home_ui_digit_pool_reset();
     func_home_tab_label_ram_free();
     func_cb.last = FUNC_HOME;
 }

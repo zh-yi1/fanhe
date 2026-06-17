@@ -11,6 +11,9 @@
 
 static tft_cb_t tft_cb;
 
+/* ELUNCHBOX 模式：TE block 标志，用于在关键 GPU 操作期间屏蔽 TE 中断的 os_gui_draw */
+volatile u8 elunchbox_te_block_flag = 0;
+
 tft_cb_t* tft_get_tft_cb(void)
 {
     return &tft_cb;
@@ -27,7 +30,15 @@ static void tft_te_refresh(void)
     if (!gui_get_screenshot())
 #endif
 	{
+#if ELUNCHBOX_PANEL_EN
+        /* ELUNCHBOX 模式：如果 TE block 标志设置，跳过 os_gui_draw，避免在关键 GPU 操作期间冲突 */
+        extern volatile u8 elunchbox_te_block_flag;
+        if (!elunchbox_te_block_flag) {
+            os_gui_draw();
+        }
+#else
         os_gui_draw();
+#endif
     }
 }
 

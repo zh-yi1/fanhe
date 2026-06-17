@@ -5,6 +5,12 @@
 #include "home_top_time.h"
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
+#include "home_ui_gpu_detach.h"
+
+#if ELUNCHBOX_PANEL_EN
+/* ELUNCHBOX 模式：TE block 标志声明 */
+extern volatile u8 elunchbox_te_block_flag;
+#endif
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #endif
@@ -350,7 +356,10 @@ static const u16 tbl_res_temp_id[RES_TEMP_IDX_CNT] = {
     COMPO_ID_PIC_TEMP_H, COMPO_ID_PIC_TEMP_T10, COMPO_ID_PIC_TEMP_T1,
 };
 
-/* 禁止用 ICON_ACTIVITY 占位图创建（会显示圆环），用 0 创建后仅 set_ram 显示 bin */
+/* 传 0 作为 placeholder，完全不绑定初始资源。
+ * 所有内容在 content 阶段用 home_ui_pic_set_flash 绑定 ui.bin。
+ * 这样 form_create 不会占用任何 GPU 资源描述符，避免切页时的资源冲突。
+ */
 static compo_picturebox_t *func_res_pic_create_hidden(compo_form_t *frm, u16 id)
 {
     compo_picturebox_t *pic = compo_picturebox_create(frm, 0);
@@ -368,14 +377,16 @@ static void func_res_hide_appt_ui(f_reservation_t *f_res)
         return;
     }
 
+    /* 仅隐藏，不做 set_ram(0)。本页使用 flash 直绑（compo_picturebox_set + ui.bin），
+     * set_ram(0) 会把 pic 切到无效 ram@0 模式，导致后续 draw（即使 visible=false 的 pic 被遍历）时 C241。
+     * 真正释放用 detach 只在 exit 里做（frm 即将销毁）。
+     */
+    home_gpu_wait_idle();
     for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
-        if (f_res->pic_appt[i] != NULL) {
-            compo_picturebox_set_visible(f_res->pic_appt[i], false);
-        }
+        if (f_res->pic_appt[i]) compo_picturebox_set_visible(f_res->pic_appt[i], false);
     }
-    if (f_res->pic_appt_colon != NULL) {
-        compo_picturebox_set_visible(f_res->pic_appt_colon, false);
-    }
+    if (f_res->pic_appt_colon) compo_picturebox_set_visible(f_res->pic_appt_colon, false);
+    home_gpu_wait_idle();
 }
 
 static void func_res_appt_bind_digits(f_reservation_t *f_res)
@@ -400,25 +411,17 @@ static void func_res_hide_heat_temp_ui(f_reservation_t *f_res)
         return;
     }
 
+    home_gpu_wait_idle();
     for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
-        if (f_res->pic_heat[i] != NULL) {
-            compo_picturebox_set_visible(f_res->pic_heat[i], false);
-        }
+        if (f_res->pic_heat[i]) compo_picturebox_set_visible(f_res->pic_heat[i], false);
     }
-    if (f_res->pic_heat_colon != NULL) {
-        compo_picturebox_set_visible(f_res->pic_heat_colon, false);
-    }
+    if (f_res->pic_heat_colon) compo_picturebox_set_visible(f_res->pic_heat_colon, false);
     for (i = 0; i < RES_TEMP_IDX_CNT; i++) {
-        if (f_res->pic_temp[i] != NULL) {
-            compo_picturebox_set_visible(f_res->pic_temp[i], false);
-        }
+        if (f_res->pic_temp[i]) compo_picturebox_set_visible(f_res->pic_temp[i], false);
     }
-    if (f_res->pic_temp_degf != NULL) {
-        compo_picturebox_set_visible(f_res->pic_temp_degf, false);
-    }
-    if (f_res->pic_temp_suffix != NULL) {
-        compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
-    }
+    if (f_res->pic_temp_degf) compo_picturebox_set_visible(f_res->pic_temp_degf, false);
+    if (f_res->pic_temp_suffix) compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
+    home_gpu_wait_idle();
 }
 
 static bool func_res_gpu_ram(u8 *ram, u16 buf_size, u32 addr, u16 len, compo_picturebox_t *pic)
@@ -536,20 +539,19 @@ static void func_res_info_text_update(f_reservation_t *f_res)
 
 static void func_res_status_icons_apply(f_reservation_t *f_res)
 {
-    home_ui_shared_status_init();
-
-    if (f_res->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 1;
+#endif
+    home_ui_status_apply_flash(f_res->pic_bt, f_res->pic_lock, f_res->pic_bat, false);
+    if (f_res->pic_bt != NULL) {
         compo_picturebox_set_pos(f_res->pic_bt, RES_STATUS_BT_X, RES_STATUS_Y);
-        compo_picturebox_set_ram(f_res->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f_res->pic_bt, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
-        compo_picturebox_set_visible(f_res->pic_bt, true);
     }
-    if (f_res->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
+    if (f_res->pic_bat != NULL) {
         compo_picturebox_set_pos(f_res->pic_bat, RES_STATUS_BAT_X, RES_STATUS_Y);
-        compo_picturebox_set_ram(f_res->pic_bat, home_ui_shared_status_bat_ram);
-        compo_picturebox_set_size(f_res->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
-        compo_picturebox_set_visible(f_res->pic_bat, true);
     }
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 0;
+#endif
 }
 
 static void func_res_lock_icon_apply(f_reservation_t *f_res)
@@ -558,12 +560,10 @@ static void func_res_lock_icon_apply(f_reservation_t *f_res)
         return;
     }
 
-    if ((f_res->ui == RES_UI_HEATING) && f_res->screen_locked
-        && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+    if ((f_res->ui == RES_UI_HEATING) && f_res->screen_locked) {
         compo_picturebox_set_pos(f_res->pic_lock, RES_STATUS_LOCK_X, RES_STATUS_Y);
-        compo_picturebox_set_ram(f_res->pic_lock, home_ui_shared_status_lock_ram);
-        compo_picturebox_set_size(f_res->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-        compo_picturebox_set_visible(f_res->pic_lock, true);
+        home_ui_pic_set_flash(f_res->pic_lock, UI_BUF_HOME_LOCK_BIN,
+                              HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
     } else {
         compo_picturebox_set_visible(f_res->pic_lock, false);
     }
@@ -574,24 +574,18 @@ static void func_res_top_time_hide(home_top_time_ui_t *ui)
     if (ui == NULL) {
         return;
     }
-    if (ui->pic_h10 != NULL) {
-        compo_picturebox_set_visible(ui->pic_h10, false);
-    }
-    if (ui->pic_h1 != NULL) {
-        compo_picturebox_set_visible(ui->pic_h1, false);
-    }
-    if (ui->pic_colon != NULL) {
-        compo_picturebox_set_visible(ui->pic_colon, false);
-    }
-    if (ui->pic_m10 != NULL) {
-        compo_picturebox_set_visible(ui->pic_m10, false);
-    }
-    if (ui->pic_m1 != NULL) {
-        compo_picturebox_set_visible(ui->pic_m1, false);
-    }
-    if (ui->pic_ampm != NULL) {
-        compo_picturebox_set_visible(ui->pic_ampm, false);
-    }
+    /* 轻量隐藏：只 visible=false + 失效缓存。不要调用完整 gpu_detach（它会 set_ram(0) 毒害 flash 直绑的 pic）。
+     * 完整 detach（含 set_ram(0)）只在 exit 做。
+     */
+    home_gpu_wait_idle();
+    if (ui->pic_h10) compo_picturebox_set_visible(ui->pic_h10, false);
+    if (ui->pic_h1) compo_picturebox_set_visible(ui->pic_h1, false);
+    if (ui->pic_colon) compo_picturebox_set_visible(ui->pic_colon, false);
+    if (ui->pic_m10) compo_picturebox_set_visible(ui->pic_m10, false);
+    if (ui->pic_m1) compo_picturebox_set_visible(ui->pic_m1, false);
+    if (ui->pic_ampm) compo_picturebox_set_visible(ui->pic_ampm, false);
+    ui->last_key = 0;
+    home_gpu_wait_idle();
 }
 
 static void func_res_top_time_refresh(f_reservation_t *f_res, tm_t *tm)
@@ -606,7 +600,7 @@ static void func_res_top_time_refresh(f_reservation_t *f_res, tm_t *tm)
         return;
     }
 
-    home_top_time_refresh(&f_res->top_time, tm);
+    home_top_time_refresh_flash(&f_res->top_time, tm);
 }
 
 static void func_res_appt_layout(f_reservation_t *f_res, u8 hour, u8 min)
@@ -654,30 +648,18 @@ static void func_res_appt_update(f_reservation_t *f_res)
     digits[RES_TIMER_IDX_M1] = f_res->appt_min % 10;
     key = (u16)f_res->appt_hour * 100 + f_res->appt_min;
 
-    /* 中部大号时间冒号：colon.bin（与 func_home / func_mode 相同） */
-    home_gpu_wait_idle();
-    os_spiflash_read(home_ui_colon_ram, UI_BUF_HOME_COLON_BIN, UI_LEN_HOME_COLON_BIN);
-    if (f_res->pic_appt_colon != NULL && gui_set_ram_check(home_ui_colon_ram, __func__)) {
-        compo_picturebox_set_ram(f_res->pic_appt_colon, home_ui_colon_ram);
-        compo_picturebox_set_visible(f_res->pic_appt_colon, true);
-    } else if (f_res->pic_appt_colon != NULL) {
-        compo_picturebox_set_visible(f_res->pic_appt_colon, false);
+    if (f_res->last_appt_key != key) {
+        f_res->last_appt_key = key;
     }
+
+    home_ui_pic_set_flash(f_res->pic_appt_colon, UI_BUF_HOME_COLON_BIN,
+                          RES_APPT_COLON_W, RES_APPT_COLON_H);
 
     for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
         u8 d = digits[i];
 
-        os_spiflash_read(home_ui_digit_ram[i], tbl_res_appt_digit_addr[d], tbl_res_appt_digit_len[d]);
-        if (gui_set_ram_check(home_ui_digit_ram[i], __func__)) {
-            compo_picturebox_set_ram(f_res->pic_appt[i], home_ui_digit_ram[i]);
-            compo_picturebox_set_visible(f_res->pic_appt[i], true);
-        } else if (f_res->pic_appt[i] != NULL) {
-            compo_picturebox_set_visible(f_res->pic_appt[i], false);
-        }
-    }
-
-    if (f_res->last_appt_key != key) {
-        f_res->last_appt_key = key;
+        home_ui_pic_set_flash(f_res->pic_appt[i], tbl_res_appt_digit_addr[d],
+                              RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
     }
 
     func_res_appt_layout(f_res, f_res->appt_hour, f_res->appt_min);
@@ -755,14 +737,12 @@ static void func_res_heat_timer_update(f_reservation_t *f_res, u8 hour, u8 min,
     u8 i;
 
     if (f_res->ui == RES_UI_APPT_TIME) {
+        home_gpu_wait_idle();
         for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
-            if (f_res->pic_heat[i] != NULL) {
-                compo_picturebox_set_visible(f_res->pic_heat[i], false);
-            }
+            if (f_res->pic_heat[i]) compo_picturebox_set_visible(f_res->pic_heat[i], false);
         }
-        if (f_res->pic_heat_colon != NULL) {
-            compo_picturebox_set_visible(f_res->pic_heat_colon, false);
-        }
+        if (f_res->pic_heat_colon) compo_picturebox_set_visible(f_res->pic_heat_colon, false);
+        home_gpu_wait_idle();
         return;
     }
 
@@ -779,24 +759,16 @@ static void func_res_heat_timer_update(f_reservation_t *f_res, u8 hour, u8 min,
     f_res->last_h_white = h_white;
     f_res->last_m_white = m_white;
 
-    home_gpu_wait_idle();
-    os_spiflash_read(res_heat_colon_ram, UI_BUF_HOME_WBX_BIN, UI_LEN_HOME_WBX_BIN);
-    if (f_res->pic_heat_colon != NULL && gui_set_ram_check(res_heat_colon_ram, __func__)) {
-        compo_picturebox_set_ram(f_res->pic_heat_colon, res_heat_colon_ram);
-        compo_picturebox_set_visible(f_res->pic_heat_colon, true);
-    }
+    home_ui_pic_set_flash(f_res->pic_heat_colon, UI_BUF_HOME_WBX_BIN, HEAT_WBX_W, HEAT_WBX_H);
 
     for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
         u8 d = digits[i];
         bool white = (i <= RES_TIMER_IDX_H1) ? h_white : m_white;
         u32 addr = white ? tbl_res_w_digit_addr[d] : tbl_res_b_digit_addr[d];
-        u16 len = white ? tbl_res_w_digit_len[d] : tbl_res_b_digit_len[d];
+        u16 w = white ? tbl_res_w_digit_w[d] : tbl_res_b_digit_w[d];
 
-        os_spiflash_read(home_ui_digit_ram[i], addr, len);
-        if (gui_set_ram_check(home_ui_digit_ram[i], __func__)) {
-            compo_picturebox_set_ram(f_res->pic_heat[i], home_ui_digit_ram[i]);
-            compo_picturebox_set_visible(f_res->pic_heat[i], true);
-        }
+        home_ui_pic_set_flash(f_res->pic_heat[i], addr, w,
+                              white ? HEAT_W_DIGIT_MAX_H : HEAT_B_DIGIT_MAX_H);
     }
 
     func_res_heat_timer_layout(f_res, hour, min, h_white, m_white);
@@ -888,22 +860,16 @@ static void func_res_temp_layout(f_reservation_t *f_res, u8 digits[RES_TEMP_IDX_
 static void func_res_temp_update(f_reservation_t *f_res, u16 temp_f, bool white)
 {
     u8 digits[RES_TEMP_IDX_CNT];
-    u32 sym_addr;
-    u16 sym_len;
     u8 i;
 
     if (f_res->ui == RES_UI_APPT_TIME) {
+        home_gpu_wait_idle();
         for (i = 0; i < RES_TEMP_IDX_CNT; i++) {
-            if (f_res->pic_temp[i] != NULL) {
-                compo_picturebox_set_visible(f_res->pic_temp[i], false);
-            }
+            if (f_res->pic_temp[i]) compo_picturebox_set_visible(f_res->pic_temp[i], false);
         }
-        if (f_res->pic_temp_degf != NULL) {
-            compo_picturebox_set_visible(f_res->pic_temp_degf, false);
-        }
-        if (f_res->pic_temp_suffix != NULL) {
-            compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
-        }
+        if (f_res->pic_temp_degf) compo_picturebox_set_visible(f_res->pic_temp_degf, false);
+        if (f_res->pic_temp_suffix) compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
+        home_gpu_wait_idle();
         return;
     }
 
@@ -922,22 +888,14 @@ static void func_res_temp_update(f_reservation_t *f_res, u16 temp_f, bool white)
     f_res->last_temp_f = temp_f;
     f_res->last_t_white = white;
 
-    home_gpu_wait_idle();
-
-    sym_addr = white ? UI_BUF_HOME_WHX_BIN : UI_BUF_HOME_BHX_BIN;
-    sym_len = white ? UI_LEN_HOME_WHX_BIN : UI_LEN_HOME_BHX_BIN;
-    os_spiflash_read(res_temp_degf_ram, sym_addr, sym_len);
-    if (f_res->pic_temp_degf != NULL && gui_set_ram_check(res_temp_degf_ram, __func__)) {
-        compo_picturebox_set_ram(f_res->pic_temp_degf, res_temp_degf_ram);
-        compo_picturebox_set_visible(f_res->pic_temp_degf, true);
-    }
+    home_ui_pic_set_flash(f_res->pic_temp_degf, white ? UI_BUF_HOME_WHX_BIN : UI_BUF_HOME_BHX_BIN,
+                          white ? HEAT_WHX_W : HEAT_BHX_W,
+                          white ? HEAT_WHX_H : HEAT_BHX_H);
 
     if (f_res->pic_temp_suffix != NULL) {
         if (white && HEAT_WSX_W > 0) {
-            os_spiflash_read(res_temp_suffix_ram, UI_BUF_HOME_WSX_BIN, UI_LEN_HOME_WSX_BIN);
-            if (gui_set_ram_check(res_temp_suffix_ram, __func__)) {
-                compo_picturebox_set_ram(f_res->pic_temp_suffix, res_temp_suffix_ram);
-            }
+            home_ui_pic_set_flash(f_res->pic_temp_suffix, UI_BUF_HOME_WSX_BIN,
+                                  HEAT_WSX_W, HEAT_WSX_H);
         } else {
             compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
         }
@@ -946,13 +904,10 @@ static void func_res_temp_update(f_reservation_t *f_res, u16 temp_f, bool white)
     for (i = 0; i < RES_TEMP_IDX_CNT; i++) {
         u8 d = digits[i];
         u32 addr = white ? tbl_res_w_digit_addr[d] : tbl_res_b_digit_addr[d];
-        u16 len = white ? tbl_res_w_digit_len[d] : tbl_res_b_digit_len[d];
+        u16 w = white ? tbl_res_w_digit_w[d] : tbl_res_b_digit_w[d];
 
-        os_spiflash_read(res_temp_digit_ram[i], addr, len);
-        if (gui_set_ram_check(res_temp_digit_ram[i], __func__)) {
-            compo_picturebox_set_ram(f_res->pic_temp[i], res_temp_digit_ram[i]);
-            compo_picturebox_set_visible(f_res->pic_temp[i], true);
-        }
+        home_ui_pic_set_flash(f_res->pic_temp[i], addr, w,
+                              white ? HEAT_W_DIGIT_MAX_H : HEAT_B_DIGIT_MAX_H);
     }
 
     func_res_temp_layout(f_res, digits, white);
@@ -967,6 +922,10 @@ static void func_res_display_refresh(f_reservation_t *f_res)
     bool m_white;
     bool t_white;
 
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 1;
+#endif
+
     if (f_res->ui == RES_UI_APPT_TIME) {
         tm_t tm = rtc_clock_get();
 
@@ -976,6 +935,9 @@ static void func_res_display_refresh(f_reservation_t *f_res)
         func_res_appt_update(f_res);
         func_res_info_text_update(f_res);
         func_res_lock_icon_apply(f_res);
+#if ELUNCHBOX_PANEL_EN
+        elunchbox_te_block_flag = 0;
+#endif
         return;
     }
 
@@ -1005,6 +967,10 @@ static void func_res_display_refresh(f_reservation_t *f_res)
     func_res_temp_update(f_res, temp, t_white);
     func_res_info_text_update(f_res);
     func_res_lock_icon_apply(f_res);
+
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 0;
+#endif
 }
 
 static void func_res_start_heating(f_reservation_t *f_res)
@@ -1022,7 +988,11 @@ static void func_res_start_heating(f_reservation_t *f_res)
     f_res->last_heat_timer_key = 0xffff;
     f_res->last_temp_f = 0xffff;
     g_res.phase = RES_PHASE_HEATING;
+#if ELUNCHBOX_PANEL_EN
+    /* 留给进入路径末尾的两阶段统一刷，避免过早绑资源 */
+#else
     func_res_display_refresh(f_res);
+#endif
 }
 
 void func_reservation_force_heating_enter(void)
@@ -1371,6 +1341,10 @@ static void func_res_status_refresh(f_reservation_t *f_res)
     tm_t tm = rtc_clock_get();
     bool sec_changed = false;
 
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 1;
+#endif
+
     if (f_res->last_top_min != tm.min || f_res->last_top_sec != tm.sec) {
         f_res->last_top_min = tm.min;
         f_res->last_top_sec = tm.sec;
@@ -1390,6 +1364,10 @@ static void func_res_status_refresh(f_reservation_t *f_res)
     }
 
     func_res_lock_check(f_res);
+
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 0;
+#endif
 }
 
 void func_reservation_poll(void)
@@ -1547,11 +1525,41 @@ void func_reservation_enter(void)
     f_reservation_t *f_res;
     tm_t tm;
 
-    home_gpu_wait_idle();
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
 
     func_cb.f_cb = func_zalloc(sizeof(f_reservation_t));
+    /* 在 form_create 之前，确保 GPU 处于绝对安全状态 */
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 1;
+#endif
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 0;
+#endif
     func_cb.frm_main = func_reservation_form_create();
     f_res = (f_reservation_t *)func_cb.f_cb;
+
+    /* 在 bind 之前，确保 GPU 处于安全状态 */
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 1;
+#endif
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 0;
+#endif
 
     home_top_time_bind(&f_res->top_time, COMPO_ID_PIC_TOP_H10, COMPO_ID_PIC_TOP_H1,
                        COMPO_ID_PIC_TOP_COLON, COMPO_ID_PIC_TOP_M10,
@@ -1586,7 +1594,20 @@ void func_reservation_enter(void)
         f_res->heat_min = g_res.heat_min;
         f_res->temp_idx = g_res.temp_idx;
         if (f_res->ui == RES_UI_HEATING) {
-            func_res_start_heating(f_res);
+            /* 只设状态，显示绑定留给进入路径末尾的“空白首帧 + 内容 apply”两阶段统一做，
+             * 避免在 form_create 后、受保护的 os_gui_draw_force 之前就调用 display_refresh 绑资源。
+             */
+            f_res->screen_locked = false;
+            f_res->heating_paused = false;
+            f_res->heat_start_tick = tick_get();
+            f_res->heat_total_sec = (u32)f_res->heat_hour * 3600 + (u32)f_res->heat_min * 60;
+            if (f_res->heat_total_sec == 0) f_res->heat_total_sec = 60;
+            f_res->heat_remain_sec = f_res->heat_total_sec;
+            f_res->display_temp_f = 0;
+            f_res->last_heat_timer_key = 0xffff;
+            f_res->last_temp_f = 0xffff;
+            g_res.phase = RES_PHASE_HEATING;
+            /* 不要在这里 display_refresh；两阶段末尾会根据当前 ui 调一次 */
         } else {
             f_res->display_temp_f = func_res_get_target_temp_f(f_res->temp_idx);
         }
@@ -1611,17 +1632,57 @@ void func_reservation_enter(void)
     tm = rtc_clock_get();
     g_res.last_poll_min = tm.min;
 
-    func_res_hide_heat_temp_ui(f_res);
-    func_res_hide_appt_ui(f_res);
-    func_res_status_icons_apply(f_res);
-    func_res_top_time_refresh(f_res, &tm);
-    func_res_display_refresh(f_res);
+    home_ui_digit_pool_reset();
+
+#if ELUNCHBOX_PANEL_EN
+    /* 跳过 blank 阶段，直接进入 content 阶段。
+     * form_create 时所有 pic 已是 visible=false（用 placeholder 创建）。
+     * 直接绑定内容（set_flash 会覆盖 placeholder 资源），可能避免 blank 阶段的资源冲突。
+     */
+    elunchbox_te_block_flag = 1;
+    home_gpu_wait_idle();
     os_gui_draw_force();
     home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+    func_res_status_icons_apply(f_res);
+    func_res_display_refresh(f_res);
+    elunchbox_te_block_flag = 0;
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+    tft_bglight_force_on();
+#else
+    func_res_status_icons_apply(f_res);
+    func_res_display_refresh(f_res);
+#endif
 }
 
 void func_reservation_exit(void)
 {
+    f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
+    u8 i;
+
+    if (f_res != NULL) {
+        home_gpu_wait_idle();
+        home_top_time_gpu_detach(&f_res->top_time);
+        for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
+            home_ui_gpu_pic_detach(f_res->pic_appt[i]);
+            home_ui_gpu_pic_detach(f_res->pic_heat[i]);
+        }
+        home_ui_gpu_pic_detach(f_res->pic_appt_colon);
+        home_ui_gpu_pic_detach(f_res->pic_heat_colon);
+        for (i = 0; i < RES_TEMP_IDX_CNT; i++) {
+            home_ui_gpu_pic_detach(f_res->pic_temp[i]);
+        }
+        home_ui_gpu_pic_detach(f_res->pic_temp_degf);
+        home_ui_gpu_pic_detach(f_res->pic_temp_suffix);
+        home_ui_gpu_pic_detach(f_res->pic_bt);
+        home_ui_gpu_pic_detach(f_res->pic_lock);
+        home_ui_gpu_pic_detach(f_res->pic_bat);
+        home_gpu_wait_idle();
+    }
+    home_ui_digit_pool_reset();
     func_cb.last = FUNC_RESERVATION;
 }
 

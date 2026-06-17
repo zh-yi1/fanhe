@@ -1405,6 +1405,10 @@
 		<Unit filename="functions/home_ui_ram.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/home_ui_gpu_detach.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/home_ui_gpu_detach.h" />
 		<Unit filename="functions/func_light.c">
 			<Option compilerVar="CC" />
 		</Unit>

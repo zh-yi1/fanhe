@@ -5,6 +5,8 @@
 #include "func_reservation.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
+/* ELUNCHBOX 模式：TE block 标志声明 */
+extern volatile u8 elunchbox_te_block_flag;
 #endif
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
@@ -88,8 +90,44 @@ void func_elunchbox_switch_to_reservation(void)
     if (sys_cb.flag_swithing) {
         return;
     }
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
+    home_gpu_wait_idle();
+    /* 关键修复：直接 destroy Home 的 frm（跳过 Home exit 的 detach 逻辑），
+     * 然后多次 GPU 同步 + 多次干净帧提交，确保 GPU 完全空闲。
+     * 这样可以避免 GPU 资源描述符冲突导致 C241。
+     */
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 1;
+#endif
+    if (func_cb.frm_main != NULL) {
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        compo_form_destroy(func_cb.frm_main);
+        home_gpu_wait_idle();
+        compos_init();
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        func_cb.frm_main = NULL;
+    }
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 0;
+#endif
+    /* 释放 Home 的 f_cb */
+    if (func_cb.f_cb != NULL) {
+        func_free(func_cb.f_cb);
+        func_cb.f_cb = NULL;
+    }
     func_res_allow_switch = 1;
-    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
     func_res_allow_switch = 0;
 }
 
@@ -505,11 +543,12 @@ void func_switch_to(u8 sta, u16 switch_mode)
     compo_form_destroy(frm_cur);                                      //切换完成或取消，销毁窗体
 #else
     u8 mode = switch_mode & 0x7fff;
-    if (mode != FUNC_SWITCH_FADE_OUT) {
-        frm = func_create_form(sta);                                  //创建下一个任务的窗体
+    /* ELUNCHBOX：DIRECT 和 FADE_OUT 都不在此预创建目标窗体。 */
+    if (mode != FUNC_SWITCH_FADE_OUT && mode != FUNC_SWITCH_DIRECT) {
+        frm = func_create_form(sta);
     }
 
-    bool res = func_switching(switch_mode, NULL);         			  //切换动画
+    bool res = func_switching(switch_mode, NULL);
 
 #if ELUNCHBOX_PANEL_EN
     if (res) {
@@ -518,8 +557,22 @@ void func_switch_to(u8 sta, u16 switch_mode)
 #endif
 
     if (frm) {
-        compo_form_destroy(frm);                                      //切换完成或取消，销毁窗体
+        compo_form_destroy(frm);
     }
+
+#if ELUNCHBOX_PANEL_EN
+    /* ELUNCHBOX 切页：源 frm 应该已经在 func_elunchbox_switch_to_reservation 里被 destroy 了。
+     * 这里只是额外确保（防御性编程）。
+     */
+    if ((mode == FUNC_SWITCH_DIRECT || mode == FUNC_SWITCH_FADE_OUT) && func_cb.frm_main != NULL) {
+        home_gpu_wait_idle();
+        compo_form_destroy(func_cb.frm_main);
+        home_gpu_wait_idle();
+        compos_init();
+        home_gpu_wait_idle();
+        func_cb.frm_main = NULL;
+    }
+#endif
 
 #endif
 
@@ -1197,6 +1250,11 @@ void func_exit(void)
         home_gpu_wait_idle();
 #endif
         compo_form_destroy(func_cb.frm_main);
+#if ELUNCHBOX_PANEL_EN
+        home_gpu_wait_idle();
+        compos_init();
+        home_gpu_wait_idle();
+#endif
     }
     //释放FUNC控制结构体
     if (func_cb.f_cb != NULL) {

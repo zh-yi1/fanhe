@@ -13,4 +13,6 @@ extern u8 home_ui_colon_ram[HOME_COLON_RAM_SIZE];
 extern u8 res_ui_digit_ram[HOME_UI_DIGIT_SLOTS][HOME_DIGIT_RAM_MAX_SIZE];
 extern u8 res_ui_colon_ram[HOME_COLON_RAM_SIZE];
 
+void home_ui_digit_pool_reset(void);
+
 #endif

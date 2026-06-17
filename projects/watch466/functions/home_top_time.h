@@ -32,5 +32,7 @@ void home_top_time_create(compo_form_t *frm, u32 placeholder, const u16 id_h10,
 void home_top_time_bind(home_top_time_ui_t *ui, u16 id_h10, u16 id_h1, u16 id_colon,
                         u16 id_m10, u16 id_m1, u16 id_ampm);
 bool home_top_time_refresh(home_top_time_ui_t *ui, tm_t *tm);
+bool home_top_time_refresh_flash(home_top_time_ui_t *ui, tm_t *tm);
+void home_top_time_gpu_detach(home_top_time_ui_t *ui);
 
 #endif

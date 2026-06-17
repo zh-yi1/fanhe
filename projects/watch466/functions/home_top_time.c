@@ -1,6 +1,12 @@
 #include "include.h"
 #include "home_top_time.h"
 #include "home_ui_shared.h"
+#include "home_ui_gpu_detach.h"
+
+#if ELUNCHBOX_PANEL_EN
+/* ELUNCHBOX 模式：TE block 标志声明 */
+extern volatile u8 elunchbox_te_block_flag;
+#endif
 
 #ifndef UI_BUF_HOME_0M_BIN
 #error "Missing 0m.bin: add ui/home/0m.png..9m.png, colonm.png, AMm.png, PMm.png and run gen_home_icons.py + prebuild.bat"
@@ -266,4 +272,120 @@ bool home_top_time_refresh(home_top_time_ui_t *ui, tm_t *tm)
 
     home_top_time_layout(ui, hour12, min, is_pm);
     return true;
+}
+
+static bool home_top_time_load_digit_flash(u8 digit, compo_picturebox_t *pic)
+{
+    if (digit > 9 || pic == NULL) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+
+    home_ui_pic_set_flash(pic, tbl_top_time_digit_addr[digit],
+                          tbl_top_time_digit_w[digit], tbl_top_time_digit_h[digit]);
+    return true;
+}
+
+static bool home_top_time_refresh_flash_impl(home_top_time_ui_t *ui, tm_t *tm)
+{
+    u8 hour12;
+    u8 min;
+    bool is_pm;
+    u16 key;
+    u8 h10;
+    u8 h1;
+    u8 m10;
+    u8 m1;
+    bool show_h10;
+
+    if (ui == NULL || tm == NULL) {
+        return false;
+    }
+
+#if ELUNCHBOX_PANEL_EN
+    /* ELUNCHBOX 模式：设置 TE block 标志，保护整个刷新操作 */
+    u8 was_blocked = elunchbox_te_block_flag;
+    if (!was_blocked) {
+        elunchbox_te_block_flag = 1;
+    }
+#endif
+
+    home_top_time_parse(tm, &hour12, &min, &is_pm);
+    key = (u16)hour12 | ((u16)min << 8) | (is_pm ? 0x8000 : 0);
+    if (ui->last_key == key) {
+#if ELUNCHBOX_PANEL_EN
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 0;
+        }
+#endif
+        return false;
+    }
+
+    ui->last_key = key;
+
+    h10 = (u8)(hour12 / 10);
+    h1 = (u8)(hour12 % 10);
+    m10 = (u8)(min / 10);
+    m1 = (u8)(min % 10);
+    show_h10 = (hour12 >= 10);
+
+    if (show_h10) {
+        home_top_time_load_digit_flash(h10, ui->pic_h10);
+    } else if (ui->pic_h10 != NULL) {
+        compo_picturebox_set_visible(ui->pic_h10, false);
+    }
+
+    home_top_time_load_digit_flash(h1, ui->pic_h1);
+    home_ui_pic_set_flash(ui->pic_colon, UI_BUF_HOME_COLONM_BIN,
+                          HOME_TOP_TIME_COLONM_W, HOME_TOP_TIME_COLONM_H);
+    home_top_time_load_digit_flash(m10, ui->pic_m10);
+    home_top_time_load_digit_flash(m1, ui->pic_m1);
+
+    if (is_pm) {
+        home_ui_pic_set_flash(ui->pic_ampm, UI_BUF_HOME_PMM_BIN,
+                              HOME_TOP_TIME_PMM_W, HOME_TOP_TIME_PMM_H);
+    } else {
+        home_ui_pic_set_flash(ui->pic_ampm, UI_BUF_HOME_AMM_BIN,
+                              HOME_TOP_TIME_AMM_W, HOME_TOP_TIME_AMM_H);
+    }
+
+    home_top_time_layout(ui, hour12, min, is_pm);
+
+#if ELUNCHBOX_PANEL_EN
+    if (!was_blocked) {
+        elunchbox_te_block_flag = 0;
+    }
+#endif
+    return true;
+}
+
+bool home_top_time_refresh_flash(home_top_time_ui_t *ui, tm_t *tm)
+{
+    return home_top_time_refresh_flash_impl(ui, tm);
+}
+
+void home_top_time_gpu_detach(home_top_time_ui_t *ui)
+{
+    compo_picturebox_t *pics[6];
+    u8 i;
+
+    if (ui == NULL) {
+        return;
+    }
+
+    pics[0] = ui->pic_h10;
+    pics[1] = ui->pic_h1;
+    pics[2] = ui->pic_colon;
+    pics[3] = ui->pic_m10;
+    pics[4] = ui->pic_m1;
+    pics[5] = ui->pic_ampm;
+
+    home_gpu_wait_idle();
+    for (i = 0; i < 6; i++) {
+        home_ui_gpu_pic_detach(pics[i]);
+    }
+    ui->last_key = 0xffff;
+    home_gpu_wait_idle();
 }
