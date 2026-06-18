@@ -486,10 +486,6 @@ static u32 func_res_seconds_until_appt(void)
 
 void func_reservation_marquee_text(char *buf, u16 buf_len)
 {
-    u32 sec;
-    u32 hours;
-    u32 mins;
-
     if (buf == NULL || buf_len == 0) {
         return;
     }
@@ -499,19 +495,8 @@ void func_reservation_marquee_text(char *buf, u16 buf_len)
         return;
     }
 
-    sec = func_res_seconds_until_appt();
-    hours = sec / 3600;
-    mins = (sec % 3600) / 60;
-
-    if (hours > 0 && mins > 0) {
-        snprintf(buf, buf_len, "Starts in %lu hours %lu min", (unsigned long)hours, (unsigned long)mins);
-    } else if (hours > 0) {
-        snprintf(buf, buf_len, "Starts in %lu hour%s", (unsigned long)hours, (hours > 1) ? "s" : "");
-    } else if (mins > 0) {
-        snprintf(buf, buf_len, "Starts in %lu min", (unsigned long)mins);
-    } else {
-        snprintf(buf, buf_len, "Starts soon");
-    }
+    /* 显示预约界面设置的预约时间（小时+分钟），默认1小时，最高23小时 */
+    snprintf(buf, buf_len, "Start in %02u H", g_res.appt_hour);
 }
 
 static void func_res_info_text_update(f_reservation_t *f_res)
@@ -1089,6 +1074,12 @@ static bool func_res_switch_home(void)
     if (sys_cb.flag_swithing || func_cb.sta != FUNC_RESERVATION) {
         return false;
     }
+
+    /* GPU exit 预清理：切换前把 GPU 彻底排空，避免 fade 期间与 Home 资源重叠导致 C241 */
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+
     func_res_clear_switch_keys();
     prev_sta = func_cb.sta;
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
@@ -1213,10 +1204,9 @@ static void func_res_power_key(f_reservation_t *f_res)
             f_res->last_heat_timer_key = 0xffff;
             break;
         case RES_FOCUS_HEAT_TEMP:
-            f_res->focus = RES_FOCUS_HEAT_MIN;
-            f_res->last_heat_timer_key = 0xffff;
-            f_res->last_temp_f = 0xffff;
-            break;
+            /* 设置完预约时间 + 加热时间 + 温度后，按开关键提交预约并返回主界面，显示跑马灯 */
+            func_res_save_and_go_home(f_res);
+            return;
         default:
             break;
         }
@@ -1242,9 +1232,8 @@ static void func_res_value_inc(f_reservation_t *f_res)
     case RES_FOCUS_APPT_HOUR:
         if (f_res->appt_hour < 23) {
             f_res->appt_hour++;
-        } else {
-            f_res->appt_hour = 0;
         }
+        /* 最高23小时，超过不增加 */
         f_res->last_appt_key = 0xffff;
         break;
 
@@ -1256,7 +1245,7 @@ static void func_res_value_inc(f_reservation_t *f_res)
             if (f_res->appt_hour < 23) {
                 f_res->appt_hour++;
             } else {
-                f_res->appt_hour = 0;
+                f_res->appt_min = 59;  /* 最高23小时：到达23:59后继续加分钟保持在23:59 */
             }
         }
         f_res->last_appt_key = 0xffff;
@@ -1303,24 +1292,22 @@ static void func_res_value_dec(f_reservation_t *f_res)
 
     switch (f_res->focus) {
     case RES_FOCUS_APPT_HOUR:
-        if (f_res->appt_hour > 0) {
+        if (f_res->appt_hour > 1) {
             f_res->appt_hour--;
-        } else {
-            f_res->appt_hour = 23;
         }
+        /* 默认最低1小时，减到1后不再减少 */
         f_res->last_appt_key = 0xffff;
         break;
 
     case RES_FOCUS_APPT_MIN:
         if (f_res->appt_min > 0) {
             f_res->appt_min--;
-        } else {
+        } else if (f_res->appt_hour > 1) {
             f_res->appt_min = 59;
-            if (f_res->appt_hour > 0) {
-                f_res->appt_hour--;
-            } else {
-                f_res->appt_hour = 23;
-            }
+            f_res->appt_hour--;
+        } else {
+            /* 最低1小时：到达 01:00 后，继续减分钟保持在 01:00 */
+            f_res->appt_min = 0;
         }
         f_res->last_appt_key = 0xffff;
         break;
@@ -1664,12 +1651,16 @@ void func_reservation_enter(void)
     } else {
         f_res->ui = RES_UI_APPT_TIME;
         f_res->focus = RES_FOCUS_APPT_HOUR;
-        f_res->appt_hour = 3;
+        f_res->appt_hour = 1;   /* 默认1小时 */
         f_res->appt_min = 0;
         f_res->heat_hour = 1;
         f_res->heat_min = 0;
         f_res->temp_idx = 3;
     }
+
+    /* 确保预约时间范围：默认1小时，最高23小时（进入时夹紧，防止旧数据或外部设置导致越界） */
+    if (f_res->appt_hour < 1) f_res->appt_hour = 1;
+    if (f_res->appt_hour > 23) f_res->appt_hour = 23;
 
     tm = rtc_clock_get();
     g_res.last_poll_min = tm.min;
@@ -1692,24 +1683,43 @@ void func_reservation_exit(void)
     u8 i;
 
     if (f_res != NULL) {
+        /* GPU exit：彻底释放 reservation 持有的所有 GPU 资源（top_time / 预约/加热计时器 / 温度 / 状态图标）。
+         * 多轮 wait + force + detach，避免切回 Home 时与 Home clock/status 共享资源冲突导致 C241/C245。
+         */
         home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+
         home_top_time_gpu_detach(&f_res->top_time);
+        home_gpu_wait_idle();
+
         for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
             home_ui_gpu_pic_detach(f_res->pic_appt[i]);
             home_ui_gpu_pic_detach(f_res->pic_heat[i]);
         }
         home_ui_gpu_pic_detach(f_res->pic_appt_colon);
         home_ui_gpu_pic_detach(f_res->pic_heat_colon);
+        home_gpu_wait_idle();
+
         for (i = 0; i < RES_TEMP_IDX_CNT; i++) {
             home_ui_gpu_pic_detach(f_res->pic_temp[i]);
         }
         home_ui_gpu_pic_detach(f_res->pic_temp_degf);
         home_ui_gpu_pic_detach(f_res->pic_temp_suffix);
+        home_gpu_wait_idle();
+
         home_ui_gpu_pic_detach(f_res->pic_bt);
         home_ui_gpu_pic_detach(f_res->pic_lock);
         home_ui_gpu_pic_detach(f_res->pic_bat);
+
+        /* 额外多轮同步，确保 detach 完全生效 */
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        os_gui_draw_force();
         home_gpu_wait_idle();
     }
+
     home_ui_digit_pool_reset();
     func_cb.last = FUNC_RESERVATION;
 }

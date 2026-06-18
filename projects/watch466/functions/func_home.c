@@ -218,11 +218,13 @@
 #define HOME_STATUS_BT_X                (HOME_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - HOME_STATUS_GAP - HOME_STATUS_BT_W / 2)
 #define HOME_CLOCK_Y                    ((HOME_STATUS_Y + HOME_STATUS_H + HOME_TAB_BTN_Y - HOME_TAB_BTN_H / 2) / 2)
 #if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
-#define HOME_RES_MARQUEE_Y              55
-#define HOME_RES_MARQUEE_W              296
+#define HOME_RES_MARQUEE_Y              (HOME_TOP_TIME_Y + 5)  /* 再高一点，中心下移，为更高H留更多上下余量，避免裁切 */
+#define HOME_RES_MARQUEE_W              150                    /* 宽度再窄一点，放在顶上时钟与右边图标中间更紧凑 */
+#define HOME_RES_MARQUEE_H              34                     /* 再高一点，确保跑马灯滚动时中文字上下完整显示 */
 #else
-#define HOME_RES_MARQUEE_Y              HOME_SY(80)
-#define HOME_RES_MARQUEE_W              (GUI_SCREEN_WIDTH - HOME_SX(32))
+#define HOME_RES_MARQUEE_Y              (HOME_TOP_TIME_Y + 5)
+#define HOME_RES_MARQUEE_W              (GUI_SCREEN_WIDTH - HOME_SX(180))
+#define HOME_RES_MARQUEE_H              34
 #endif
 
 enum {
@@ -1037,7 +1039,11 @@ compo_form_t *func_home_form_create(void)
         compo_textbox_t *txt = compo_textbox_create(frm, 48);
 
         compo_setid(txt, COMPO_ID_TXT_RES_MARQUEE);
-        compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, HOME_RES_MARQUEE_Y);
+        /* 再高H + 再窄W；先设字体和标志，再set_location；autoroll时上下留足空间 */
+        compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_BIN);
+        compo_textbox_set_wholewrap(txt, false);
+        compo_textbox_set_autosize(txt, false);
+        compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, HOME_RES_MARQUEE_Y, HOME_RES_MARQUEE_W, HOME_RES_MARQUEE_H);
         compo_textbox_set_autoroll(txt, true);
         compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_SROLL_CIRC);
         compo_textbox_set_visible(txt, false);
