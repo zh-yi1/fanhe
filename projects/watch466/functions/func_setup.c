@@ -258,6 +258,7 @@ typedef struct setup_row_ui_t_ {
 
 typedef struct f_setup_t_ {
     u8 focus;
+    bool screen_locked;
     compo_picturebox_t *pic_back;
     compo_button_t *btn_back;
     compo_picturebox_t *pic_bt;
@@ -399,6 +400,8 @@ static compo_shape_t *func_setup_shape_create(compo_form_t *frm, u16 id, s16 x, 
     return shape;
 }
 
+static void func_setup_lock_icon_apply(f_setup_t *f_setup);
+
 static void func_setup_status_icons_apply(f_setup_t *f_setup)
 {
     home_ui_shared_status_init();
@@ -411,12 +414,27 @@ static void func_setup_status_icons_apply(f_setup_t *f_setup)
     if (f_setup->pic_lock != NULL && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
         compo_picturebox_set_ram(f_setup->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_setup->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-        compo_picturebox_set_visible(f_setup->pic_lock, true);
     }
     if (f_setup->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         compo_picturebox_set_ram(f_setup->pic_bat, home_ui_shared_status_bat_ram);
         compo_picturebox_set_size(f_setup->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
         compo_picturebox_set_visible(f_setup->pic_bat, true);
+    }
+
+    func_setup_lock_icon_apply(f_setup);
+}
+
+static void func_setup_lock_icon_apply(f_setup_t *f_setup)
+{
+    if (f_setup == NULL || f_setup->pic_lock == NULL) {
+        return;
+    }
+    if (f_setup->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_setup->pic_lock, home_ui_shared_status_lock_ram);
+        compo_picturebox_set_size(f_setup->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_setup->pic_lock, true);
+    } else {
+        compo_picturebox_set_visible(f_setup->pic_lock, false);
     }
 }
 
@@ -643,10 +661,23 @@ static void func_setup_message(size_msg_t msg)
 {
     f_setup_t *f_setup = (f_setup_t *)func_cb.f_cb;
 
+    if (f_setup != NULL && f_setup->screen_locked) {
+        if (msg != SETUP_MSG_POWER && msg != SETUP_MSG_OK && msg != KU_LEFT) {
+            return;
+        }
+    }
+
     switch (msg) {
     case MSG_CTP_CLICK:
         if (f_setup != NULL) {
             func_setup_button_click(f_setup);
+        }
+        break;
+
+    case KU_LEFT:
+        if (f_setup != NULL) {
+            f_setup->screen_locked = !f_setup->screen_locked;
+            func_setup_lock_icon_apply(f_setup);
         }
         break;
 
@@ -678,6 +709,7 @@ void func_setup_enter(void)
 
     f_setup = (f_setup_t *)func_cb.f_cb;
     f_setup->focus = SETUP_ROW_TIME;
+    f_setup->screen_locked = false;
 
     f_setup->pic_back = compo_getobj_byid(COMPO_ID_PIC_BACK);
     f_setup->btn_back = compo_getobj_byid(COMPO_ID_BTN_BACK);

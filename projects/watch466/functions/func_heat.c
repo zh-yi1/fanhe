@@ -205,8 +205,6 @@ static const u16 tbl_heat_temp_preset[HEAT_TEMP_PRESET_CNT] = {
     140, 158, 176, 194, 212,
 };
 
-static u8 heat_colon_ram[HEAT_WBX_RAM_SIZE];
-static u8 heat_timer_digit_ram[HEAT_TIMER_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
 static u8 heat_temp_digit_ram[HEAT_TEMP_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
 static u8 heat_temp_degf_ram[HEAT_TEMP_DEG_RAM_MAX_SIZE];
 static u8 heat_temp_suffix_ram[HEAT_TEMP_SUF_RAM_MAX_SIZE];
@@ -282,12 +280,11 @@ static void func_heat_status_icons_apply(f_heat_t *f_heat)
 
 static void func_heat_lock_icon_apply(f_heat_t *f_heat)
 {
-    if (f_heat->pic_lock == NULL) {
+    if (f_heat == NULL || f_heat->pic_lock == NULL) {
         return;
     }
 
-    if (f_heat->ui_state == HEAT_UI_HEATING && f_heat->screen_locked
-        && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+    if (f_heat->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
         compo_picturebox_set_ram(f_heat->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_heat->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
         compo_picturebox_set_visible(f_heat->pic_lock, true);
@@ -640,9 +637,9 @@ static void func_heat_timer_update_ex(f_heat_t *f_heat, u8 hour, u8 min, bool h_
     f_heat->last_h_white = h_white;
     f_heat->last_m_white = m_white;
 
-    os_spiflash_read(heat_colon_ram, UI_BUF_HOME_WBX_BIN, UI_LEN_HOME_WBX_BIN);
-    if (gui_set_ram_check(heat_colon_ram, __func__)) {
-        compo_picturebox_set_ram(f_heat->pic_timer_colon, heat_colon_ram);
+    os_spiflash_read(home_ui_shared_timer_colon_ram, UI_BUF_HOME_WBX_BIN, UI_LEN_HOME_WBX_BIN);
+    if (gui_set_ram_check(home_ui_shared_timer_colon_ram, __func__)) {
+        compo_picturebox_set_ram(f_heat->pic_timer_colon, home_ui_shared_timer_colon_ram);
     }
 
     for (i = 0; i < HEAT_TIMER_IDX_CNT; i++) {
@@ -651,9 +648,9 @@ static void func_heat_timer_update_ex(f_heat_t *f_heat, u8 hour, u8 min, bool h_
         u32 addr = white ? tbl_heat_w_digit_addr[d] : tbl_heat_b_digit_addr[d];
         u16 len = white ? tbl_heat_w_digit_len[d] : tbl_heat_b_digit_len[d];
 
-        os_spiflash_read(heat_timer_digit_ram[i], addr, len);
-        if (gui_set_ram_check(heat_timer_digit_ram[i], __func__)) {
-            compo_picturebox_set_ram(f_heat->pic_timer[i], heat_timer_digit_ram[i]);
+        os_spiflash_read(home_ui_shared_timer_digit_ram[i], addr, len);
+        if (gui_set_ram_check(home_ui_shared_timer_digit_ram[i], __func__)) {
+            compo_picturebox_set_ram(f_heat->pic_timer[i], home_ui_shared_timer_digit_ram[i]);
         }
     }
 
@@ -933,6 +930,13 @@ static void func_heat_message(size_msg_t msg)
         return;
     }
 
+    if (f_heat != NULL && f_heat->screen_locked) {
+        // 锁屏仅允许确认、开关、锁键
+        if (msg != HEAT_MSG_POWER && msg != HEAT_MSG_OK && msg != KU_LEFT) {
+            return;
+        }
+    }
+
     switch (msg) {
     case HEAT_MSG_OK:
         func_heat_ok_key(f_heat);
@@ -951,8 +955,8 @@ static void func_heat_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        if (f_heat != NULL && f_heat->ui_state == HEAT_UI_HEATING && f_heat->screen_locked) {
-            f_heat->screen_locked = false;
+        if (f_heat != NULL) {
+            f_heat->screen_locked = !f_heat->screen_locked;
             func_heat_lock_icon_apply(f_heat);
         }
         break;

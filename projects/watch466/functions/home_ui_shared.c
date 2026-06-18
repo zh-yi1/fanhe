@@ -14,6 +14,10 @@ u8 home_ui_shared_top_time_ampm_ram[HOME_TOP_TIME_AMPM_RAM_MAX_SIZE];
 bool home_ui_shared_status_inited;
 bool home_ui_shared_dash_inited;
 
+/* Heat/Mode 中部倒计时 wbx + w0x 共享缓冲（BSS，不增加总量） */
+u8 home_ui_shared_timer_colon_ram[HEAT_WBX_RAM_SIZE];
+u8 home_ui_shared_timer_digit_ram[4][HEAT_B_DIGIT_RAM_MAX_SIZE];
+
 void home_ui_shared_status_init(void)
 {
     if (home_ui_shared_status_inited) {

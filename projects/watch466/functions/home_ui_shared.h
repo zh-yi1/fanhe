@@ -21,6 +21,10 @@ extern bool home_ui_shared_dash_inited;
 void home_ui_shared_status_init(void);
 void home_ui_shared_dash_init(void);
 
+/* Heat / Mode 中部倒计时共享 RAM（互斥使用，不增加 BSS 总量） */
+extern u8 home_ui_shared_timer_colon_ram[HEAT_WBX_RAM_SIZE];
+extern u8 home_ui_shared_timer_digit_ram[4][HEAT_B_DIGIT_RAM_MAX_SIZE];
+
 /* 修改 set_ram / Flash→RAM 贴图前调用，避免 GPU 读缓冲时被改写触发 C241 */
 void home_gpu_wait_idle(void);
 

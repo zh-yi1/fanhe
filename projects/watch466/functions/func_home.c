@@ -55,8 +55,9 @@
  *   选中：蓝底 + 白框 + 白底线 + 白图标（*_sel.bin）
  *   未选中：黑底 + 白框 + 蓝底线 + 白图标（*.bin）
  *   PT8028（原理图 TCH0~TCH7）：
- *     TCH0 锁键(KU_LEFT) | TCH1 加热(KU_PREV) | TCH2 减(KU_VOL_DOWN) | TCH3 模式(KU_MODE)
- *     TCH4 确认(KU_BACK) | TCH5 开关(KU_RIGHT) | TCH6 加(KU_VOL_UP) | TCH7 预约(KU_NEXT)
+ *     TCH0 锁键(KU_LEFT) | TCH1 加热(KU_PREV) | TCH3 模式(KU_MODE)
+ *     TCH4 确认(KU_BACK) | TCH5 开关(KU_RIGHT) | TCH7 预约(KU_NEXT)
+ *     （Home 页不使用 TCH2/TCH6 加减键）
  *   Home：TCH3(011) Tab 切换；TCH4(100) 进入 Tab 子页（表2 按下编码，释放 Hold）
  */
 #define UI_HOME_ICON_PLACEHOLDER UI_BUF_ICON_ACTIVITY_BIN         
@@ -295,6 +296,7 @@ typedef struct f_home_t_ {
     u8 last_top_min;
     u8 last_top_sec;
     u16 last_cd_total_min;
+    bool screen_locked;
     home_top_time_ui_t top_time;
     compo_picturebox_t *pic_clock[HOME_CLOCK_IDX_CNT];
     compo_picturebox_t *pic_clock_colon;
@@ -487,6 +489,8 @@ static void func_home_status_icons_init(void)
     home_ui_shared_status_init();
 }
 
+static void func_home_lock_icon_apply(f_home_t *f_home);
+
 static void func_home_status_icons_apply(f_home_t *f_home)
 {
     func_home_status_icons_init();
@@ -502,6 +506,22 @@ static void func_home_status_icons_apply(f_home_t *f_home)
     if (f_home->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         compo_picturebox_set_ram(f_home->pic_bat, home_ui_shared_status_bat_ram);
         compo_picturebox_set_size(f_home->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+    }
+
+    func_home_lock_icon_apply(f_home);
+}
+
+static void func_home_lock_icon_apply(f_home_t *f_home)
+{
+    if (f_home == NULL || f_home->pic_lock == NULL) {
+        return;
+    }
+    if (f_home->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
+        compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_home->pic_lock, true);
+    } else {
+        compo_picturebox_set_visible(f_home->pic_lock, false);
     }
 }
 
@@ -652,35 +672,6 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
 #if ELUNCHBOX_PANEL_EN
     func_home_gui_mark_dirty();
 #endif
-}
-
-static void func_home_countdown_adjust_min(f_home_t *f_home, s16 delta_min)
-{
-    u32 sec = home_countdown_remain_sec;
-    u32 max_sec = (u32)99 * 3600 + (u32)59 * 60;
-
-    if (delta_min > 0) {
-        sec += (u32)delta_min * 60;
-        if (sec > max_sec) {
-            sec = max_sec;
-        }
-    } else if (delta_min < 0) {
-        u32 sub = (u32)(-delta_min) * 60;
-
-        sec = (sec > sub) ? sec - sub : 0;
-    }
-    home_countdown_remain_sec = sec;
-
-    if (f_home != NULL) {
-        u8 cd_hour, cd_min;
-
-        func_home_countdown_get_display(&cd_hour, &cd_min);
-        f_home->last_cd_total_min = 0xffff;
-        func_home_clock_update(f_home, cd_hour, cd_min);
-#if ELUNCHBOX_PANEL_EN
-        func_home_draw_now();
-#endif
-    }
 }
 
 static void func_home_tab_icon_size(u8 idx, u16 *out_w, u16 *out_h)
@@ -919,6 +910,10 @@ static void func_home_tab_enter(f_home_t *f_home)
 
     case HOME_TAB_MODE:
         HOME_DBG("func_home_tab_enter: HOME_TAB_MODE\n");
+#if ELUNCHBOX_PANEL_EN
+        func_home_gpu_detach_for_leave();
+        home_gpu_wait_idle();
+#endif
         func_switch_to(FUNC_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
@@ -1159,6 +1154,10 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
     last_ms = tick_get();
     last_tch = tch;
 
+    if (f_home->screen_locked && tch != PT8028_KEY_TCH0 && tch != PT8028_KEY_TCH4 && tch != PT8028_KEY_TCH5) {
+        return;  // 锁屏时仅允许锁键、确认、开关
+    }
+
     switch (tch) {
     case PT8028_KEY_TCH3:
         HOME_DBG("Home: 模式键 -> Tab 切换\n");
@@ -1171,18 +1170,13 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
-    case PT8028_KEY_TCH2:
-        HOME_DBG("Home: TCH2 减号按下\n");
-        func_home_countdown_adjust_min(f_home, -1);
-        break;
-
-    case PT8028_KEY_TCH6:
-        HOME_DBG("Home: TCH6 加号按下\n");
-        func_home_countdown_adjust_min(f_home, 1);
-        break;
-
     case PT8028_KEY_TCH0:
         HOME_DBG("Home: TCH0 锁键按下\n");
+        f_home->screen_locked = !f_home->screen_locked;
+        func_home_lock_icon_apply(f_home);
+#if ELUNCHBOX_PANEL_EN
+        func_home_draw_now();
+#endif
         break;
 
     case PT8028_KEY_TCH5:
@@ -1245,6 +1239,13 @@ void func_home_message(size_msg_t msg)
         return;
     }
 
+    if (f_home != NULL && f_home->screen_locked) {
+        // 锁屏状态下仅允许锁键(解锁)、确认键、开关键
+        if (msg != KU_LEFT && msg != KU_BACK && msg != KU_RIGHT) {
+            return;
+        }
+    }
+
     switch (msg) {
     case MSG_CTP_CLICK:
         func_home_button_click(f_home);
@@ -1252,6 +1253,8 @@ void func_home_message(size_msg_t msg)
 
     case KU_LEFT:
 #if ELUNCHBOX_PANEL_EN
+        f_home->screen_locked = !f_home->screen_locked;
+        func_home_lock_icon_apply(f_home);
         break;
 #else
         HOME_DBG("Home: 锁键\n");
@@ -1292,15 +1295,8 @@ void func_home_message(size_msg_t msg)
         break;
 
     case KU_VOL_UP:
-        HOME_DBG("Home msg: 加号\n");
-        home_gpu_wait_idle();
-        func_home_countdown_adjust_min(f_home, 1);
-        break;
-
     case KU_VOL_DOWN:
-        HOME_DBG("Home msg: 减号\n");
-        home_gpu_wait_idle();
-        func_home_countdown_adjust_min(f_home, -1);
+        /* Home 页不使用加减键 */
         break;
 
     default:
@@ -1336,6 +1332,7 @@ void func_home_enter(void)
     f_home->last_top_min = 0xff;
     f_home->last_top_sec = 0xff;
     f_home->last_cd_total_min = 0xffff;
+    f_home->screen_locked = false;
 
     func_home_tab_bind(f_home, HOME_TAB_HEAT, COMPO_ID_TAB0_SEL_BG);
     func_home_tab_bind(f_home, HOME_TAB_MODE, COMPO_ID_TAB1_SEL_BG);
@@ -1374,7 +1371,9 @@ void func_home_enter(void)
     func_home_status_refresh(f_home);
     func_home_res_marquee_refresh(f_home);
 
-    if (home_countdown_inited && func_cb.last == FUNC_HEAT) {
+    if (home_countdown_inited &&
+        (func_cb.last == FUNC_HEAT || func_cb.last == FUNC_MODE)) {
+        home_gpu_wait_idle();
         func_home_clock_restore(f_home);
     }
 

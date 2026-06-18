@@ -278,6 +278,7 @@ typedef struct f_timeing_t_ {
     u8 focus;
     u8 bottom_sel;
     bool is_pm;
+    bool screen_locked;
     compo_shape_t *shape_hour_bg;
     compo_shape_t *shape_min_border;
     compo_shape_t *shape_min_bg;
@@ -688,6 +689,8 @@ static void func_timeing_digits_apply(f_timeing_t *f_timeing)
     func_timeing_ampm_apply(f_timeing);
 }
 
+static void func_timeing_lock_icon_apply(f_timeing_t *f_timeing);
+
 static void func_timeing_status_icons_apply(f_timeing_t *f_timeing)
 {
     home_ui_shared_status_init();
@@ -700,12 +703,27 @@ static void func_timeing_status_icons_apply(f_timeing_t *f_timeing)
     if (f_timeing->pic_lock != NULL && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
         compo_picturebox_set_ram(f_timeing->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_timeing->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-        compo_picturebox_set_visible(f_timeing->pic_lock, true);
     }
     if (f_timeing->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         compo_picturebox_set_ram(f_timeing->pic_bat, home_ui_shared_status_bat_ram);
         compo_picturebox_set_size(f_timeing->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
         compo_picturebox_set_visible(f_timeing->pic_bat, true);
+    }
+
+    func_timeing_lock_icon_apply(f_timeing);
+}
+
+static void func_timeing_lock_icon_apply(f_timeing_t *f_timeing)
+{
+    if (f_timeing == NULL || f_timeing->pic_lock == NULL) {
+        return;
+    }
+    if (f_timeing->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_timeing->pic_lock, home_ui_shared_status_lock_ram);
+        compo_picturebox_set_size(f_timeing->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_timeing->pic_lock, true);
+    } else {
+        compo_picturebox_set_visible(f_timeing->pic_lock, false);
     }
 }
 
@@ -1142,9 +1160,22 @@ static void func_timeing_message(size_msg_t msg)
 {
     f_timeing_t *f_timeing = (f_timeing_t *)func_cb.f_cb;
 
+    if (f_timeing != NULL && f_timeing->screen_locked) {
+        if (msg != TIMEING_MSG_POWER && msg != TIMEING_MSG_OK && msg != KU_LEFT) {
+            return;
+        }
+    }
+
     switch (msg) {
     case MSG_CTP_CLICK:
         func_timeing_button_click();
+        break;
+
+    case KU_LEFT:
+        if (f_timeing != NULL) {
+            f_timeing->screen_locked = !f_timeing->screen_locked;
+            func_timeing_lock_icon_apply(f_timeing);
+        }
         break;
 
     case KU_MODE:
@@ -1183,6 +1214,7 @@ void func_timeing_enter(void)
     f_timeing = (f_timeing_t *)func_cb.f_cb;
     f_timeing->focus = TIMEING_FOCUS_HOUR;
     f_timeing->bottom_sel = 0;
+    f_timeing->screen_locked = false;
     f_timeing->shape_hour_bg = compo_getobj_byid(COMPO_ID_SHAPE_HOUR_BG);
     f_timeing->shape_min_border = compo_getobj_byid(COMPO_ID_SHAPE_MIN_BORDER);
     f_timeing->shape_min_bg = compo_getobj_byid(COMPO_ID_SHAPE_MIN_BG);

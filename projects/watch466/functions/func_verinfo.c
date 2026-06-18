@@ -122,6 +122,7 @@ enum {
 };
 
 typedef struct f_verinfo_t_ {
+    bool screen_locked;
     compo_picturebox_t *pic_back;
     compo_button_t *btn_back;
     compo_picturebox_t *pic_bt;
@@ -245,6 +246,8 @@ static compo_shape_t *func_verinfo_shape_create(compo_form_t *frm, u16 id, s16 x
     return shape;
 }
 
+static void func_verinfo_lock_icon_apply(f_verinfo_t *f_verinfo);
+
 static void func_verinfo_status_icons_apply(f_verinfo_t *f_verinfo)
 {
     home_ui_shared_status_init();
@@ -257,12 +260,27 @@ static void func_verinfo_status_icons_apply(f_verinfo_t *f_verinfo)
     if (f_verinfo->pic_lock != NULL && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
         compo_picturebox_set_ram(f_verinfo->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_verinfo->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-        compo_picturebox_set_visible(f_verinfo->pic_lock, true);
     }
     if (f_verinfo->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         compo_picturebox_set_ram(f_verinfo->pic_bat, home_ui_shared_status_bat_ram);
         compo_picturebox_set_size(f_verinfo->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
         compo_picturebox_set_visible(f_verinfo->pic_bat, true);
+    }
+
+    func_verinfo_lock_icon_apply(f_verinfo);
+}
+
+static void func_verinfo_lock_icon_apply(f_verinfo_t *f_verinfo)
+{
+    if (f_verinfo == NULL || f_verinfo->pic_lock == NULL) {
+        return;
+    }
+    if (f_verinfo->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_verinfo->pic_lock, home_ui_shared_status_lock_ram);
+        compo_picturebox_set_size(f_verinfo->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_verinfo->pic_lock, true);
+    } else {
+        compo_picturebox_set_visible(f_verinfo->pic_lock, false);
     }
 }
 
@@ -332,9 +350,24 @@ static void func_verinfo_process(void)
 
 static void func_verinfo_message(size_msg_t msg)
 {
+    f_verinfo_t *f_verinfo = (f_verinfo_t *)func_cb.f_cb;
+
+    if (f_verinfo != NULL && f_verinfo->screen_locked) {
+        if (msg != VERINFO_MSG_POWER && msg != KU_BACK && msg != KU_LEFT) {
+            return;
+        }
+    }
+
     switch (msg) {
     case MSG_CTP_CLICK:
         func_verinfo_button_click();
+        break;
+
+    case KU_LEFT:
+        if (f_verinfo != NULL) {
+            f_verinfo->screen_locked = !f_verinfo->screen_locked;
+            func_verinfo_lock_icon_apply(f_verinfo);
+        }
         break;
 
     case VERINFO_MSG_POWER:
@@ -355,6 +388,7 @@ void func_verinfo_enter(void)
     func_cb.frm_main = func_verinfo_form_create();
 
     f_verinfo = (f_verinfo_t *)func_cb.f_cb;
+    f_verinfo->screen_locked = false;
     f_verinfo->pic_back = compo_getobj_byid(COMPO_ID_PIC_BACK);
     f_verinfo->btn_back = compo_getobj_byid(COMPO_ID_BTN_BACK);
     f_verinfo->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
