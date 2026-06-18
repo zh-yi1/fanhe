@@ -62,8 +62,12 @@
 			<Add option="-Map=Output\bin\map.txt" />
 			<Add library="libplatform" />
 			<Add library="libbtstack" />
+			<Add library="libcodecs" />
 			<Add library="libdrivers_v2" />
+			<Add library="libimg" />
+			<Add library="libttf" />
 			<Add library="libgui" />
+			<Add library="libnet" />
 			<Add library="../../platform/bsp/bsp_sensor/hx3605/libhx3605.a" />
 			<Add library="../../platform/bsp/bsp_sensor/hrs3300/libhrs3300.a" />
 			<Add library="../../platform/bsp/bsp_sensor/hrs3300/libhrs3300_s.a" />
@@ -72,6 +76,7 @@
 			<Add library="../../platform/libs/libm.a" />
 			<Add library="../../platform/libs/libgcc.a" />
 			<Add library="../../platform/libs/libc.a" />
+			<Add library="../../platform/libs/libapp.a" />
 			<Add library="../../platform/bsp/bsp_sensor/qmc6309/lib_qst_ical.a" />
 			<Add directory="../../platform/libs" />
 			<Add directory="../../platform/libs/net" />
@@ -814,15 +819,67 @@
 		<Unit filename="functions/func_activity.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_address_book.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alarm_clock.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alarm_clock_sub_edit.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alarm_clock_sub_repeat.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_alarm_clock_sub_set.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_altitude.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_bird.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_ble_gatts.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_ble_gatts.h" />
+		<Unit filename="functions/func_blood_oxygen.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_blood_pressure.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_bloodsugar.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_breathe.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_brightness.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_bt.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_bt.h" />
+		<Unit filename="functions/func_calculator.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_calculator_alg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_calculator_alg.h" />
+		<Unit filename="functions/func_calendar.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_camera.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_charge.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_compass.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_compo_select.c">
@@ -832,6 +889,40 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_debug_info.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_disturd_config.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_emit_list.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_findphone.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_flashlight.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_fmrx.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_fmrx.h" />
+		<Unit filename="functions/func_game.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_game_tetris.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_game_tetris_over.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_game_tetris_start.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_gif.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_heartrate.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_heat.c">
@@ -857,6 +948,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/home_ui_gpu_detach.h" />
+		<Unit filename="functions/func_light.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_lunchbox_uart.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -879,10 +973,158 @@
 		<Unit filename="functions/func_verinfo.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_menu.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu.h" />
+		<Unit filename="functions/func_menu_sub_cum_sudoku.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_disk.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_football.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_grid.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_hexagon.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_honeycomb.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_list.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_ring.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_skyrer.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_sudoku.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menu_sub_waterfall.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_menustyle.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_message.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_music.h" />
+		<Unit filename="functions/func_passwod_sub_disp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_password_sub_select.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_photo_view.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_recorder.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_recorder.h" />
+		<Unit filename="functions/func_scan.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_setting.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_setting_sub_about.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_disturd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_dousing.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_language.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_menu_navigation.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_off.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_password.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_restart.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_rstfy.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_sav.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_time.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_setting_sub_wrist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sleep.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_smartstack.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sport.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sport_config.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sport_sub_run.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_sport_switching.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_stopwatch.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_stopwatch_sub_record.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_style.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_take_photo.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_tbl.h" />
+		<Unit filename="functions/func_time_sub_custom.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_timer.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_usbdev.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_usbdev.h" />
+		<Unit filename="functions/func_video_showlist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_voice.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_volume.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_weather.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="i18n/lang.c">
 			<Option compilerVar="CC" />
 		</Unit>

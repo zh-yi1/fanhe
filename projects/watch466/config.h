@@ -89,7 +89,7 @@
 /*****************************************************************************
  * Module    : FLASH配置
  *****************************************************************************/
-#define FLASH_DISK_EN                   1                                                   //是否支持FLASH DISK 功能
+#define FLASH_DISK_EN                   0                                                   //是否支持FLASH DISK 功能
 #define FLASH_SIZE                      FSIZE_4M                                            //根据芯片信息配置实际FLASH SIZE
 #define FLASH_CODE_BASE_SIZE            0x1C0000                                            //代码区(须<=FLASH_UI_BASE-0x2000)
 #define FLASH_UI_BASE                   0x200000                                            //UI资源起始地址(最小值为FLASH_CODE_SIZE)
