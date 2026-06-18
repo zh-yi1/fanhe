@@ -1,0 +1,90 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🔨 Build (RISC-V V3)",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "./build.sh"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/projects/watch466"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "clear": false
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "🧹 Clean (RISC-V V3)",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "./build.sh",
+        "clean"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/projects/watch466"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🔄 Rebuild (RISC-V V3)",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "./build.sh",
+        "rebuild"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/projects/watch466"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "📦 Build + OTA Package",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "./build.sh && cd Output/bin && cmd.exe /c postbuild_ble_ota.bat app"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/projects/watch466"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    }
+  ]
+}

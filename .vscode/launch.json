@@ -2,21 +2,26 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "C/C++ Runner: Debug Session",
+      "name": "C/C++: gdb (RISC-V)",
       "type": "cppdbg",
       "request": "launch",
+      "program": "${workspaceFolder}/projects/watch466/Output/bin/app.rv32",
       "args": [],
       "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
       "externalConsole": true,
-      "cwd": "d:/C_Code/fanhe/elunchbox/platform/bsp",
-      "program": "d:/C_Code/fanhe/elunchbox/platform/bsp/build/Debug/outDebug",
       "MIMode": "gdb",
-      "miDebuggerPath": "gdb",
+      "miDebuggerPath": "D:/Program Files (x86)/RV32-Toolchain/RV32-V3/bin/riscv32-elf-gdb.exe",
       "setupCommands": [
         {
           "description": "Enable pretty-printing for gdb",
           "text": "-enable-pretty-printing",
           "ignoreFailures": true
+        },
+        {
+          "description": "Set target remote",
+          "text": "target remote localhost:2331"
         }
       ]
     }
