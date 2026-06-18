@@ -5,6 +5,10 @@
 #include "home_ui_shared.h"
 #include "home_top_time.h"
 
+#if FUNC_LUNCHBOX_UART_EN
+#include "func_lunchbox_uart.h"
+#endif
+
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
 #else
@@ -544,6 +548,9 @@ static void func_heat_heating_finish_check(f_heat_t *f_heat)
         f_heat->display_temp_f = func_heat_get_target_temp_f(f_heat);
         f_heat->screen_locked = false;
         func_heat_lock_icon_apply(f_heat);
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_heat_stop();
+#endif
     }
 }
 
@@ -704,6 +711,12 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     f_heat->last_temp_f = 0xffff;
     heat_countdown_remain_sec = f_heat->heat_total_sec;
     func_heat_countdown_start();
+
+#if FUNC_LUNCHBOX_UART_EN
+    printf("lb: heat_start -> UART\n");
+    lunchbox_heat_start();
+#endif
+
     func_heat_display_refresh(f_heat);
 }
 
@@ -739,6 +752,9 @@ static void func_heat_power_key(f_heat_t *f_heat)
 {
     if (f_heat->ui_state == HEAT_UI_HEATING) {
         func_heat_countdown_stop();
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_heat_stop();
+#endif
         f_heat->screen_locked = false;
         func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;
@@ -1025,6 +1041,9 @@ void func_heat_enter(void)
 void func_heat_exit(void)
 {
     func_heat_countdown_stop();
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_heat_stop();
+#endif
     func_cb.last = FUNC_HEAT;
 }
 
