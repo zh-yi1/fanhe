@@ -6,6 +6,12 @@
 #define FUNC_ENTER_CNT                        ((int)(sizeof(tbl_func_enter) / sizeof(tbl_func_enter[0])))
 #define FUNC_EXIT_CNT                        ((int)(sizeof(tbl_func_exit) / sizeof(tbl_func_exit[0])))
 
+
+#define WATCH_FUNC_EN                      0   // 手表功能开关，饭盒项目设为0
+
+
+#define WATCH_FUNC_EN                      0   // 手表功能开关，饭盒项目设为0
+
 typedef struct func_t_ {
     int func_idx;
     void *func;
@@ -125,6 +131,8 @@ compo_form_t *func_take_photo_form_create(void);
 compo_form_t *func_gif_form_create(void);
 
 const func_t tbl_func_create[] = {
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MENU,                         func_menu_form_create},
     {FUNC_MENUSTYLE,                    NULL},
     {FUNC_CLOCK,                        func_clock_form_create},
@@ -132,10 +140,18 @@ const func_t tbl_func_create[] = {
     {FUNC_SIDEBAR,                      func_clock_sub_sidebar_form_create},
     {FUNC_CARD,                         func_clock_sub_card_form_create},
     {FUNC_HEARTRATE,                    func_heartrate_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_BT,                           func_bt_form_create},
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_BT_CALL,                      func_bt_outgoing_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_COMPO_SELECT,                 func_compo_select_form_create},
     {FUNC_COMPO_SELECT_SUB,             func_compo_select_sub_form_create},
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_ALARM_CLOCK,                  func_alarm_clock_form_create},
     {FUNC_ALARM_CLOCK_SUB_SET,          func_alarm_clock_sub_set_form_create},
     {FUNC_ALARM_CLOCK_SUB_REPEAT,       func_alarm_clock_sub_repeat_form_create},
@@ -163,9 +179,13 @@ const func_t tbl_func_create[] = {
     {FUNC_MESSAGE,                      func_message_form_create},
     {FUNC_SCAN,                         func_scan_form_create},
     {FUNC_VOICE,                        func_voice_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #if SECURITY_PAY_EN
     {FUNC_ALIPAY,                       func_alipay_form_create},
 #endif // SECURITY_PAY_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_COMPASS,                      func_compass_form_create},
     {FUNC_ADDRESS_BOOK,                 func_address_book_form_create},
     {FUNC_CALL,                         func_call_form_create},
@@ -195,6 +215,8 @@ const func_t tbl_func_create[] = {
     {FUNC_SET_SUB_RESTART,              func_set_sub_restart_form_create},
     {FUNC_SET_SUB_RSTFY,                func_set_sub_rstfy_form_create},
     {FUNC_SET_SUB_OFF,                  func_set_sub_off_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_CHARGE,                       func_charge_form_create},
     {FUNC_DEBUG_INFO,                   func_debug_info_form_create},
     {FUNC_HEAT,                         func_heat_form_create},
@@ -205,48 +227,100 @@ const func_t tbl_func_create[] = {
     {FUNC_TIMEING,                      func_timeing_form_create},
     {FUNC_LANGUAGEING,                  func_languageing_form_create},
     {FUNC_VERINFO,                      func_verinfo_form_create},
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_SMARTSTACK,                   func_smartstack_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #if BT_EMIT_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MUSIC_SRC,                    func_music_src_form_create},
 	{FUNC_EMIT_LIST,                    func_emit_list_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_MUSIC_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MUSIC,                        func_music_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_USBDEV_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_USBDEV,                       func_usbdev_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_RECORDER_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_RECORDER,                     func_recorder_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FLASHDB_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MESSAGE_REPLY,                func_message_reply_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_BIRD,                         func_bird_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #if FUNC_BLE_GATTS_EN
     {FUNC_BLE_GATTS,                    func_ble_gatts_form_create},
 #endif
 #if FUNC_GAME_TETRIS_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_GAME_TETRIS,                  func_game_tetris_form_create},
     {FUNC_GAME_TETRIS_START,            func_game_tetris_start_form_create},
     {FUNC_GAME_TETRIS_OVER,             func_game_tetris_over_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_GAME_TETRIS_EN
 
 #if VIDEO_PLAY_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_PLAY,                   func_video_play_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // VIDEO_PLAY_EN
 #if PHOTO_VIEW_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_PHOTO_VIEW,                   func_photo_view_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // PHOTO_VIEW_EN
 #if AVI_DVP_DEMOLIST
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_SHOWLIST,               func_video_showlist_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // AVI_DVP_DEMOLIST
 #if VIDEO_RECODE_TAKE_PHOTO_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_RECODE,                 func_video_recode_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_TAKE_PHOTO,                   func_take_photo_form_create},
 #endif // VIDEO_RECODE_TAKE_PHOTO_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_GIF,                          func_gif_form_create},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 
 };
 
@@ -376,6 +450,8 @@ extern void func_take_photo(void);
 extern void func_gif(void);
 
 const func_t tbl_func_entry[] = {
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MENU,                         func_menu},                     //主菜单(蜂窝)
     {FUNC_MENUSTYLE,                    func_menustyle},                //主菜单样式选择
     {FUNC_CLOCK,                        func_clock},                    //时钟表盘
@@ -391,8 +467,12 @@ const func_t tbl_func_entry[] = {
     {FUNC_BLOODSUGAR,                   func_bloodsugar},               //血糖
     {FUNC_BLOOD_PRESSURE,               func_bloodpressure},            //血压
     {FUNC_BREATHE,                      func_breathe},                  //呼吸
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_COMPO_SELECT,                 func_compo_select},             //组件选择
     {FUNC_COMPO_SELECT_SUB,             func_compo_select_sub},         //组件选择子界面
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_CALCULATOR,                   func_calculator},               //计算器
     {FUNC_CAMERA,                       func_camera},                   //相机
     {FUNC_LIGHT,                        func_light},                    //亮度调节
@@ -413,9 +493,13 @@ const func_t tbl_func_entry[] = {
     {FUNC_MESSAGE,                      func_message_info},             //消息
     {FUNC_SCAN,                         func_scan},                     //扫一扫
     {FUNC_VOICE,                        func_voice},                    //语音助手
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #if SECURITY_PAY_EN
     {FUNC_ALIPAY,                       func_alipay},                   //支付宝
 #endif // SECURITY_PAY_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_COMPASS,                      func_compass},                  //指南针
     {FUNC_ADDRESS_BOOK,                 func_address_book},             //电话簿
     {FUNC_CALENDAER,                    func_calendar},                 //日历
@@ -444,6 +528,8 @@ const func_t tbl_func_entry[] = {
     {FUNC_SET_SUB_RESTART,              func_set_sub_restart},          //设置--重启
     {FUNC_SET_SUB_RSTFY,                func_set_sub_rstfy},            //设置--恢复出厂
     {FUNC_SET_SUB_OFF,                  func_set_sub_off},              //设置--关机
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_CHARGE,                       func_charge},                   //充电
     {FUNC_DEBUG_INFO,                   func_debug_info},               //DEBUG
     {FUNC_HEAT,                         func_heat},                     //加热页
@@ -454,67 +540,139 @@ const func_t tbl_func_entry[] = {
     {FUNC_TIMEING,                      func_timeing},                  //定时页
     {FUNC_LANGUAGEING,                  func_languageing},             //语言页
     {FUNC_VERINFO,                      func_verinfo},                  //版本信息页
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_SMARTSTACK,                   func_smartstack},               //智能堆栈
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt},
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_BT_RING,                      func_bt_ring},
     {FUNC_BT_CALL,                      func_bt_call},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_BT_EN
 #if FUNC_BT_DUT_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_BT_DUT,                       func_bt_dut},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_BT_DUT_EN
 #if BT_EMIT_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MUSIC_SRC,                    func_music_src},
     {FUNC_EMIT_LIST,                    func_emit_list},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_MUSIC_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MUSIC,                        func_music},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_FMRX_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_FMRX,                         func_fmrx},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_USBDEV_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_USBDEV,                       func_usbdev},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_RECORDER_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_RECORDER,                     func_recorder},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_IDLE_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_IDLE,                         func_idle},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FOTA_UI_EN
     {FUNC_OTA_UI_MODE,                  func_ota_ui},
 #endif
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MODEM_CALL,                   func_modem_call},
     {FUNC_MODEM_RING,                   func_modem_ring},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_BT_UPDATE,                    func_bt_update},
 #if FLASHDB_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MESSAGE_REPLY,                func_message_reply_info},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_BIRD,                         func_bird},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #if FUNC_BLE_GATTS_EN
     {FUNC_BLE_GATTS,                    func_ble_gatts},
 #endif
 #if FUNC_GAME_TETRIS_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_GAME_TETRIS,                  func_game_tetris},
     {FUNC_GAME_TETRIS_START,            func_game_tetris_start},
     {FUNC_GAME_TETRIS_OVER,             func_game_tetris_over},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_GAME_TETRIS_EN
 
 #if VIDEO_PLAY_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_PLAY,                   func_video_play},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // VIDEO_PLAY_EN
 #if PHOTO_VIEW_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_PHOTO_VIEW,                   func_photo_view},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // PHOTO_VIEW_EN
 #if AVI_DVP_DEMOLIST
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_SHOWLIST,               func_video_showlist},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // AVI_DVP_DEMOLIST
 #if VIDEO_RECODE_TAKE_PHOTO_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_RECODE,                 func_video_recode},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_TAKE_PHOTO,                   func_take_photo},
 #endif // VIDEO_RECODE_TAKE_PHOTO_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_GIF,                          func_gif},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 
 
 };
@@ -673,6 +831,7 @@ u32 func_heat_countdown_remain_sec(void);
 void func_heat_temp_set_f(u16 temp_f);
 
 const func_t tbl_func_enter[] = {
+    #if WATCH_FUNC_EN
     {FUNC_MENU,                         func_menu_enter},                     //主菜单(蜂窝)
     {FUNC_MENUSTYLE,                    func_menustyle_enter},                //主菜单样式选择
     {FUNC_CLOCK,                        func_clock_enter},                    //时钟表盘
@@ -688,8 +847,10 @@ const func_t tbl_func_enter[] = {
     {FUNC_BLOODSUGAR,                   func_bloodsugar_enter},               //血糖
     {FUNC_BLOOD_PRESSURE,               func_bloodpressure_enter},            //血压
     {FUNC_BREATHE,                      func_breathe_enter},                  //呼吸
+    #endif // WATCH_FUNC_EN
     {FUNC_COMPO_SELECT,                 func_compo_select_enter},             //组件选择
     {FUNC_COMPO_SELECT_SUB,             func_compo_select_sub_enter},         //组件选择子界面
+    #if WATCH_FUNC_EN
     {FUNC_CALCULATOR,                   func_calculator_enter},               //计算器
     {FUNC_CAMERA,                       func_camera_enter},                   //相机
     {FUNC_LIGHT,                        func_light_enter},                    //亮度调节
@@ -710,9 +871,11 @@ const func_t tbl_func_enter[] = {
     {FUNC_MESSAGE,                      func_message_enter},             //消息
     {FUNC_SCAN,                         func_scan_enter},                     //扫一扫
     {FUNC_VOICE,                        func_voice_enter},                    //语音助手
+    #endif // WATCH_FUNC_EN
 #if SECURITY_PAY_EN
     {FUNC_ALIPAY,                       func_alipay_enter},                   //支付宝
 #endif // SECURITY_PAY_EN
+    #if WATCH_FUNC_EN
     {FUNC_COMPASS,                      func_compass_enter},                  //指南针
     {FUNC_ADDRESS_BOOK,                 func_address_book_enter},             //电话簿
     {FUNC_CALENDAER,                    func_calendar_enter},                 //日历
@@ -741,6 +904,7 @@ const func_t tbl_func_enter[] = {
     {FUNC_SET_SUB_RESTART,              func_set_sub_restart_enter},          //设置--重启
     {FUNC_SET_SUB_RSTFY,                func_set_sub_rstfy_enter},            //设置--恢复出厂
     {FUNC_SET_SUB_OFF,                  func_set_sub_off_enter},              //设置--关机
+    #endif // WATCH_FUNC_EN
     {FUNC_CHARGE,                       func_charge_enter},                   //充电
     {FUNC_DEBUG_INFO,                   func_debug_enter},               //DEBUG
     {FUNC_HEAT,                         func_heat_enter},                //加热页
@@ -751,67 +915,103 @@ const func_t tbl_func_enter[] = {
     {FUNC_TIMEING,                      func_timeing_enter},            //定时页
     {FUNC_LANGUAGEING,                  func_languageing_enter},       //语言页
     {FUNC_VERINFO,                      func_verinfo_enter},            //版本信息页
+    #if WATCH_FUNC_EN
     {FUNC_SMARTSTACK,                   func_smartstack_enter},               //智能堆栈
+    #endif // WATCH_FUNC_EN
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt_enter},
+    #if WATCH_FUNC_EN
     {FUNC_BT_RING,                      func_bt_ring_enter},
     {FUNC_BT_CALL,                      func_bt_call_enter},
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_BT_EN
 #if FUNC_BT_DUT_EN
+    #if WATCH_FUNC_EN
     {FUNC_BT_DUT,                       NULL},
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_BT_DUT_EN
 #if BT_EMIT_EN
+    #if WATCH_FUNC_EN
     {FUNC_MUSIC_SRC,                    func_music_src_enter},
     {FUNC_EMIT_LIST,                    func_emit_list_enter},
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_MUSIC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MUSIC,                        func_music_enter},
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_FMRX_EN
+    #if WATCH_FUNC_EN
     {FUNC_FMRX,                         func_fmrx_enter},
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_USBDEV_EN
+    #if WATCH_FUNC_EN
     {FUNC_USBDEV,                       func_usbdev_enter},
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_RECORDER_EN
+    #if WATCH_FUNC_EN
     {FUNC_RECORDER,                     func_recorder_enter},
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_IDLE_EN
+    #if WATCH_FUNC_EN
     {FUNC_IDLE,                         func_idle_enter},
+    #endif // WATCH_FUNC_EN
 #endif
 #if FOTA_UI_EN
     {FUNC_OTA_UI_MODE,                  func_ota_ui_enter},
 #endif
+    #if WATCH_FUNC_EN
     {FUNC_MODEM_CALL,                   func_modem_call_enter},
     {FUNC_MODEM_RING,                   func_modem_ring_enter},
+    #endif // WATCH_FUNC_EN
     {FUNC_BT_UPDATE,                    func_bt_update_enter},
 #if FLASHDB_EN
+    #if WATCH_FUNC_EN
     {FUNC_MESSAGE_REPLY,                func_message_reply_info_enter},
+    #endif // WATCH_FUNC_EN
 #endif
+    #if WATCH_FUNC_EN
     {FUNC_BIRD,                         func_bird_enter},
+    #endif // WATCH_FUNC_EN
 #if FUNC_BLE_GATTS_EN
     {FUNC_BLE_GATTS,                    func_ble_gatts_enter},
 #endif
 #if FUNC_GAME_TETRIS_EN
+    #if WATCH_FUNC_EN
     {FUNC_GAME_TETRIS,                  func_game_tetris_enter},
     {FUNC_GAME_TETRIS_START,            func_game_tetris_start_enter},
     {FUNC_GAME_TETRIS_OVER,             func_game_tetris_over_enter},
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_GAME_TETRIS_EN
 
 #if VIDEO_PLAY_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_PLAY,                   func_video_play_enter},
+    #endif // WATCH_FUNC_EN
 #endif // VIDEO_PLAY_EN
 #if PHOTO_VIEW_EN
+    #if WATCH_FUNC_EN
     {FUNC_PHOTO_VIEW,                   func_photo_view_enter},
+    #endif // WATCH_FUNC_EN
 #endif // PHOTO_VIEW_EN
 #if AVI_DVP_DEMOLIST
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_SHOWLIST,               func_video_showlist_enter},
+    #endif // WATCH_FUNC_EN
 #endif // AVI_DVP_DEMOLIST
 #if VIDEO_RECODE_TAKE_PHOTO_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_RECODE,                 func_video_recode_enter},
+    #endif // WATCH_FUNC_EN
     {FUNC_TAKE_PHOTO,                   func_take_photo_enter},
 #endif // VIDEO_RECODE_TAKE_PHOTO_EN
+    #if WATCH_FUNC_EN
     {FUNC_GIF,                          func_gif_enter},
+    #endif // WATCH_FUNC_EN
 };
 
 
@@ -944,6 +1144,8 @@ void func_take_photo_exit(void);
 void func_gif_exit(void);
 
 const func_t tbl_func_exit[] = {
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MENU,                         func_menu_exit},                     //主菜单(蜂窝)
     {FUNC_MENUSTYLE,                    func_menustyle_exit},                //主菜单样式选择
     {FUNC_CLOCK,                        func_clock_exit},                    //时钟表盘
@@ -959,8 +1161,12 @@ const func_t tbl_func_exit[] = {
     {FUNC_BLOODSUGAR,                   func_bloodsugar_exit},               //血糖
     {FUNC_BLOOD_PRESSURE,               func_bloodpressure_exit},            //血压
     {FUNC_BREATHE,                      func_breathe_exit},                  //呼吸
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_COMPO_SELECT,                 func_compo_select_exit},             //组件选择
     {FUNC_COMPO_SELECT_SUB,             func_compo_select_sub_exit},         //组件选择子界面
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_CALCULATOR,                   func_calculator_exit},               //计算器
     {FUNC_CAMERA,                       func_camera_exit},                   //相机
     {FUNC_LIGHT,                        func_light_exit},                    //亮度调节
@@ -981,9 +1187,13 @@ const func_t tbl_func_exit[] = {
     {FUNC_MESSAGE,                      func_message_exit},             //消息
     {FUNC_SCAN,                         func_scan_exit},                     //扫一扫
     {FUNC_VOICE,                        func_voice_exit},                    //语音助手
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #if SECURITY_PAY_EN
     {FUNC_ALIPAY,                       func_alipay_exit},                   //支付宝
 #endif // SECURITY_PAY_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_COMPASS,                      func_compass_exit},                  //指南针
     {FUNC_ADDRESS_BOOK,                 func_address_book_exit},             //电话簿
     {FUNC_CALENDAER,                    func_calendar_exit},                 //日历
@@ -1012,6 +1222,8 @@ const func_t tbl_func_exit[] = {
     {FUNC_SET_SUB_RESTART,              func_set_sub_restart_exit},          //设置--重启
     {FUNC_SET_SUB_RSTFY,                func_set_sub_rstfy_exit},            //设置--恢复出厂
     {FUNC_SET_SUB_OFF,                  func_set_sub_off_exit},              //设置--关机
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_CHARGE,                       func_charge_exit},                   //充电
     {FUNC_DEBUG_INFO,                   func_debug_info_exit},               //DEBUG
     {FUNC_HEAT,                         func_heat_exit},                    //加热页
@@ -1022,67 +1234,139 @@ const func_t tbl_func_exit[] = {
     {FUNC_TIMEING,                      func_timeing_exit},                 //定时页
     {FUNC_LANGUAGEING,                  func_languageing_exit},         //语言页
     {FUNC_VERINFO,                      func_verinfo_exit},                 //版本信息页
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_SMARTSTACK,                   func_smartstack_exit},               //智能堆栈
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt_exit},
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_BT_RING,                      func_bt_ring_exit},
     {FUNC_BT_CALL,                      func_bt_call_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_BT_EN
 #if FUNC_BT_DUT_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_BT_DUT,                       NULL},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_BT_DUT_EN
 #if BT_EMIT_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MUSIC_SRC,                    func_music_src_exit},
     {FUNC_EMIT_LIST,                    func_emit_list_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_MUSIC_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MUSIC,                        func_music_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_FMRX_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_FMRX,                         func_fmrx_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_USBDEV_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_USBDEV,                       func_usbdev_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_RECORDER_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_RECORDER,                     func_recorder_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FUNC_IDLE_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_IDLE,                         func_idle_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
 #if FOTA_UI_EN
     {FUNC_OTA_UI_MODE,                  func_ota_ui_exit},
 #endif
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MODEM_CALL,                   func_modem_call_exit},
     {FUNC_MODEM_RING,                   func_modem_ring_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_BT_UPDATE,                    func_bt_update_exit},
 #if FLASHDB_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_MESSAGE_REPLY,                NULL},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_BIRD,                         func_bird_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #if FUNC_BLE_GATTS_EN
     {FUNC_BLE_GATTS,                    func_ble_gatts_exit},
 #endif
 #if FUNC_GAME_TETRIS_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_GAME_TETRIS,                  func_game_tetris_exit},
     {FUNC_GAME_TETRIS_START,            func_game_tetris_start_exit},
     {FUNC_GAME_TETRIS_OVER,             func_game_tetris_over_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // FUNC_GAME_TETRIS_EN
 
 #if VIDEO_PLAY_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_PLAY,                   func_video_play_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // VIDEO_PLAY_EN
 #if PHOTO_VIEW_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_PHOTO_VIEW,                   func_photo_view_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // PHOTO_VIEW_EN
 #if AVI_DVP_DEMOLIST
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_SHOWLIST,               func_video_showlist_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 #endif // AVI_DVP_DEMOLIST
 #if VIDEO_RECODE_TAKE_PHOTO_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_VIDEO_RECODE,                 func_video_recode_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
     {FUNC_TAKE_PHOTO,                   func_take_photo_exit},
 #endif // VIDEO_RECODE_TAKE_PHOTO_EN
+    #if WATCH_FUNC_EN
+    #if WATCH_FUNC_EN
     {FUNC_GIF,                          func_gif_exit},
+    #endif // WATCH_FUNC_EN
+    #endif // WATCH_FUNC_EN
 };
 
 #endif // _FUNC_H

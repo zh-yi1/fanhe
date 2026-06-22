@@ -42,7 +42,7 @@ void adcch_io_pu10k_enable(u8 adc_ch);
 #define PORT_INT7_VECTOR            7   //PE7,  PE8,  PE11
 
 void port_var_init(void);
-void port_irq_register(int irq_num, isr_t isr);
+void port_irq_register(int irq_num, isr_t isr); //	注册中断服务函数
 void port_irq_free(int irq_num);
 u8 port_wakeup_get_status(void);
 bool port_wakeup_init(u8 io_num, u8 edge, u8 pupd_sel);     //参数edge: 0->上升沿, 1->下降沿,  参数pupd_sel: 0->不开内部上拉, 1->开内部上拉, 2->开内部下拉

@@ -134,7 +134,7 @@ static bool lb_frame_parse(void)
     };
 
     // ──── UART 收包日志 ────
-    printf("UART==>RX [%d]: ", total);
+    printf("UART==>RX[%d]: ", total);
     for (u16 i = 0; i < total; i++) printf("%02X ", lb_rx_buf[i]);
     printf("\n");
 
@@ -1018,14 +1018,14 @@ void   lunchbox_ble_rx_handle(u8 *data, u16 len)
         lb_handler_product_info(&frame);
     } else {
         // 其他命令 → 原帧透传到串口给加热模块
-        printf("UART==>TX [%d]: ", len);
+        printf("UART==>TX[%d]: ", len);
         for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
         printf("\n");
         uart_bufs_tx(UART_TYPE_1, data, len);
     }
 #else
     // ──── 本地模式：原帧转发到串口 + 解析分发给 cmd_handler ────
-    printf("UART==>TX [%d]: ", len);
+    printf("UART==>TX[%d]: ", len);
     for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
     printf("\n");
     uart_bufs_tx(UART_TYPE_1, data, len);
@@ -1068,10 +1068,14 @@ void lunchbox_uart_init(u32 baud)
 
     // 默认设备信息（桥模式和本地模式都需要，0x01 查询时用）
     memset(&lb_dev_info, 0, sizeof(lb_dev_info));
-    memcpy(lb_dev_info.bt_name, "AR0MA-NY_0000\0\0\0", 16);
+    // 蓝牙名称: AR0MA-NY_xxxx (xxxx = MAC 后两字节大写十六进制，与 BLE 广播名一致)
+    u8 ble_addr[6];
+    ble_get_local_bd_addr(ble_addr);
+    sprintf(lb_dev_info.bt_name, "AR0MA-NY_%02X%02X", ble_addr[4], ble_addr[5]);
     memcpy(lb_dev_info.version, "01.00.00", 8);
     memcpy(lb_dev_info.model,  "SF101\0\0\0\0\0", 10);
-    // MAC/SN/Color 由应用层通过 lunchbox_set_device_info() 写入
+    memcpy(lb_dev_info.mac, ble_addr, 6);
+    // SN/Color 由应用层通过 lunchbox_set_device_info() 写入
 
     uart_t uart1;
     memset(&uart1, 0, sizeof(uart1));

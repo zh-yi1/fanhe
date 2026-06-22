@@ -17,7 +17,7 @@ bool bsp_gpio_pu_en(u8 io_num,u8 level_flag);
 // GPIOxPD300,
 bool bsp_gpio_pd_en(u8 io_num,u8 level_flag);
 
-//功能：读取io电平
+//功能：读取io电平，返回 true=高
 bool bsp_gpio_get_sta(u8 io_num);
 
 //功能：配置上拉,关闭上下拉

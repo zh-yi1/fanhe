@@ -11,11 +11,6 @@
 #include "common/func_lowpwr.h"
 #include "common/func_manage.h"
 #include "common/func_update.h"
-#include "func_bt_dut.h"
-#include "func_music.h"
-#include "func_usbdev.h"
-#include "func_recorder.h"
-#include "func_fmrx.h"
 #if FUNC_BLE_GATTS_EN
 #include "func_ble_gatts.h"
 #endif

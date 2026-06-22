@@ -863,11 +863,13 @@ void bsp_sys_init(void)
     sys_set_tmr_enable(1, 1);
 
 #if ELUNCHBOX_PANEL_EN
-    /* 饭盒：跳过 BT/DAC/mic 等可能阻塞项，尽快点亮 LCD */
+    /* 饭盒：跳过 DAC/mic 等可能阻塞项，尽快点亮 LCD */
     lang_select(sys_cb.lang_id);
     bsp_sys_mute();
     gui_init();
     customer_heap_init();
+    bt_init();
+    func_bt_init();  //饭盒：启动 BLE 广播（bt_init 仅初始化变量，func_bt_init→bsp_bt_init→bt_setup 才真正启动模块）
     return;
 #endif
 
