@@ -121,9 +121,7 @@ int main(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_uart_init(LB_BAUD);
-#if !LB_BRIDGE_MODE
-    lunchbox_uart_init_handlers();
-#endif
+    lunchbox_uart_init_handlers();  // 桥模式也需要注册handler(0x01/0x09/0x0a本地处理)
 #if LB_SELFTEST_EN
     func_lunchbox_uart_test();
 #endif

@@ -383,8 +383,8 @@
 #define LE_WIN10_POPUP                  0   //是否打开win10 swift pair快速配对
 
 //FOTA功能配置
-#define LE_AB_FOT_EN                    0   //是否打开BLE FOTA服务,需同时打开LE_AB_LINK_APP_EN
-#define AB_FOT_TYPE_PACK                0   //FOTA压缩升级（代码做压缩处理，升级完成需做解压才可正常运行）
+#define LE_AB_FOT_EN                    1   //是否打开BLE FOTA服务,需同时打开LE_AB_LINK_APP_EN
+#define AB_FOT_TYPE_PACK                1   //FOTA压缩升级（代码做压缩处理，升级完成需做解压才可正常运行）
 #define SW_VERSION		                "V0.0.1"   //只能使用数字0-9,ota需要转码
 #define HW_VERSION		                "V0.0.1"   //只能使用数字0-9,ota需要转码
 #define FOTA_UI_EN                      0          //是否支持UI升级，需要用一个批处理打包UI+FOT

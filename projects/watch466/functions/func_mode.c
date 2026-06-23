@@ -1,5 +1,6 @@
 ﻿#include "include.h"
 #include "func.h"
+#include "func_lunchbox_uart.h"
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
@@ -418,6 +419,9 @@ static const mode_tab_preset_t tbl_mode_tab_preset[MODE_TAB_CNT] = {
     {212, 1, 0},   /* Chicken     */
     {120, 1, 0},   /* Insulation  */
 };
+
+/* Tab → 协议模式值: Pasta=3(意面), Chicken=2(鸡腿), Insulation=5(保温) */
+static const u8 tbl_mode_tab_to_proto[MODE_TAB_CNT] = { 3, 2, 5 };
 
 static void func_mode_status_temp_update(f_mode_t *f_mode, u16 temp_f);
 static void func_mode_timer_update(f_mode_t *f_mode, u8 hour, u8 min);
@@ -920,6 +924,11 @@ static void func_mode_start_heating(f_mode_t *f_mode)
     func_mode_countdown_start();
     func_mode_display_refresh(f_mode);
     func_mode_lock_icon_apply(f_mode);
+
+    // 发送加热启动命令到加热模块
+    lunchbox_heat_start(tbl_mode_tab_to_proto[f_mode->tab],
+                        lunchbox_temp_f_to_idx(preset->temp_f),
+                        f_mode->heat_total_sec / 60);
 }
 
 static void func_mode_timer_gpu_detach(f_mode_t *f_mode)
@@ -958,6 +967,7 @@ static void func_mode_power_key(f_mode_t *f_mode)
 
     if (f_mode->ui_state == MODE_UI_HEATING) {
         func_mode_countdown_stop();
+        lunchbox_heat_stop();  // 通知加热模块停止加热
         f_mode->screen_locked = false;
     }
 
