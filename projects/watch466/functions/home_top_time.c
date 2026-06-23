@@ -366,6 +366,20 @@ bool home_top_time_refresh_flash(home_top_time_ui_t *ui, tm_t *tm)
     return home_top_time_refresh_flash_impl(ui, tm);
 }
 
+void home_top_time_gpu_detach_light(home_top_time_ui_t *ui)
+{
+    if (ui == NULL) {
+        return;
+    }
+    home_ui_gpu_pic_detach_light(ui->pic_h10);
+    home_ui_gpu_pic_detach_light(ui->pic_h1);
+    home_ui_gpu_pic_detach_light(ui->pic_colon);
+    home_ui_gpu_pic_detach_light(ui->pic_m10);
+    home_ui_gpu_pic_detach_light(ui->pic_m1);
+    home_ui_gpu_pic_detach_light(ui->pic_ampm);
+    ui->last_key = 0xffff;
+}
+
 void home_top_time_gpu_detach(home_top_time_ui_t *ui)
 {
     compo_picturebox_t *pics[6];

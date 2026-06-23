@@ -12,7 +12,7 @@ setkeepseg(0x4000); //数据库使用
 #endif
 #if ((LE_AB_FOT_EN) && (AB_FOT_TYPE_PACK))
 setunpack(unpack.bin);
-setpkgarea(FLASH_PKG_START, FLASH_PKG_SIZE);
+setpkgarea(FLASH_PKG_START, FLASH_PKG_SIZE); 
 #endif
 #if DONGLE_AUTH_EN
 setauth(0xDDE05A0D, soft_key);

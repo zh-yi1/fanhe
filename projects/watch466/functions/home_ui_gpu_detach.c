@@ -7,6 +7,15 @@
 extern volatile u8 elunchbox_te_block_flag;
 #endif
 
+void home_ui_gpu_pic_detach_light(compo_picturebox_t *pic)
+{
+    if (pic == NULL) {
+        return;
+    }
+    compo_picturebox_set_visible(pic, false);
+    compo_picturebox_set(pic, 0);
+}
+
 void home_ui_gpu_pic_detach(compo_picturebox_t *pic)
 {
     if (pic == NULL) {

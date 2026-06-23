@@ -157,9 +157,11 @@ void func_process(void)
             pt8028_key_scan();
         }
 #endif
-        compo_update();
-        if (gui_do_refresh) {
-            gui_process();
+        if (func_cb.frm_main != NULL) {
+            compo_update();
+            if (gui_do_refresh) {
+                gui_process();
+            }
         }
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
         func_elunchbox_res_key_poll();
@@ -482,6 +484,7 @@ void func_switch_to(u8 sta, u16 switch_mode)
         return;
     }
     home_gpu_wait_idle();
+    WDT_CLR();
 #endif
 #if VIDEO_PLAY_EN
     compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
@@ -513,7 +516,7 @@ void func_switch_to(u8 sta, u16 switch_mode)
     bool res = func_switching(switch_mode, NULL);
 
 #if ELUNCHBOX_PANEL_EN
-    if (res) {
+    if (res && mode != FUNC_SWITCH_DIRECT && mode != FUNC_SWITCH_FADE_OUT) {
         home_gpu_wait_idle();
     }
 #endif
@@ -526,11 +529,17 @@ void func_switch_to(u8 sta, u16 switch_mode)
     /* ELUNCHBOX DIRECT/FADE_OUT：切页成功后销毁源 frm，compos_init 清 GPU 池 */
     if ((mode == FUNC_SWITCH_DIRECT || mode == FUNC_SWITCH_FADE_OUT) && func_cb.frm_main != NULL) {
         home_gpu_wait_idle();
+        WDT_CLR();
         compo_form_destroy(func_cb.frm_main);
         home_gpu_wait_idle();
+        WDT_CLR();
         compos_init();
         home_gpu_wait_idle();
+        WDT_CLR();
         func_cb.frm_main = NULL;
+        if (res) {
+            func_cb.sta = sta;
+        }
     }
 #endif
 
