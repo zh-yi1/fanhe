@@ -51,6 +51,9 @@ struct ble_cmd_cb_t {
 };
 
 static int gatt_callback_app(uint16_t con_handle, uint16_t handle, uint32_t flag, uint8_t *ptr, uint16_t len);
+#if LE_AB_FOT_EN
+static int gatt_callback_fota(uint16_t con_handle, uint16_t handle, uint32_t flag, uint8_t *ptr, uint16_t len);
+#endif
 #if LE_SERVICE_CHANGED
 static int gatt_service_changed_callback(uint16_t con_handle, uint16_t handle, uint32_t flag, uint8_t *ptr, uint16_t len);
 #endif

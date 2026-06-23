@@ -1,5 +1,6 @@
 #include "include.h"
 #include "func.h"
+#include "func_lunchbox_uart.h"
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
@@ -708,6 +709,14 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     heat_countdown_remain_sec = f_heat->heat_total_sec;
     func_heat_countdown_start();
     func_heat_display_refresh(f_heat);
+
+    // 发送加热启动命令到加热模块 (自定义加热模式=1)
+    u16 target_temp_f = (f_heat->temp_idx < HEAT_TEMP_PRESET_CNT)
+                      ? tbl_heat_temp_preset[f_heat->temp_idx]
+                      : tbl_heat_temp_preset[0];
+    lunchbox_heat_start(1,  // mode=自定义加热
+                        lunchbox_temp_f_to_idx(target_temp_f),
+                        f_heat->heat_total_sec / 60);
 }
 
 static void func_heat_ok_key(f_heat_t *f_heat)
@@ -742,6 +751,7 @@ static void func_heat_power_key(f_heat_t *f_heat)
 {
     if (f_heat->ui_state == HEAT_UI_HEATING) {
         func_heat_countdown_stop();
+        lunchbox_heat_stop();  // 通知加热模块停止加热
         f_heat->screen_locked = false;
         func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;
