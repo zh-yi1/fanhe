@@ -1039,15 +1039,19 @@ static void func_res_start_heating(f_reservation_t *f_res)
     f_res->last_temp_f = 0xffff;
     g_res.phase = RES_PHASE_HEATING;
 
-    // 发送加热启动命令到加热模块 (预约模式=4)
+#if FUNC_LUNCHBOX_UART_EN
     {
         u16 temp_f = (f_res->temp_idx < RES_TEMP_PRESET_CNT)
                    ? tbl_res_temp_preset[f_res->temp_idx]
                    : tbl_res_temp_preset[0];
-        lunchbox_heat_start(4,  // mode=预约模式
-                            lunchbox_temp_f_to_idx(temp_f),
-                            f_res->heat_total_sec / 60);
+        u32 duration_min = f_res->heat_total_sec / 60;
+
+        if (duration_min == 0) {
+            duration_min = 1;
+        }
+        lunchbox_heat_start(4, lunchbox_temp_f_to_idx(temp_f), duration_min);
     }
+#endif
 
 #if ELUNCHBOX_PANEL_EN
     /* 留给进入路径末尾的两阶段统一刷，避免过早绑资源 */
@@ -1109,31 +1113,28 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
     g_res.temp_idx = f_res->temp_idx;
     g_res.appt_triggered_today = false;
 
-    // 发送预约到加热模块
+#if FUNC_LUNCHBOX_UART_EN
     {
         u32 now = RTCCNT;
         u32 today_midnight = now - (now % 86400);
         u32 target_sec = (u32)f_res->appt_hour * 3600 + (u32)f_res->appt_min * 60;
         u32 unix_time = today_midnight + target_sec;
-        // 如果今天的目标时间已过，改为明天
-        if (target_sec <= (now % 86400)) {
-            unix_time += 86400;
-        }
         u16 temp_f = (f_res->temp_idx < RES_TEMP_PRESET_CNT)
                    ? tbl_res_temp_preset[f_res->temp_idx]
                    : tbl_res_temp_preset[0];
         u8 duration = (u8)((u32)f_res->heat_hour * 60 + (u32)f_res->heat_min);
-        if (duration == 0) duration = 60;
 
-        lunchbox_reservation_send(1,   // action=自定义加热
-                                   0,   // id=0 自动分配
-                                   NULL, // 无名称
-                                   unix_time,
-                                   lunchbox_temp_f_to_idx(temp_f),
-                                   duration,
-                                   1,    // enabled=开启
-                                   0xff);// repeat=每天
+        if (target_sec <= (now % 86400)) {
+            unix_time += 86400;
+        }
+        if (duration == 0) {
+            duration = 1;
+        }
+        lunchbox_reservation_send(1, 0, NULL, unix_time,
+                                  lunchbox_temp_f_to_idx(temp_f),
+                                  duration, 1, 0xff);
     }
+#endif
 
     if (sys_cb.flag_swithing) {
         return;
@@ -1205,8 +1206,13 @@ static void func_res_power_key(f_reservation_t *f_res)
         if (f_res->screen_locked) {
             f_res->heating_paused = !f_res->heating_paused;
             func_res_display_refresh(f_res);
-        } else if (func_res_switch_home()) {
-            return;
+        } else {
+#if FUNC_LUNCHBOX_UART_EN
+            lunchbox_heat_stop();
+#endif
+            if (func_res_switch_home()) {
+                return;
+            }
         }
         return;
     }
@@ -1410,6 +1416,9 @@ static void func_res_heating_tick(f_reservation_t *f_res)
         g_res.phase = RES_PHASE_FINISHED;
         f_res->last_heat_timer_key = 0xffff;
         f_res->last_temp_f = 0xffff;
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_heat_stop();
+#endif
     }
 
     func_res_display_refresh(f_res);

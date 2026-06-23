@@ -6,10 +6,6 @@
 #include "home_ui_shared.h"
 #include "home_top_time.h"
 
-#if FUNC_LUNCHBOX_UART_EN
-#include "func_lunchbox_uart.h"
-#endif
-
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
 #else
@@ -714,19 +710,22 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     func_heat_countdown_start();
 
 #if FUNC_LUNCHBOX_UART_EN
-    printf("lb: heat_start -> UART\n");
-    lunchbox_heat_start();
+    {
+        u16 target_temp_f = (f_heat->temp_idx < HEAT_TEMP_PRESET_CNT)
+                          ? tbl_heat_temp_preset[f_heat->temp_idx]
+                          : tbl_heat_temp_preset[0];
+        u32 duration_min = f_heat->heat_total_sec / 60;
+
+        if (duration_min == 0) {
+            duration_min = 1;
+        }
+        printf("lb: heat_start -> UART\n");
+        printf("target_temp_f: %d, duration_min: %d\n", target_temp_f, duration_min);
+        lunchbox_heat_start(1, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
+    }
 #endif
 
     func_heat_display_refresh(f_heat);
-
-    // 发送加热启动命令到加热模块 (自定义加热模式=1)
-    u16 target_temp_f = (f_heat->temp_idx < HEAT_TEMP_PRESET_CNT)
-                      ? tbl_heat_temp_preset[f_heat->temp_idx]
-                      : tbl_heat_temp_preset[0];
-    lunchbox_heat_start(1,  // mode=自定义加热
-                        lunchbox_temp_f_to_idx(target_temp_f),
-                        f_heat->heat_total_sec / 60);
 }
 
 static void func_heat_ok_key(f_heat_t *f_heat)
@@ -764,7 +763,6 @@ static void func_heat_power_key(f_heat_t *f_heat)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();
 #endif
-        lunchbox_heat_stop();  // 通知加热模块停止加热
         f_heat->screen_locked = false;
         func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;
@@ -1050,9 +1048,12 @@ void func_heat_enter(void)
 
 void func_heat_exit(void)
 {
-    func_heat_countdown_stop();
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_heat_stop();
+    if (!heat_countdown_running) {
+        lunchbox_heat_stop();
+    }
+#else
+    func_heat_countdown_stop();
 #endif
     func_cb.last = FUNC_HEAT;
 }

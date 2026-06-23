@@ -626,6 +626,9 @@ static void func_mode_heating_finish_check(f_mode_t *f_mode)
         f_mode->ui_state = MODE_UI_FINISHED;
         f_mode->screen_locked = false;
         func_mode_lock_icon_apply(f_mode);
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_heat_stop();
+#endif
     }
 }
 
@@ -925,10 +928,18 @@ static void func_mode_start_heating(f_mode_t *f_mode)
     func_mode_display_refresh(f_mode);
     func_mode_lock_icon_apply(f_mode);
 
-    // 发送加热启动命令到加热模块
-    lunchbox_heat_start(tbl_mode_tab_to_proto[f_mode->tab],
-                        lunchbox_temp_f_to_idx(preset->temp_f),
-                        f_mode->heat_total_sec / 60);
+#if FUNC_LUNCHBOX_UART_EN
+    {
+        u32 duration_min = f_mode->heat_total_sec / 60;
+
+        if (duration_min == 0) {
+            duration_min = 1;
+        }
+        lunchbox_heat_start(tbl_mode_tab_to_proto[f_mode->tab],
+                            lunchbox_temp_f_to_idx(preset->temp_f),
+                            duration_min);
+    }
+#endif
 }
 
 static void func_mode_timer_gpu_detach(f_mode_t *f_mode)
@@ -967,7 +978,9 @@ static void func_mode_power_key(f_mode_t *f_mode)
 
     if (f_mode->ui_state == MODE_UI_HEATING) {
         func_mode_countdown_stop();
-        lunchbox_heat_stop();  // 通知加热模块停止加热
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_heat_stop();
+#endif
         f_mode->screen_locked = false;
     }
 
