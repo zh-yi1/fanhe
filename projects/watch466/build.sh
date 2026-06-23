@@ -102,7 +102,11 @@ SOURCES=(
     functions/home_top_time.c functions/home_ui_ram.c functions/home_ui_gpu_detach.c
     functions/func_lunchbox_uart.c functions/func_mode.c functions/func_reservation.c
     functions/func_setup.c functions/func_timeing.c functions/func_languageing.c
-    functions/func_verinfo.c functions/func_setting.c
+    functions/func_verinfo.c
+    functions/func_new_home.c functions/func_new_heat.c functions/func_new_mode.c
+    functions/func_new_reservation.c functions/func_new_setup.c functions/func_new_time.c
+    functions/func_new_language.c functions/func_new_verinfo.c
+    functions/func_setting.c
     functions/common/func_bt_update.c functions/common/func_idle.c
     functions/common/func_lowpwr.c functions/common/func_manage.c
     functions/common/func_ota_ui.c functions/common/func_switching.c
