@@ -718,10 +718,14 @@ static void func_timeing_lock_icon_apply(f_timeing_t *f_timeing)
     if (f_timeing == NULL || f_timeing->pic_lock == NULL) {
         return;
     }
-    if (f_timeing->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
-        compo_picturebox_set_ram(f_timeing->pic_lock, home_ui_shared_status_lock_ram);
-        compo_picturebox_set_size(f_timeing->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-        compo_picturebox_set_visible(f_timeing->pic_lock, true);
+    if (f_timeing->screen_locked) {
+        home_ui_shared_status_init();
+        compo_picturebox_set_pos(f_timeing->pic_lock, TIMEING_STATUS_LOCK_X, TIMEING_STATUS_Y);
+        if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+            compo_picturebox_set_ram(f_timeing->pic_lock, home_ui_shared_status_lock_ram);
+            compo_picturebox_set_size(f_timeing->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+            compo_picturebox_set_visible(f_timeing->pic_lock, true);
+        }
     } else {
         compo_picturebox_set_visible(f_timeing->pic_lock, false);
     }

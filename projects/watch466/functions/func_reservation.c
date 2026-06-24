@@ -513,6 +513,8 @@ static void func_res_info_text_update(f_reservation_t *f_res)
     compo_textbox_set_visible(f_res->txt_info, true);
 }
 
+static void func_res_lock_icon_apply(f_reservation_t *f_res);
+
 static void func_res_status_icons_apply(f_reservation_t *f_res)
 {
 #if ELUNCHBOX_PANEL_EN
@@ -538,17 +540,19 @@ static void func_res_status_icons_apply(f_reservation_t *f_res)
         compo_picturebox_set_pos(f_res->pic_bat, RES_STATUS_BAT_X, RES_STATUS_Y);
     }
 #endif
+    func_res_lock_icon_apply(f_res);
 }
 
 static void func_res_lock_icon_apply(f_reservation_t *f_res)
 {
-    if (f_res->pic_lock == NULL) {
+    if (f_res == NULL || f_res->pic_lock == NULL) {
         return;
     }
 
-    if ((f_res->ui == RES_UI_HEATING) && f_res->screen_locked) {
+    if (f_res->screen_locked) {
         compo_picturebox_set_pos(f_res->pic_lock, RES_STATUS_LOCK_X, RES_STATUS_Y);
 #if ELUNCHBOX_PANEL_EN
+        home_ui_shared_status_init();
         if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
             compo_picturebox_set_ram(f_res->pic_lock, home_ui_shared_status_lock_ram);
             compo_picturebox_set_size(f_res->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
@@ -557,6 +561,7 @@ static void func_res_lock_icon_apply(f_reservation_t *f_res)
 #else
         home_ui_pic_set_flash(f_res->pic_lock, UI_BUF_HOME_LOCK_BIN,
                               HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_res->pic_lock, true);
 #endif
     } else {
         compo_picturebox_set_visible(f_res->pic_lock, false);
@@ -1529,9 +1534,17 @@ compo_form_t *func_reservation_form_create(void)
 
     func_res_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_S);
 
-    func_res_pic_create_hidden(frm, COMPO_ID_PIC_BT);
-    func_res_pic_create_hidden(frm, COMPO_ID_PIC_LOCK);
-    func_res_pic_create_hidden(frm, COMPO_ID_PIC_BAT);
+    pic = func_res_pic_create_hidden(frm, COMPO_ID_PIC_BT);
+    compo_picturebox_set_pos(pic, RES_STATUS_BT_X, RES_STATUS_Y);
+    compo_picturebox_set_size(pic, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
+
+    pic = func_res_pic_create_hidden(frm, COMPO_ID_PIC_LOCK);
+    compo_picturebox_set_pos(pic, RES_STATUS_LOCK_X, RES_STATUS_Y);
+    compo_picturebox_set_size(pic, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+
+    pic = func_res_pic_create_hidden(frm, COMPO_ID_PIC_BAT);
+    compo_picturebox_set_pos(pic, RES_STATUS_BAT_X, RES_STATUS_Y);
+    compo_picturebox_set_size(pic, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
 
     txt = compo_textbox_create(frm, 48);
     compo_setid(txt, COMPO_ID_TXT_INFO);
@@ -1568,6 +1581,12 @@ static void func_reservation_message(size_msg_t msg)
         return;
     }
 
+    if (f_res != NULL && f_res->screen_locked) {
+        if (msg != RES_MSG_POWER && msg != KU_LEFT) {
+            return;
+        }
+    }
+
     switch (msg) {
     case RES_MSG_OK:
         func_res_ok_key(f_res);
@@ -1590,8 +1609,8 @@ static void func_reservation_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        if (f_res != NULL && f_res->ui == RES_UI_HEATING && f_res->screen_locked) {
-            f_res->screen_locked = false;
+        if (f_res != NULL) {
+            f_res->screen_locked = !f_res->screen_locked;
             func_res_lock_icon_apply(f_res);
         }
         break;

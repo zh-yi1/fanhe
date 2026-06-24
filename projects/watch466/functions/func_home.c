@@ -533,10 +533,14 @@ static void func_home_lock_icon_apply(f_home_t *f_home)
     if (f_home == NULL || f_home->pic_lock == NULL) {
         return;
     }
-    if (f_home->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
-        compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
-        compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-        compo_picturebox_set_visible(f_home->pic_lock, true);
+    if (f_home->screen_locked) {
+        home_ui_shared_status_init();
+        compo_picturebox_set_pos(f_home->pic_lock, HOME_STATUS_LOCK_X, HOME_STATUS_Y);
+        if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+            compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
+            compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+            compo_picturebox_set_visible(f_home->pic_lock, true);
+        }
     } else {
         compo_picturebox_set_visible(f_home->pic_lock, false);
     }
