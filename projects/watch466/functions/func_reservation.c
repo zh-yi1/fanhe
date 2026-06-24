@@ -1115,7 +1115,7 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
 
 #if FUNC_LUNCHBOX_UART_EN
     {
-        u32 now = RTCCNT;
+        u32 now = RTCCNT + LB_RTC_UNIX_OFFSET;  // RTCCNT 从2020起算, +offset 转Unix时间戳
         u32 today_midnight = now - (now % 86400);
         u32 target_sec = (u32)f_res->appt_hour * 3600 + (u32)f_res->appt_min * 60;
         u32 unix_time = today_midnight + target_sec;

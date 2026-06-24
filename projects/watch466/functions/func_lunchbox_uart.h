@@ -31,6 +31,10 @@
 #define LB_TXBUF_SIZE           256         // 发送缓冲区大小(字节)
 #define LB_FRAME_TIMEOUT_MS     300         // 帧超时时间(毫秒)，超过此时间未收完一帧则丢弃
 
+// RTCCNT 从 2020-01-01 起算(秒), Unix 纪元从 1970-01-01 起算
+// 偏移 = (50年×365天 + 12闰日) × 86400秒 = 1,577,836,800秒
+#define LB_RTC_UNIX_OFFSET      1577836800u
+
 //-----------------------------------------------------------------------------
 // 属性 ID（DataPoint dpid）— 蓝牙通讯协议1.0.5.md §4 + MCU通信协议.md §4
 //-----------------------------------------------------------------------------
@@ -315,13 +319,13 @@ void lunchbox_report_attr(u8 dpid);
 //       预约键→lunchbox_reservation_send, 模式键/加/减/锁键→仅UI本地
 //-----------------------------------------------------------------------------
 
-/** @brief LCD 启动加热 — 构造 UART 0x01 帧发给加热模块
+/** @brief LCD 启动加热 — 构造 UART 0x03 帧发给加热模块
  *  @param mode     加热模式: 1=自定义, 2=鸡腿, 3=意面, 4=预约, 5=保温
  *  @param temp     温度档位: 0=40°C ~ 5=90°C
  *  @param duration 加热时长(分钟) */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration);
 
-/** @brief LCD 停止加热 — 构造 UART 0x01 帧发给加热模块 */
+/** @brief LCD 停止加热 — 构造 UART 0x03 帧发给加热模块 (action=0 删除) */
 void lunchbox_heat_stop(void);
 
 /** @brief LCD 发送预约 — 构造 UART 0x03 帧发给加热模块

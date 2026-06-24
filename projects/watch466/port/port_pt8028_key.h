@@ -27,7 +27,7 @@
 #define PT8028_GPIO_FLAG_PULL           GPIOxPU     /* 空闲 OUT_FLAG=1 */
 #endif
 #ifndef PT8028_GPIO_BCD_PULL
-#define PT8028_GPIO_BCD_PULL            0           /* 空闲高阻；按下采样时临时关上下拉 */
+#define PT8028_GPIO_BCD_PULL            GPIOxPU200K /* 200K弱上拉防浮空；按下采样时 pt8028_bcd_pull_off 临时关闭 */
 #endif
 #ifndef PT8028_BCD_STABLE_CNT
 #define PT8028_BCD_STABLE_CNT           2
