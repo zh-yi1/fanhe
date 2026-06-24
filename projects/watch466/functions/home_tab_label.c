@@ -190,7 +190,9 @@ void home_tab_label_apply(compo_picturebox_t *pic, u8 *ram, u16 buf_size,
         return;
     }
 
+#if !ELUNCHBOX_PANEL_EN
     home_gpu_wait_idle();
+#endif
 
     data_len = home_tab_label_render(ram, buf_size, label, bg_color);
     if (data_len == 0) {

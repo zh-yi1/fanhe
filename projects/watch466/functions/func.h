@@ -230,7 +230,6 @@ extern u8 func_res_allow_switch;
 void func_elunchbox_switch_to_reservation(void);
 void func_elunchbox_res_key_poll(void);
 void func_home_switch_to_reservation(void);
-void func_home_gpu_detach_for_leave(void);
 void func_home_drain_stale_key_msgs(void);
 #endif
 

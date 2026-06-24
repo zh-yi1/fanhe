@@ -5,17 +5,12 @@
       "includePath": [
         "${workspaceFolder}/**"
       ],
-      "defines": [
-        "__RISCV__",
-        "USE_DEV_TYPE=CONFIG_WATCH_DEV_V1_0"
-      ],
       "compilerPath": "gcc",
       "cStandard": "${default}",
       "cppStandard": "${default}",
       "intelliSenseMode": "windows-gcc-x64",
       "compilerArgs": [
-        "-march=rv32imc_zba_zbb_zbc_zbs_zca_zcb_zcmp_zfinx_xbs1",
-        "--param=min-pagesize=0"
+        ""
       ]
     }
   ],

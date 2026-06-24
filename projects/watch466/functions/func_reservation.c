@@ -8,10 +8,6 @@
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
 
-#if ELUNCHBOX_PANEL_EN
-/* ELUNCHBOX 模式：TE block 标志声明 */
-extern volatile u8 elunchbox_te_block_flag;
-#endif
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #endif
@@ -244,6 +240,7 @@ typedef struct f_reservation_t_ {
     bool last_m_white;
     bool last_t_white;
     u16 last_info_sec;
+    bool display_pending;
     home_top_time_ui_t top_time;
     compo_picturebox_t *pic_appt[RES_TIMER_IDX_CNT];
     compo_picturebox_t *pic_appt_colon;
@@ -273,6 +270,7 @@ typedef struct reservation_global_t_ {
 static reservation_global_t g_res;
 
 static u8 res_heat_colon_ram[HEAT_WBX_RAM_SIZE];
+static u8 res_heat_timer_digit_ram[RES_TIMER_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
 static u8 res_temp_digit_ram[RES_TEMP_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
 static u8 res_temp_degf_ram[RES_TEMP_DEG_RAM_MAX_SIZE];
 static u8 res_temp_suffix_ram[RES_TEMP_SUF_RAM_MAX_SIZE];
@@ -357,13 +355,10 @@ static const u16 tbl_res_temp_id[RES_TEMP_IDX_CNT] = {
     COMPO_ID_PIC_TEMP_H, COMPO_ID_PIC_TEMP_T10, COMPO_ID_PIC_TEMP_T1,
 };
 
-/* 传 0 作为 placeholder，完全不绑定初始资源。
- * 所有内容在 content 阶段用 home_ui_pic_set_flash 绑定 ui.bin。
- * 这样 form_create 不会占用任何 GPU 资源描述符，避免切页时的资源冲突。
- */
+/* 用合法 placeholder 创建，默认 visible=false；ELUNCHBOX 下用 set_ram 绑定贴图 */
 static compo_picturebox_t *func_res_pic_create_hidden(compo_form_t *frm, u16 id)
 {
-    compo_picturebox_t *pic = compo_picturebox_create(frm, 0);
+    compo_picturebox_t *pic = compo_picturebox_create(frm, UI_RES_PLACEHOLDER);
 
     compo_setid(pic, id);
     compo_picturebox_set_visible(pic, false);
@@ -492,10 +487,6 @@ static u32 func_res_seconds_until_appt(void)
 
 void func_reservation_marquee_text(char *buf, u16 buf_len)
 {
-    u32 sec;
-    u32 hours;
-    u32 mins;
-
     if (buf == NULL || buf_len == 0) {
         return;
     }
@@ -505,19 +496,8 @@ void func_reservation_marquee_text(char *buf, u16 buf_len)
         return;
     }
 
-    sec = func_res_seconds_until_appt();
-    hours = sec / 3600;
-    mins = (sec % 3600) / 60;
-
-    if (hours > 0 && mins > 0) {
-        snprintf(buf, buf_len, "Starts in %lu hours %lu min", (unsigned long)hours, (unsigned long)mins);
-    } else if (hours > 0) {
-        snprintf(buf, buf_len, "Starts in %lu hour%s", (unsigned long)hours, (hours > 1) ? "s" : "");
-    } else if (mins > 0) {
-        snprintf(buf, buf_len, "Starts in %lu min", (unsigned long)mins);
-    } else {
-        snprintf(buf, buf_len, "Starts soon");
-    }
+    /* 显示预约界面设置的预约时间（小时+分钟），默认1小时，最高23小时 */
+    snprintf(buf, buf_len, "Start in %02u H", g_res.appt_hour);
 }
 
 static void func_res_info_text_update(f_reservation_t *f_res)
@@ -541,8 +521,20 @@ static void func_res_info_text_update(f_reservation_t *f_res)
 static void func_res_status_icons_apply(f_reservation_t *f_res)
 {
 #if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 1;
-#endif
+    home_ui_shared_status_init();
+    if (f_res->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
+        compo_picturebox_set_ram(f_res->pic_bt, home_ui_shared_status_bt_ram);
+        compo_picturebox_set_size(f_res->pic_bt, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
+        compo_picturebox_set_visible(f_res->pic_bt, true);
+        compo_picturebox_set_pos(f_res->pic_bt, RES_STATUS_BT_X, RES_STATUS_Y);
+    }
+    if (f_res->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
+        compo_picturebox_set_ram(f_res->pic_bat, home_ui_shared_status_bat_ram);
+        compo_picturebox_set_size(f_res->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+        compo_picturebox_set_visible(f_res->pic_bat, true);
+        compo_picturebox_set_pos(f_res->pic_bat, RES_STATUS_BAT_X, RES_STATUS_Y);
+    }
+#else
     home_ui_status_apply_flash(f_res->pic_bt, f_res->pic_lock, f_res->pic_bat, false);
     if (f_res->pic_bt != NULL) {
         compo_picturebox_set_pos(f_res->pic_bt, RES_STATUS_BT_X, RES_STATUS_Y);
@@ -550,8 +542,6 @@ static void func_res_status_icons_apply(f_reservation_t *f_res)
     if (f_res->pic_bat != NULL) {
         compo_picturebox_set_pos(f_res->pic_bat, RES_STATUS_BAT_X, RES_STATUS_Y);
     }
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 0;
 #endif
 }
 
@@ -563,8 +553,16 @@ static void func_res_lock_icon_apply(f_reservation_t *f_res)
 
     if ((f_res->ui == RES_UI_HEATING) && f_res->screen_locked) {
         compo_picturebox_set_pos(f_res->pic_lock, RES_STATUS_LOCK_X, RES_STATUS_Y);
+#if ELUNCHBOX_PANEL_EN
+        if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+            compo_picturebox_set_ram(f_res->pic_lock, home_ui_shared_status_lock_ram);
+            compo_picturebox_set_size(f_res->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+            compo_picturebox_set_visible(f_res->pic_lock, true);
+        }
+#else
         home_ui_pic_set_flash(f_res->pic_lock, UI_BUF_HOME_LOCK_BIN,
                               HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+#endif
     } else {
         compo_picturebox_set_visible(f_res->pic_lock, false);
     }
@@ -601,7 +599,11 @@ static void func_res_top_time_refresh(f_reservation_t *f_res, tm_t *tm)
         return;
     }
 
+#if ELUNCHBOX_PANEL_EN
+    home_top_time_refresh(&f_res->top_time, tm);
+#else
     home_top_time_refresh_flash(&f_res->top_time, tm);
+#endif
 }
 
 static void func_res_appt_layout(f_reservation_t *f_res, u8 hour, u8 min)
@@ -649,10 +651,24 @@ static void func_res_appt_update(f_reservation_t *f_res)
     digits[RES_TIMER_IDX_M1] = f_res->appt_min % 10;
     key = (u16)f_res->appt_hour * 100 + f_res->appt_min;
 
-    if (f_res->last_appt_key != key) {
-        f_res->last_appt_key = key;
+    if (f_res->last_appt_key == key) {
+        func_res_appt_layout(f_res, f_res->appt_hour, f_res->appt_min);
+        return;
     }
+    f_res->last_appt_key = key;
 
+#if ELUNCHBOX_PANEL_EN
+    /* 预约页与 Home 互斥：复用 home_ui_digit_ram / home_ui_colon_ram（已在 .disp） */
+    func_res_gpu_ram(home_ui_colon_ram, HOME_COLON_RAM_SIZE,
+                     UI_BUF_HOME_COLON_BIN, UI_LEN_HOME_COLON_BIN, f_res->pic_appt_colon);
+    for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
+        u8 d = digits[i];
+
+        func_res_gpu_ram(home_ui_digit_ram[i], HOME_DIGIT_RAM_MAX_SIZE,
+                         tbl_res_appt_digit_addr[d], tbl_res_appt_digit_len[d],
+                         f_res->pic_appt[i]);
+    }
+#else
     home_ui_pic_set_flash(f_res->pic_appt_colon, UI_BUF_HOME_COLON_BIN,
                           RES_APPT_COLON_W, RES_APPT_COLON_H);
 
@@ -662,6 +678,7 @@ static void func_res_appt_update(f_reservation_t *f_res)
         home_ui_pic_set_flash(f_res->pic_appt[i], tbl_res_appt_digit_addr[d],
                               RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
     }
+#endif
 
     func_res_appt_layout(f_res, f_res->appt_hour, f_res->appt_min);
 }
@@ -760,6 +777,20 @@ static void func_res_heat_timer_update(f_reservation_t *f_res, u8 hour, u8 min,
     f_res->last_h_white = h_white;
     f_res->last_m_white = m_white;
 
+#if ELUNCHBOX_PANEL_EN
+    func_res_gpu_ram(res_heat_colon_ram, HEAT_WBX_RAM_SIZE,
+                     UI_BUF_HOME_WBX_BIN, UI_LEN_HOME_WBX_BIN, f_res->pic_heat_colon);
+
+    for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
+        u8 d = digits[i];
+        bool white = (i <= RES_TIMER_IDX_H1) ? h_white : m_white;
+        u32 addr = white ? tbl_res_w_digit_addr[d] : tbl_res_b_digit_addr[d];
+        u16 len = white ? tbl_res_w_digit_len[d] : tbl_res_b_digit_len[d];
+
+        func_res_gpu_ram(res_heat_timer_digit_ram[i], HEAT_B_DIGIT_RAM_MAX_SIZE,
+                         addr, len, f_res->pic_heat[i]);
+    }
+#else
     home_ui_pic_set_flash(f_res->pic_heat_colon, UI_BUF_HOME_WBX_BIN, HEAT_WBX_W, HEAT_WBX_H);
 
     for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
@@ -771,6 +802,7 @@ static void func_res_heat_timer_update(f_reservation_t *f_res, u8 hour, u8 min,
         home_ui_pic_set_flash(f_res->pic_heat[i], addr, w,
                               white ? HEAT_W_DIGIT_MAX_H : HEAT_B_DIGIT_MAX_H);
     }
+#endif
 
     func_res_heat_timer_layout(f_res, hour, min, h_white, m_white);
 }
@@ -889,6 +921,33 @@ static void func_res_temp_update(f_reservation_t *f_res, u16 temp_f, bool white)
     f_res->last_temp_f = temp_f;
     f_res->last_t_white = white;
 
+#if ELUNCHBOX_PANEL_EN
+    {
+        u32 sym_addr = white ? UI_BUF_HOME_WHX_BIN : UI_BUF_HOME_BHX_BIN;
+        u16 sym_len = white ? UI_LEN_HOME_WHX_BIN : UI_LEN_HOME_BHX_BIN;
+
+        func_res_gpu_ram(res_temp_degf_ram, RES_TEMP_DEG_RAM_MAX_SIZE,
+                         sym_addr, sym_len, f_res->pic_temp_degf);
+    }
+
+    if (f_res->pic_temp_suffix != NULL) {
+        if (white && HEAT_WSX_W > 0) {
+            func_res_gpu_ram(res_temp_suffix_ram, RES_TEMP_SUF_RAM_MAX_SIZE,
+                             UI_BUF_HOME_WSX_BIN, UI_LEN_HOME_WSX_BIN, f_res->pic_temp_suffix);
+        } else {
+            compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
+        }
+    }
+
+    for (i = 0; i < RES_TEMP_IDX_CNT; i++) {
+        u8 d = digits[i];
+        u32 addr = white ? tbl_res_w_digit_addr[d] : tbl_res_b_digit_addr[d];
+        u16 len = white ? tbl_res_w_digit_len[d] : tbl_res_b_digit_len[d];
+
+        func_res_gpu_ram(res_temp_digit_ram[i], HEAT_B_DIGIT_RAM_MAX_SIZE,
+                         addr, len, f_res->pic_temp[i]);
+    }
+#else
     home_ui_pic_set_flash(f_res->pic_temp_degf, white ? UI_BUF_HOME_WHX_BIN : UI_BUF_HOME_BHX_BIN,
                           white ? HEAT_WHX_W : HEAT_BHX_W,
                           white ? HEAT_WHX_H : HEAT_BHX_H);
@@ -910,6 +969,7 @@ static void func_res_temp_update(f_reservation_t *f_res, u16 temp_f, bool white)
         home_ui_pic_set_flash(f_res->pic_temp[i], addr, w,
                               white ? HEAT_W_DIGIT_MAX_H : HEAT_B_DIGIT_MAX_H);
     }
+#endif
 
     func_res_temp_layout(f_res, digits, white);
 }
@@ -923,10 +983,6 @@ static void func_res_display_refresh(f_reservation_t *f_res)
     bool m_white;
     bool t_white;
 
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 1;
-#endif
-
     if (f_res->ui == RES_UI_APPT_TIME) {
         tm_t tm = rtc_clock_get();
 
@@ -936,9 +992,6 @@ static void func_res_display_refresh(f_reservation_t *f_res)
         func_res_appt_update(f_res);
         func_res_info_text_update(f_res);
         func_res_lock_icon_apply(f_res);
-#if ELUNCHBOX_PANEL_EN
-        elunchbox_te_block_flag = 0;
-#endif
         return;
     }
 
@@ -968,10 +1021,6 @@ static void func_res_display_refresh(f_reservation_t *f_res)
     func_res_temp_update(f_res, temp, t_white);
     func_res_info_text_update(f_res);
     func_res_lock_icon_apply(f_res);
-
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 0;
-#endif
 }
 
 static void func_res_start_heating(f_reservation_t *f_res)
@@ -990,15 +1039,19 @@ static void func_res_start_heating(f_reservation_t *f_res)
     f_res->last_temp_f = 0xffff;
     g_res.phase = RES_PHASE_HEATING;
 
-    // 发送加热启动命令到加热模块 (预约模式=4)
+#if FUNC_LUNCHBOX_UART_EN
     {
         u16 temp_f = (f_res->temp_idx < RES_TEMP_PRESET_CNT)
                    ? tbl_res_temp_preset[f_res->temp_idx]
                    : tbl_res_temp_preset[0];
-        lunchbox_heat_start(4,  // mode=预约模式
-                            lunchbox_temp_f_to_idx(temp_f),
-                            f_res->heat_total_sec / 60);
+        u32 duration_min = f_res->heat_total_sec / 60;
+
+        if (duration_min == 0) {
+            duration_min = 1;
+        }
+        lunchbox_heat_start(4, lunchbox_temp_f_to_idx(temp_f), duration_min);
     }
+#endif
 
 #if ELUNCHBOX_PANEL_EN
     /* 留给进入路径末尾的两阶段统一刷，避免过早绑资源 */
@@ -1037,6 +1090,12 @@ static bool func_res_switch_home(void)
     if (sys_cb.flag_swithing || func_cb.sta != FUNC_RESERVATION) {
         return false;
     }
+
+    /* GPU exit 预清理：切换前把 GPU 彻底排空，避免 fade 期间与 Home 资源重叠导致 C241 */
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+
     func_res_clear_switch_keys();
     prev_sta = func_cb.sta;
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
@@ -1054,31 +1113,28 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
     g_res.temp_idx = f_res->temp_idx;
     g_res.appt_triggered_today = false;
 
-    // 发送预约到加热模块
+#if FUNC_LUNCHBOX_UART_EN
     {
         u32 now = RTCCNT;
         u32 today_midnight = now - (now % 86400);
         u32 target_sec = (u32)f_res->appt_hour * 3600 + (u32)f_res->appt_min * 60;
         u32 unix_time = today_midnight + target_sec;
-        // 如果今天的目标时间已过，改为明天
-        if (target_sec <= (now % 86400)) {
-            unix_time += 86400;
-        }
         u16 temp_f = (f_res->temp_idx < RES_TEMP_PRESET_CNT)
                    ? tbl_res_temp_preset[f_res->temp_idx]
                    : tbl_res_temp_preset[0];
         u8 duration = (u8)((u32)f_res->heat_hour * 60 + (u32)f_res->heat_min);
-        if (duration == 0) duration = 60;
 
-        lunchbox_reservation_send(1,   // action=自定义加热
-                                   0,   // id=0 自动分配
-                                   NULL, // 无名称
-                                   unix_time,
-                                   lunchbox_temp_f_to_idx(temp_f),
-                                   duration,
-                                   1,    // enabled=开启
-                                   0xff);// repeat=每天
+        if (target_sec <= (now % 86400)) {
+            unix_time += 86400;
+        }
+        if (duration == 0) {
+            duration = 1;
+        }
+        lunchbox_reservation_send(1, 0, NULL, unix_time,
+                                  lunchbox_temp_f_to_idx(temp_f),
+                                  duration, 1, 0xff);
     }
+#endif
 
     if (sys_cb.flag_swithing) {
         return;
@@ -1150,8 +1206,13 @@ static void func_res_power_key(f_reservation_t *f_res)
         if (f_res->screen_locked) {
             f_res->heating_paused = !f_res->heating_paused;
             func_res_display_refresh(f_res);
-        } else if (func_res_switch_home()) {
-            return;
+        } else {
+#if FUNC_LUNCHBOX_UART_EN
+            lunchbox_heat_stop();
+#endif
+            if (func_res_switch_home()) {
+                return;
+            }
         }
         return;
     }
@@ -1188,10 +1249,9 @@ static void func_res_power_key(f_reservation_t *f_res)
             f_res->last_heat_timer_key = 0xffff;
             break;
         case RES_FOCUS_HEAT_TEMP:
-            f_res->focus = RES_FOCUS_HEAT_MIN;
-            f_res->last_heat_timer_key = 0xffff;
-            f_res->last_temp_f = 0xffff;
-            break;
+            /* 设置完预约时间 + 加热时间 + 温度后，按开关键提交预约并返回主界面，显示跑马灯 */
+            func_res_save_and_go_home(f_res);
+            return;
         default:
             break;
         }
@@ -1217,9 +1277,8 @@ static void func_res_value_inc(f_reservation_t *f_res)
     case RES_FOCUS_APPT_HOUR:
         if (f_res->appt_hour < 23) {
             f_res->appt_hour++;
-        } else {
-            f_res->appt_hour = 0;
         }
+        /* 最高23小时，超过不增加 */
         f_res->last_appt_key = 0xffff;
         break;
 
@@ -1231,7 +1290,7 @@ static void func_res_value_inc(f_reservation_t *f_res)
             if (f_res->appt_hour < 23) {
                 f_res->appt_hour++;
             } else {
-                f_res->appt_hour = 0;
+                f_res->appt_min = 59;  /* 最高23小时：到达23:59后继续加分钟保持在23:59 */
             }
         }
         f_res->last_appt_key = 0xffff;
@@ -1278,24 +1337,22 @@ static void func_res_value_dec(f_reservation_t *f_res)
 
     switch (f_res->focus) {
     case RES_FOCUS_APPT_HOUR:
-        if (f_res->appt_hour > 0) {
+        if (f_res->appt_hour > 1) {
             f_res->appt_hour--;
-        } else {
-            f_res->appt_hour = 23;
         }
+        /* 默认最低1小时，减到1后不再减少 */
         f_res->last_appt_key = 0xffff;
         break;
 
     case RES_FOCUS_APPT_MIN:
         if (f_res->appt_min > 0) {
             f_res->appt_min--;
-        } else {
+        } else if (f_res->appt_hour > 1) {
             f_res->appt_min = 59;
-            if (f_res->appt_hour > 0) {
-                f_res->appt_hour--;
-            } else {
-                f_res->appt_hour = 23;
-            }
+            f_res->appt_hour--;
+        } else {
+            /* 最低1小时：到达 01:00 后，继续减分钟保持在 01:00 */
+            f_res->appt_min = 0;
         }
         f_res->last_appt_key = 0xffff;
         break;
@@ -1359,6 +1416,9 @@ static void func_res_heating_tick(f_reservation_t *f_res)
         g_res.phase = RES_PHASE_FINISHED;
         f_res->last_heat_timer_key = 0xffff;
         f_res->last_temp_f = 0xffff;
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_heat_stop();
+#endif
     }
 
     func_res_display_refresh(f_res);
@@ -1380,10 +1440,6 @@ static void func_res_status_refresh(f_reservation_t *f_res)
     tm_t tm = rtc_clock_get();
     bool sec_changed = false;
 
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 1;
-#endif
-
     if (f_res->last_top_min != tm.min || f_res->last_top_sec != tm.sec) {
         f_res->last_top_min = tm.min;
         f_res->last_top_sec = tm.sec;
@@ -1403,10 +1459,6 @@ static void func_res_status_refresh(f_reservation_t *f_res)
     }
 
     func_res_lock_check(f_res);
-
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 0;
-#endif
 }
 
 void func_reservation_poll(void)
@@ -1467,7 +1519,7 @@ compo_form_t *func_reservation_form_create(void)
     compo_textbox_t *txt;
     u8 i;
 
-    home_top_time_create(frm, 0, COMPO_ID_PIC_TOP_H10, COMPO_ID_PIC_TOP_H1,
+    home_top_time_create(frm, UI_RES_PLACEHOLDER, COMPO_ID_PIC_TOP_H10, COMPO_ID_PIC_TOP_H1,
                          COMPO_ID_PIC_TOP_COLON, COMPO_ID_PIC_TOP_M10,
                          COMPO_ID_PIC_TOP_M1, COMPO_ID_PIC_TOP_AMPM);
 
@@ -1507,6 +1559,13 @@ static void func_reservation_process(void)
     f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
 
     if (f_res != NULL) {
+#if ELUNCHBOX_PANEL_EN
+        if (f_res->display_pending) {
+            f_res->display_pending = false;
+            home_gpu_wait_idle();
+            func_res_display_refresh(f_res);
+        }
+#endif
         func_res_status_refresh(f_res);
     }
     func_process();
@@ -1570,35 +1629,14 @@ void func_reservation_enter(void)
 #endif
 
     func_cb.f_cb = func_zalloc(sizeof(f_reservation_t));
-    /* 在 form_create 之前，确保 GPU 处于绝对安全状态 */
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 1;
-#endif
     home_gpu_wait_idle();
-    os_gui_draw_force();
-    home_gpu_wait_idle();
-    os_gui_draw_force();
-    home_gpu_wait_idle();
-    os_gui_draw_force();
-    home_gpu_wait_idle();
-    os_gui_draw_force();
-    home_gpu_wait_idle();
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 0;
-#endif
+    WDT_CLR();
     func_cb.frm_main = func_reservation_form_create();
     f_res = (f_reservation_t *)func_cb.f_cb;
-
-    /* 在 bind 之前，确保 GPU 处于安全状态 */
 #if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 1;
+    tft_bglight_force_on();
 #endif
-    home_gpu_wait_idle();
-    os_gui_draw_force();
-    home_gpu_wait_idle();
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 0;
-#endif
+    WDT_CLR();
 
     home_top_time_bind(&f_res->top_time, COMPO_ID_PIC_TOP_H10, COMPO_ID_PIC_TOP_H1,
                        COMPO_ID_PIC_TOP_COLON, COMPO_ID_PIC_TOP_M10,
@@ -1661,12 +1699,16 @@ void func_reservation_enter(void)
     } else {
         f_res->ui = RES_UI_APPT_TIME;
         f_res->focus = RES_FOCUS_APPT_HOUR;
-        f_res->appt_hour = 3;
+        f_res->appt_hour = 1;   /* 默认1小时 */
         f_res->appt_min = 0;
         f_res->heat_hour = 1;
         f_res->heat_min = 0;
         f_res->temp_idx = 3;
     }
+
+    /* 确保预约时间范围：默认1小时，最高23小时（进入时夹紧，防止旧数据或外部设置导致越界） */
+    if (f_res->appt_hour < 1) f_res->appt_hour = 1;
+    if (f_res->appt_hour > 23) f_res->appt_hour = 23;
 
     tm = rtc_clock_get();
     g_res.last_poll_min = tm.min;
@@ -1674,22 +1716,8 @@ void func_reservation_enter(void)
     home_ui_digit_pool_reset();
 
 #if ELUNCHBOX_PANEL_EN
-    /* 跳过 blank 阶段，直接进入 content 阶段。
-     * form_create 时所有 pic 已是 visible=false（用 placeholder 创建）。
-     * 直接绑定内容（set_flash 会覆盖 placeholder 资源），可能避免 blank 阶段的资源冲突。
-     */
-    elunchbox_te_block_flag = 1;
-    home_gpu_wait_idle();
-    os_gui_draw_force();
-    home_gpu_wait_idle();
-    os_gui_draw_force();
-    home_gpu_wait_idle();
+    f_res->display_pending = true;
     func_res_status_icons_apply(f_res);
-    func_res_display_refresh(f_res);
-    elunchbox_te_block_flag = 0;
-    home_gpu_wait_idle();
-    os_gui_draw_force();
-    home_gpu_wait_idle();
     tft_bglight_force_on();
 #else
     func_res_status_icons_apply(f_res);
@@ -1703,24 +1731,43 @@ void func_reservation_exit(void)
     u8 i;
 
     if (f_res != NULL) {
+        /* GPU exit：彻底释放 reservation 持有的所有 GPU 资源（top_time / 预约/加热计时器 / 温度 / 状态图标）。
+         * 多轮 wait + force + detach，避免切回 Home 时与 Home clock/status 共享资源冲突导致 C241/C245。
+         */
         home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+
         home_top_time_gpu_detach(&f_res->top_time);
+        home_gpu_wait_idle();
+
         for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
             home_ui_gpu_pic_detach(f_res->pic_appt[i]);
             home_ui_gpu_pic_detach(f_res->pic_heat[i]);
         }
         home_ui_gpu_pic_detach(f_res->pic_appt_colon);
         home_ui_gpu_pic_detach(f_res->pic_heat_colon);
+        home_gpu_wait_idle();
+
         for (i = 0; i < RES_TEMP_IDX_CNT; i++) {
             home_ui_gpu_pic_detach(f_res->pic_temp[i]);
         }
         home_ui_gpu_pic_detach(f_res->pic_temp_degf);
         home_ui_gpu_pic_detach(f_res->pic_temp_suffix);
+        home_gpu_wait_idle();
+
         home_ui_gpu_pic_detach(f_res->pic_bt);
         home_ui_gpu_pic_detach(f_res->pic_lock);
         home_ui_gpu_pic_detach(f_res->pic_bat);
+
+        /* 额外多轮同步，确保 detach 完全生效 */
+        home_gpu_wait_idle();
+        os_gui_draw_force();
+        home_gpu_wait_idle();
+        os_gui_draw_force();
         home_gpu_wait_idle();
     }
+
     home_ui_digit_pool_reset();
     func_cb.last = FUNC_RESERVATION;
 }

@@ -34,5 +34,6 @@ void home_top_time_bind(home_top_time_ui_t *ui, u16 id_h10, u16 id_h1, u16 id_co
 bool home_top_time_refresh(home_top_time_ui_t *ui, tm_t *tm);
 bool home_top_time_refresh_flash(home_top_time_ui_t *ui, tm_t *tm);
 void home_top_time_gpu_detach(home_top_time_ui_t *ui);
+void home_top_time_gpu_detach_light(home_top_time_ui_t *ui);
 
 #endif

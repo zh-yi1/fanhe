@@ -879,6 +879,30 @@
 		<Unit filename="functions/func_verinfo.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_new_home.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_new_heat.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_new_mode.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_new_reservation.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_new_setup.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_new_time.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_new_language.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_new_verinfo.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_setting.c">
 			<Option compilerVar="CC" />
 		</Unit>

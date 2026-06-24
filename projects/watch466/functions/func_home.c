@@ -55,8 +55,9 @@
  *   选中：蓝底 + 白框 + 白底线 + 白图标（*_sel.bin）
  *   未选中：黑底 + 白框 + 蓝底线 + 白图标（*.bin）
  *   PT8028（原理图 TCH0~TCH7）：
- *     TCH0 锁键(KU_LEFT) | TCH1 加热(KU_PREV) | TCH2 减(KU_VOL_DOWN) | TCH3 模式(KU_MODE)
- *     TCH4 确认(KU_BACK) | TCH5 开关(KU_RIGHT) | TCH6 加(KU_VOL_UP) | TCH7 预约(KU_NEXT)
+ *     TCH0 锁键(KU_LEFT) | TCH1 加热(KU_PREV) | TCH3 模式(KU_MODE)
+ *     TCH4 确认(KU_BACK) | TCH5 开关(KU_RIGHT) | TCH7 预约(KU_NEXT)
+ *     （Home 页不使用 TCH2/TCH6 加减键）
  *   Home：TCH3(011) Tab 切换；TCH4(100) 进入 Tab 子页（表2 按下编码，释放 Hold）
  */
 #define UI_HOME_ICON_PLACEHOLDER UI_BUF_ICON_ACTIVITY_BIN         
@@ -217,11 +218,13 @@
 #define HOME_STATUS_BT_X                (HOME_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - HOME_STATUS_GAP - HOME_STATUS_BT_W / 2)
 #define HOME_CLOCK_Y                    ((HOME_STATUS_Y + HOME_STATUS_H + HOME_TAB_BTN_Y - HOME_TAB_BTN_H / 2) / 2)
 #if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
-#define HOME_RES_MARQUEE_Y              55
-#define HOME_RES_MARQUEE_W              296
+#define HOME_RES_MARQUEE_Y              (HOME_TOP_TIME_Y + 5)  /* 再高一点，中心下移，为更高H留更多上下余量，避免裁切 */
+#define HOME_RES_MARQUEE_W              150                    /* 宽度再窄一点，放在顶上时钟与右边图标中间更紧凑 */
+#define HOME_RES_MARQUEE_H              34                     /* 再高一点，确保跑马灯滚动时中文字上下完整显示 */
 #else
-#define HOME_RES_MARQUEE_Y              HOME_SY(80)
-#define HOME_RES_MARQUEE_W              (GUI_SCREEN_WIDTH - HOME_SX(32))
+#define HOME_RES_MARQUEE_Y              (HOME_TOP_TIME_Y + 5)
+#define HOME_RES_MARQUEE_W              (GUI_SCREEN_WIDTH - HOME_SX(180))
+#define HOME_RES_MARQUEE_H              34
 #endif
 
 enum {
@@ -295,6 +298,7 @@ typedef struct f_home_t_ {
     u8 last_top_min;
     u8 last_top_sec;
     u16 last_cd_total_min;
+    bool screen_locked;
     home_top_time_ui_t top_time;
     compo_picturebox_t *pic_clock[HOME_CLOCK_IDX_CNT];
     compo_picturebox_t *pic_clock_colon;
@@ -303,6 +307,9 @@ typedef struct f_home_t_ {
     compo_picturebox_t *pic_bat;
     compo_textbox_t *txt_res_marquee;
     home_tab_ui_t tabs[HOME_TAB_CNT];
+#if ELUNCHBOX_PANEL_EN
+    u8 display_stage;   /* 0=就绪；1=Tab 2=顶栏+状态 3=倒计时+跑马灯 */
+#endif
 } f_home_t;
 
 static u32 home_countdown_remain_sec;
@@ -315,6 +322,7 @@ static u8 home_clock_last_d[HOME_CLOCK_IDX_CNT] = { 0xff, 0xff, 0xff, 0xff };
 #if ELUNCHBOX_PANEL_EN
 static void func_home_draw_now(void)
 {
+    home_gpu_wait_idle();
     os_gui_draw_force();
     home_gpu_wait_idle();
 }
@@ -452,7 +460,9 @@ static void func_home_tab_icons_cache_load(void)
         return;
     }
 
+#if !ELUNCHBOX_PANEL_EN
     home_gpu_wait_idle();
+#endif
     for (i = 0; i < HOME_TAB_CNT; i++) {
         os_spiflash_read(home_tab_icon_nor_ram[i], tbl_home_nav_icon_addr_nor[i],
                          tbl_home_nav_icon_len[i]);
@@ -487,6 +497,8 @@ static void func_home_status_icons_init(void)
     home_ui_shared_status_init();
 }
 
+static void func_home_lock_icon_apply(f_home_t *f_home);
+
 static void func_home_status_icons_apply(f_home_t *f_home)
 {
     func_home_status_icons_init();
@@ -502,6 +514,22 @@ static void func_home_status_icons_apply(f_home_t *f_home)
     if (f_home->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         compo_picturebox_set_ram(f_home->pic_bat, home_ui_shared_status_bat_ram);
         compo_picturebox_set_size(f_home->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+    }
+
+    func_home_lock_icon_apply(f_home);
+}
+
+static void func_home_lock_icon_apply(f_home_t *f_home)
+{
+    if (f_home == NULL || f_home->pic_lock == NULL) {
+        return;
+    }
+    if (f_home->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
+        compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_home->pic_lock, true);
+    } else {
+        compo_picturebox_set_visible(f_home->pic_lock, false);
     }
 }
 
@@ -585,7 +613,9 @@ static void func_home_clock_colon_ensure(void)
     if (home_clock_colon_ready) {
         return;
     }
+#if !ELUNCHBOX_PANEL_EN
     home_gpu_wait_idle();
+#endif
     os_spiflash_read(home_ui_colon_ram, UI_BUF_HOME_COLON_BIN, UI_LEN_HOME_COLON_BIN);
     home_clock_colon_ready = true;
 }
@@ -629,11 +659,23 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
         return;
     }
 
+#if ELUNCHBOX_PANEL_EN
+    {
+        extern volatile u8 elunchbox_te_block_flag;
+        u8 was_blocked = elunchbox_te_block_flag;
+
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 1;
+        }
+#endif
     func_home_clock_colon_ensure();
+#if !ELUNCHBOX_PANEL_EN
     home_gpu_wait_idle();
+#endif
 
     if (gui_set_ram_check(home_ui_colon_ram, __func__)) {
         compo_picturebox_set_ram(f_home->pic_clock_colon, home_ui_colon_ram);
+        compo_picturebox_set_visible(f_home->pic_clock_colon, true);
     }
 
     for (i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
@@ -645,42 +687,17 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
         }
         if (gui_set_ram_check(home_ui_digit_ram[i], __func__)) {
             compo_picturebox_set_ram(f_home->pic_clock[i], home_ui_digit_ram[i]);
+            compo_picturebox_set_visible(f_home->pic_clock[i], true);
         }
     }
 
     func_home_clock_layout(f_home, hour, min);
 #if ELUNCHBOX_PANEL_EN
-    func_home_gui_mark_dirty();
-#endif
-}
-
-static void func_home_countdown_adjust_min(f_home_t *f_home, s16 delta_min)
-{
-    u32 sec = home_countdown_remain_sec;
-    u32 max_sec = (u32)99 * 3600 + (u32)59 * 60;
-
-    if (delta_min > 0) {
-        sec += (u32)delta_min * 60;
-        if (sec > max_sec) {
-            sec = max_sec;
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 0;
         }
-    } else if (delta_min < 0) {
-        u32 sub = (u32)(-delta_min) * 60;
-
-        sec = (sec > sub) ? sec - sub : 0;
     }
-    home_countdown_remain_sec = sec;
-
-    if (f_home != NULL) {
-        u8 cd_hour, cd_min;
-
-        func_home_countdown_get_display(&cd_hour, &cd_min);
-        f_home->last_cd_total_min = 0xffff;
-        func_home_clock_update(f_home, cd_hour, cd_min);
-#if ELUNCHBOX_PANEL_EN
-        func_home_draw_now();
 #endif
-    }
 }
 
 static void func_home_tab_icon_size(u8 idx, u16 *out_w, u16 *out_h)
@@ -714,6 +731,7 @@ static void func_home_tab_icon_update(f_home_t *f_home, u8 idx)
         func_home_tab_icon_size(idx, &icon_w, &icon_h);
         compo_picturebox_set_ram(f_home->tabs[idx].pic, ram);
         compo_picturebox_set_size(f_home->tabs[idx].pic, icon_w, icon_h);
+        compo_picturebox_set_visible(f_home->tabs[idx].pic, true);
     }
 }
 
@@ -783,10 +801,14 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
 
     pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic, tbl_home_tab_pic_id[idx]);
+#if ELUNCHBOX_PANEL_EN
+    compo_picturebox_set_visible(pic, false);
+#else
     os_spiflash_read(home_ui_shared_icon_runtime[idx], tbl_home_nav_icon_addr_nor[idx], tbl_home_nav_icon_len[idx]);
     if (gui_set_ram_check(home_ui_shared_icon_runtime[idx], __func__)) {
         compo_picturebox_set_ram(pic, home_ui_shared_icon_runtime[idx]);
     }
+#endif
     {
         u16 icon_w;
         u16 icon_h;
@@ -799,10 +821,12 @@ static void func_home_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const c
     pic_label = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic_label, id_base + 4);
     compo_picturebox_set_visible(pic_label, false);
+#if !ELUNCHBOX_PANEL_EN
     if (home_tab_label_ram_ptr[idx] != NULL && label_buf_size > 0) {
         home_tab_label_apply(pic_label, home_tab_label_ram_ptr[idx], label_buf_size,
                              label, x, HOME_TAB_LABEL_Y, (idx == HOME_TAB_HEAT), HOME_COLOR_BLUE);
     }
+#endif
 
     func_home_tab_line_create(frm, tbl_home_tab_dash_id[idx], x);
 
@@ -824,6 +848,35 @@ static void func_home_tab_bind(f_home_t *f_home, u8 idx, u16 id_base)
     tab->label = compo_getobj_byid(id_base + 4);
 }
 
+static void func_home_bind_objects(f_home_t *f_home)
+{
+    u8 i;
+
+    home_top_time_bind(&f_home->top_time, COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
+                       COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
+                       COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
+    for (i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
+        f_home->pic_clock[i] = compo_getobj_byid(tbl_home_clock_id[i]);
+    }
+    f_home->pic_clock_colon = compo_getobj_byid(COMPO_ID_PIC_CLOCK_COLON);
+    f_home->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
+    f_home->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
+    f_home->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
+    f_home->txt_res_marquee = compo_getobj_byid(COMPO_ID_TXT_RES_MARQUEE);
+}
+
+static void func_home_tab_labels_refresh_all(f_home_t *f_home)
+{
+    u8 i;
+
+    if (f_home == NULL) {
+        return;
+    }
+    for (i = 0; i < HOME_TAB_CNT; i++) {
+        func_home_tab_label_update(f_home, i);
+    }
+}
+
 static void func_home_tab_refresh_idx(f_home_t *f_home, u8 idx)
 {
     home_tab_ui_t *tab;
@@ -841,7 +894,9 @@ static void func_home_tab_refresh_idx(f_home_t *f_home, u8 idx)
     compo_shape_set_visible(tab->border_in, !selected);
     func_home_tab_icon_update(f_home, idx);
     func_home_tab_line_update(f_home, idx);
+#if !ELUNCHBOX_PANEL_EN
     func_home_tab_label_update(f_home, idx);
+#endif
 }
 
 static void func_home_tab_refresh(f_home_t *f_home)
@@ -898,9 +953,6 @@ void func_home_mode_key(void)
     last_tick = tick_get();
     func_home_tab_select_next(f_home);
     HOME_DBG("Home Tab -> %s\n", tab_name[f_home->tab]);
-#if ELUNCHBOX_PANEL_EN
-    func_home_draw_now();
-#endif
 }
 
 static void func_home_tab_enter(f_home_t *f_home)
@@ -908,8 +960,6 @@ static void func_home_tab_enter(f_home_t *f_home)
     if (f_home == NULL) {
         return;
     }
-
-    home_gpu_wait_idle();
 
     switch (f_home->tab) {
     case HOME_TAB_HEAT:
@@ -919,7 +969,14 @@ static void func_home_tab_enter(f_home_t *f_home)
 
     case HOME_TAB_MODE:
         HOME_DBG("func_home_tab_enter: HOME_TAB_MODE\n");
+#if ELUNCHBOX_PANEL_EN
+        WDT_CLR();
+        func_switch_to(FUNC_MODE, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
+        WDT_CLR();
+        HOME_DBG("func_home_tab_enter: switch done sta=%u\n", func_cb.sta);
+#else
         func_switch_to(FUNC_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+#endif
         break;
 
     case HOME_TAB_SETUP:
@@ -942,18 +999,12 @@ static void func_home_res_marquee_refresh(f_home_t *f_home)
 
     if (!func_reservation_is_waiting()) {
         compo_textbox_set_visible(f_home->txt_res_marquee, false);
-#if ELUNCHBOX_PANEL_EN
-        func_home_gui_mark_dirty();
-#endif
         return;
     }
 
     func_reservation_marquee_text(buf, sizeof(buf));
     compo_textbox_set(f_home->txt_res_marquee, buf);
     compo_textbox_set_visible(f_home->txt_res_marquee, true);
-#if ELUNCHBOX_PANEL_EN
-    func_home_gui_mark_dirty();
-#endif
 }
 
 static void func_home_status_refresh(f_home_t *f_home)
@@ -970,9 +1021,6 @@ static void func_home_status_refresh(f_home_t *f_home)
         home_top_time_refresh(&f_home->top_time, &tm);
         func_home_countdown_tick();
         func_home_res_marquee_refresh(f_home);
-#if ELUNCHBOX_PANEL_EN
-        func_home_gui_mark_dirty();
-#endif
     }
 
     {
@@ -1042,7 +1090,11 @@ compo_form_t *func_home_form_create(void)
         compo_textbox_t *txt = compo_textbox_create(frm, 48);
 
         compo_setid(txt, COMPO_ID_TXT_RES_MARQUEE);
-        compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, HOME_RES_MARQUEE_Y);
+        /* 再高H + 再窄W；先设字体和标志，再set_location；autoroll时上下留足空间 */
+        compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_BIN);
+        compo_textbox_set_wholewrap(txt, false);
+        compo_textbox_set_autosize(txt, false);
+        compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, HOME_RES_MARQUEE_Y, HOME_RES_MARQUEE_W, HOME_RES_MARQUEE_H);
         compo_textbox_set_autoroll(txt, true);
         compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_SROLL_CIRC);
         compo_textbox_set_visible(txt, false);
@@ -1159,6 +1211,10 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
     last_ms = tick_get();
     last_tch = tch;
 
+    if (f_home->screen_locked && tch != PT8028_KEY_TCH0 && tch != PT8028_KEY_TCH4 && tch != PT8028_KEY_TCH5) {
+        return;  // 锁屏时仅允许锁键、确认、开关
+    }
+
     switch (tch) {
     case PT8028_KEY_TCH3:
         HOME_DBG("Home: 模式键 -> Tab 切换\n");
@@ -1171,18 +1227,13 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         break;
 
-    case PT8028_KEY_TCH2:
-        HOME_DBG("Home: TCH2 减号按下\n");
-        func_home_countdown_adjust_min(f_home, -1);
-        break;
-
-    case PT8028_KEY_TCH6:
-        HOME_DBG("Home: TCH6 加号按下\n");
-        func_home_countdown_adjust_min(f_home, 1);
-        break;
-
     case PT8028_KEY_TCH0:
         HOME_DBG("Home: TCH0 锁键按下\n");
+        f_home->screen_locked = !f_home->screen_locked;
+        func_home_lock_icon_apply(f_home);
+#if ELUNCHBOX_PANEL_EN
+        func_home_draw_now();
+#endif
         break;
 
     case PT8028_KEY_TCH5:
@@ -1227,21 +1278,96 @@ void func_home_process(void)
     pt8028_gpio_ensure_periodic();
     pt8028_key_scan();
     func_home_pt8028_keys_process(f_home);
+    /* 确认/TCH1 等可能在上面 func_switch_to 并已销毁 frm_main；不可再 draw */
+    if (func_cb.sta != FUNC_HOME) {
+        return;
+    }
 #endif
 
-    func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (f_home != NULL && f_home->display_stage != 0) {
+        WDT_CLR();
+        switch (f_home->display_stage) {
+        case 1:
+            func_home_tab_icons_cache_load();
+            func_home_tab_refresh(f_home);
+            f_home->display_stage = 2;
+            break;
+        case 2: {
+            tm_t tm = rtc_clock_get();
 
-    if (f_home != NULL) {
-        func_home_status_refresh(f_home);
+            func_home_status_icons_apply(f_home);
+            f_home->last_top_min = tm.min;
+            f_home->last_top_sec = tm.sec;
+            home_top_time_refresh(&f_home->top_time, &tm);
+            f_home->display_stage = 3;
+            break;
+        }
+        case 3: {
+            u8 cd_hour;
+            u8 cd_min;
+
+            func_home_countdown_get_display(&cd_hour, &cd_min);
+            f_home->last_cd_total_min = 0xffff;
+            func_home_clock_update(f_home, cd_hour, cd_min);
+            func_home_res_marquee_refresh(f_home);
+            f_home->display_stage = 0;
+            func_home_gui_mark_dirty();
+            break;
+        }
+        default:
+            f_home->display_stage = 0;
+            break;
+        }
+        func_process();
+        if (func_home_gui_need_refresh()) {
+            func_home_tab_labels_refresh_all(f_home);
+        }
+        return;
     }
+#endif
+
+    if (func_cb.sta != FUNC_HOME || func_cb.f_cb == NULL) {
+        return;
+    }
+
+#if ELUNCHBOX_PANEL_EN
+    {
+        bool tab_dirty = func_home_gui_need_refresh();
+
+        if (tab_dirty) {
+            func_home_tab_labels_refresh_all((f_home_t *)func_cb.f_cb);
+        }
+#endif
+    func_home_status_refresh((f_home_t *)func_cb.f_cb);
+    func_process();
+#if ELUNCHBOX_PANEL_EN
+        if (tab_dirty) {
+            func_home_draw_now();
+        }
+    }
+#endif
 }
 
 void func_home_message(size_msg_t msg)
 {
     f_home_t *f_home = (f_home_t *)func_cb.f_cb;
 
-    if (msg == NO_MSG) {
+    if (msg == NO_MSG || func_cb.sta != FUNC_HOME) {
         return;
+    }
+
+#if ELUNCHBOX_PANEL_EN
+    if (f_home != NULL && f_home->display_stage != 0 && msg != KU_RIGHT) {
+        return;
+    }
+#endif
+
+    if (f_home != NULL && f_home->screen_locked) {
+        // 锁屏状态下仅允许锁键(解锁)、确认键、开关键
+        if (msg != KU_LEFT && msg != KU_BACK && msg != KU_RIGHT) {
+            return;
+        }
     }
 
     switch (msg) {
@@ -1251,6 +1377,8 @@ void func_home_message(size_msg_t msg)
 
     case KU_LEFT:
 #if ELUNCHBOX_PANEL_EN
+        f_home->screen_locked = !f_home->screen_locked;
+        func_home_lock_icon_apply(f_home);
         break;
 #else
         HOME_DBG("Home: 锁键\n");
@@ -1291,15 +1419,8 @@ void func_home_message(size_msg_t msg)
         break;
 
     case KU_VOL_UP:
-        HOME_DBG("Home msg: 加号\n");
-        home_gpu_wait_idle();
-        func_home_countdown_adjust_min(f_home, 1);
-        break;
-
     case KU_VOL_DOWN:
-        HOME_DBG("Home msg: 减号\n");
-        home_gpu_wait_idle();
-        func_home_countdown_adjust_min(f_home, -1);
+        /* Home 页不使用加减键 */
         break;
 
     default:
@@ -1326,91 +1447,79 @@ void func_home_enter(void)
     }
     func_cb.f_cb = func_zalloc(sizeof(f_home_t));
     func_cb.frm_main = func_home_form_create();
+#if ELUNCHBOX_PANEL_EN
+    tft_bglight_force_on();
+#endif
 
     f_home = (f_home_t *)func_cb.f_cb;
     f_home->tab = HOME_TAB_HEAT;
     f_home->last_top_min = 0xff;
     f_home->last_top_sec = 0xff;
     f_home->last_cd_total_min = 0xffff;
+    f_home->screen_locked = false;
 
     func_home_tab_bind(f_home, HOME_TAB_HEAT, COMPO_ID_TAB0_SEL_BG);
     func_home_tab_bind(f_home, HOME_TAB_MODE, COMPO_ID_TAB1_SEL_BG);
     func_home_tab_bind(f_home, HOME_TAB_SETUP, COMPO_ID_TAB2_SEL_BG);
+    func_home_bind_objects(f_home);
 
-    func_home_tab_icons_cache_load();
-    func_home_tab_refresh(f_home);
-    os_gui_draw_force();
-    home_gpu_wait_idle();
-    tft_bglight_force_on();
-
-    home_top_time_bind(&f_home->top_time, COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
-                       COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
-                       COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
-    {
-        tm_t tm = rtc_clock_get();
-        home_top_time_refresh(&f_home->top_time, &tm);
-    }
-    for (u8 i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
-        f_home->pic_clock[i] = compo_getobj_byid(tbl_home_clock_id[i]);
-    }
-    f_home->pic_clock_colon = compo_getobj_byid(COMPO_ID_PIC_CLOCK_COLON);
-    f_home->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
-    f_home->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
-    f_home->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
-    f_home->txt_res_marquee = compo_getobj_byid(COMPO_ID_TXT_RES_MARQUEE);
-
-    func_home_status_icons_apply(f_home);
     if (!home_countdown_inited) {
         func_home_countdown_set(90, 5);
         func_home_countdown_start();
         home_countdown_inited = true;
     }
+    func_home_clock_cache_invalidate();
 
+#if ELUNCHBOX_PANEL_EN
+    if (func_cb.last == 0) {
+        /* 冷启动分 3 帧：Tab → 顶栏/状态 → 倒计时，enter 内不 draw_force */
+        f_home->display_stage = 1;
+        func_home_gui_mark_dirty();
+    } else {
+        func_home_tab_icons_cache_load();
+        func_home_tab_refresh(f_home);
+        func_home_status_icons_apply(f_home);
+        {
+            tm_t tm = rtc_clock_get();
+
+            f_home->last_top_min = tm.min;
+            f_home->last_top_sec = tm.sec;
+            home_top_time_refresh(&f_home->top_time, &tm);
+        }
+        f_home->last_cd_total_min = 0xffff;
+        func_home_status_refresh(f_home);
+        func_home_res_marquee_refresh(f_home);
+        func_home_gui_mark_dirty();
+    }
+    WDT_CLR();
+    pt8028_release_clear();
+#else
+    func_home_tab_icons_cache_load();
+    func_home_tab_refresh(f_home);
+    WDT_CLR();
+    os_gui_draw_force();
+    tft_bglight_force_on();
+
+    {
+        tm_t tm = rtc_clock_get();
+        home_top_time_refresh(&f_home->top_time, &tm);
+    }
+
+    func_home_status_icons_apply(f_home);
     func_home_status_refresh(f_home);
     func_home_res_marquee_refresh(f_home);
 
-    if (home_countdown_inited && func_cb.last == FUNC_HEAT) {
+    if (home_countdown_inited &&
+        (func_cb.last == FUNC_HEAT || func_cb.last == FUNC_MODE)) {
+        home_gpu_wait_idle();
         func_home_clock_restore(f_home);
     }
 
     os_gui_draw_force();
     home_gpu_wait_idle();
     tft_bglight_force_on();
-#if ELUNCHBOX_PANEL_EN
-    home_gui_dirty = 0;
-    pt8028_release_clear();
+    WDT_CLR();
 #endif
-}
-
-void func_home_gpu_detach_for_leave(void)
-{
-    f_home_t *f_home = (f_home_t *)func_cb.f_cb;
-    u8 i;
-
-    if (f_home == NULL) {
-        return;
-    }
-
-    home_gpu_wait_idle();
-    home_top_time_gpu_detach(&f_home->top_time);
-
-    for (i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
-        home_ui_gpu_pic_detach(f_home->pic_clock[i]);
-    }
-    home_ui_gpu_pic_detach(f_home->pic_clock_colon);
-    home_ui_gpu_pic_detach(f_home->pic_bt);
-    home_ui_gpu_pic_detach(f_home->pic_lock);
-    home_ui_gpu_pic_detach(f_home->pic_bat);
-
-    for (i = 0; i < HOME_TAB_CNT; i++) {
-        home_ui_gpu_pic_detach(f_home->tabs[i].pic);
-        home_ui_gpu_pic_detach(f_home->tabs[i].label);
-        if (f_home->tabs[i].line != NULL) {
-            compo_shape_set_visible(f_home->tabs[i].line, false);
-        }
-    }
-
-    home_gpu_wait_idle();
 }
 
 void func_home_exit(void)
