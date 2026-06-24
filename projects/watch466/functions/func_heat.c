@@ -5,6 +5,7 @@
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
 #include "home_top_time.h"
+#include "heat_display_reg.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -181,6 +182,9 @@ typedef struct f_heat_t_ {
     u8 set_min;
     u8 temp_idx;
     u16 display_temp_f;
+    u32 heat_live_remain_min;   /* 加热中：回调推送的剩余分钟 */
+    u16 heat_live_temp_f;       /* 加热中：回调推送的实时温度 °F */
+    bool heat_live_ready;       /* 是否已收到至少一次回调 */
     u32 heat_total_sec;
     u32 heat_start_tick;
     bool screen_locked;
@@ -257,6 +261,32 @@ static const u16 tbl_heat_temp_id[HEAT_TEMP_IDX_CNT] = {
 };
 
 static void func_heat_display_refresh(f_heat_t *f_heat);
+static void func_heat_heating_finish_check(f_heat_t *f_heat);
+
+static void func_heat_display_on_info(const heat_display_info_t *info)
+{
+    f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
+
+    if (info == NULL || f_heat == NULL || func_cb.sta != FUNC_HEAT) {
+        return;
+    }
+    if (f_heat->ui_state != HEAT_UI_HEATING) {
+        return;
+    }
+
+    f_heat->heat_live_remain_min = info->remain_min;
+    f_heat->heat_live_temp_f = info->temp_f;
+    f_heat->heat_live_ready = true;
+    f_heat->last_timer_key = 0xffff;
+    f_heat->last_temp_f = 0xffff;
+
+    if (info->remain_min == 0) {
+        func_heat_heating_finish_check(f_heat);
+    }
+    if (f_heat->ui_state != HEAT_UI_FINISHED) {
+        func_heat_display_refresh(f_heat);
+    }
+}
 
 static void func_heat_status_icons_init(void)
 {
@@ -500,13 +530,6 @@ void func_heat_temp_set_f(u16 temp_f)
     }
 }
 
-static void func_heat_countdown_tick(void)
-{
-    if (heat_countdown_running && heat_countdown_remain_sec > 0) {
-        heat_countdown_remain_sec--;
-    }
-}
-
 static void func_heat_lock_check(f_heat_t *f_heat)
 {
     if (f_heat->ui_state != HEAT_UI_HEATING || f_heat->screen_locked) {
@@ -518,56 +541,32 @@ static void func_heat_lock_check(f_heat_t *f_heat)
     }
 }
 
-static void func_heat_heating_progress(f_heat_t *f_heat)
-{
-    u16 target = func_heat_get_target_temp_f(f_heat);
-
-    if (f_heat->heat_total_sec == 0) {
-        f_heat->display_temp_f = target;
-        return;
-    }
-
-    {
-        u32 elapsed = f_heat->heat_total_sec - heat_countdown_remain_sec;
-
-        f_heat->display_temp_f = (u16)((u32)target * elapsed / f_heat->heat_total_sec);
-    }
-}
-
 static void func_heat_heating_finish_check(f_heat_t *f_heat)
 {
     if (f_heat->ui_state != HEAT_UI_HEATING) {
         return;
     }
-    if (heat_countdown_remain_sec == 0) {
-        heat_countdown_running = false;
-        f_heat->ui_state = HEAT_UI_FINISHED;
-        f_heat->display_temp_f = func_heat_get_target_temp_f(f_heat);
-        f_heat->screen_locked = false;
-        func_heat_lock_icon_apply(f_heat);
-#if FUNC_LUNCHBOX_UART_EN
-        lunchbox_heat_stop();
-#endif
+    if (!f_heat->heat_live_ready || f_heat->heat_live_remain_min != 0) {
+        return;
     }
+    heat_countdown_running = false;
+    f_heat->ui_state = HEAT_UI_FINISHED;
+    f_heat->display_temp_f = func_heat_get_target_temp_f(f_heat);
+    f_heat->screen_locked = false;
+    func_heat_lock_icon_apply(f_heat);
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_heat_stop();
+#endif
 }
 
 static void func_heat_status_refresh(f_heat_t *f_heat)
 {
     tm_t tm = rtc_clock_get();
-    bool sec_changed = false;
 
     if (f_heat->last_top_min != tm.min || f_heat->last_top_sec != tm.sec) {
         f_heat->last_top_min = tm.min;
         f_heat->last_top_sec = tm.sec;
         home_top_time_refresh(&f_heat->top_time, &tm);
-        sec_changed = true;
-    }
-
-    if (f_heat->ui_state == HEAT_UI_HEATING && sec_changed) {
-        func_heat_countdown_tick();
-        func_heat_heating_progress(f_heat);
-        func_heat_heating_finish_check(f_heat);
-        func_heat_display_refresh(f_heat);
     }
 
     func_heat_lock_check(f_heat);
@@ -677,10 +676,23 @@ static void func_heat_display_refresh(f_heat_t *f_heat)
         h_white = (f_heat->focus == HEAT_FOCUS_HOUR);
         m_white = (f_heat->focus == HEAT_FOCUS_MIN);
         t_white = (f_heat->focus == HEAT_FOCUS_TEMP);
+    } else if (f_heat->ui_state == HEAT_UI_HEATING) {
+        if (f_heat->heat_live_ready) {
+            hour = (u8)(f_heat->heat_live_remain_min / 60);
+            min = (u8)(f_heat->heat_live_remain_min % 60);
+            temp = f_heat->heat_live_temp_f;
+        } else {
+            hour = f_heat->set_hour;
+            min = f_heat->set_min;
+            temp = func_heat_get_target_temp_f(f_heat);
+        }
+        h_white = true;
+        m_white = true;
+        t_white = true;
     } else {
-        hour = (u8)(heat_countdown_remain_sec / 3600);
-        min = (u8)((heat_countdown_remain_sec % 3600) / 60);
-        temp = f_heat->display_temp_f;
+        hour = 0;
+        min = 0;
+        temp = func_heat_get_target_temp_f(f_heat);
         h_white = true;
         m_white = true;
         t_white = true;
@@ -703,11 +715,12 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     if (f_heat->heat_total_sec == 0) {
         f_heat->heat_total_sec = 60;
     }
-    f_heat->display_temp_f = 0;
+    f_heat->heat_live_ready = false;
+    f_heat->heat_live_remain_min = 0;
+    f_heat->heat_live_temp_f = 0;
     f_heat->last_timer_key = 0xffff;
     f_heat->last_temp_f = 0xffff;
-    heat_countdown_remain_sec = f_heat->heat_total_sec;
-    func_heat_countdown_start();
+    func_heat_countdown_stop();
 
 #if FUNC_LUNCHBOX_UART_EN
     {
@@ -1008,6 +1021,9 @@ void func_heat_enter(void)
     f_heat->set_min = 0;
     f_heat->temp_idx = 2;
     f_heat->display_temp_f = 0;
+    f_heat->heat_live_remain_min = 0;
+    f_heat->heat_live_temp_f = 0;
+    f_heat->heat_live_ready = false;
     f_heat->heat_total_sec = 0;
     f_heat->heat_start_tick = 0;
     f_heat->screen_locked = false;
@@ -1044,12 +1060,16 @@ void func_heat_enter(void)
     func_heat_countdown_stop();
     func_heat_display_refresh(f_heat);
     func_heat_status_refresh(f_heat);
+    heat_display_register(func_heat_display_on_info);
 }
 
 void func_heat_exit(void)
 {
+    f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
+
+    heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
-    if (!heat_countdown_running) {
+    if (f_heat != NULL && f_heat->ui_state == HEAT_UI_HEATING) {
         lunchbox_heat_stop();
     }
 #else

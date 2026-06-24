@@ -98,7 +98,7 @@ SOURCES=(
     functions/func.c functions/func_activity.c functions/func_ble_gatts.c
     functions/func_bt.c functions/func_charge.c functions/func_compo_select.c
     functions/func_compo_select_sub.c functions/func_debug_info.c functions/func_heat.c
-    functions/func_home.c functions/home_ui_shared.c functions/home_tab_label.c
+    functions/heat_display_reg.c functions/func_home.c functions/home_ui_shared.c functions/home_tab_label.c
     functions/home_top_time.c functions/home_ui_ram.c functions/home_ui_gpu_detach.c
     functions/func_lunchbox_uart.c functions/func_mode.c functions/func_reservation.c
     functions/func_setup.c functions/func_timeing.c functions/func_languageing.c
