@@ -720,7 +720,7 @@ static void func_heat_start_heating(f_heat_t *f_heat)
             duration_min = 1;
         }
         printf("lb: heat_start -> UART\n");
-        printf("target_temp_f: %d, duration_min: %d\n", target_temp_f, duration_min);
+        printf("target_temp_f: %d, duration_min: %d\n", lunchbox_temp_f_to_idx(target_temp_f), duration_min);
         lunchbox_heat_start(1, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
     }
 #endif
