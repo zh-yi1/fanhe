@@ -6,6 +6,7 @@
 #include "home_ui_shared.h"
 #include "home_top_time.h"
 #include "heat_display_reg.h"
+#include "ui_layout_anchor.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -103,20 +104,6 @@
 #define HEAT_STATUS_LOCK_X                (HEAT_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - HEAT_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
 #define HEAT_STATUS_BT_X                  (HEAT_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - HEAT_STATUS_GAP - HOME_STATUS_BT_W / 2)
 
-/* 设计稿右上角锚点 (320×240)，compo_picturebox_set_pos 仍用中心点 */
-#define HEAT_LAYOUT_REF_W                 320
-#define HEAT_LAYOUT_REF_H                 240
-#define HEAT_TIMER_TR_Y                   ((s16)((s32)60 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
-#define HEAT_TIMER_TR_H10_X               ((s16)((s32)100 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define HEAT_TIMER_TR_H1_X                ((s16)((s32)141 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define HEAT_TIMER_TR_COLON_X             ((s16)((s32)172 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define HEAT_TIMER_TR_M10_X               ((s16)((s32)225 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define HEAT_TIMER_TR_M1_X                ((s16)((s32)283 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define HEAT_TEMP_TR_Y                    ((s16)((s32)158 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
-#define HEAT_TEMP_TR_H_X                  ((s16)((s32)89 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define HEAT_TEMP_TR_T10_X                ((s16)((s32)139 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define HEAT_TEMP_TR_T1_X                 ((s16)((s32)185 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define HEAT_TEMP_TR_UNIT_X               ((s16)((s32)247 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 #define HEAT_LOCK_MS                      30000
 #define HEAT_TEMP_PRESET_CNT              5
 #define HEAT_MSG_OK                       KU_BACK
