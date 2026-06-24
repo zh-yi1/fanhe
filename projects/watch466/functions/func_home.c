@@ -136,7 +136,7 @@
 #define HOME_TAB_PAD_BOTTOM             5
 #define HOME_TAB_PAD_MID                2
 #define HOME_TAB_LINE_H                 2
-#define HOME_TAB_ICON_DISP_H            18
+#define HOME_TAB_ICON_DISP_H            HOME_NAV_ICON_MAX_H
 #define HOME_TAB_X0                     60
 #define HOME_TAB_X1                     160
 #define HOME_TAB_X2                     260
@@ -161,7 +161,7 @@
 #define HOME_TAB_PAD_BOTTOM             3
 #define HOME_TAB_PAD_MID                2
 #define HOME_TAB_LINE_H                 2
-#define HOME_TAB_ICON_DISP_H            20
+#define HOME_TAB_ICON_DISP_H            HOME_NAV_ICON_MAX_H
 #define HOME_TAB_STEP                   (HOME_TAB_BTN_W + HOME_SX(4))
 #define HOME_TAB_X0                     (HOME_TAB_SIDE_MARGIN + HOME_TAB_BTN_W / 2)
 #define HOME_TAB_X1                     (HOME_TAB_X0 + HOME_TAB_STEP)
@@ -731,17 +731,8 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
 
 static void func_home_tab_icon_size(u8 idx, u16 *out_w, u16 *out_h)
 {
-    u16 src_w = tbl_home_nav_icon_w[idx];
-    u16 src_h = tbl_home_nav_icon_h[idx];
-
-    if (src_h == 0) {
-        *out_w = 0;
-        *out_h = 0;
-        return;
-    }
-
-    *out_h = HOME_TAB_ICON_DISP_H;
-    *out_w = (u16)((u32)src_w * HOME_TAB_ICON_DISP_H / src_h);
+    *out_w = tbl_home_nav_icon_w[idx];
+    *out_h = tbl_home_nav_icon_h[idx];
 }
 
 static void func_home_tab_icon_update(f_home_t *f_home, u8 idx)
