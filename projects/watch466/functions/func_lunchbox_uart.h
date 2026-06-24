@@ -315,13 +315,13 @@ void lunchbox_report_attr(u8 dpid);
 //       预约键→lunchbox_reservation_send, 模式键/加/减/锁键→仅UI本地
 //-----------------------------------------------------------------------------
 
-/** @brief LCD 启动加热 — 构造 UART 0x01 帧发给加热模块
+/** @brief LCD 启动加热 — 构造 UART 0x03 帧发给加热模块
  *  @param mode     加热模式: 1=自定义, 2=鸡腿, 3=意面, 4=预约, 5=保温
  *  @param temp     温度档位: 0=40°C ~ 5=90°C
  *  @param duration 加热时长(分钟) */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration);
 
-/** @brief LCD 停止加热 — 构造 UART 0x01 帧发给加热模块 */
+/** @brief LCD 停止加热 — 构造 UART 0x03 帧发给加热模块 (action=0 删除) */
 void lunchbox_heat_stop(void);
 
 /** @brief LCD 发送预约 — 构造 UART 0x03 帧发给加热模块

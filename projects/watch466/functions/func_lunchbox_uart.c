@@ -415,60 +415,31 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
 }
 
 /**
- * @brief LCD 启动加热 — 构建 UART 0x01 DataPoint 帧发往加热模块
+ * @brief LCD 启动加热 — 构建 UART 0x03 预约帧发往加热模块
  *
- * UART 0x01 帧格式: timestamp(4B,BE) + sleep_flag(1B) + DataPoints
- * DataPoints: dpid=2(模式)+dpid=5(时长)+dpid=7(温度)+dpid=10(是否加热=1)
+ * UART 0x03 帧格式(42B): action(1)+id(1)+name(32)+time(4,BE)+temp(1)+duration(1)+enabled(1)+repeat(1)
+ * action = mode (1=自定义加热, 2=鸡腿, 3=意面, 4=预约, 5=保温)
+ * id = 0 (MCU自动分配), time = 当前时间戳(立即执行)
  */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
     u32 ts = RTCCNT;
-    u8 dp[32];
-    u16 dp_len = 0;
+    u8 data[42];
+    memset(data, 0, 42);
 
-    // DataPoint: dpid=2 (加热模式), type=enum(0x04), len=1, value=mode
-    dp[dp_len++] = LB_DPID_HEAT_MODE;
-    dp[dp_len++] = LB_DP_TYPE_ENUM;
-    dp[dp_len++] = 0x00;
-    dp[dp_len++] = 0x01;
-    dp[dp_len++] = mode;
+    data[0] = mode;                             // action = mode
+    data[1] = 0;                                // id = 0 (MCU自动分配)
+    // name[32] at [2-33] = zeros
+    data[2 + 32 + 0] = (u8)(ts >> 24);          // time BE (立即执行)
+    data[2 + 32 + 1] = (u8)(ts >> 16);
+    data[2 + 32 + 2] = (u8)(ts >> 8);
+    data[2 + 32 + 3] = (u8)(ts & 0xFF);
+    data[2 + 32 + 4] = temp;                    // 温度档位
+    data[2 + 32 + 5] = (u8)duration;            // 加热时长(分钟)
+    data[2 + 32 + 6] = 0x01;                    // enabled = 1
+    data[2 + 32 + 7] = 0x00;                    // repeat = 0 (不重复)
 
-    // DataPoint: dpid=5 (加热时长), type=value(0x02), len=4, value=duration(BE)
-    dp[dp_len++] = LB_DPID_HEAT_DURATION;
-    dp[dp_len++] = LB_DP_TYPE_VALUE;
-    dp[dp_len++] = 0x00;
-    dp[dp_len++] = 0x04;
-    dp[dp_len++] = (u8)(duration >> 24);
-    dp[dp_len++] = (u8)(duration >> 16);
-    dp[dp_len++] = (u8)(duration >> 8);
-    dp[dp_len++] = (u8)(duration & 0xFF);
-
-    // DataPoint: dpid=7 (加热温度), type=enum(0x04), len=1, value=temp
-    dp[dp_len++] = LB_DPID_HEAT_TEMP;
-    dp[dp_len++] = LB_DP_TYPE_ENUM;
-    dp[dp_len++] = 0x00;
-    dp[dp_len++] = 0x01;
-    dp[dp_len++] = temp;
-
-    // DataPoint: dpid=10 (是否加热), type=bool(0x01), len=1, value=1
-    dp[dp_len++] = LB_DPID_HEAT_ENABLE;
-    dp[dp_len++] = LB_DP_TYPE_BOOL;
-    dp[dp_len++] = 0x00;
-    dp[dp_len++] = 0x01;
-    dp[dp_len++] = 0x01;  // 1=加热
-
-    // 组装: timestamp(4B) + sleep_flag(1B) + DataPoints
-    u8 data[64];
-    u16 data_len = 0;
-    data[data_len++] = (u8)(ts >> 24);
-    data[data_len++] = (u8)(ts >> 16);
-    data[data_len++] = (u8)(ts >> 8);
-    data[data_len++] = (u8)(ts & 0xFF);
-    data[data_len++] = 0x01;  // MCU 使能开机
-    memcpy(data + data_len, dp, dp_len);
-    data_len += dp_len;
-
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
+    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 42);
 
     // 更新本地属性 (本地模式) 或仅通知 APP
 #if !LB_BRIDGE_MODE
@@ -481,33 +452,17 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 }
 
 /**
- * @brief LCD 停止加热 — 构建 UART 0x01 DataPoint 帧发往加热模块
+ * @brief LCD 停止加热 — 构建 UART 0x03 预约帧发往加热模块 (action=0 删除)
+ *
+ * UART 0x03: action=0x00(删除) + id=0x00(当前活跃加热), 取消正在执行的加热任务
  */
 void lunchbox_heat_stop(void)
 {
-    u32 ts = RTCCNT;
-    u8 dp[8];
-    u16 dp_len = 0;
+    u8 data[2];
+    data[0] = 0x00;  // action=删除 (取消当前加热)
+    data[1] = 0x00;  // id=0 (当前活跃加热)
 
-    // DataPoint: dpid=10 (是否加热), type=bool(0x01), len=1, value=0
-    dp[dp_len++] = LB_DPID_HEAT_ENABLE;
-    dp[dp_len++] = LB_DP_TYPE_BOOL;
-    dp[dp_len++] = 0x00;
-    dp[dp_len++] = 0x01;
-    dp[dp_len++] = 0x00;  // 0=停止
-
-    // 组装: timestamp(4B) + sleep_flag(1B) + DataPoints
-    u8 data[16];
-    u16 data_len = 0;
-    data[data_len++] = (u8)(ts >> 24);
-    data[data_len++] = (u8)(ts >> 16);
-    data[data_len++] = (u8)(ts >> 8);
-    data[data_len++] = (u8)(ts & 0xFF);
-    data[data_len++] = 0x01;  // MCU 使能开机
-    memcpy(data + data_len, dp, dp_len);
-    data_len += dp_len;
-
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
+    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 2);
 
 #if !LB_BRIDGE_MODE
     lb_attr_heat_enable = 0;
