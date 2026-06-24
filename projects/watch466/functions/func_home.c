@@ -1464,7 +1464,7 @@ void func_home_enter(void)
     func_home_bind_objects(f_home);
 
     if (!home_countdown_inited) {
-        func_home_countdown_set(90, 5);
+        func_home_countdown_set(0, 0);
         func_home_countdown_start();
         home_countdown_inited = true;
     }
