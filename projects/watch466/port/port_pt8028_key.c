@@ -323,7 +323,7 @@ AT(.text.key.init)
 void pt8028_port_gpio_init(void)
 
 {
-#if 0
+#if 1
     pt8028_gpio_invalidate();
 
 #if ELUNCHBOX_PANEL_EN

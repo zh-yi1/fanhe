@@ -37,6 +37,16 @@ CMD_NAMES = {
     0x0E: "升级结束(BLE)",
 }
 
+# 预约操作类型
+RESERVATION_ACTIONS = {
+    0: "删除预约",
+    1: "自定义加热",
+    2: "鸡腿模式",
+    3: "意面模式",
+    4: "预约模式",
+    5: "保温模式",
+}
+
 # 错误码
 ERR_NAMES = {0x00: "正常", 0x01: "执行异常"}
 
@@ -148,8 +158,19 @@ def parse_frame(data: bytes, verbose=True):
         if data_len <= 64:
             print(f"║ 原始hex : {fmt_hex(payload)}")
 
-        # 尝试按 DataPoint 解析
-        if data_len >= 5:
+        # ── 按优先级尝试多种数据格式 ──
+
+        # 1) 预约信息结构 — UART 0x03 (42B) 或 BLE 0x06/0x07 (41B)
+        if cmd == 0x03 and data_len == 1:
+            # UART 0x03 MCU 应答: 仅包含分配的预约 ID
+            print(f"╠════════════════════════════════════════╣")
+            print(f"║  预约操作应答 (UART 0x03):")
+            print(f"║  分配预约ID: {payload[0]}" + (" (失败)" if payload[0] == 0 else ""))
+        elif cmd in (0x03, 0x06, 0x07) and data_len in (41, 42):
+            parse_reservation(payload, is_uart=(data_len == 42))
+
+        # 2) DataPoint 格式 (BLE 0x02/0x03/0x04)
+        elif data_len >= 5:
             dps = parse_datapoints(payload)
             if dps:
                 print(f"╠════════════════════════════════════════╣")
@@ -158,13 +179,14 @@ def parse_frame(data: bytes, verbose=True):
                     name = ATTRS.get(dp['dpid'], (f"未知({dp['dpid']})", "", {}))[0]
                     val_str = format_dp_value(dp)
                     print(f"║  [{i+1}] dpid={dp['dpid']:02X}({name}) type={DP_TYPES.get(dp['type'], f'0x{dp[\"type\"]:02X}'):6s} len={dp['len']} value={val_str}")
+
+            # 3) timestamp + sleep_flag + DataPoints (UART 0x01)
             elif is_timestamp_prefix(payload):
-                # 可能是 timestamp + sleep_flag + DataPoints 格式
                 ts = be_to_int(payload[0:4])
                 sf = payload[4]
                 sf_name = {0: "MCU可休眠", 1: "MCU使能开机"}.get(sf, f"未知(0x{sf:02X})")
                 print(f"╠════════════════════════════════════════╣")
-                print(f"║  识别为: timestamp+sleep_flag+DPs")
+                print(f"║  识别为: timestamp+sleep_flag+DPs (UART 0x01)")
                 print(f"║  时间戳  : 0x{ts:08X} ({ts})")
                 print(f"║  sleep   : {sf} → {sf_name}")
                 if data_len > 5:
@@ -258,6 +280,86 @@ def format_dp_value(dp: dict) -> str:
         return str(n)
 
     return f"0x{val.hex().upper()}"
+
+
+# ============================================================
+# 预约信息结构解析 (UART 0x03 / BLE 0x06 0x07)
+# ============================================================
+
+def parse_reservation(data: bytes, is_uart: bool):
+    """解析预约信息数据结构并打印"""
+    if is_uart:
+        # UART: action(1) + id(1) + name(32) + time(4) + temp(1) + duration(1) + enabled(1) + repeat(1) = 42B
+        if len(data) < 42:
+            return False
+        action = data[0]
+        rid = data[1]
+        name_raw = data[2:34]
+        time_val = be_to_int(data[34:38])
+        temp = data[38]
+        duration = data[39]
+        enabled = data[40]
+        repeat = data[41]
+        action_name = RESERVATION_ACTIONS.get(action, f"未知(0x{action:02X})")
+        print(f"╠════════════════════════════════════════╣")
+        print(f"║  预约信息结构 (UART 0x03, 42B):")
+        print(f"║  操作类型  : 0x{action:02X} → {action_name}")
+        print(f"║  预约ID    : {rid}" + (" (MCU自动分配)" if rid == 0 else ""))
+        name_str = name_raw.rstrip(b'\x00').decode('ascii', errors='replace')
+        if name_str:
+            print(f"║  名称      : \"{name_str}\"")
+        else:
+            print(f"║  名称      : (空)")
+        print(f"║  触发时间  : 0x{time_val:08X} ({time_val})" + (f" → {_fmt_unix(time_val)}" if 1500000000 < time_val < 2000000000 else ""))
+    else:
+        # BLE: id(1) + name(32) + time(4) + temp(1) + duration(1) + enabled(1) + repeat(1) = 41B
+        if len(data) < 41:
+            return False
+        rid = data[0]
+        name_raw = data[1:33]
+        time_val = be_to_int(data[33:37])
+        temp = data[37]
+        duration = data[38]
+        enabled = data[39]
+        repeat = data[40]
+        print(f"╠════════════════════════════════════════╣")
+        print(f"║  预约信息结构 (BLE 0x06/0x07, 41B):")
+        print(f"║  预约ID    : {rid}" + (" (MCU自动分配)" if rid == 0 else ""))
+        name_str = name_raw.rstrip(b'\x00').decode('ascii', errors='replace')
+        if name_str:
+            print(f"║  名称      : \"{name_str}\"")
+        else:
+            print(f"║  名称      : (空)")
+        print(f"║  触发时间  : 0x{time_val:08X} ({time_val})" + (f" → {_fmt_unix(time_val)}" if 1500000000 < time_val < 2000000000 else ""))
+
+    # 公共字段
+    temp_name = ATTRS.get(7, ("加热温度", "", {}))[2].get(temp, f"档位{temp}")
+    print(f"║  加热温度  : {temp} → {temp_name}")
+    print(f"║  加热时长  : {duration} 分钟")
+    print(f"║  启用状态  : {enabled} → {'✅ 开启' if enabled else '❌ 关闭'}")
+    # 重复周期: 位掩码，每 bit 代表一天
+    day_names = ['一', '二', '三', '四', '五', '六', '日']
+    if repeat == 0:
+        repeat_str = "不重复"
+    elif repeat == 0xff:
+        repeat_str = "每天"
+    elif repeat == 0x00:
+        repeat_str = "不重复"
+    else:
+        active_days = [day_names[i] for i in range(7) if repeat & (1 << i)]
+        repeat_str = f"0x{repeat:02X} (周{'、'.join(active_days)})"
+    print(f"║  重复周期  : {repeat_str}")
+    return True
+
+
+def _fmt_unix(ts: int) -> str:
+    """尝试把 unix 时间戳格式化为可读时间"""
+    import datetime
+    try:
+        dt = datetime.datetime.fromtimestamp(ts)
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except (ValueError, OSError):
+        return ""
 
 
 # ============================================================

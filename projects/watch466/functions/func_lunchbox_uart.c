@@ -411,7 +411,7 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
     for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
     printf("\n");
 
-    uart_bufs_tx(UART_TYPE_1, buf, off);
+    uart_bufs_tx(UART_TYPE_1,buf, off);
 }
 
 /**
@@ -423,7 +423,7 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
  */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
-    u32 ts = RTCCNT;
+    u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;       // RTCCNT 从2020起算, +offset 转Unix时间戳
     u8 data[42];
     memset(data, 0, 42);
 
@@ -1071,7 +1071,7 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
     // ─── 0x02 查询动态属性 → UART 0x01: 添加 timestamp(4B) + sleep_flag(1B) ───
     case LB_CMD_DYNAMIC_ATTR: {
         // 获取当前 unix 时间戳
-        u32 ts = RTCCNT;  // RTC 秒计数器
+        u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;  // RTCCNT 从2020起算, +offset 转Unix时间戳
         u8 sleep_flag = 0x01;  // 默认: MCU 使能开机
         out_data[0] = (u8)(ts >> 24);
         out_data[1] = (u8)(ts >> 16);
@@ -1085,7 +1085,7 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
     // ─── 0x04 控制指令 → UART 0x01: timestamp(4B)+sleep_flag(1B)+DataPoints ───
     case LB_CMD_CONTROL: {
         if (rx->data && rx->data_len > 0) {
-            u32 ts = RTCCNT;
+            u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;  // RTCCNT 从2020起算, +offset 转Unix时间戳
             out_data[0] = (u8)(ts >> 24);
             out_data[1] = (u8)(ts >> 16);
             out_data[2] = (u8)(ts >> 8);
@@ -1472,7 +1472,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
     printf("UART==>TX[%d]: ", len);
     for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
     printf("\n");
-    uart_bufs_tx(UART_TYPE_1, data, len);
+    uart_bufs_tx(UART_TYPE_1,data, len);
 
     LB_TRACE("lb_ble: rx cmd=0x%02x msg=%d len=%d\n", frame.cmd, frame.msg_flag, frame.data_len);
 

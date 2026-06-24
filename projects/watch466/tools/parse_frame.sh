@@ -50,6 +50,10 @@ declare -A SLEEP_NAME=(
     [0]="MCU可休眠" [1]="MCU使能开机"
 )
 
+declare -A RESERVATION_ACTION=(
+    [0]="删除预约" [1]="自定义加热" [2]="鸡腿模式" [3]="意面模式" [4]="预约模式" [5]="保温模式"
+)
+
 # ============================================================
 # 工具函数
 # ============================================================
@@ -162,6 +166,90 @@ parse_datapoints() {
 }
 
 # ============================================================
+# 预约信息结构解析 (UART 0x03 42B / BLE 0x06 0x07 41B)
+# ============================================================
+
+parse_reservation() {
+    local is_uart="$1"; shift
+    local data=("$@")
+    local action rid name_raw ts_hex ts_n temp duration enabled repeat
+
+    if [ "$is_uart" = "1" ]; then
+        # UART: action(1)+id(1)+name(32)+time(4)+temp(1)+duration(1)+enabled(1)+repeat(1) = 42B
+        action=$(h2d "${data[0]}")
+        rid=$(h2d "${data[1]}")
+        name_raw=("${data[@]:2:32}")
+        ts_hex="${data[34]}${data[35]}${data[36]}${data[37]}"
+        ts_n=$(bytes_to_int "$ts_hex")
+        temp=$(h2d "${data[38]}")
+        duration=$(h2d "${data[39]}")
+        enabled=$(h2d "${data[40]}")
+        repeat=$(h2d "${data[41]}")
+
+        echo "║  预约信息结构 (UART 0x03, 42B):"
+        echo "║  操作类型  : ${data[0]} → ${RESERVATION_ACTION[$action]:-未知}"
+        printf "║  预约ID    : %d" "$rid"
+        [ "$rid" -eq 0 ] && echo " (MCU自动分配)" || echo ""
+    else
+        # BLE: id(1)+name(32)+time(4)+temp(1)+duration(1)+enabled(1)+repeat(1) = 41B
+        rid=$(h2d "${data[0]}")
+        name_raw=("${data[@]:1:32}")
+        ts_hex="${data[33]}${data[34]}${data[35]}${data[36]}"
+        ts_n=$(bytes_to_int "$ts_hex")
+        temp=$(h2d "${data[37]}")
+        duration=$(h2d "${data[38]}")
+        enabled=$(h2d "${data[39]}")
+        repeat=$(h2d "${data[40]}")
+
+        echo "║  预约信息结构 (BLE 0x06/0x07, 41B):"
+        printf "║  预约ID    : %d" "$rid"
+        [ "$rid" -eq 0 ] && echo " (MCU自动分配)" || echo ""
+    fi
+
+    # 名称
+    local name_str=""
+    for b in "${name_raw[@]}"; do
+        [ "$b" = "00" ] && break
+        name_str+="$(printf "\\x$b")"
+    done
+    if [ -n "$name_str" ]; then
+        echo "║  名称      : \"$name_str\""
+    else
+        echo "║  名称      : (空)"
+    fi
+
+    # 时间
+    printf "║  触发时间  : 0x%s (%d)\n" "$ts_hex" "$ts_n"
+
+    # 温度
+    local t_name="${TEMP_NAME[$temp]:-档位$temp}"
+    if [ "$is_uart" = "1" ]; then
+        echo "║  加热温度  : ${data[38]} → $t_name"
+    else
+        echo "║  加热温度  : ${data[37]} → $t_name"
+    fi
+
+    # 时长
+    echo "║  加热时长  : $duration 分钟"
+
+    # 启用
+    if [ "$enabled" -eq 1 ]; then
+        echo "║  启用状态  : 1 → ✅ 开启"
+    else
+        echo "║  启用状态  : 0 → ❌ 关闭"
+    fi
+
+    # 重复
+    if [ "$repeat" -eq 0 ]; then
+        echo "║  重复周期  : 不重复"
+    elif [ "$repeat" -eq 255 ]; then
+        echo "║  重复周期  : 0xFF (每天)"
+    else
+        echo "║  重复周期  : 0x$(d2h $repeat)"
+    fi
+}
+
+# ============================================================
 # 主解析
 # ============================================================
 
@@ -241,38 +329,70 @@ parse_frame() {
     if [ $dlen -eq 0 ]; then
         echo "║ 数据区    : 无                                   ║"
     else
-        # 优先尝试纯 DataPoints 解析(静默探测)
-        parse_datapoints "${payload[@]}" > /dev/null
-        local dp_consumed=$DP_CONSUMED
+        # 打印原始 hex
+        local payload_hex=""
+        for b in "${payload[@]}"; do payload_hex+="$b "; done
+        payload_hex="${payload_hex% }"
+        echo "║ 原始hex   : $payload_hex"
 
-        if [ "$dp_consumed" -eq "$dlen" ] && [ "$dlen" -gt 0 ]; then
-            # 纯 DataPoints 解析成功
-            echo "║ DataPoints:                                      ║"
-            parse_datapoints "${payload[@]}"
-        elif [ $dlen -ge 5 ]; then
-            # DataPoints 解析失败, 尝试 timestamp+sleep_flag+DPs 格式
+        local parsed=0
+
+        # ── 1) UART 0x03 MCU 应答: 仅 1 字节分配的预约 ID ──
+        if [ "$cmd" = "03" ] && [ "$dlen" -eq 1 ]; then
+            local rid=$(h2d "${payload[0]}")
+            echo "╠══════════════════════════════════════════════════╣"
+            echo "║  预约操作应答 (UART 0x03):"
+            printf "║  分配预约ID: %d" "$rid"
+            [ "$rid" -eq 0 ] && echo " (失败)" || echo ""
+            parsed=1
+        fi
+
+        # ── 2) 预约信息结构 — UART 0x03 (42B) / BLE 0x06 0x07 (41B) ──
+        if [ "$parsed" -eq 0 ]; then
+            case "$cmd" in
+                03) [ "$dlen" -eq 42 ] && { echo "╠══════════════════════════════════════════════════╣"; parse_reservation 1 "${payload[@]}"; parsed=1; } ;;
+                06|07) [ "$dlen" -eq 41 ] && { echo "╠══════════════════════════════════════════════════╣"; parse_reservation 0 "${payload[@]}"; parsed=1; } ;;
+            esac
+        fi
+
+        # ── 3) DataPoint 格式 ──
+        if [ "$parsed" -eq 0 ] && [ "$dlen" -ge 5 ]; then
+            parse_datapoints "${payload[@]}" > /dev/null
+            local dp_consumed=$DP_CONSUMED
+
+            if [ "$dp_consumed" -eq "$dlen" ]; then
+                echo "╠══════════════════════════════════════════════════╣"
+                echo "║ DataPoints:                                      ║"
+                parse_datapoints "${payload[@]}"
+                parsed=1
+            fi
+        fi
+
+        # ── 4) timestamp + sleep_flag + DataPoints (UART 0x01) ──
+        if [ "$parsed" -eq 0 ] && [ "$dlen" -ge 5 ]; then
             local sf=$(h2d "${payload[4]}" 2>/dev/null || echo 255)
             if [ "$sf" = "0" ] || [ "$sf" = "1" ]; then
                 local ts="${payload[0]}${payload[1]}${payload[2]}${payload[3]}"
                 local ts_n=$(bytes_to_int "$ts")
-                local sf_v="$sf"
-                echo "║ [timestamp+sleep_flag+DataPoints 格式]          ║"
-                printf "║ 时间戳    : 0x%s (%d)     ║\n" "$ts" "$ts_n"
-                printf "║ sleep_flag: %s → %s                               ║\n" "${payload[4]}" "${SLEEP_NAME[$sf_v]:-未知}"
                 echo "╠══════════════════════════════════════════════════╣"
+                echo "║ [timestamp+sleep_flag+DataPoints] (UART 0x01)"
+                printf "║ 时间戳    : 0x%s (%d)\n" "$ts" "$ts_n"
+                printf "║ sleep_flag: %s → %s\n" "${payload[4]}" "${SLEEP_NAME[$sf]:-未知}"
+                parsed=1
 
                 local dp_data=("${payload[@]:5}")
                 if [ ${#dp_data[@]} -gt 0 ]; then
+                    echo "╠══════════════════════════════════════════════════╣"
                     echo "║ DataPoints:                                      ║"
                     DP_CONSUMED=0
                     parse_datapoints "${dp_data[@]}"
                 fi
-            else
-                echo "║ [无法解析为DataPoints]                          ║"
-                printf "║ 原始数据: %s\n" "$(echo "${payload[*]}" | tr '[:lower:]' '[:upper:]')"
             fi
-        else
-            echo "║ [无法解析]                                       ║"
+        fi
+
+        # ── 5) 无法识别 ──
+        if [ "$parsed" -eq 0 ]; then
+            echo "║ [无法识别此数据格式]"
         fi
     fi
 

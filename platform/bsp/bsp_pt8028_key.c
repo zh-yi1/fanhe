@@ -971,8 +971,6 @@ u8 get_pt8028_key(void)
 
     if (ln.out_flag == 0) {
         if (pt8028_cb.last_out_flag == 1) {
-            pt8028_gpio_ok = 0;
-            pt8028_port_gpio_init();
             pt8028_cb.press_active = 1;
             pt8028_cb.release_done = 0;
             pt8028_cb.press_emitted = 0;
