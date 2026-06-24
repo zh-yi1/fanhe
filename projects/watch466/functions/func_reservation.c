@@ -7,6 +7,7 @@
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
+#include "heat_display_reg.h"
 
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
@@ -1023,6 +1024,37 @@ static void func_res_display_refresh(f_reservation_t *f_res)
     func_res_lock_icon_apply(f_res);
 }
 
+/* 加热模块实时推送的显示回调 (UART 0x01 / BLE 0x04 DataPoints → LCD) */
+static void func_reservation_heat_display_on_info(const heat_display_info_t *info)
+{
+    f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
+
+    if (info == NULL || f_res == NULL || func_cb.sta != FUNC_RESERVATION) {
+        return;
+    }
+    if (f_res->ui != RES_UI_HEATING) {
+        return;
+    }
+
+    f_res->heat_remain_sec = info->remain_min * 60;
+    f_res->display_temp_f = info->temp_f;
+    f_res->last_heat_timer_key = 0xffff;
+    f_res->last_temp_f = 0xffff;
+
+    /* 加热完成检测 */
+    if (info->remain_min == 0 && f_res->heat_remain_sec == 0) {
+        f_res->ui = RES_UI_FINISHED;
+        f_res->display_temp_f = func_res_get_target_temp_f(f_res->temp_idx);
+        f_res->screen_locked = false;
+        g_res.phase = RES_PHASE_FINISHED;
+        heat_display_unregister();
+    }
+
+    if (f_res->ui != RES_UI_FINISHED) {
+        func_res_display_refresh(f_res);
+    }
+}
+
 static void func_res_start_heating(f_reservation_t *f_res)
 {
     f_res->ui = RES_UI_HEATING;
@@ -1038,6 +1070,9 @@ static void func_res_start_heating(f_reservation_t *f_res)
     f_res->last_heat_timer_key = 0xffff;
     f_res->last_temp_f = 0xffff;
     g_res.phase = RES_PHASE_HEATING;
+
+    /* 注册加热显示回调：接收 UART/BLE 推送的实时剩余时间+温度 */
+    heat_display_register(func_reservation_heat_display_on_info);
 
 #if FUNC_LUNCHBOX_UART_EN
     {
@@ -1416,6 +1451,7 @@ static void func_res_heating_tick(f_reservation_t *f_res)
         g_res.phase = RES_PHASE_FINISHED;
         f_res->last_heat_timer_key = 0xffff;
         f_res->last_temp_f = 0xffff;
+        heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();
 #endif
@@ -1671,7 +1707,7 @@ void func_reservation_enter(void)
         f_res->heat_min = g_res.heat_min;
         f_res->temp_idx = g_res.temp_idx;
         if (f_res->ui == RES_UI_HEATING) {
-            /* 只设状态，显示绑定留给进入路径末尾的“空白首帧 + 内容 apply”两阶段统一做，
+            /* 只设状态，显示绑定留给进入路径末尾的”空白首帧 + 内容 apply”两阶段统一做，
              * 避免在 form_create 后、受保护的 os_gui_draw_force 之前就调用 display_refresh 绑资源。
              */
             f_res->screen_locked = false;
@@ -1684,6 +1720,8 @@ void func_reservation_enter(void)
             f_res->last_heat_timer_key = 0xffff;
             f_res->last_temp_f = 0xffff;
             g_res.phase = RES_PHASE_HEATING;
+            /* 重新进入加热中页面时，注册显示回调接收实时推送 */
+            heat_display_register(func_reservation_heat_display_on_info);
             /* 不要在这里 display_refresh；两阶段末尾会根据当前 ui 调一次 */
         } else {
             f_res->display_temp_f = func_res_get_target_temp_f(f_res->temp_idx);
@@ -1729,6 +1767,9 @@ void func_reservation_exit(void)
 {
     f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
     u8 i;
+
+    /* 注销加热显示回调（避免切换到其他页面后仍收到推送） */
+    heat_display_unregister();
 
     if (f_res != NULL) {
         /* GPU exit：彻底释放 reservation 持有的所有 GPU 资源（top_time / 预约/加热计时器 / 温度 / 状态图标）。
