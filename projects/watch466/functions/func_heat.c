@@ -265,6 +265,8 @@ static void func_heat_heating_finish_check(f_heat_t *f_heat);
 
 static void func_heat_display_on_info(const heat_display_info_t *info)
 {
+    printf("func_heat_display_on_info\n");
+    printf("info->remain_min: %d, info->temp_f: %d\n", info->remain_min, info->temp_f);
     f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
 
     if (info == NULL || f_heat == NULL || func_cb.sta != FUNC_HEAT) {
@@ -276,6 +278,7 @@ static void func_heat_display_on_info(const heat_display_info_t *info)
 
     f_heat->heat_live_remain_min = info->remain_min;
     f_heat->heat_live_temp_f = info->temp_f;
+    printf("heat_live_remain_min: %d, heat_live_temp_f: %d\n", f_heat->heat_live_remain_min, f_heat->heat_live_temp_f);
     f_heat->heat_live_ready = true;
     f_heat->last_timer_key = 0xffff;
     f_heat->last_temp_f = 0xffff;
@@ -1060,6 +1063,7 @@ void func_heat_enter(void)
     func_heat_countdown_stop();
     func_heat_display_refresh(f_heat);
     func_heat_status_refresh(f_heat);
+    printf("heat_display_register\n");
     heat_display_register(func_heat_display_on_info);
 }
 
