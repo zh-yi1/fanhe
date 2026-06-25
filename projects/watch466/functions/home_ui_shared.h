@@ -16,8 +16,10 @@ extern u8 home_ui_shared_top_time_digit_ram[HOME_TOP_TIME_DIGIT_SLOTS][HOME_TOP_
 extern u8 home_ui_shared_top_time_colon_ram[HOME_TOP_TIME_COLONM_RAM_SIZE];
 extern u8 home_ui_shared_top_time_ampm_ram[HOME_TOP_TIME_AMPM_RAM_MAX_SIZE];
 extern bool home_ui_shared_status_inited;
+extern bool home_ui_shared_status_lock_preloaded;
 extern bool home_ui_shared_dash_inited;
 
+void home_ui_shared_status_lock_preload(void);
 void home_ui_shared_status_init(void);
 void home_ui_shared_dash_init(void);
 
