@@ -60,6 +60,23 @@ u8 bsp_pwrkey_get_usage_id(void)
 #endif
 }
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+static void bsp_elunchbox_pwrdown_again(void)
+{
+    bsp_saradc_exit();
+#if !LP_XOSC_CLOCK_EN
+    if (cm_read8(PARAM_RTC_CAL_VALID) == 1) {
+        sniff_rc_init();
+        rtc_calibration_read(PARAM_RTC_CAL_ADDR);
+        rtc_sleep_process();
+        rtc_printf();
+    }
+    sys_clk_set(SYS_24M);
+#endif
+    sfunc_pwrdown(1);
+}
+#endif
+
 bool power_off_check(void)
 {
 #if CHARGE_EN
@@ -85,9 +102,23 @@ bool power_off_check(void)
         sys_cb.poweron_flag = 0;
     }
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_pwr_boot_scan_begin();
+#endif
+
     while (1) {
         WDT_CLR();
         delay_ms(5);
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        get_pt8028_key();
+        if (pt8028_pwr_key_long_ready()) {
+            sys_cb.poweron_flag = 1;
+            sys_cb.pwrdwn_hw_flag = 0;
+            pt8028_pwr_long_consume();
+        } else if (pt8028_pwr_boot_short_rel()) {
+            return false;
+        }
+#endif
 #if USER_PWRKEY
         if (get_pwrkey() == key_cb.pwr_usage_id) {
             up_cnt = 0;
@@ -243,6 +274,10 @@ void power_on_check(void)
         return;
     }
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_pwr_boot_scan_begin();
+#endif
+
     while (1) {
         WDT_CLR();
         delay_ms(1);
@@ -282,6 +317,18 @@ void power_on_check(void)
 #else
      pwrkey_pressed_flag = 1;
 #endif // USER_PWRKEY
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        get_pt8028_key();
+        if (pt8028_pwr_key_long_ready()) {
+            sys_cb.poweron_flag = 1;
+            pt8028_pwr_long_consume();
+        } else if (pt8028_pwr_boot_short_rel()) {
+            if (!CHARGE_DC_IN()) {
+                bsp_elunchbox_pwrdown_again();
+            }
+        }
+#endif
 
 #if CHARGE_EN
         if (xcfg_cb.charge_en) {

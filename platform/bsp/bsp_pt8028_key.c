@@ -63,6 +63,10 @@ typedef struct {
     u8  home_act_pending;   /* 释放后待 Home 取走的动作 */
     u8  key_notify_tch;     /* 待主线程 lunchbox_key_notify 的 TCH */
     u8  key_notify_pending;
+    u8  pwr_long_fired;     /* 本次 TCH5 按下已触发长按关机 */
+    u8  pwr_long_pending;   /* 主线程待处理关机 */
+    u8  pwr_boot_mode;      /* power_on_check 开机检测 */
+    u8  pwr_boot_short_rel; /* 开机检测：TCH5 未满 3s 松开 */
     /* 表2 会话锁存：按下记 FLAG/D2/D1/D0；释放 Hold=按下副本；下次按下清空 */
     u8  press_ln_valid;
     u8  press_ln_flag;
@@ -1001,6 +1005,7 @@ u8 get_pt8028_key(void)
             pt8028_cb.press_d1_min = 1;
             pt8028_cb.press_d2_min = 1;
             pt8028_cb.press_pe_min = 0x1f;
+            pt8028_cb.pwr_long_fired = 0;
             pt8028_session_clear();
             pt8028_hist_clear();
             pt8028_cb.press_snap_tch = PT8028_KEY_NONE;
@@ -1024,6 +1029,18 @@ u8 get_pt8028_key(void)
                     pt8028_cb.press_emitted = 1;
                 }
             }
+#if SOFT_POWER_ON_OFF
+            if (pt8028_cb.press_emitted &&
+                pt8028_cb.session_tch == PT8028_KEY_TCH5 &&
+                !pt8028_cb.pwr_long_fired &&
+                tick_check_expire(pt8028_cb.press_tick, PT8028_PWR_LONG_MS)) {
+                pt8028_cb.pwr_long_fired = 1;
+                if (!pt8028_cb.pwr_boot_mode) {
+                    pt8028_cb.pwr_long_pending = 1;
+                }
+                pt8028_cb.pending_ku = NO_KEY;
+            }
+#endif
         }
     } else {
         if (pt8028_cb.last_out_flag == 0 && pt8028_cb.press_active &&
@@ -1041,7 +1058,15 @@ u8 get_pt8028_key(void)
                 pt8028_cb.home_act_pending = act;
             }
             if (tch <= PT8028_KEY_TCH6) {
-                pt8028_emit_release(tch);
+                if (tch == PT8028_KEY_TCH5 && pt8028_cb.pwr_long_fired) {
+                    pt8028_cb.pending_ku = NO_KEY;
+                } else {
+                    if (pt8028_cb.pwr_boot_mode && tch == PT8028_KEY_TCH5 &&
+                        !pt8028_cb.pwr_long_fired) {
+                        pt8028_cb.pwr_boot_short_rel = 1;
+                    }
+                    pt8028_emit_release(tch);
+                }
 #if FUNC_RESERVATION_UI_EN
             } else if (tch == PT8028_KEY_TCH7) {
                 pt8028_cb.res_key_pending = 1;
@@ -1064,8 +1089,10 @@ u8 get_pt8028_key(void)
             pt8028_cb.press_tch = PT8028_KEY_NONE;
             pt8028_cb.press_key = NO_KEY;
             pt8028_cb.press_snap_tch = PT8028_KEY_NONE;
+            pt8028_cb.pwr_long_fired = 0;
         } else if (pt8028_cb.last_out_flag == 0) {
             pt8028_cb.press_active = 0;
+            pt8028_cb.pwr_long_fired = 0;
         }
     }
 
@@ -1396,6 +1423,10 @@ void pt8028_release_clear(void)
     pt8028_cb.home_act_pending = PT8028_HOME_ACT_NONE;
     pt8028_cb.key_notify_pending = 0;
     pt8028_cb.key_notify_tch = 0xff;
+    pt8028_cb.pwr_long_fired = 0;
+    pt8028_cb.pwr_long_pending = 0;
+    pt8028_cb.pwr_boot_mode = 0;
+    pt8028_cb.pwr_boot_short_rel = 0;
     pt8028_session_clear();
 }
 
@@ -1447,6 +1478,92 @@ u8 pt8028_take_key_notify_tch(void)
 }
 
 AT(.com_text.bsp.pt8028)
+bool pt8028_take_pwr_long_pending(void)
+{
+    if (!pt8028_cb.pwr_long_pending) {
+        return false;
+    }
+    pt8028_cb.pwr_long_pending = 0;
+    return true;
+}
+
+AT(.com_text.bsp.pt8028)
+bool pt8028_pwr_key_long_ready(void)
+{
+    u8 tch = 0xff;
+
+    if (!pt8028_cb.press_active) {
+        return false;
+    }
+    if (pt8028_cb.press_emitted && pt8028_cb.session_tch == PT8028_KEY_TCH5) {
+        tch = PT8028_KEY_TCH5;
+    } else if (pt8028_cb.press_ln_valid &&
+               pt8028_cb.press_ln_bcd == PT8028_KEY_TCH5) {
+        tch = PT8028_KEY_TCH5;
+    }
+    if (tch != PT8028_KEY_TCH5) {
+        return false;
+    }
+    return tick_check_expire(pt8028_cb.press_tick, PT8028_PWR_LONG_MS);
+}
+
+AT(.com_text.bsp.pt8028)
+void pt8028_pwr_long_consume(void)
+{
+    pt8028_cb.pwr_long_fired = 0;
+    pt8028_cb.pwr_long_pending = 0;
+    pt8028_cb.pwr_boot_mode = 0;
+    pt8028_cb.press_tick = tick_get();
+}
+
+AT(.text.bsp.pt8028)
+void pt8028_pwr_boot_scan_begin(void)
+{
+    pt8028_lines_t ln;
+
+    pt8028_cb.pwr_boot_mode = 1;
+    pt8028_cb.pwr_boot_short_rel = 0;
+    pt8028_gpio_bcd_ensure();
+    ln = pt8028_read_lines();
+    if (ln.out_flag != 0) {
+        pt8028_cb.last_out_flag = ln.out_flag;
+        return;
+    }
+    /* 关机唤醒后仍按住开关键：从当前时刻重新计 3s */
+    pt8028_cb.press_active = 1;
+    pt8028_cb.release_done = 0;
+    pt8028_cb.press_emitted = 0;
+    pt8028_cb.press_tick = tick_get();
+    pt8028_cb.press_settle_left = 0;
+    pt8028_cb.last_out_flag = 0;
+    pt8028_cb.pwr_long_fired = 0;
+    pt8028_cb.pwr_long_pending = 0;
+    pt8028_cb.session_tch = 0xff;
+    pt8028_cb.press_bcd = 0xff;
+    pt8028_session_clear();
+    pt8028_hist_clear();
+    pt8028_cb.press_snap_tch = PT8028_KEY_NONE;
+    if (ln.bcd <= PT8028_KEY_TCH6) {
+        pt8028_session_press_update(ln.bcd);
+        pt8028_cb.press_bcd = ln.bcd;
+    }
+    if (ln.bcd == PT8028_KEY_TCH5) {
+        pt8028_cb.session_tch = PT8028_KEY_TCH5;
+        pt8028_cb.press_emitted = 1;
+    }
+}
+
+AT(.com_text.bsp.pt8028)
+bool pt8028_pwr_boot_short_rel(void)
+{
+    if (!pt8028_cb.pwr_boot_short_rel) {
+        return false;
+    }
+    pt8028_cb.pwr_boot_short_rel = 0;
+    return true;
+}
+
+AT(.com_text.bsp.pt8028)
 u8 pt8028_take_release_tch(void)
 {
     u8 tch;
@@ -1480,6 +1597,13 @@ void pt8028_key_scan(void)
     if (key == NO_KEY) {
         return;
     }
+#if SOFT_POWER_ON_OFF
+    if (pt8028_cb.pwr_long_fired &&
+        (key & KEY_USAGE_MASK) == KEY_RIGHT) {
+        pt8028_cb.pending_ku = NO_KEY;
+        return;
+    }
+#endif
     if (pt8028_home_msg_block) {
         return;
     }

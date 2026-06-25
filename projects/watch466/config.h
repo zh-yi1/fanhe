@@ -607,6 +607,7 @@
 #define PT8028_PRESS_SETTLE_SCANS       2           //OUT_FLAG 变 0 后约 10ms 再采 BCD
 #endif
 #define PT8028_RES_LONG_MS              2000        //预约键长按(ms)；短按/误读 BCD7 当模式键
+#define PT8028_PWR_LONG_MS              3000        //开关键(TCH5)长按(ms)全局开关机
 
 #define USER_PANEL_LED                  1           //面板白色 LED1~6（原理图 510Ω 到 GND）
 #define PANEL_LED_ACTIVE_HIGH           1           //1=GPIO 高电平点亮 LED
@@ -623,7 +624,7 @@
 #define USER_MULTI_PRESS_EN             1           //按键多击检测使能
 #define USER_MULTI_KEY_TIME             4           //按键多击响应时间（单位100ms）
 #define USER_PWRON_KEY_SEL              0           //定义为开关机的PWRKEY按键编号, 范围: 0 ~ 2
-#define PWRON_PRESS_TIME                1500        //长按PWRKEY多长时间开机？
+#define PWRON_PRESS_TIME                3000        //饭盒：长按开关键 3s 开机
 #define PWROFF_PRESS_TIME               18          //长按PWRKEY多长时间关机 3: 1.5秒, 6: 2秒, 9: 2.5秒, 12: 3秒, 15: 3.5秒, 18: 4秒, 24: 5秒
 #define ADKEY_CH                        ADCCH_PE7   //ADKEY的ADC通路选择
 #define IS_PWRKEY_PRESS()			    (0 == (RTCCON & BIT(19)))

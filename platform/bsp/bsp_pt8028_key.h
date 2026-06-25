@@ -86,6 +86,16 @@ u8 pt8028_take_home_action(void);
 bool pt8028_take_res_key_pending(void);
 /* 主线程取走待上报的按键 TCH，无则返回 0xff */
 u8 pt8028_take_key_notify_tch(void);
+/* 开关键长按 3s 待关机，取走后清零 */
+bool pt8028_take_pwr_long_pending(void);
+/* 关机/开机等待：TCH5 已按住达到 PT8028_PWR_LONG_MS */
+bool pt8028_pwr_key_long_ready(void);
+/* 开机成功后清除长按关机挂起，避免进主循环立刻关机 */
+void pt8028_pwr_long_consume(void);
+/* 关机态开机检测：进入 power_on_check 前调用 */
+void pt8028_pwr_boot_scan_begin(void);
+/* TCH5 未满 3s 松开，取走后清零 */
+bool pt8028_pwr_boot_short_rel(void);
 #endif
 
 #endif // _BSP_PT8028_KEY_H

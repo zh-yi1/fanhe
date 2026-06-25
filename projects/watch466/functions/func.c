@@ -117,6 +117,15 @@ void func_elunchbox_res_key_poll(void)
 #endif
 }
 
+#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
+static void func_elunchbox_pwr_long_poll(void)
+{
+    if (pt8028_take_pwr_long_pending()) {
+        func_cb.sta = FUNC_PWROFF;
+    }
+}
+#endif
+
 #if USER_PT8028_KEY && FUNC_LUNCHBOX_UART_EN
 static void func_elunchbox_key_notify_poll(void)
 {
@@ -190,6 +199,9 @@ void func_process(void)
         }
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
         func_elunchbox_res_key_poll();
+#endif
+#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
+        func_elunchbox_pwr_long_poll();
 #endif
 #else
         compo_update();                                     //更新组件
