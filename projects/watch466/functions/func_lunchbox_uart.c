@@ -2,7 +2,7 @@
  * @file    func_lunchbox_uart.c
  * @brief   智能盒饭 - BLE+UART双协议实现 (大端, 同步/异步双模式)
  * @note    BLE侧: 蓝牙通讯协议1.0.5.md (APP ↔ MCU)
- *          UART侧: MCU通信协议.md v1.0.7 (MCU ↔ 加热模块)
+ *          UART侧: MCU通信协议.md v1.0.8 (MCU ↔ 加热模块)
  *          引脚: TX=PB8(UT1TXMAP_G2_PB8), RX=PB9(UT1RXMAP_G2_PB9)
  *          接收用 bsp_uart1_get_char() 轮询，不走 ISR 回调链
  *          >1 字节字段(data_len)采用大端传输
@@ -20,8 +20,6 @@
 #else
 #define LB_TRACE(...)
 #endif
-
-static void lb_dp_feed_heat_display(u8 *data, u16 len);
 
 //-----------------------------------------------------------------------------
 // 空 ISR（uart_init 要求 rx_isr 非 NULL，实际数据走 bsp_uart1 环形缓冲）
@@ -126,7 +124,8 @@ static bool lb_frame_parse(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.data && rx.data_len > 0) {
-        lb_dp_feed_heat_display(rx.data, rx.data_len);
+        printf("Trigger==>heat_display_feed_dp:%d\n",__LINE__);
+        heat_display_feed_dp(rx.data, rx.data_len);
     }
 #endif
 
@@ -235,27 +234,7 @@ void lunchbox_uart_send_async(u8 cmd, u8 *data, u16 len)
 static lb_device_info_t lb_dev_info;
 
 //-----------------------------------------------------------------------------
-// 业务状态（本地模式使用）
-//-----------------------------------------------------------------------------
-#if !LB_BRIDGE_MODE
-static lb_schedule_ble_t   lb_schedules[LB_SCHEDULE_MAX]; // 预约列表 (BLE格式)
-static u8                  lb_schedule_count;         // 当前预约条数
-static u8                  lb_next_schedule_id = 1;   // 自增预约 ID
-
-// 当前属性值 (BLE 属性列表 §4)
-static u8  lb_attr_power_switch  = 1;    // 总开关: 默认开
-static u8  lb_attr_heat_mode     = 0;    // 加热模式: 默认关闭
-static u8  lb_attr_battery       = 4;    // 电量: 默认满
-static u8  lb_attr_charge_status = 0;    // 充电状态: 默认未充电
-static u32 lb_attr_heat_duration = 0;    // 加热时长(分钟)
-static u32 lb_attr_remain_time   = 0;    // 剩余时间(分钟)
-static u8  lb_attr_heat_temp     = 0;    // 加热温度: 默认40°C
-static u8  lb_attr_language      = 0;    // 语言: 默认中文
-static u8  lb_attr_fault         = 0;    // 故障: 默认正常
-static u8  lb_attr_heat_enable   = 0;    // 是否加热: 默认停止 (v1.0.5 新增 ID=10)
-
-//-----------------------------------------------------------------------------
-// DataPoint 编码工具
+// DataPoint 编码工具 (桥模式和本地模式均可用)
 //-----------------------------------------------------------------------------
 
 /**
@@ -294,6 +273,26 @@ static u16 lb_dp_encode_value(u8 *buf, u8 dpid, u32 val)
     v[3] = (u8)(val & 0xFF);
     return lb_dp_encode(buf, dpid, LB_DP_TYPE_VALUE, v, 4);
 }
+
+//-----------------------------------------------------------------------------
+// 业务状态（本地模式使用）
+//-----------------------------------------------------------------------------
+#if !LB_BRIDGE_MODE
+static lb_schedule_ble_t   lb_schedules[LB_SCHEDULE_MAX]; // 预约列表 (BLE格式)
+static u8                  lb_schedule_count;         // 当前预约条数
+static u8                  lb_next_schedule_id = 1;   // 自增预约 ID
+
+// 当前属性值 (BLE 属性列表 §4)
+static u8  lb_attr_power_switch  = 1;    // 总开关: 默认开
+static u8  lb_attr_heat_mode     = 0;    // 加热模式: 默认关闭
+static u8  lb_attr_battery       = 4;    // 电量: 默认满
+static u8  lb_attr_charge_status = 0;    // 充电状态: 默认未充电
+static u32 lb_attr_heat_duration = 0;    // 加热时长(分钟)
+static u32 lb_attr_remain_time   = 0;    // 剩余时间(分钟)
+static u8  lb_attr_heat_temp     = 0;    // 加热温度: 默认40°C
+static u8  lb_attr_language      = 0;    // 语言: 默认中文
+static u8  lb_attr_fault         = 0;    // 故障: 默认正常
+static u8  lb_attr_heat_enable   = 0;    // 是否加热: 默认停止 (v1.0.5 新增 ID=10)
 
 //-----------------------------------------------------------------------------
 // 属性管理
@@ -362,84 +361,6 @@ void lunchbox_set_device_info(lb_device_info_t *info) { if (info) memcpy(&lb_dev
 // 直接构造 UART 帧发往加热模块，不依赖 BLE→UART 翻译路径
 //-----------------------------------------------------------------------------
 
-/** @brief 温度档位 → 华氏度 (0=40°C ~ 5=90°C) */
-static u16 lunchbox_temp_idx_to_f(u8 idx)
-{
-    u16 temp_c;
-
-    if (idx > 5) {
-        idx = 5;
-    }
-    temp_c = 40 + (u16)idx * 10;
-    return (u16)(temp_c * 9 / 5 + 32);
-}
-
-/** @brief 从 DataPoint 数组提取剩余时间/温度，推送给加热页显示 */
-static void lb_dp_feed_heat_display(u8 *data, u16 len)
-{
-    u16 off = 0;
-    u32 remain_min = 0;
-    u16 temp_f = 0;
-    bool got_remain = false;
-    bool got_temp = false;
-    bool got_enable = false;
-    bool heating = false;
-
-    while (off + 4 <= len) {
-        u8  dpid    = data[off];
-        u16 val_len = ((u16)data[off + 2] << 8) | data[off + 3];
-
-        if (off + 4 + val_len > len) {
-            break;
-        }
-        u8 *val = data + off + 4;
-
-        switch (dpid) {
-        case LB_DPID_REMAIN_TIME:
-            if (val_len >= 4) {
-                remain_min = ((u32)val[0] << 24) | ((u32)val[1] << 16)
-                         | ((u32)val[2] << 8) | val[3];
-                got_remain = true;
-            }
-            break;
-        case LB_DPID_HEAT_TEMP:
-            if (val_len >= 1) {
-                temp_f = lunchbox_temp_idx_to_f(val[0]);
-                got_temp = true;
-            }
-            break;
-        case LB_DPID_HEAT_ENABLE:
-            if (val_len >= 1) {
-                heating = (val[0] != 0);
-                got_enable = true;
-            }
-            break;
-        default:
-            break;
-        }
-        off += 4 + val_len;
-    }
-
-    if (got_enable && !heating) {
-        return;
-    }
-    if (got_remain && got_temp) {
-        heat_display_show(remain_min, temp_f);
-    } else if (got_remain) {
-        heat_display_info_t last;
-
-        if (heat_display_get_last(&last)) {
-            heat_display_show(remain_min, last.temp_f);
-        }
-    } else if (got_temp) {
-        heat_display_info_t last;
-
-        if (heat_display_get_last(&last)) {
-            heat_display_show(last.remain_min, temp_f);
-        }
-    }
-}
-
 /** @brief 华氏度 → 温度档位 (0=40°C ~ 5=90°C) */
 u8 lunchbox_temp_f_to_idx(u16 temp_f)
 {
@@ -494,7 +415,7 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
     buf[off] = lb_checksum(buf, off);
     off++;
 
-    printf("LCD->UART[%d]: ", off);
+    printf("LCD->UART==>TX[%d]: ", off);
     for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
     printf("\n");
 
@@ -915,8 +836,13 @@ static u8 lb_handler_control(lb_rx_frame_t *rx)
 
     lunchbox_uart_send_response(LB_CMD_CONTROL, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
 
-    // 属性变化后主动上报
+    // 属性变化后主动上报 APP
     lunchbox_report_all_attrs();
+
+    // 同步推送 LCD 显示 (加热页/预约页可实时看到模式/温度/时长变化)
+    if (rx->data && rx->data_len > 0) {
+        heat_display_feed_dp(rx->data, rx->data_len);
+    }
     return LB_ERR_SUCCESS;
 }
 
@@ -1071,7 +997,7 @@ static u8 lb_handler_ota_end(lb_rx_frame_t *rx)
 /**
  * @brief BLE 命令字 → UART 命令字映射
  *
- * 蓝牙通讯协议1.0.5.md → MCU通信协议.md v1.0.7:
+ * 蓝牙通讯协议1.0.5.md → MCU通信协议.md v1.0.8:
  *   0x01 → 0x00 (不转发, MCU本地处理)
  *   0x02 → 0x01 (查询动态属性)
  *   0x03 → 0x00 (不转发, MCU主动上报, APP不会发)
@@ -1111,7 +1037,7 @@ u8 lb_ble_cmd_to_uart_cmd(u8 ble_cmd)
 /**
  * @brief UART 命令字 → BLE 命令字映射
  *
- * MCU通信协议.md v1.0.7 → 蓝牙通讯协议1.0.5.md:
+ * MCU通信协议.md v1.0.8 → 蓝牙通讯协议1.0.5.md:
  *   0x01(同步应答) → 0x02 (动态属性应答)
  *   0x01(异步上报) → 0x03 (状态上报)
  *   0x02 → 0x05 (预约列表条目)
@@ -1155,31 +1081,32 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
     *out_len = 0;
 
     switch (rx->cmd) {
-    // ─── 0x02 查询动态属性 → UART 0x01: 添加 timestamp(4B) + sleep_flag(1B) ───
+    // ─── 0x02 查询动态属性 → UART 0x01: DataPoint格式 (v1.0.8) ───
     case LB_CMD_DYNAMIC_ATTR: {
-        // 获取当前 unix 时间戳
+        // v1.0.8: 数据域为 DataPoint 数组 (固定13字节)
+        //   DataPoint1: dpid=11(时间戳), type=value, len=4, value=unix时间戳
+        //   DataPoint2: dpid=1(电源开关), type=bool, len=1, value=1(MCU使能开机)
         u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;  // RTCCNT 从2020起算, +offset 转Unix时间戳
-        u8 sleep_flag = 0x01;  // 默认: MCU 使能开机
-        out_data[0] = (u8)(ts >> 24);
-        out_data[1] = (u8)(ts >> 16);
-        out_data[2] = (u8)(ts >> 8);
-        out_data[3] = (u8)(ts & 0xFF);
-        out_data[4] = sleep_flag;
-        *out_len = 5;
+        u8 *p = out_data;
+        p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
+        p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+        *out_len = p - out_data;
         return true;
     }
 
-    // ─── 0x04 控制指令 → UART 0x01: timestamp(4B)+sleep_flag(1B)+DataPoints ───
+    // ─── 0x04 控制指令 → UART 0x01: DataPoint格式 (v1.0.8) ───
     case LB_CMD_CONTROL: {
         if (rx->data && rx->data_len > 0) {
+            // v1.0.8: 前拼 dpid=11(时间戳) DataPoint, 后跟控制 DataPoints 透传
             u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;  // RTCCNT 从2020起算, +offset 转Unix时间戳
-            out_data[0] = (u8)(ts >> 24);
-            out_data[1] = (u8)(ts >> 16);
-            out_data[2] = (u8)(ts >> 8);
-            out_data[3] = (u8)(ts & 0xFF);
-            out_data[4] = 0x01;  // MCU 使能开机
-            memcpy(out_data + 5, rx->data, rx->data_len);
-            *out_len = 5 + rx->data_len;
+            u8 *p = out_data;
+            p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
+            memcpy(p, rx->data, rx->data_len);
+            p += rx->data_len;
+            *out_len = p - out_data;
+
+            // BLE 控制指令携带 DataPoints 时，同步推送 LCD 显示
+            heat_display_feed_dp(rx->data, rx->data_len);
             return true;
         }
         return false;
@@ -1552,6 +1479,11 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
             printf("\n");
             uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
+        }
+
+        // BLE 控制/状态类命令携带 DataPoints 时，同步推送 LCD 显示
+        if (frame.cmd == LB_CMD_CONTROL && frame.data && frame.data_len > 0) {
+            heat_display_feed_dp(frame.data, frame.data_len);
         }
     }
 #else
