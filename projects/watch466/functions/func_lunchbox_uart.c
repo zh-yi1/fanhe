@@ -56,6 +56,20 @@ static u8 lb_checksum(u8 *data, u16 len)
     return (u8)(sum % 256);                         // 取低 8 位
 }
 
+/** @brief 检查 DataPoints 数据中是否包含按键通知 (dpid=12) */
+static bool lb_data_is_key_notify(u8 *data, u16 len)
+{
+    u16 off = 0;
+    while (off + 4 <= len) {
+        u8  dpid    = data[off];
+        u16 val_len = ((u16)data[off + 2] << 8) | data[off + 3];
+        if (off + 4 + val_len > len) break;
+        if (dpid == LB_DPID_KEY_NOTIFY) return true;
+        off += 4 + val_len;
+    }
+    return false;
+}
+
 /** @brief 重置帧接收状态，丢弃当前未完成的帧 */
 static void lb_rx_reset(void) { lb_rx_idx = 0; lb_rx_ticks = 0; }
 
@@ -117,15 +131,19 @@ static bool lb_frame_parse(void)
         .valid    = true,
     };
 
-    // ──── UART 收包日志 ────
-    printf("UART==>RX[%d]: ", total);
-    for (u16 i = 0; i < total; i++) printf("%02X ", lb_rx_buf[i]);
-    printf("\n");
+    // ──── UART 收包日志 (按键通知不应答, 跳过) ────
+    if (!lb_data_is_key_notify(rx.data, rx.data_len)) {
+        printf("UART==>RX[%d]: ", total);
+        for (u16 i = 0; i < total; i++) printf("%02X ", lb_rx_buf[i]);
+        printf("\n");
+    }
 
 #if FUNC_LUNCHBOX_UART_EN
     if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.data && rx.data_len > 0) {
-        printf("Trigger==>heat_display_feed_dp:%d\n",__LINE__);
-        heat_display_feed_dp(rx.data, rx.data_len);
+        if (!lb_data_is_key_notify(rx.data, rx.data_len)) {
+            //printf("Trigger==>heat_display_feed_dp:%d\n",__LINE__);
+            heat_display_feed_dp(rx.data, rx.data_len);
+        }
     }
 #endif
 
@@ -415,39 +433,41 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
     buf[off] = lb_checksum(buf, off);
     off++;
 
-    printf("LCD->UART==>TX[%d]: ", off);
-    for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
-    printf("\n");
+    // 按键通知: 跳过 TX 日志
+    if (!lb_data_is_key_notify(data, data_len)) {
+        printf("LCD->UART==>TX[%d]: ", off);
+        for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
+        printf("\n");
+    }
 
     uart_bufs_tx(UART_TYPE_1,buf, off);
 }
 
 /**
- * @brief LCD 启动加热 — 构建 UART 0x03 预约帧发往加热模块
+ * @brief LCD 启动加热 — 构造 UART 0x01 DataPoint 帧发往加热模块
  *
- * UART 0x03 帧格式(42B): action(1)+id(1)+name(32)+time(4,BE)+temp(1)+duration(1)+enabled(1)+repeat(1)
- * action = mode (1=自定义加热, 2=鸡腿, 3=意面, 4=预约, 5=保温)
- * id = 0 (MCU自动分配), time = 当前时间戳(立即执行)
+ * MCU协议 §3.1 cmd=0x01: DataPoints 格式
+ * 关键: dpid=10(是否加热) bool, 1=立即加热 (MCU协议 §4 属性列表)
+ * 帧结构: DataPoints(mode+duration+temp+heat_enable=1) + time_sync + power_switch
  */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
-    u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;       // RTCCNT 从2020起算, +offset 转Unix时间戳
-    u8 data[42];
-    memset(data, 0, 42);
+    u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
+    u8 data[64];
+    u8 *p = data;
 
-    data[0] = mode;                             // action = mode
-    data[1] = 0;                                // id = 0 (MCU自动分配)
-    // name[32] at [2-33] = zeros
-    data[2 + 32 + 0] = (u8)(ts >> 24);          // time BE (立即执行)
-    data[2 + 32 + 1] = (u8)(ts >> 16);
-    data[2 + 32 + 2] = (u8)(ts >> 8);
-    data[2 + 32 + 3] = (u8)(ts & 0xFF);
-    data[2 + 32 + 4] = temp;                    // 温度档位
-    data[2 + 32 + 5] = (u8)duration;            // 加热时长(分钟)
-    data[2 + 32 + 6] = 0x01;                    // enabled = 1
-    data[2 + 32 + 7] = 0x00;                    // repeat = 0 (不重复)
+    // 加热参数 DataPoints
+    p += lb_dp_encode_enum(p, LB_DPID_HEAT_MODE, mode);
+    p += lb_dp_encode_value(p, LB_DPID_HEAT_DURATION, duration);
+    p += lb_dp_encode_enum(p, LB_DPID_HEAT_TEMP, temp);
+    // dpid=10: 是否加热=1 (立即加热)
+    p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 1);
+    // 时间戳 + MCU使能开机
+    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
+    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
 
-    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 42);
+    u16 data_len = (u16)(p - data);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
 
     // 更新本地属性 (本地模式) 或仅通知 APP
 #if !LB_BRIDGE_MODE
@@ -460,17 +480,24 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 }
 
 /**
- * @brief LCD 停止加热 — 构建 UART 0x03 预约帧发往加热模块 (action=0 删除)
+ * @brief LCD 停止加热 — 构造 UART 0x01 DataPoint 帧发往加热模块
  *
- * UART 0x03: action=0x00(删除) + id=0x00(当前活跃加热), 取消正在执行的加热任务
+ * MCU协议 §4 属性列表 ID=10: 是否加热, bool, 0=停止加热
  */
 void lunchbox_heat_stop(void)
 {
-    u8 data[2];
-    data[0] = 0x00;  // action=删除 (取消当前加热)
-    data[1] = 0x00;  // id=0 (当前活跃加热)
+    u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
+    u8 data[32];
+    u8 *p = data;
 
-    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 2);
+    // dpid=10: 是否加热=0 (停止加热)
+    p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 0);
+    // 时间戳 + MCU使能开机
+    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
+    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+
+    u16 data_len = (u16)(p - data);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
 
 #if !LB_BRIDGE_MODE
     lb_attr_heat_enable = 0;
