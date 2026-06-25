@@ -136,7 +136,7 @@
 #define HOME_TAB_PAD_BOTTOM             5
 #define HOME_TAB_PAD_MID                2
 #define HOME_TAB_LINE_H                 2
-#define HOME_TAB_ICON_DISP_H            18
+#define HOME_TAB_ICON_DISP_H            HOME_NAV_ICON_MAX_H
 #define HOME_TAB_X0                     60
 #define HOME_TAB_X1                     160
 #define HOME_TAB_X2                     260
@@ -161,7 +161,7 @@
 #define HOME_TAB_PAD_BOTTOM             3
 #define HOME_TAB_PAD_MID                2
 #define HOME_TAB_LINE_H                 2
-#define HOME_TAB_ICON_DISP_H            20
+#define HOME_TAB_ICON_DISP_H            HOME_NAV_ICON_MAX_H
 #define HOME_TAB_STEP                   (HOME_TAB_BTN_W + HOME_SX(4))
 #define HOME_TAB_X0                     (HOME_TAB_SIDE_MARGIN + HOME_TAB_BTN_W / 2)
 #define HOME_TAB_X1                     (HOME_TAB_X0 + HOME_TAB_STEP)
@@ -216,7 +216,16 @@
 #define HOME_STATUS_BAT_X               (GUI_SCREEN_WIDTH - HOME_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
 #define HOME_STATUS_LOCK_X              (HOME_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - HOME_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
 #define HOME_STATUS_BT_X                (HOME_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - HOME_STATUS_GAP - HOME_STATUS_BT_W / 2)
-#define HOME_CLOCK_Y                    ((HOME_STATUS_Y + HOME_STATUS_H + HOME_TAB_BTN_Y - HOME_TAB_BTN_H / 2) / 2)
+
+/* 主时钟：设计稿右上角锚点 (320×240)，compo_picturebox_set_pos 仍用中心点 */
+#define HOME_CLOCK_LAYOUT_REF_W         320
+#define HOME_CLOCK_LAYOUT_REF_H         240
+#define HOME_CLOCK_TR_Y                 ((s16)((s32)60 * GUI_SCREEN_HEIGHT / HOME_CLOCK_LAYOUT_REF_H))
+#define HOME_CLOCK_TR_H10_X             ((s16)((s32)83 * GUI_SCREEN_WIDTH / HOME_CLOCK_LAYOUT_REF_W))
+#define HOME_CLOCK_TR_H1_X              ((s16)((s32)141 * GUI_SCREEN_WIDTH / HOME_CLOCK_LAYOUT_REF_W))
+#define HOME_CLOCK_TR_COLON_X           ((s16)((s32)172 * GUI_SCREEN_WIDTH / HOME_CLOCK_LAYOUT_REF_W))
+#define HOME_CLOCK_TR_M10_X             ((s16)((s32)225 * GUI_SCREEN_WIDTH / HOME_CLOCK_LAYOUT_REF_W))
+#define HOME_CLOCK_TR_M1_X              ((s16)((s32)283 * GUI_SCREEN_WIDTH / HOME_CLOCK_LAYOUT_REF_W))
 #if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
 #define HOME_RES_MARQUEE_Y              (HOME_TOP_TIME_Y + 5)  /* 再高一点，中心下移，为更高H留更多上下余量，避免裁切 */
 #define HOME_RES_MARQUEE_W              150                    /* 宽度再窄一点，放在顶上时钟与右边图标中间更紧凑 */
@@ -524,10 +533,14 @@ static void func_home_lock_icon_apply(f_home_t *f_home)
     if (f_home == NULL || f_home->pic_lock == NULL) {
         return;
     }
-    if (f_home->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
-        compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
-        compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-        compo_picturebox_set_visible(f_home->pic_lock, true);
+    if (f_home->screen_locked) {
+        home_ui_shared_status_init();
+        compo_picturebox_set_pos(f_home->pic_lock, HOME_STATUS_LOCK_X, HOME_STATUS_Y);
+        if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+            compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
+            compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+            compo_picturebox_set_visible(f_home->pic_lock, true);
+        }
     } else {
         compo_picturebox_set_visible(f_home->pic_lock, false);
     }
@@ -581,31 +594,47 @@ static void func_home_countdown_tick(void)
     }
 }
 
+static void func_home_clock_pic_pos_tr(compo_picturebox_t *pic, s16 tr_x, s16 tr_y, u16 w, u16 h)
+{
+    if (pic == NULL) {
+        return;
+    }
+    compo_picturebox_set_pos(pic, tr_x - (s16)(w / 2), tr_y + (s16)(h / 2));
+}
+
 static void func_home_clock_layout(f_home_t *f_home, u8 hour, u8 min)
 {
-    u8 digits[HOME_CLOCK_IDX_CNT] = { hour / 10, hour % 10, min / 10, min % 10 };
-    s16 x;
-    u16 total;
-    u8 i;
+    (void)hour;
+    (void)min;
 
-    total = HOME_MAIN_DIGIT_W + HOME_CLOCK_GAP + HOME_MAIN_DIGIT_W + HOME_CLOCK_GAP
-          + HOME_MAIN_COLON_W + HOME_CLOCK_GAP + HOME_MAIN_DIGIT_W + HOME_CLOCK_GAP
-          + HOME_MAIN_DIGIT_W;
-    x = GUI_SCREEN_CENTER_X - (s16)(total / 2);
+    func_home_clock_pic_pos_tr(f_home->pic_clock[HOME_CLOCK_IDX_H10],
+                               HOME_CLOCK_TR_H10_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+    compo_picturebox_set_size(f_home->pic_clock[HOME_CLOCK_IDX_H10],
+                              HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
 
-    for (i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
-        s16 cx = x + (s16)(HOME_MAIN_DIGIT_W / 2);
+    func_home_clock_pic_pos_tr(f_home->pic_clock[HOME_CLOCK_IDX_H1],
+                               HOME_CLOCK_TR_H1_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+    compo_picturebox_set_size(f_home->pic_clock[HOME_CLOCK_IDX_H1],
+                              HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
 
-        compo_picturebox_set_pos(f_home->pic_clock[i], cx, HOME_CLOCK_Y);
-        compo_picturebox_set_size(f_home->pic_clock[i], HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
-        x += HOME_MAIN_DIGIT_W + HOME_CLOCK_GAP;
-        if (i == HOME_CLOCK_IDX_H1) {
-            cx = x + (s16)(HOME_MAIN_COLON_W / 2);
-            compo_picturebox_set_pos(f_home->pic_clock_colon, cx, HOME_CLOCK_Y);
-            compo_picturebox_set_size(f_home->pic_clock_colon, HOME_MAIN_COLON_W, HOME_MAIN_COLON_H);
-            x += HOME_MAIN_COLON_W + HOME_CLOCK_GAP;
-        }
-    }
+    func_home_clock_pic_pos_tr(f_home->pic_clock_colon,
+                               HOME_CLOCK_TR_COLON_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_COLON_W, HOME_MAIN_COLON_H);
+    compo_picturebox_set_size(f_home->pic_clock_colon, HOME_MAIN_COLON_W, HOME_MAIN_COLON_H);
+
+    func_home_clock_pic_pos_tr(f_home->pic_clock[HOME_CLOCK_IDX_M10],
+                               HOME_CLOCK_TR_M10_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+    compo_picturebox_set_size(f_home->pic_clock[HOME_CLOCK_IDX_M10],
+                              HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+
+    func_home_clock_pic_pos_tr(f_home->pic_clock[HOME_CLOCK_IDX_M1],
+                               HOME_CLOCK_TR_M1_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+    compo_picturebox_set_size(f_home->pic_clock[HOME_CLOCK_IDX_M1],
+                              HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
 }
 
 static void func_home_clock_colon_ensure(void)
@@ -702,17 +731,8 @@ static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
 
 static void func_home_tab_icon_size(u8 idx, u16 *out_w, u16 *out_h)
 {
-    u16 src_w = tbl_home_nav_icon_w[idx];
-    u16 src_h = tbl_home_nav_icon_h[idx];
-
-    if (src_h == 0) {
-        *out_w = 0;
-        *out_h = 0;
-        return;
-    }
-
-    *out_h = HOME_TAB_ICON_DISP_H;
-    *out_w = (u16)((u32)src_w * HOME_TAB_ICON_DISP_H / src_h);
+    *out_w = tbl_home_nav_icon_w[idx];
+    *out_h = tbl_home_nav_icon_h[idx];
 }
 
 static void func_home_tab_icon_update(f_home_t *f_home, u8 idx)
@@ -1100,16 +1120,34 @@ compo_form_t *func_home_form_create(void)
         compo_textbox_set_visible(txt, false);
     }
 
-    for (u8 i = 0; i < HOME_CLOCK_IDX_CNT; i++) {
-        pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
-        compo_setid(pic, tbl_home_clock_id[i]);
-        compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, HOME_CLOCK_Y);
-        compo_picturebox_set_size(pic, HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
-    }
+    pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_CLOCK_H10);
+    func_home_clock_pic_pos_tr(pic, HOME_CLOCK_TR_H10_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+    compo_picturebox_set_size(pic, HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+
+    pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_CLOCK_H1);
+    func_home_clock_pic_pos_tr(pic, HOME_CLOCK_TR_H1_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+    compo_picturebox_set_size(pic, HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+
+    pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_CLOCK_M10);
+    func_home_clock_pic_pos_tr(pic, HOME_CLOCK_TR_M10_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+    compo_picturebox_set_size(pic, HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+
+    pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_CLOCK_M1);
+    func_home_clock_pic_pos_tr(pic, HOME_CLOCK_TR_M1_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
+    compo_picturebox_set_size(pic, HOME_MAIN_DIGIT_W, HOME_MAIN_DIGIT_H);
 
     pic = compo_picturebox_create(frm, UI_HOME_ICON_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_CLOCK_COLON);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, HOME_CLOCK_Y);
+    func_home_clock_pic_pos_tr(pic, HOME_CLOCK_TR_COLON_X, HOME_CLOCK_TR_Y,
+                               HOME_MAIN_COLON_W, HOME_MAIN_COLON_H);
     compo_picturebox_set_size(pic, HOME_MAIN_COLON_W, HOME_MAIN_COLON_H);
 
     func_home_tab_create(frm, HOME_TAB_HEAT, COMPO_ID_TAB0_SEL_BG,

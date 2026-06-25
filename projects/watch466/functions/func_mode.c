@@ -1,12 +1,14 @@
 ﻿#include "include.h"
 #include "func.h"
 #include "func_lunchbox_uart.h"
+#include "heat_display_reg.h"
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
 #include "home_top_time.h"
 #include "home_tab_label.h"
 #include "home_ui_gpu_detach.h"
+#include "ui_layout_anchor.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -16,8 +18,8 @@
 
 /*
  * Mode 页 UI（320×240 横屏设计图）：
- *   顶栏 Y≈20：左上 RTC + 绿色温度 + 右上 BT/锁/电量
- *   中部：白色 HH:MM 倒计时（bin 原始尺寸）
+ *   顶栏 Y≈14：绿色温度 (102/116/130/146,14) + 右上 BT/锁/电量
+ *   中部 Y≈60：白色 HH:MM（右上角锚点 100/141/172/225/283,60，与 Heat 页一致）
  *   底部 Tab 80×65：Pasta / Chicken / Warm（图标 bin 原始尺寸，文字 5×7 点阵）
  * PT8028：TCH3 模式循环 Tab；TCH4 确认开始加热；TCH5 开关回 Home；TCH0 锁键解锁童锁
  */
@@ -84,8 +86,6 @@
 #define MODE_STATUS_RIGHT_MARGIN          10
 #define MODE_STATUS_GAP                   6
 #define MODE_STATUS_H                     18
-#define MODE_STATUS_TEMP_Y                20
-#define MODE_STATUS_TEMP_CENTER_OFFSET    (-10)
 #define MODE_TAB_BTN_W                    80
 #define MODE_TAB_BTN_H                    65
 #define MODE_TAB_BTN_R                    8
@@ -97,14 +97,11 @@
 #define MODE_TAB_X0                       60
 #define MODE_TAB_X1                       160
 #define MODE_TAB_X2                       260
-#define MODE_TIMER_Y                      ((MODE_STATUS_Y + MODE_STATUS_H + MODE_TAB_BTN_Y - MODE_TAB_BTN_H / 2) / 2)
 #else
 #define MODE_STATUS_Y                     MODE_SY(48)
 #define MODE_STATUS_RIGHT_MARGIN          MODE_SX(24)
 #define MODE_STATUS_GAP                   MODE_SX(10)
 #define MODE_STATUS_H                     MODE_SY(36)
-#define MODE_STATUS_TEMP_Y                MODE_SY(48)
-#define MODE_STATUS_TEMP_CENTER_OFFSET    MODE_SX(-20)
 #define MODE_TAB_BTN_W                    MODE_SX(118)
 #define MODE_TAB_BTN_H                    MODE_SY(96)
 #define MODE_TAB_BTN_R                    MODE_SX(18)
@@ -116,7 +113,6 @@
 #define MODE_TAB_X0                       MODE_SX(87)
 #define MODE_TAB_X1                       MODE_SX(233)
 #define MODE_TAB_X2                       MODE_SX(379)
-#define MODE_TIMER_Y                      MODE_SY(195)
 #endif
 
 #define MODE_TAB_ICON_Y                   (MODE_TAB_BTN_Y - MODE_TAB_BTN_H / 2 + MODE_TAB_PAD_TOP + MODE_TAB_ICON_MAX_H / 2)
@@ -132,13 +128,13 @@
 #define MODE_STATUS_LOCK_X                (MODE_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - MODE_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
 #define MODE_STATUS_BT_X                  (MODE_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - MODE_STATUS_GAP - HOME_STATUS_BT_W / 2)
 
-#define MODE_DIGIT_GAP                    10
-#define MODE_TIMER_PAIR_NARROW_EXTRA      8
-#define MODE_TIMER_COLON_GAP              18
-#define MODE_TIMER_COLON_GAP_AFTER        18
-#define MODE_STATUS_TEMP_DIGIT_GAP        3
-#define MODE_STATUS_TEMP_NARROW_EXTRA     7   /* 含数字 1 等窄字时加宽（如 212 的 21） */
-#define MODE_STATUS_TEMP_SYMBOL_GAP       3
+/* Mode 页顶栏绿色温度：右上角锚点 (320×240) */
+#define MODE_STATUS_TEMP_TR_Y             ((s16)((s32)14 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
+#define MODE_STATUS_TEMP_TR_H_X           ((s16)((s32)102 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define MODE_STATUS_TEMP_TR_T10_X         ((s16)((s32)116 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define MODE_STATUS_TEMP_TR_T1_X          ((s16)((s32)130 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define MODE_STATUS_TEMP_TR_UNIT_X        ((s16)((s32)146 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+
 #define MODE_LOCK_MS                      30000
 #define MODE_MSG_OK                       KU_BACK
 #define MODE_MSG_POWER                    (KEY_RIGHT | KEY_SHORT_UP)
@@ -275,6 +271,9 @@ typedef struct f_mode_t_ {
     bool screen_locked;
     u32 heat_start_tick;
     u32 heat_total_sec;
+    u32 heat_live_remain_min;   /* 加热中：串口回调推送的剩余分钟 */
+    u16 heat_live_temp_f;       /* 加热中：串口回调推送的实时温度 °F */
+    bool heat_live_ready;       /* 是否已收到至少一次回调 */
     u8 last_top_min;
     u8 last_top_sec;
     u16 last_timer_key;
@@ -440,6 +439,31 @@ static void func_mode_lock_check(f_mode_t *f_mode);
 static void func_mode_heating_finish_check(f_mode_t *f_mode);
 static bool func_mode_key_allowed(f_mode_t *f_mode, size_msg_t msg);
 
+static void func_mode_display_on_info(const heat_display_info_t *info)
+{
+    f_mode_t *f_mode = (f_mode_t *)func_cb.f_cb;
+
+    if (info == NULL || f_mode == NULL || func_cb.sta != FUNC_MODE) {
+        return;
+    }
+    if (f_mode->ui_state != MODE_UI_HEATING) {
+        return;
+    }
+
+    f_mode->heat_live_remain_min = info->remain_min;
+    f_mode->heat_live_temp_f = info->temp_f;
+    f_mode->heat_live_ready = true;
+    f_mode->last_timer_key = 0xffff;
+    f_mode->last_temp_f = 0xffff;
+
+    if (info->remain_min == 0) {
+        func_mode_heating_finish_check(f_mode);
+    }
+    if (f_mode->ui_state != MODE_UI_FINISHED) {
+        func_mode_display_refresh(f_mode);
+    }
+}
+
 static void func_mode_form_bind_core(f_mode_t *f_mode)
 {
     if (f_mode == NULL) {
@@ -553,10 +577,14 @@ static void func_mode_lock_icon_apply(f_mode_t *f_mode)
         return;
     }
 
-    if (f_mode->screen_locked && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
-        compo_picturebox_set_ram(f_mode->pic_lock, home_ui_shared_status_lock_ram);
-        compo_picturebox_set_size(f_mode->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-        compo_picturebox_set_visible(f_mode->pic_lock, true);
+    if (f_mode->screen_locked) {
+        home_ui_shared_status_init();
+        compo_picturebox_set_pos(f_mode->pic_lock, MODE_STATUS_LOCK_X, MODE_STATUS_Y);
+        if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+            compo_picturebox_set_ram(f_mode->pic_lock, home_ui_shared_status_lock_ram);
+            compo_picturebox_set_size(f_mode->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+            compo_picturebox_set_visible(f_mode->pic_lock, true);
+        }
     } else {
         compo_picturebox_set_visible(f_mode->pic_lock, false);
     }
@@ -621,15 +649,22 @@ static void func_mode_heating_finish_check(f_mode_t *f_mode)
     if (f_mode->ui_state != MODE_UI_HEATING) {
         return;
     }
-    if (mode_countdown_remain_sec == 0) {
-        mode_countdown_running = false;
-        f_mode->ui_state = MODE_UI_FINISHED;
-        f_mode->screen_locked = false;
-        func_mode_lock_icon_apply(f_mode);
 #if FUNC_LUNCHBOX_UART_EN
-        lunchbox_heat_stop();
-#endif
+    if (!f_mode->heat_live_ready || f_mode->heat_live_remain_min != 0) {
+        return;
     }
+#else
+    if (mode_countdown_remain_sec != 0) {
+        return;
+    }
+#endif
+    mode_countdown_running = false;
+    f_mode->ui_state = MODE_UI_FINISHED;
+    f_mode->screen_locked = false;
+    func_mode_lock_icon_apply(f_mode);
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_heat_stop();
+#endif
 }
 
 static void func_mode_status_refresh(f_mode_t *f_mode)
@@ -645,29 +680,31 @@ static void func_mode_status_refresh(f_mode_t *f_mode)
     }
 
     if (f_mode->ui_state == MODE_UI_HEATING && sec_changed) {
+#if !FUNC_LUNCHBOX_UART_EN
         func_mode_countdown_tick();
         func_mode_heating_finish_check(f_mode);
         func_mode_display_refresh(f_mode);
+#endif
     }
 
     func_mode_lock_check(f_mode);
 }
 
-static u16 func_mode_g_digit_gap(u8 d0, u8 d1)
-{
-    u16 gap = MODE_STATUS_TEMP_DIGIT_GAP;
+static const s16 tbl_mode_status_temp_tr_x[MODE_TEMP_IDX_CNT] = {
+    MODE_STATUS_TEMP_TR_H_X, MODE_STATUS_TEMP_TR_T10_X, MODE_STATUS_TEMP_TR_T1_X,
+};
 
-    if (d0 == 1 || d1 == 1 || tbl_mode_g_digit_w[d0] <= MODE_G1_W || tbl_mode_g_digit_w[d1] <= MODE_G1_W) {
-        gap += MODE_STATUS_TEMP_NARROW_EXTRA;
+static void func_mode_pic_pos_tr(compo_picturebox_t *pic, s16 tr_x, s16 tr_y, u16 w, u16 h)
+{
+    if (pic == NULL) {
+        return;
     }
-    return gap;
+    compo_picturebox_set_pos(pic, tr_x - (s16)(w / 2), tr_y + (s16)(h / 2));
 }
 
 static void func_mode_status_temp_layout(f_mode_t *f_mode, u16 temp_f)
 {
     u8 digits[MODE_TEMP_IDX_CNT];
-    u16 total;
-    s16 x;
     u8 i;
 
     if (temp_f > 999) {
@@ -678,34 +715,18 @@ static void func_mode_status_temp_layout(f_mode_t *f_mode, u16 temp_f)
     digits[MODE_TEMP_IDX_T10] = (u8)((temp_f / 10) % 10);
     digits[MODE_TEMP_IDX_T1] = (u8)(temp_f % 10);
 
-    total = MODE_GH_W;
-    for (i = 0; i < MODE_TEMP_IDX_CNT; i++) {
-        total += tbl_mode_g_digit_w[digits[i]];
-        if (i > 0) {
-            total += func_mode_g_digit_gap(digits[i - 1], digits[i]);
-        }
-    }
-    total += MODE_STATUS_TEMP_SYMBOL_GAP;
-    x = GUI_SCREEN_CENTER_X - (s16)(total / 2) + MODE_STATUS_TEMP_CENTER_OFFSET;
-
     for (i = 0; i < MODE_TEMP_IDX_CNT; i++) {
         u8 d = digits[i];
-        s16 cx = x + (s16)(tbl_mode_g_digit_w[d] / 2);
+        u16 w = tbl_mode_g_digit_w[d];
 
-        compo_picturebox_set_pos(f_mode->pic_status_temp[i], cx, MODE_STATUS_TEMP_Y);
-        compo_picturebox_set_size(f_mode->pic_status_temp[i],
-                                 tbl_mode_g_digit_w[d], tbl_mode_g_digit_h[d]);
-        if (i + 1 < MODE_TEMP_IDX_CNT) {
-            x += tbl_mode_g_digit_w[d] + func_mode_g_digit_gap(d, digits[i + 1]);
-        } else {
-            x += tbl_mode_g_digit_w[d];
-        }
+        func_mode_pic_pos_tr(f_mode->pic_status_temp[i], tbl_mode_status_temp_tr_x[i],
+                             MODE_STATUS_TEMP_TR_Y, w, MODE_G_DIGIT_MAX_H);
+        compo_picturebox_set_size(f_mode->pic_status_temp[i], w, MODE_G_DIGIT_MAX_H);
     }
 
     if (f_mode->pic_status_temp_degf != NULL) {
-        s16 cx = x + MODE_STATUS_TEMP_SYMBOL_GAP + (s16)(MODE_GH_W / 2);
-
-        compo_picturebox_set_pos(f_mode->pic_status_temp_degf, cx, MODE_STATUS_TEMP_Y);
+        func_mode_pic_pos_tr(f_mode->pic_status_temp_degf, MODE_STATUS_TEMP_TR_UNIT_X,
+                             MODE_STATUS_TEMP_TR_Y, MODE_GH_W, MODE_GH_H);
         compo_picturebox_set_size(f_mode->pic_status_temp_degf, MODE_GH_W, MODE_GH_H);
     }
 }
@@ -738,66 +759,46 @@ static void func_mode_status_temp_update(f_mode_t *f_mode, u16 temp_f)
                                        tbl_mode_g_digit_addr[d], tbl_mode_g_digit_len[d],
                                        f_mode->pic_status_temp[i])) {
             compo_picturebox_set_size(f_mode->pic_status_temp[i],
-                                      tbl_mode_g_digit_w[d], tbl_mode_g_digit_h[d]);
+                                      tbl_mode_g_digit_w[d], MODE_G_DIGIT_MAX_H);
         }
     }
 
     func_mode_status_temp_layout(f_mode, temp_f);
 }
 
-static u16 func_mode_timer_pair_gap(u8 d0, u8 d1)
+static void func_mode_timer_layout(f_mode_t *f_mode, u8 hour, u8 min)
 {
-    u16 gap = MODE_DIGIT_GAP;
-    if (d0 == 1 || d1 == 1 || tbl_mode_w_digit_w[d0] <= HEAT_W1X_W || tbl_mode_w_digit_w[d1] <= HEAT_W1X_W) {
-        gap += MODE_TIMER_PAIR_NARROW_EXTRA;
-    }
-    return gap;
-}
+    u8 h_digits[2] = { hour / 10, hour % 10 };
+    u8 m_digits[2] = { min / 10, min % 10 };
 
-static void func_mode_timer_layout(f_mode_t *f_mode)
-{
-    u8 h_digits[2] = { (u8)(mode_countdown_remain_sec / 3600) / 10, (u8)(mode_countdown_remain_sec / 3600) % 10 };
-    u8 m_digits[2] = { (u8)((mode_countdown_remain_sec % 3600) / 60) / 10, (u8)((mode_countdown_remain_sec % 3600) / 60) % 10 };
-    u16 h_pair_gap = func_mode_timer_pair_gap(h_digits[0], h_digits[1]);
-    u16 m_pair_gap = func_mode_timer_pair_gap(m_digits[0], m_digits[1]);
-    u16 total;
-    s16 x;
-    u8 i;
+    func_mode_pic_pos_tr(f_mode->pic_timer[MODE_TIMER_IDX_H10],
+                         HEAT_TIMER_TR_H10_X, HEAT_TIMER_TR_Y,
+                         tbl_mode_w_digit_w[h_digits[0]], HEAT_W_DIGIT_MAX_H);
+    compo_picturebox_set_size(f_mode->pic_timer[MODE_TIMER_IDX_H10],
+                              tbl_mode_w_digit_w[h_digits[0]], HEAT_W_DIGIT_MAX_H);
 
-    total = tbl_mode_w_digit_w[h_digits[0]] + h_pair_gap + tbl_mode_w_digit_w[h_digits[1]]
-          + MODE_TIMER_COLON_GAP + HEAT_WBX_W + MODE_TIMER_COLON_GAP_AFTER
-          + tbl_mode_w_digit_w[m_digits[0]] + m_pair_gap + tbl_mode_w_digit_w[m_digits[1]];
-    x = GUI_SCREEN_CENTER_X - (s16)(total / 2);
+    func_mode_pic_pos_tr(f_mode->pic_timer[MODE_TIMER_IDX_H1],
+                         HEAT_TIMER_TR_H1_X, HEAT_TIMER_TR_Y,
+                         tbl_mode_w_digit_w[h_digits[1]], HEAT_W_DIGIT_MAX_H);
+    compo_picturebox_set_size(f_mode->pic_timer[MODE_TIMER_IDX_H1],
+                              tbl_mode_w_digit_w[h_digits[1]], HEAT_W_DIGIT_MAX_H);
 
-    for (i = 0; i < 2; i++) {
-        u8 d = h_digits[i];
-        u16 w = tbl_mode_w_digit_w[d];
-        s16 cx = x + (s16)(w / 2);
-        if (f_mode->pic_timer[i] != NULL) {
-            compo_picturebox_set_pos(f_mode->pic_timer[i], cx, MODE_TIMER_Y);
-            compo_picturebox_set_size(f_mode->pic_timer[i], w, HEAT_W_DIGIT_MAX_H);
-        }
-        x += w + ((i == 0) ? h_pair_gap : MODE_TIMER_COLON_GAP);
-    }
+    func_mode_pic_pos_tr(f_mode->pic_timer_colon,
+                         HEAT_TIMER_TR_COLON_X, HEAT_TIMER_TR_Y,
+                         HEAT_WBX_W, HEAT_WBX_H);
+    compo_picturebox_set_size(f_mode->pic_timer_colon, HEAT_WBX_W, HEAT_WBX_H);
 
-    if (f_mode->pic_timer_colon != NULL) {
-        s16 cx = x + (s16)(HEAT_WBX_W / 2);
-        compo_picturebox_set_pos(f_mode->pic_timer_colon, cx, MODE_TIMER_Y);
-        compo_picturebox_set_size(f_mode->pic_timer_colon, HEAT_WBX_W, HEAT_WBX_H);
-        x += HEAT_WBX_W + MODE_TIMER_COLON_GAP_AFTER;
-    }
+    func_mode_pic_pos_tr(f_mode->pic_timer[MODE_TIMER_IDX_M10],
+                         HEAT_TIMER_TR_M10_X, HEAT_TIMER_TR_Y,
+                         tbl_mode_w_digit_w[m_digits[0]], HEAT_W_DIGIT_MAX_H);
+    compo_picturebox_set_size(f_mode->pic_timer[MODE_TIMER_IDX_M10],
+                              tbl_mode_w_digit_w[m_digits[0]], HEAT_W_DIGIT_MAX_H);
 
-    for (i = 0; i < 2; i++) {
-        u8 d = m_digits[i];
-        u16 w = tbl_mode_w_digit_w[d];
-        s16 cx = x + (s16)(w / 2);
-        if (f_mode->pic_timer[i + 2] != NULL) {
-            compo_picturebox_set_pos(f_mode->pic_timer[i + 2], cx, MODE_TIMER_Y);
-            compo_picturebox_set_size(f_mode->pic_timer[i + 2], w, HEAT_W_DIGIT_MAX_H);
-        }
-        x += w;
-        if (i == 0) x += m_pair_gap;
-    }
+    func_mode_pic_pos_tr(f_mode->pic_timer[MODE_TIMER_IDX_M1],
+                         HEAT_TIMER_TR_M1_X, HEAT_TIMER_TR_Y,
+                         tbl_mode_w_digit_w[m_digits[1]], HEAT_W_DIGIT_MAX_H);
+    compo_picturebox_set_size(f_mode->pic_timer[MODE_TIMER_IDX_M1],
+                              tbl_mode_w_digit_w[m_digits[1]], HEAT_W_DIGIT_MAX_H);
 }
 
 static void func_mode_timer_update(f_mode_t *f_mode, u8 hour, u8 min)
@@ -816,7 +817,7 @@ static void func_mode_timer_update(f_mode_t *f_mode, u8 hour, u8 min)
     digits[MODE_TIMER_IDX_M1] = min % 10;
     timer_key = (u16)hour * 100 + min;
     if (f_mode->last_timer_key == timer_key) {
-        func_mode_timer_layout(f_mode);
+        func_mode_timer_layout(f_mode, hour, min);
         return;
     }
     f_mode->last_timer_key = timer_key;
@@ -838,14 +839,49 @@ static void func_mode_timer_update(f_mode_t *f_mode, u8 hour, u8 min)
         }
     }
 
-    func_mode_timer_layout(f_mode);
+    func_mode_timer_layout(f_mode, hour, min);
 }
 
 static void func_mode_display_refresh(f_mode_t *f_mode)
 {
-    u8 hour = (u8)(mode_countdown_remain_sec / 3600);
-    u8 min = (u8)((mode_countdown_remain_sec % 3600) / 60);
+    u8 hour;
+    u8 min;
+    u16 temp_f;
 
+    if (f_mode == NULL) {
+        return;
+    }
+
+    if (f_mode->ui_state == MODE_UI_HEATING) {
+#if FUNC_LUNCHBOX_UART_EN
+        if (f_mode->heat_live_ready) {
+            hour = (u8)(f_mode->heat_live_remain_min / 60);
+            min = (u8)(f_mode->heat_live_remain_min % 60);
+            temp_f = f_mode->heat_live_temp_f;
+        } else {
+            const mode_tab_preset_t *preset = &tbl_mode_tab_preset[f_mode->tab];
+
+            hour = preset->hour;
+            min = preset->min;
+            temp_f = preset->temp_f;
+        }
+#else
+        hour = (u8)(mode_countdown_remain_sec / 3600);
+        min = (u8)((mode_countdown_remain_sec % 3600) / 60);
+        temp_f = tbl_mode_tab_preset[f_mode->tab].temp_f;
+#endif
+        if (hour > 99) {
+            hour = 99;
+        }
+        func_mode_timer_update(f_mode, hour, min);
+#if FUNC_LUNCHBOX_UART_EN
+        func_mode_status_temp_update(f_mode, temp_f);
+#endif
+        return;
+    }
+
+    hour = (u8)(mode_countdown_remain_sec / 3600);
+    min = (u8)((mode_countdown_remain_sec % 3600) / 60);
     if (hour > 99) {
         hour = 99;
     }
@@ -923,8 +959,14 @@ static void func_mode_start_heating(f_mode_t *f_mode)
         f_mode->heat_total_sec = 60;
     }
     mode_countdown_remain_sec = f_mode->heat_total_sec;
+    f_mode->heat_live_ready = false;
+    f_mode->heat_live_remain_min = 0;
+    f_mode->heat_live_temp_f = 0;
     f_mode->last_timer_key = 0xffff;
+    f_mode->last_temp_f = 0xffff;
+#if !FUNC_LUNCHBOX_UART_EN
     func_mode_countdown_start();
+#endif
     func_mode_display_refresh(f_mode);
     func_mode_lock_icon_apply(f_mode);
 
@@ -1204,14 +1246,16 @@ compo_form_t *func_mode_form_create_core(void)
         pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
         compo_setid(pic, tbl_mode_status_temp_id[i]);
         compo_picturebox_set_visible(pic, false);
-        compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, MODE_STATUS_TEMP_Y);
+        func_mode_pic_pos_tr(pic, tbl_mode_status_temp_tr_x[i], MODE_STATUS_TEMP_TR_Y,
+                             MODE_G0_W, MODE_G_DIGIT_MAX_H);
         compo_picturebox_set_size(pic, MODE_G0_W, MODE_G_DIGIT_MAX_H);
     }
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_STATUS_TEMPF);
     compo_picturebox_set_visible(pic, false);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, MODE_STATUS_TEMP_Y);
+    func_mode_pic_pos_tr(pic, MODE_STATUS_TEMP_TR_UNIT_X, MODE_STATUS_TEMP_TR_Y,
+                         MODE_GH_W, MODE_GH_H);
     compo_picturebox_set_size(pic, MODE_GH_W, MODE_GH_H);
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
@@ -1232,18 +1276,34 @@ compo_form_t *func_mode_form_create_core(void)
     compo_picturebox_set_pos(pic, MODE_STATUS_BAT_X, MODE_STATUS_Y);
     compo_picturebox_set_size(pic, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
 
-    for (i = 0; i < MODE_TIMER_IDX_CNT; i++) {
-        pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
-        compo_setid(pic, tbl_mode_timer_id[i]);
-        compo_picturebox_set_visible(pic, false);
-        compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, MODE_TIMER_Y);
-        compo_picturebox_set_size(pic, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
-    }
+    pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_TIMER_H10);
+    compo_picturebox_set_visible(pic, false);
+    func_mode_pic_pos_tr(pic, HEAT_TIMER_TR_H10_X, HEAT_TIMER_TR_Y, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
+    compo_picturebox_set_size(pic, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
+
+    pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_TIMER_H1);
+    compo_picturebox_set_visible(pic, false);
+    func_mode_pic_pos_tr(pic, HEAT_TIMER_TR_H1_X, HEAT_TIMER_TR_Y, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
+    compo_picturebox_set_size(pic, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
+
+    pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_TIMER_M10);
+    compo_picturebox_set_visible(pic, false);
+    func_mode_pic_pos_tr(pic, HEAT_TIMER_TR_M10_X, HEAT_TIMER_TR_Y, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
+    compo_picturebox_set_size(pic, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
+
+    pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_TIMER_M1);
+    compo_picturebox_set_visible(pic, false);
+    func_mode_pic_pos_tr(pic, HEAT_TIMER_TR_M1_X, HEAT_TIMER_TR_Y, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
+    compo_picturebox_set_size(pic, HEAT_W0X_W, HEAT_W_DIGIT_MAX_H);
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_TIMER_COLON);
     compo_picturebox_set_visible(pic, false);
-    compo_picturebox_set_pos(pic, GUI_SCREEN_CENTER_X, MODE_TIMER_Y);
+    func_mode_pic_pos_tr(pic, HEAT_TIMER_TR_COLON_X, HEAT_TIMER_TR_Y, HEAT_WBX_W, HEAT_WBX_H);
     compo_picturebox_set_size(pic, HEAT_WBX_W, HEAT_WBX_H);
 
     return frm;
@@ -1385,6 +1445,9 @@ void func_mode_enter(void)
     f_mode->screen_locked = false;
     f_mode->heat_start_tick = 0;
     f_mode->heat_total_sec = 0;
+    f_mode->heat_live_remain_min = 0;
+    f_mode->heat_live_temp_f = 0;
+    f_mode->heat_live_ready = false;
     f_mode->last_top_min = 0xff;
     f_mode->last_top_sec = 0xff;
     f_mode->last_timer_key = 0xffff;
@@ -1420,10 +1483,12 @@ void func_mode_enter(void)
     func_mode_tab_refresh(f_mode);
     func_mode_status_refresh(f_mode);
 #endif
+    heat_display_register(func_mode_display_on_info);
 }
 
 void func_mode_exit(void)
 {
+    heat_display_unregister();
     func_mode_countdown_stop();
     func_mode_tab_label_ram_free();
     func_cb.last = FUNC_MODE;
