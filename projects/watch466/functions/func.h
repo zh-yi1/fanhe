@@ -231,6 +231,8 @@ void func_elunchbox_switch_to_reservation(void);
 void func_elunchbox_res_key_poll(void);
 void func_home_switch_to_reservation(void);
 void func_home_drain_stale_key_msgs(void);
+void func_mode_idle_preload_reset(void);
+void func_mode_idle_preload_step(void);
 #endif
 
 #endif // _FUNC_H

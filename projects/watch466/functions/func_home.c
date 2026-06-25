@@ -953,6 +953,11 @@ static void func_home_tab_select(f_home_t *f_home, u8 tab)
     }
     old_tab = f_home->tab;
     f_home->tab = tab;
+#if ELUNCHBOX_PANEL_EN
+    if (tab != HOME_TAB_MODE) {
+        func_mode_idle_preload_reset();
+    }
+#endif
     func_home_tab_refresh_idx(f_home, old_tab);
     func_home_tab_refresh_idx(f_home, tab);
 #if ELUNCHBOX_PANEL_EN
@@ -1388,6 +1393,9 @@ void func_home_process(void)
 
         if (tab_dirty) {
             func_home_tab_labels_refresh_all((f_home_t *)func_cb.f_cb);
+        }
+        if (f_home != NULL && f_home->tab == HOME_TAB_MODE) {
+            func_mode_idle_preload_step();
         }
 #endif
     func_home_status_refresh((f_home_t *)func_cb.f_cb);

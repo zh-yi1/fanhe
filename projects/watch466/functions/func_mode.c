@@ -1205,6 +1205,32 @@ static void func_mode_tab_refresh(f_mode_t *f_mode)
     }
 }
 
+#if ELUNCHBOX_PANEL_EN
+static u8 mode_tab_icon_defer;
+
+static void func_mode_tab_refresh_enter(f_mode_t *f_mode)
+{
+    u8 i;
+
+    mode_tab_icon_defer = 0;
+    for (i = 0; i < MODE_TAB_CNT; i++) {
+        mode_tab_ui_t *tab = &f_mode->tabs[i];
+        bool selected = (i == f_mode->tab);
+
+        compo_shape_set_visible(tab->sel_bg, selected);
+        compo_shape_set_visible(tab->border_out, !selected);
+        compo_shape_set_visible(tab->border_in, !selected);
+        func_mode_tab_line_update(f_mode, i);
+        func_mode_tab_label_update(f_mode, i);
+        if (selected) {
+            func_mode_tab_icon_update(f_mode, i);
+        } else {
+            mode_tab_icon_defer |= (u8)(1u << i);
+        }
+    }
+}
+#endif
+
 static void func_mode_button_click(f_mode_t *f_mode)
 {
     int id = compo_get_button_id();
@@ -1341,25 +1367,20 @@ static void func_mode_process(void)
             switch (f_mode->display_stage) {
             case 1: {
                 tm_t tm = rtc_clock_get();
-                home_gpu_wait_idle();
                 home_top_time_refresh(&f_mode->top_time, &tm);
                 f_mode->display_stage = 2;
                 break;
             }
             case 2:
-                home_gpu_wait_idle();
                 func_mode_tab_preview_timer(f_mode, f_mode->tab);
                 f_mode->display_stage = 3;
                 break;
             case 3:
-                home_gpu_wait_idle();
                 func_mode_tab_preview_temp(f_mode, f_mode->tab);
                 f_mode->display_stage = 4;
                 break;
             case 4:
-                home_gpu_wait_idle();
-                func_mode_tab_refresh(f_mode);
-                home_gpu_wait_idle();
+                func_mode_tab_refresh_enter(f_mode);
                 f_mode->display_stage = 0;
                 break;
             default:
@@ -1367,7 +1388,19 @@ static void func_mode_process(void)
                 break;
             }
             WDT_CLR();
+            func_process();
             return;
+        }
+        if (mode_tab_icon_defer) {
+            u8 i;
+
+            for (i = 0; i < MODE_TAB_CNT; i++) {
+                if (mode_tab_icon_defer & (1u << i)) {
+                    func_mode_tab_icon_update(f_mode, i);
+                    mode_tab_icon_defer &= (u8)~(1u << i);
+                    break;
+                }
+            }
         }
 #endif
         func_mode_status_refresh(f_mode);
@@ -1470,7 +1503,6 @@ void func_mode_enter(void)
     home_ui_digit_pool_reset();
     f_mode->display_stage = 1;
     func_mode_status_icons_apply(f_mode);
-    home_gpu_wait_idle();
     tft_bglight_force_on();
     printf("func_mode_enter: ok stage=%u\n", f_mode->display_stage);
 #else
@@ -1491,8 +1523,57 @@ void func_mode_exit(void)
     heat_display_unregister();
     func_mode_countdown_stop();
     func_mode_tab_label_ram_free();
+#if ELUNCHBOX_PANEL_EN
+    mode_tab_icon_defer = 0;
+#endif
     func_cb.last = FUNC_MODE;
 }
+
+#if ELUNCHBOX_PANEL_EN
+static u8 mode_idle_preload_step;
+
+void func_mode_idle_preload_reset(void)
+{
+    mode_idle_preload_step = 0;
+}
+
+void func_mode_idle_preload_step(void)
+{
+    static const u8 timer_digits[4] = {0, 1, 0, 0};
+    u8 idx;
+
+    if (mode_idle_preload_step >= 7) {
+        return;
+    }
+
+    switch (mode_idle_preload_step) {
+    case 0:
+        os_spiflash_read(mode_tab_icon_ram[MODE_TAB_PASTA],
+                         tbl_mode_icon_addr[MODE_TAB_PASTA],
+                         tbl_mode_icon_len[MODE_TAB_PASTA]);
+        break;
+    case 1:
+        os_spiflash_read(home_ui_shared_timer_colon_ram,
+                         UI_BUF_HOME_WBX_BIN, UI_LEN_HOME_WBX_BIN);
+        break;
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+        idx = (u8)(mode_idle_preload_step - 2);
+        os_spiflash_read(home_ui_shared_timer_digit_ram[idx],
+                         tbl_mode_w_digit_addr[timer_digits[idx]],
+                         tbl_mode_w_digit_len[timer_digits[idx]]);
+        break;
+    case 6:
+        home_ui_shared_dash_init();
+        break;
+    default:
+        break;
+    }
+    mode_idle_preload_step++;
+}
+#endif
 
 void func_mode(void)
 {
