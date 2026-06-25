@@ -10,9 +10,9 @@
 #include "bsp_pt8028_key.h"
 
 /*
- * 原理图 U3 PT8028 TCH -> 面板 LED（MCU PB4~PB9 驱动）：
- *   TCH0 锁键 -> LED5(PB8) | TCH1 加热 -> LED6(PB9) | TCH3 模式 -> LED3(PB6)
- *   TCH4 确认 -> LED2(PB5) | TCH5 开关 -> LED1(PB4) | TCH7 预约 -> LED4(PB7)
+ * 原理图 LED 与按键（510Ω 到 GND，GPIO 高电平点亮）：
+ *   LED1(PB0) 开关 TCH5 | LED2(PB1) 确认 TCH4 | LED3(PB2) 模式 TCH3
+ *   LED4(PB5) 预约 TCH7 | LED5(PB6) 锁键 TCH0 | LED6(PB7) 加热 TCH1
  *   TCH2 减号 / TCH6 加号 无 LED
  */
 AT(.com_rodata.port.panel_led)

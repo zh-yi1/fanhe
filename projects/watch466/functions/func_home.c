@@ -1326,6 +1326,9 @@ void func_home_process(void)
     pt8028_gpio_ensure_periodic();
     pt8028_key_scan();
     func_home_pt8028_keys_process(f_home);
+#if USER_PANEL_LED
+    panel_led_scan();
+#endif
     /* 确认/TCH1 等可能在上面 func_switch_to 并已销毁 frm_main；不可再 draw */
     if (func_cb.sta != FUNC_HOME) {
         return;
