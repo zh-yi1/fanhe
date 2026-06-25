@@ -173,19 +173,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
         off += 4 + val_len;
     }
 
-    /*
-     * 路由策略：根据加热使能状态选择推送函数
-     *   heat_enable=0 + remain>0 → show_schedule  (预约等待中，remain 即倒计时)
-     *   heat_enable=0 + remain=0 → 跳过           (真正空闲)
-     *   heat_enable=1            → show           (加热中，时间+温度)
-     */
+    /* 加热已停止：不推送（让加热页自行处理停止状态） */
     if (got_enable && !heating) {
-        if (got_remain && remain_min > 0) {
-            printf("[LCD_REG] feed_dp: reservation waiting, schedule=%u min\n", remain_min);
-            heat_display_show_schedule(remain_min);
-        } else {
-            printf("[LCD_REG] feed_dp: heating stopped, skip push\n");
-        }
+        printf("[LCD_REG] feed_dp: heating stopped, skip push\n");
         return;
     }
     if (got_remain && got_temp) {

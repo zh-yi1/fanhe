@@ -56,6 +56,26 @@ const u8 tbl_pt8028_bcd_to_key[8] = {
 
 };
 
+/* TCH -> lunchbox_key_notify(key_val) */
+const u8 tbl_pt8028_tch_to_lunchbox_key[8] = {
+    6,  /* TCH0 锁键   */
+    5,  /* TCH1 加热   */
+    4,  /* TCH2 减号   */
+    3,  /* TCH3 模式   */
+    2,  /* TCH4 确认   */
+    1,  /* TCH5 开关   */
+    7,  /* TCH6 加号   */
+    8,  /* TCH7 预约   */
+};
+
+u8 pt8028_tch_to_lunchbox_key(u8 tch)
+{
+    if (tch > PT8028_KEY_TCH7) {
+        return 0;
+    }
+    return tbl_pt8028_tch_to_lunchbox_key[tch];
+}
+
 
 
 /*

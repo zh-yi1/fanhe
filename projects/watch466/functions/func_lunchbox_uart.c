@@ -123,10 +123,7 @@ static bool lb_frame_parse(void)
     printf("\n");
 
 #if FUNC_LUNCHBOX_UART_EN
-    // 仅在加热模块回复成功(err_flag==0x00)时推送 LCD 显示
-    // 桥模式下: APP→MCU→加热模块→MCU 解析成功后才更新显示
-    // 本地模式下: 加热模块主动上报也走此路径
-    if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.err_flag == LB_ERR_SUCCESS && rx.data && rx.data_len > 0) {
+    if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.data && rx.data_len > 0) {
         printf("Trigger==>heat_display_feed_dp:%d\n",__LINE__);
         heat_display_feed_dp(rx.data, rx.data_len);
     }
@@ -338,14 +335,6 @@ static u8 lb_attr_write(u8 *data, u16 len)
         case LB_DPID_HEAT_TEMP:     if (val_len >= 1) lb_attr_heat_temp     = val[0]; break;
         case LB_DPID_LANGUAGE:      if (val_len >= 1) lb_attr_language      = val[0]; break;
         case LB_DPID_HEAT_ENABLE:   if (val_len >= 1) lb_attr_heat_enable   = val[0]; break;  // v1.0.5 新增
-        case LB_DPID_TIME_SYNC:                                                         // v1.0.5: APP 同步时间戳
-            if (val_len >= 4) {
-                u32 unix_ts = ((u32)val[0]<<24)|((u32)val[1]<<16)|((u32)val[2]<<8)|val[3];
-                if (unix_ts >= LB_RTC_UNIX_OFFSET) {
-                    RTCCNT = unix_ts - LB_RTC_UNIX_OFFSET;
-                }
-            }
-            break;
         default: break; // 只读属性 (3,4,6,9) 不允许 APP 写入
         }
         off += 4 + val_len;
@@ -434,29 +423,31 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
 }
 
 /**
- * @brief LCD 启动加热 — 构建 UART 0x01 DataPoint 帧发往加热模块
+ * @brief LCD 启动加热 — 构建 UART 0x03 预约帧发往加热模块
  *
- * MCU协议 §4.1.7: dpid=10(是否加热) bool, 1=立即加热
- * 帧格式: DataPoints(mode+duration+temp+heat_enable=1) + timestamp + sleep_flag
+ * UART 0x03 帧格式(42B): action(1)+id(1)+name(32)+time(4,BE)+temp(1)+duration(1)+enabled(1)+repeat(1)
+ * action = mode (1=自定义加热, 2=鸡腿, 3=意面, 4=预约, 5=保温)
+ * id = 0 (MCU自动分配), time = 当前时间戳(立即执行)
  */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
-    u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
-    u8 data[64];
-    u8 *p = data;
+    u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;       // RTCCNT 从2020起算, +offset 转Unix时间戳
+    u8 data[42];
+    memset(data, 0, 42);
 
-    // 加热参数 DataPoints
-    p += lb_dp_encode_enum(p, LB_DPID_HEAT_MODE, mode);
-    p += lb_dp_encode_value(p, LB_DPID_HEAT_DURATION, duration);
-    p += lb_dp_encode_enum(p, LB_DPID_HEAT_TEMP, temp);
-    // 是否加热=1: 立即加热 (MCU协议 §4.1.7)
-    p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 1);
-    // 时间戳 + MCU使能开机
-    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
-    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+    data[0] = mode;                             // action = mode
+    data[1] = 0;                                // id = 0 (MCU自动分配)
+    // name[32] at [2-33] = zeros
+    data[2 + 32 + 0] = (u8)(ts >> 24);          // time BE (立即执行)
+    data[2 + 32 + 1] = (u8)(ts >> 16);
+    data[2 + 32 + 2] = (u8)(ts >> 8);
+    data[2 + 32 + 3] = (u8)(ts & 0xFF);
+    data[2 + 32 + 4] = temp;                    // 温度档位
+    data[2 + 32 + 5] = (u8)duration;            // 加热时长(分钟)
+    data[2 + 32 + 6] = 0x01;                    // enabled = 1
+    data[2 + 32 + 7] = 0x00;                    // repeat = 0 (不重复)
 
-    u16 data_len = (u16)(p - data);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
+    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 42);
 
     // 更新本地属性 (本地模式) 或仅通知 APP
 #if !LB_BRIDGE_MODE
@@ -469,24 +460,17 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 }
 
 /**
- * @brief LCD 停止加热 — 构建 UART 0x01 DataPoint 帧发往加热模块
+ * @brief LCD 停止加热 — 构建 UART 0x03 预约帧发往加热模块 (action=0 删除)
  *
- * MCU协议 §4.1.7: dpid=10(是否加热) bool, 0=停止加热
+ * UART 0x03: action=0x00(删除) + id=0x00(当前活跃加热), 取消正在执行的加热任务
  */
 void lunchbox_heat_stop(void)
 {
-    u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
-    u8 data[32];
-    u8 *p = data;
+    u8 data[2];
+    data[0] = 0x00;  // action=删除 (取消当前加热)
+    data[1] = 0x00;  // id=0 (当前活跃加热)
 
-    // 是否加热=0: 停止加热 (MCU协议 §4.1.7)
-    p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 0);
-    // 时间戳 + MCU使能开机
-    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
-    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
-
-    u16 data_len = (u16)(p - data);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
+    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 2);
 
 #if !LB_BRIDGE_MODE
     lb_attr_heat_enable = 0;
@@ -496,28 +480,18 @@ void lunchbox_heat_stop(void)
 }
 
 /**
- * @brief LCD 按键通知 — 构造 UART 0x01 DataPoint(dpid=12) 帧发往加热模块
- *
- * MCU协议 §4 属性列表 ID=12: 模组按键通知, enum, 0-9
- * 屏幕侧按键按下时调用，通知加热模块当前是哪个按键被按下。
- *
- * 帧示例 (key_val=1):
- *   55 aa 00 00 01 00 00 05 0c 04 00 01 01 17
- *
- * @param key_val  按键值: 0-9
+ * @brief LCD 按键通知 — UART 0x01 DataPoint(dpid=12) 发往加热模块
  */
 void lunchbox_key_notify(u8 key_val)
 {
     u8 data[8];
-    u8 *p = data;
+    u16 len;
 
-    // DataPoint: dpid=12(模组按键通知), type=enum(0x04), len=1, value=key_val
-    p += lb_dp_encode_enum(p, LB_DPID_KEY_NOTIFY, key_val);
-
-    u16 data_len = (u16)(p - data);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
-
-    printf("LCD: key_notify val=%d\n", key_val);
+    if (key_val == 0 || key_val > 9) {
+        return;
+    }
+    len = lb_dp_encode_enum(data, LB_DPID_KEY_NOTIFY, key_val);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len);
 }
 
 /**
@@ -1138,16 +1112,16 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
     // ─── 0x04 控制指令 → UART 0x01: DataPoint格式 (v1.0.8) ───
     case LB_CMD_CONTROL: {
         if (rx->data && rx->data_len > 0) {
-            // v1.0.8: 前拼 dpid=11(时间戳) DataPoint, 后跟控制 DataPoints 透传, 末尾 dpid=1(MCU使能)
+            // v1.0.8: 前拼 dpid=11(时间戳) DataPoint, 后跟控制 DataPoints 透传
             u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;  // RTCCNT 从2020起算, +offset 转Unix时间戳
             u8 *p = out_data;
             p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
             memcpy(p, rx->data, rx->data_len);
             p += rx->data_len;
-            p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);  // v1.0.8: 补齐 sleep_flag
             *out_len = p - out_data;
 
-            // 不在此处推送 LCD: 桥模式下需等加热模块回复成功后才推送
+            // BLE 控制指令携带 DataPoints 时，同步推送 LCD 显示
+            heat_display_feed_dp(rx->data, rx->data_len);
             return true;
         }
         return false;
@@ -1513,25 +1487,6 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 
     // 所有其他命令(含 0x09/0x0a) → 翻译为 UART 协议 → 通过串口发给加热模块
     {
-        // 提取 APP 下发的 dpid=11(时间戳) 同步本地 RTC，避免 MCU 时间偏差
-        if (frame.data && frame.data_len > 0) {
-            u16 off = 0;
-            while (off + 4 <= frame.data_len) {
-                u8  dpid    = frame.data[off];
-                u16 val_len = ((u16)frame.data[off + 2] << 8) | frame.data[off + 3];
-                if (off + 4 + val_len > frame.data_len) break;
-                u8 *val = frame.data + off + 4;
-                if (dpid == LB_DPID_TIME_SYNC && val_len >= 4) {
-                    u32 unix_ts = ((u32)val[0]<<24)|((u32)val[1]<<16)|((u32)val[2]<<8)|val[3];
-                    if (unix_ts >= LB_RTC_UNIX_OFFSET) {
-                        RTCCNT = unix_ts - LB_RTC_UNIX_OFFSET;
-                        printf("BLE: time sync, unix=%u, RTCCNT=%u\n", unix_ts, RTCCNT);
-                    }
-                }
-                off += 4 + val_len;
-            }
-        }
-
         u8 uart_buf[LB_TXBUF_SIZE];
         u16 uart_len = 0;
         if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
@@ -1541,8 +1496,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
         }
 
-        // BLE 控制指令不在此处推送 LCD: 桥模式下需等加热模块 UART 回复成功后才推送
-        // (由 UART 接收处理函数中检查 err_flag==0x00 后触发)
+        // BLE 控制/状态类命令携带 DataPoints 时，同步推送 LCD 显示
+        if (frame.cmd == LB_CMD_CONTROL && frame.data && frame.data_len > 0) {
+            heat_display_feed_dp(frame.data, frame.data_len);
+        }
     }
 #else
     // ──── 本地模式：原帧转发到串口 + 解析分发给 cmd_handler ────

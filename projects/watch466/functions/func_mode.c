@@ -1023,7 +1023,6 @@ static void func_mode_power_key(f_mode_t *f_mode)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();
 #endif
-        f_mode->ui_state = MODE_UI_FINISHED;  /* 阻止后续 exit 路径重复发送停止指令 */
         f_mode->screen_locked = false;
     }
 

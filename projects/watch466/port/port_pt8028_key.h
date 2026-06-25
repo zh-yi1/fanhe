@@ -37,9 +37,13 @@
 #endif
 
 extern const u8 tbl_pt8028_bcd_to_key[8];
+extern const u8 tbl_pt8028_tch_to_lunchbox_key[8];
 
 /* 饭盒：按下阶段 BCD 重映射（OUT_FLAG=0 时） */
 u8 pt8028_elunchbox_bcd_remap(u8 bcd, u8 out_flag);
+
+/* TCH -> lunchbox_key_notify 键值 (0=无效) */
+u8 pt8028_tch_to_lunchbox_key(u8 tch);
 
 void pt8028_port_gpio_init(void);
 /* 热路径：寄存器级 reclaim PE1~4 为 GPIO 输入（读 BCD 前调用） */

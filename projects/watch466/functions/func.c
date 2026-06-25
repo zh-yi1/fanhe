@@ -10,6 +10,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #endif
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
+#include "port_pt8028_key.h"
 #endif
 #if USER_PANEL_LED
 #include "port_panel_led.h"
@@ -115,6 +116,23 @@ void func_elunchbox_res_key_poll(void)
     }
 #endif
 }
+
+#if USER_PT8028_KEY && FUNC_LUNCHBOX_UART_EN
+static void func_elunchbox_key_notify_poll(void)
+{
+    u8 tch;
+    u8 key_val;
+
+    tch = pt8028_take_key_notify_tch();
+    if (tch > PT8028_KEY_TCH7) {
+        return;
+    }
+    key_val = pt8028_tch_to_lunchbox_key(tch);
+    if (key_val != 0) {
+        lunchbox_key_notify(key_val);
+    }
+}
+#endif
 #endif
 
 AT(.text.func.process)
@@ -156,6 +174,9 @@ void func_process(void)
             pt8028_gpio_ensure_periodic();
             pt8028_key_scan();
         }
+#if FUNC_LUNCHBOX_UART_EN
+        func_elunchbox_key_notify_poll();
+#endif
 #endif
 #if USER_PANEL_LED && USER_PT8028_KEY
         /* 按下对应 TCH 点亮 LED，松开全灭（原理图 LED1~6 -> PB0/PB1/PB2/PB5/PB6/PB7） */

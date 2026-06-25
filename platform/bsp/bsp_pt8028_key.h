@@ -84,6 +84,8 @@ u8 pt8028_take_press_tch(void);
 u8 pt8028_take_release_tch(void);
 u8 pt8028_take_home_action(void);
 bool pt8028_take_res_key_pending(void);
+/* 主线程取走待上报的按键 TCH，无则返回 0xff */
+u8 pt8028_take_key_notify_tch(void);
 #endif
 
 #endif // _BSP_PT8028_KEY_H

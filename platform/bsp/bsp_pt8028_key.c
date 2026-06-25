@@ -61,6 +61,8 @@ typedef struct {
     u8  press_pending;      /* 按下沿事件待取 */
     u8  press_emitted;      /* 本次按下已触发按下逻辑 */
     u8  home_act_pending;   /* 释放后待 Home 取走的动作 */
+    u8  key_notify_tch;     /* 待主线程 lunchbox_key_notify 的 TCH */
+    u8  key_notify_pending;
     /* 表2 会话锁存：按下记 FLAG/D2/D1/D0；释放 Hold=按下副本；下次按下清空 */
     u8  press_ln_valid;
     u8  press_ln_flag;
@@ -762,6 +764,21 @@ static void pt8028_queue_key(u8 tch, u8 key, u16 ku, u8 bcd, u8 out_flag)
 }
 
 AT(.com_text.bsp.pt8028)
+static void pt8028_queue_key_notify(u8 tch)
+{
+    if (tch > PT8028_KEY_TCH7) {
+        return;
+    }
+#if !FUNC_RESERVATION_UI_EN
+    if (tch == PT8028_KEY_TCH7) {
+        return;
+    }
+#endif
+    pt8028_cb.key_notify_tch = tch;
+    pt8028_cb.key_notify_pending = 1;
+}
+
+AT(.com_text.bsp.pt8028)
 static void pt8028_emit_press(u8 tch)
 {
     u8 key;
@@ -790,6 +807,7 @@ static void pt8028_emit_press(u8 tch)
         pt8028_queue_edge(0, tch, 0);
         pt8028_queue_key(tch, key, (u16)(key | KEY_SHORT), tch, 0);
     }
+    pt8028_queue_key_notify(tch);
 }
 
 AT(.com_text.bsp.pt8028)
@@ -1027,6 +1045,9 @@ u8 get_pt8028_key(void)
 #if FUNC_RESERVATION_UI_EN
             } else if (tch == PT8028_KEY_TCH7) {
                 pt8028_cb.res_key_pending = 1;
+                if (!pt8028_cb.press_emitted) {
+                    pt8028_queue_key_notify(PT8028_KEY_TCH7);
+                }
 #endif
             } else if (!pt8028_cb.press_emitted) {
                 /* Hold 无效且按下阶段无有效键 */
@@ -1373,6 +1394,8 @@ void pt8028_release_clear(void)
     pt8028_cb.res_key_pending = 0;
     pt8028_cb.press_bcd = 0xff;
     pt8028_cb.home_act_pending = PT8028_HOME_ACT_NONE;
+    pt8028_cb.key_notify_pending = 0;
+    pt8028_cb.key_notify_tch = 0xff;
     pt8028_session_clear();
 }
 
@@ -1407,6 +1430,20 @@ bool pt8028_take_res_key_pending(void)
     }
     pt8028_cb.res_key_pending = 0;
     return true;
+}
+
+AT(.com_text.bsp.pt8028)
+u8 pt8028_take_key_notify_tch(void)
+{
+    u8 tch;
+
+    if (!pt8028_cb.key_notify_pending) {
+        return 0xff;
+    }
+    tch = pt8028_cb.key_notify_tch;
+    pt8028_cb.key_notify_pending = 0;
+    pt8028_cb.key_notify_tch = 0xff;
+    return tch;
 }
 
 AT(.com_text.bsp.pt8028)
