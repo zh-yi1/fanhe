@@ -1583,6 +1583,10 @@ void pt8028_set_home_msg_block(u8 en)
     pt8028_home_msg_block = en ? 1 : 0;
 }
 
+#if ELUNCHBOX_PANEL_EN
+bool func_key_lock_ku_blocked(u16 msg);
+#endif
+
 AT(.text.bsp.pt8028)
 void pt8028_key_scan(void)
 {
@@ -1607,6 +1611,11 @@ void pt8028_key_scan(void)
     if (pt8028_home_msg_block) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (func_key_lock_ku_blocked(key)) {
+        return;
+    }
+#endif
     if (sys_cb.gui_sleep_sta) {
         sys_cb.gui_need_wakeup = 1;
     }

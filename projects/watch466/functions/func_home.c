@@ -506,7 +506,7 @@ static void func_home_status_icons_init(void)
     home_ui_shared_status_init();
 }
 
-static void func_home_lock_icon_apply(f_home_t *f_home);
+void func_home_lock_icon_apply(f_home_t *f_home);
 
 static void func_home_status_icons_apply(f_home_t *f_home)
 {
@@ -541,12 +541,12 @@ static void func_home_lock_icon_prepare(f_home_t *f_home)
     }
 }
 
-static void func_home_lock_icon_apply(f_home_t *f_home)
+void func_home_lock_icon_apply(f_home_t *f_home)
 {
     if (f_home == NULL || f_home->pic_lock == NULL) {
         return;
     }
-    if (f_home->screen_locked) {
+    if (func_key_lock_show_status_icon(f_home->screen_locked)) {
         if (!gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
             func_home_lock_icon_prepare(f_home);
         }
@@ -1264,8 +1264,12 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
     last_ms = tick_get();
     last_tch = tch;
 
-    if (f_home->screen_locked && tch != PT8028_KEY_TCH0 && tch != PT8028_KEY_TCH4 && tch != PT8028_KEY_TCH5) {
-        return;  // 锁屏时仅允许锁键、确认、开关
+    if (func_key_lock_filter_tch(tch)) {
+        return;
+    }
+
+    if (f_home->screen_locked && tch != PT8028_KEY_TCH5) {
+        return;
     }
 
     switch (tch) {
@@ -1281,12 +1285,7 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
         break;
 
     case PT8028_KEY_TCH0:
-        HOME_DBG("Home: TCH0 锁键按下\n");
-        f_home->screen_locked = !f_home->screen_locked;
-        func_home_lock_icon_apply(f_home);
-#if ELUNCHBOX_PANEL_EN
-        os_gui_draw_force();
-#endif
+        /* 全局按键锁：TCH0 长按 3s 由 func_key_lock_poll 处理 */
         break;
 
     case PT8028_KEY_TCH5:
@@ -1422,9 +1421,12 @@ void func_home_message(size_msg_t msg)
     }
 #endif
 
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+
     if (f_home != NULL && f_home->screen_locked) {
-        // 锁屏状态下仅允许锁键(解锁)、确认键、开关键
-        if (msg != KU_LEFT && msg != KU_BACK && msg != KU_RIGHT) {
+        if (msg != KU_RIGHT) {
             return;
         }
     }
@@ -1435,14 +1437,6 @@ void func_home_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-#if ELUNCHBOX_PANEL_EN
-        f_home->screen_locked = !f_home->screen_locked;
-        func_home_lock_icon_apply(f_home);
-        os_gui_draw_force();
-        break;
-#else
-        HOME_DBG("Home: 锁键\n");
-#endif
         break;
 
     case KU_PREV:

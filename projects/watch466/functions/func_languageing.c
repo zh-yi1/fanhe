@@ -364,7 +364,7 @@ static void func_languageing_config_row_label(compo_textbox_t *txt, const char *
     }
 }
 
-static void func_languageing_lock_icon_apply(f_languageing_t *f_lang);
+void func_languageing_lock_icon_apply(f_languageing_t *f_lang);
 
 static void func_languageing_status_icons_apply(f_languageing_t *f_lang)
 {
@@ -388,12 +388,12 @@ static void func_languageing_status_icons_apply(f_languageing_t *f_lang)
     func_languageing_lock_icon_apply(f_lang);
 }
 
-static void func_languageing_lock_icon_apply(f_languageing_t *f_lang)
+void func_languageing_lock_icon_apply(f_languageing_t *f_lang)
 {
     if (f_lang == NULL || f_lang->pic_lock == NULL) {
         return;
     }
-    if (f_lang->screen_locked) {
+    if (func_key_lock_show_status_icon(f_lang->screen_locked)) {
         home_ui_shared_status_init();
         compo_picturebox_set_pos(f_lang->pic_lock, LANG_STATUS_LOCK_X, LANG_STATUS_Y);
         if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
@@ -591,8 +591,12 @@ static void func_languageing_message(size_msg_t msg)
 {
     f_languageing_t *f_lang = (f_languageing_t *)func_cb.f_cb;
 
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+
     if (f_lang != NULL && f_lang->screen_locked) {
-        if (msg != LANG_MSG_POWER && msg != LANG_MSG_OK && msg != KU_LEFT) {
+        if (msg != LANG_MSG_POWER && msg != LANG_MSG_OK) {
             return;
         }
     }
@@ -605,10 +609,6 @@ static void func_languageing_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        if (f_lang != NULL) {
-            f_lang->screen_locked = !f_lang->screen_locked;
-            func_languageing_lock_icon_apply(f_lang);
-        }
         break;
 
     case KU_MODE:

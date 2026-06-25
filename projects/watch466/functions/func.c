@@ -203,6 +203,9 @@ void func_process(void)
 #if USER_PT8028_KEY && SOFT_POWER_ON_OFF
         func_elunchbox_pwr_long_poll();
 #endif
+#if ELUNCHBOX_PANEL_EN
+        func_key_lock_poll();
+#endif
 #else
         compo_update();                                     //更新组件
 
@@ -1242,6 +1245,9 @@ void func_enter(void)
 //    bsp_clr_mute_sta();
 //    sys_cb.voice_evt_brk_en = 1;    //播放提示音时，快速响应事件。
     AMPLIFIER_SEL_D();
+#if ELUNCHBOX_PANEL_EN
+    func_key_lock_on_page_change();
+#endif
 }
 
 AT(.text.func)

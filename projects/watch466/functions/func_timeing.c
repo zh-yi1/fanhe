@@ -689,7 +689,7 @@ static void func_timeing_digits_apply(f_timeing_t *f_timeing)
     func_timeing_ampm_apply(f_timeing);
 }
 
-static void func_timeing_lock_icon_apply(f_timeing_t *f_timeing);
+void func_timeing_lock_icon_apply(f_timeing_t *f_timeing);
 
 static void func_timeing_status_icons_apply(f_timeing_t *f_timeing)
 {
@@ -713,12 +713,12 @@ static void func_timeing_status_icons_apply(f_timeing_t *f_timeing)
     func_timeing_lock_icon_apply(f_timeing);
 }
 
-static void func_timeing_lock_icon_apply(f_timeing_t *f_timeing)
+void func_timeing_lock_icon_apply(f_timeing_t *f_timeing)
 {
     if (f_timeing == NULL || f_timeing->pic_lock == NULL) {
         return;
     }
-    if (f_timeing->screen_locked) {
+    if (func_key_lock_show_status_icon(f_timeing->screen_locked)) {
         home_ui_shared_status_init();
         compo_picturebox_set_pos(f_timeing->pic_lock, TIMEING_STATUS_LOCK_X, TIMEING_STATUS_Y);
         if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
@@ -1164,8 +1164,12 @@ static void func_timeing_message(size_msg_t msg)
 {
     f_timeing_t *f_timeing = (f_timeing_t *)func_cb.f_cb;
 
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+
     if (f_timeing != NULL && f_timeing->screen_locked) {
-        if (msg != TIMEING_MSG_POWER && msg != TIMEING_MSG_OK && msg != KU_LEFT) {
+        if (msg != TIMEING_MSG_POWER && msg != TIMEING_MSG_OK) {
             return;
         }
     }
@@ -1176,10 +1180,6 @@ static void func_timeing_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        if (f_timeing != NULL) {
-            f_timeing->screen_locked = !f_timeing->screen_locked;
-            func_timeing_lock_icon_apply(f_timeing);
-        }
         break;
 
     case KU_MODE:

@@ -15,6 +15,7 @@ typedef enum {
 void func_reservation_poll(void);
 reservation_phase_t func_reservation_get_phase(void);
 bool func_reservation_is_waiting(void);
+bool func_reservation_is_active(void);
 void func_reservation_marquee_text(char *buf, u16 buf_len);
 void func_reservation_force_heating_enter(void);
 

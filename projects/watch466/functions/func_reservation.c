@@ -13,6 +13,9 @@
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #endif
+#if USER_PANEL_LED
+#include "port_panel_led.h"
+#endif
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -467,6 +470,19 @@ bool func_reservation_is_waiting(void)
     return g_res.setup_done && (g_res.phase == RES_PHASE_WAITING);
 }
 
+bool func_reservation_is_active(void)
+{
+    return g_res.setup_done &&
+           (g_res.phase == RES_PHASE_WAITING || g_res.phase == RES_PHASE_HEATING);
+}
+
+#if USER_PANEL_LED
+static void func_reservation_led_sync(void)
+{
+    panel_led_set_res_latched(func_reservation_is_active());
+}
+#endif
+
 static u16 func_res_get_target_temp_f(u8 temp_idx)
 {
     if (temp_idx >= RES_TEMP_PRESET_CNT) {
@@ -534,7 +550,7 @@ static void func_res_info_text_update(f_reservation_t *f_res)
     compo_textbox_set_visible(f_res->txt_info, true);
 }
 
-static void func_res_lock_icon_apply(f_reservation_t *f_res);
+void func_res_lock_icon_apply(f_reservation_t *f_res);
 
 static void func_res_status_icons_apply(f_reservation_t *f_res)
 {
@@ -564,13 +580,13 @@ static void func_res_status_icons_apply(f_reservation_t *f_res)
     func_res_lock_icon_apply(f_res);
 }
 
-static void func_res_lock_icon_apply(f_reservation_t *f_res)
+void func_res_lock_icon_apply(f_reservation_t *f_res)
 {
     if (f_res == NULL || f_res->pic_lock == NULL) {
         return;
     }
 
-    if (f_res->screen_locked) {
+    if (func_key_lock_show_status_icon(f_res->screen_locked)) {
         compo_picturebox_set_pos(f_res->pic_lock, RES_STATUS_LOCK_X, RES_STATUS_Y);
 #if ELUNCHBOX_PANEL_EN
         home_ui_shared_status_init();
@@ -1169,6 +1185,10 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
     g_res.temp_idx = f_res->temp_idx;
     g_res.appt_triggered_today = false;
 
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+
 #if FUNC_LUNCHBOX_UART_EN
     {
         u32 now = RTCCNT + LB_RTC_UNIX_OFFSET;  // RTCCNT 从2020起算, +offset 转Unix时间戳
@@ -1573,6 +1593,10 @@ void func_reservation_poll(void)
 {
     tm_t tm;
 
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.sta == FUNC_HOME) {
         return;
@@ -1590,6 +1614,9 @@ void func_reservation_poll(void)
 
     if (tm.hour == g_res.appt_hour && tm.min == g_res.appt_min) {
         g_res.phase = RES_PHASE_HEATING;
+#if USER_PANEL_LED
+        func_reservation_led_sync();
+#endif
 #if FUNC_RESERVATION_UI_EN
 #if ELUNCHBOX_PANEL_EN
         /* 到点仅在已在预约页时开加热，不从其它页强跳预约 UI */
@@ -1746,8 +1773,12 @@ static void func_reservation_message(size_msg_t msg)
         return;
     }
 
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+
     if (f_res != NULL && f_res->screen_locked) {
-        if (msg != RES_MSG_POWER && msg != KU_LEFT) {
+        if (msg != RES_MSG_POWER) {
             return;
         }
     }
@@ -1774,10 +1805,6 @@ static void func_reservation_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        if (f_res != NULL) {
-            f_res->screen_locked = !f_res->screen_locked;
-            func_res_lock_icon_apply(f_res);
-        }
         break;
 
 #if ELUNCHBOX_PANEL_EN
