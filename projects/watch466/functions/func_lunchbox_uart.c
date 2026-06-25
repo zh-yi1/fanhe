@@ -338,6 +338,14 @@ static u8 lb_attr_write(u8 *data, u16 len)
         case LB_DPID_HEAT_TEMP:     if (val_len >= 1) lb_attr_heat_temp     = val[0]; break;
         case LB_DPID_LANGUAGE:      if (val_len >= 1) lb_attr_language      = val[0]; break;
         case LB_DPID_HEAT_ENABLE:   if (val_len >= 1) lb_attr_heat_enable   = val[0]; break;  // v1.0.5 新增
+        case LB_DPID_TIME_SYNC:                                                         // v1.0.5: APP 同步时间戳
+            if (val_len >= 4) {
+                u32 unix_ts = ((u32)val[0]<<24)|((u32)val[1]<<16)|((u32)val[2]<<8)|val[3];
+                if (unix_ts >= LB_RTC_UNIX_OFFSET) {
+                    RTCCNT = unix_ts - LB_RTC_UNIX_OFFSET;
+                }
+            }
+            break;
         default: break; // 只读属性 (3,4,6,9) 不允许 APP 写入
         }
         off += 4 + val_len;
@@ -485,6 +493,31 @@ void lunchbox_heat_stop(void)
     lb_attr_heat_mode   = 0;  // 关闭
     lunchbox_report_all_attrs();
 #endif
+}
+
+/**
+ * @brief LCD 按键通知 — 构造 UART 0x01 DataPoint(dpid=12) 帧发往加热模块
+ *
+ * MCU协议 §4 属性列表 ID=12: 模组按键通知, enum, 0-9
+ * 屏幕侧按键按下时调用，通知加热模块当前是哪个按键被按下。
+ *
+ * 帧示例 (key_val=1):
+ *   55 aa 00 00 01 00 00 05 0c 04 00 01 01 17
+ *
+ * @param key_val  按键值: 0-9
+ */
+void lunchbox_key_notify(u8 key_val)
+{
+    u8 data[8];
+    u8 *p = data;
+
+    // DataPoint: dpid=12(模组按键通知), type=enum(0x04), len=1, value=key_val
+    p += lb_dp_encode_enum(p, LB_DPID_KEY_NOTIFY, key_val);
+
+    u16 data_len = (u16)(p - data);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
+
+    printf("LCD: key_notify val=%d\n", key_val);
 }
 
 /**
@@ -1480,6 +1513,25 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 
     // 所有其他命令(含 0x09/0x0a) → 翻译为 UART 协议 → 通过串口发给加热模块
     {
+        // 提取 APP 下发的 dpid=11(时间戳) 同步本地 RTC，避免 MCU 时间偏差
+        if (frame.data && frame.data_len > 0) {
+            u16 off = 0;
+            while (off + 4 <= frame.data_len) {
+                u8  dpid    = frame.data[off];
+                u16 val_len = ((u16)frame.data[off + 2] << 8) | frame.data[off + 3];
+                if (off + 4 + val_len > frame.data_len) break;
+                u8 *val = frame.data + off + 4;
+                if (dpid == LB_DPID_TIME_SYNC && val_len >= 4) {
+                    u32 unix_ts = ((u32)val[0]<<24)|((u32)val[1]<<16)|((u32)val[2]<<8)|val[3];
+                    if (unix_ts >= LB_RTC_UNIX_OFFSET) {
+                        RTCCNT = unix_ts - LB_RTC_UNIX_OFFSET;
+                        printf("BLE: time sync, unix=%u, RTCCNT=%u\n", unix_ts, RTCCNT);
+                    }
+                }
+                off += 4 + val_len;
+            }
+        }
+
         u8 uart_buf[LB_TXBUF_SIZE];
         u16 uart_len = 0;
         if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {

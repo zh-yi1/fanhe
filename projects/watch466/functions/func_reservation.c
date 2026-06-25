@@ -3,6 +3,7 @@
 #include "func_lunchbox_uart.h"
 #include "func_reservation.h"
 #include "heat_display_reg.h"
+#include "ui_layout_anchor.h"
 #include "home_icon_res.h"
 #include "home_top_time.h"
 #include "home_ui_ram.h"
@@ -956,13 +957,15 @@ static void func_res_display_on_info(const heat_display_info_t *info)
                     || f_res->live_remain_min != info->remain_min
                     || f_res->live_temp_f != info->temp_f);
 
-    f_res->live_schedule_min = info->schedule_min;
-    f_res->live_remain_min = info->remain_min;
-    f_res->live_temp_f = info->temp_f;
-    if (schedule_changed) {
+    /* schedule_min > 0 才视为有效的预约数据（heat_display_show 不填充此字段，
+     * 仅 heat_display_show_schedule / show_all 显式推送时才生效） */
+    if (schedule_changed && info->schedule_min > 0) {
+        f_res->live_schedule_min = info->schedule_min;
         f_res->live_schedule_ready = true;
         f_res->last_info_sec = 0xffff;
     }
+    f_res->live_remain_min = info->remain_min;
+    f_res->live_temp_f = info->temp_f;
     if (heat_changed) {
         f_res->live_heat_ready = true;
         f_res->last_heat_timer_key = 0xffff;
@@ -1062,7 +1065,7 @@ static void func_reservation_heat_display_on_info(const heat_display_info_t *inf
         f_res->display_temp_f = func_res_get_target_temp_f(f_res->temp_idx);
         f_res->screen_locked = false;
         g_res.phase = RES_PHASE_FINISHED;
-        heat_display_unregister();
+        /* 不在此处 unregister：由 func_reservation_exit 统一注销 */
     }
 
     if (f_res->ui != RES_UI_FINISHED) {
@@ -1091,8 +1094,7 @@ static void func_res_start_heating(f_reservation_t *f_res)
     f_res->last_temp_f = 0xffff;
     g_res.phase = RES_PHASE_HEATING;
 
-    /* 注册加热显示回调：接收 UART/BLE 推送的实时剩余时间+温度 */
-    heat_display_register(func_reservation_heat_display_on_info);
+    /* 统一回调 func_res_display_on_info 已在 enter 注册，覆盖 HEAT_SETUP + HEATING 双状态 */
 
 #if FUNC_LUNCHBOX_UART_EN
     {
@@ -1579,6 +1581,26 @@ void func_reservation_poll(void)
     }
     g_res.last_poll_min = tm.min;
 
+    /* 推送本地预约倒计时到 LCD 回调（LCD 开发方提供 show_schedule / show / show_all 三个接口） */
+    {
+        u32 now_sec = (u32)tm.hour * 3600 + (u32)tm.min * 60 + (u32)tm.sec;
+        u32 appt_sec = (u32)g_res.appt_hour * 3600 + (u32)g_res.appt_min * 60;
+        u32 remain;
+
+        if (appt_sec <= now_sec) {
+            appt_sec += 24 * 3600;
+        }
+        remain = (appt_sec - now_sec) / 60;
+        if (remain > 0) {
+            heat_display_info_t last;
+            if (heat_display_get_last(&last)) {
+                heat_display_show_all(remain, last.remain_min, last.temp_f);
+            } else {
+                heat_display_show_schedule(remain);
+            }
+        }
+    }
+
     if (tm.hour == g_res.appt_hour && tm.min == g_res.appt_min) {
         g_res.phase = RES_PHASE_HEATING;
 #if FUNC_RESERVATION_UI_EN
@@ -1853,9 +1875,7 @@ void func_reservation_enter(void)
             f_res->last_heat_timer_key = 0xffff;
             f_res->last_temp_f = 0xffff;
             g_res.phase = RES_PHASE_HEATING;
-            /* 重新进入加热中页面时，注册显示回调接收实时推送 */
-            heat_display_register(func_reservation_heat_display_on_info);
-            /* 不要在这里 display_refresh；两阶段末尾会根据当前 ui 调一次 */
+            /* 统一回调 func_res_display_on_info 已在末尾注册，覆盖所有 UI 状态（含 HEATING） */
         } else {
             f_res->display_temp_f = func_res_get_target_temp_f(f_res->temp_idx);
         }
@@ -1899,7 +1919,6 @@ void func_reservation_enter(void)
 
 void func_reservation_exit(void)
 {
-    heat_display_unregister();
     f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
     u8 i;
 

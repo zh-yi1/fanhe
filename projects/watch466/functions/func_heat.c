@@ -697,6 +697,7 @@ static void func_heat_power_key(f_heat_t *f_heat)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();
 #endif
+        f_heat->ui_state = HEAT_UI_FINISHED;  /* 阻止 func_heat_exit 重复发送停止指令 */
         f_heat->screen_locked = false;
         func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;

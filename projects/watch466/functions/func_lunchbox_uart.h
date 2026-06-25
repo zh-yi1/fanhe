@@ -50,6 +50,7 @@ enum {
     LB_DPID_FAULT           = 9,        // 故障: enum, 0=正常 1=高温告警
     LB_DPID_HEAT_ENABLE     = 10,       // 是否加热: bool, 0=停止 1=加热 (v1.0.5 新增)
     LB_DPID_TIME_SYNC       = 11,       // app同步时间戳: value(4B) unix时间 (仅MCU UART协议)
+    LB_DPID_KEY_NOTIFY      = 12,       // 模组按键通知: enum, 0-9, MCU→加热模块通知按键按下
 };
 
 // DataPoint 数据类型
@@ -327,6 +328,10 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration);
 
 /** @brief LCD 停止加热 — 构造 UART 0x03 帧发给加热模块 (action=0 删除) */
 void lunchbox_heat_stop(void);
+
+/** @brief LCD 按键通知 — 构造 UART 0x01 DataPoint(dpid=12) 帧发往加热模块
+ *  @param key_val  按键值: 0-9, 每个按键对应不同的值 */
+void lunchbox_key_notify(u8 key_val);
 
 /** @brief LCD 发送预约 — 构造 UART 0x03 帧发给加热模块
  *  @param action    0=删除, 1=自定义加热, 2=鸡腿模式
