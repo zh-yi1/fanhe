@@ -1,6 +1,7 @@
 ﻿#include "include.h"
 #include "func.h"
 #include "func_lunchbox_uart.h"
+#include "heat_display_reg.h"
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
@@ -270,6 +271,9 @@ typedef struct f_mode_t_ {
     bool screen_locked;
     u32 heat_start_tick;
     u32 heat_total_sec;
+    u32 heat_live_remain_min;   /* 加热中：串口回调推送的剩余分钟 */
+    u16 heat_live_temp_f;       /* 加热中：串口回调推送的实时温度 °F */
+    bool heat_live_ready;       /* 是否已收到至少一次回调 */
     u8 last_top_min;
     u8 last_top_sec;
     u16 last_timer_key;
@@ -434,6 +438,31 @@ static void func_mode_lock_icon_apply(f_mode_t *f_mode);
 static void func_mode_lock_check(f_mode_t *f_mode);
 static void func_mode_heating_finish_check(f_mode_t *f_mode);
 static bool func_mode_key_allowed(f_mode_t *f_mode, size_msg_t msg);
+
+static void func_mode_display_on_info(const heat_display_info_t *info)
+{
+    f_mode_t *f_mode = (f_mode_t *)func_cb.f_cb;
+
+    if (info == NULL || f_mode == NULL || func_cb.sta != FUNC_MODE) {
+        return;
+    }
+    if (f_mode->ui_state != MODE_UI_HEATING) {
+        return;
+    }
+
+    f_mode->heat_live_remain_min = info->remain_min;
+    f_mode->heat_live_temp_f = info->temp_f;
+    f_mode->heat_live_ready = true;
+    f_mode->last_timer_key = 0xffff;
+    f_mode->last_temp_f = 0xffff;
+
+    if (info->remain_min == 0) {
+        func_mode_heating_finish_check(f_mode);
+    }
+    if (f_mode->ui_state != MODE_UI_FINISHED) {
+        func_mode_display_refresh(f_mode);
+    }
+}
 
 static void func_mode_form_bind_core(f_mode_t *f_mode)
 {
@@ -620,15 +649,22 @@ static void func_mode_heating_finish_check(f_mode_t *f_mode)
     if (f_mode->ui_state != MODE_UI_HEATING) {
         return;
     }
-    if (mode_countdown_remain_sec == 0) {
-        mode_countdown_running = false;
-        f_mode->ui_state = MODE_UI_FINISHED;
-        f_mode->screen_locked = false;
-        func_mode_lock_icon_apply(f_mode);
 #if FUNC_LUNCHBOX_UART_EN
-        lunchbox_heat_stop();
-#endif
+    if (!f_mode->heat_live_ready || f_mode->heat_live_remain_min != 0) {
+        return;
     }
+#else
+    if (mode_countdown_remain_sec != 0) {
+        return;
+    }
+#endif
+    mode_countdown_running = false;
+    f_mode->ui_state = MODE_UI_FINISHED;
+    f_mode->screen_locked = false;
+    func_mode_lock_icon_apply(f_mode);
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_heat_stop();
+#endif
 }
 
 static void func_mode_status_refresh(f_mode_t *f_mode)
@@ -644,9 +680,11 @@ static void func_mode_status_refresh(f_mode_t *f_mode)
     }
 
     if (f_mode->ui_state == MODE_UI_HEATING && sec_changed) {
+#if !FUNC_LUNCHBOX_UART_EN
         func_mode_countdown_tick();
         func_mode_heating_finish_check(f_mode);
         func_mode_display_refresh(f_mode);
+#endif
     }
 
     func_mode_lock_check(f_mode);
@@ -806,9 +844,44 @@ static void func_mode_timer_update(f_mode_t *f_mode, u8 hour, u8 min)
 
 static void func_mode_display_refresh(f_mode_t *f_mode)
 {
-    u8 hour = (u8)(mode_countdown_remain_sec / 3600);
-    u8 min = (u8)((mode_countdown_remain_sec % 3600) / 60);
+    u8 hour;
+    u8 min;
+    u16 temp_f;
 
+    if (f_mode == NULL) {
+        return;
+    }
+
+    if (f_mode->ui_state == MODE_UI_HEATING) {
+#if FUNC_LUNCHBOX_UART_EN
+        if (f_mode->heat_live_ready) {
+            hour = (u8)(f_mode->heat_live_remain_min / 60);
+            min = (u8)(f_mode->heat_live_remain_min % 60);
+            temp_f = f_mode->heat_live_temp_f;
+        } else {
+            const mode_tab_preset_t *preset = &tbl_mode_tab_preset[f_mode->tab];
+
+            hour = preset->hour;
+            min = preset->min;
+            temp_f = preset->temp_f;
+        }
+#else
+        hour = (u8)(mode_countdown_remain_sec / 3600);
+        min = (u8)((mode_countdown_remain_sec % 3600) / 60);
+        temp_f = tbl_mode_tab_preset[f_mode->tab].temp_f;
+#endif
+        if (hour > 99) {
+            hour = 99;
+        }
+        func_mode_timer_update(f_mode, hour, min);
+#if FUNC_LUNCHBOX_UART_EN
+        func_mode_status_temp_update(f_mode, temp_f);
+#endif
+        return;
+    }
+
+    hour = (u8)(mode_countdown_remain_sec / 3600);
+    min = (u8)((mode_countdown_remain_sec % 3600) / 60);
     if (hour > 99) {
         hour = 99;
     }
@@ -886,8 +959,14 @@ static void func_mode_start_heating(f_mode_t *f_mode)
         f_mode->heat_total_sec = 60;
     }
     mode_countdown_remain_sec = f_mode->heat_total_sec;
+    f_mode->heat_live_ready = false;
+    f_mode->heat_live_remain_min = 0;
+    f_mode->heat_live_temp_f = 0;
     f_mode->last_timer_key = 0xffff;
+    f_mode->last_temp_f = 0xffff;
+#if !FUNC_LUNCHBOX_UART_EN
     func_mode_countdown_start();
+#endif
     func_mode_display_refresh(f_mode);
     func_mode_lock_icon_apply(f_mode);
 
@@ -1366,6 +1445,9 @@ void func_mode_enter(void)
     f_mode->screen_locked = false;
     f_mode->heat_start_tick = 0;
     f_mode->heat_total_sec = 0;
+    f_mode->heat_live_remain_min = 0;
+    f_mode->heat_live_temp_f = 0;
+    f_mode->heat_live_ready = false;
     f_mode->last_top_min = 0xff;
     f_mode->last_top_sec = 0xff;
     f_mode->last_timer_key = 0xffff;
@@ -1401,10 +1483,12 @@ void func_mode_enter(void)
     func_mode_tab_refresh(f_mode);
     func_mode_status_refresh(f_mode);
 #endif
+    heat_display_register(func_mode_display_on_info);
 }
 
 void func_mode_exit(void)
 {
+    heat_display_unregister();
     func_mode_countdown_stop();
     func_mode_tab_label_ram_free();
     func_cb.last = FUNC_MODE;

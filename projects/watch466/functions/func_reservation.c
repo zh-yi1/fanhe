@@ -2,6 +2,7 @@
 #include "func.h"
 #include "func_lunchbox_uart.h"
 #include "func_reservation.h"
+#include "heat_display_reg.h"
 #include "home_icon_res.h"
 #include "home_top_time.h"
 #include "home_ui_ram.h"
@@ -223,6 +224,11 @@ typedef struct f_reservation_t_ {
     u16 display_temp_f;
     u32 heat_total_sec;
     u32 heat_remain_sec;
+    u32 live_schedule_min;      /* 串口回调：预约剩余分钟 */
+    u32 live_remain_min;        /* 串口回调：加热剩余分钟 */
+    u16 live_temp_f;            /* 串口回调：实时温度 °F */
+    bool live_schedule_ready;
+    bool live_heat_ready;
     u32 heat_start_tick;
     bool screen_locked;
     bool heating_paused;
@@ -507,6 +513,20 @@ static void func_res_info_text_update(f_reservation_t *f_res)
         compo_textbox_set_visible(f_res->txt_info, false);
         return;
     }
+
+#if FUNC_LUNCHBOX_UART_EN
+    if (f_res->live_schedule_ready) {
+        u32 hours = f_res->live_schedule_min / 60;
+
+        if (hours > 99) {
+            hours = 99;
+        }
+        snprintf(buf, sizeof(buf), "Start in %02u H", (unsigned)hours);
+        compo_textbox_set(f_res->txt_info, buf);
+        compo_textbox_set_visible(f_res->txt_info, true);
+        return;
+    }
+#endif
 
     func_reservation_marquee_text(buf, sizeof(buf));
     compo_textbox_set(f_res->txt_info, buf);
@@ -917,6 +937,47 @@ static void func_res_temp_update(f_reservation_t *f_res, u16 temp_f, bool white)
     func_res_temp_layout(f_res, digits, white);
 }
 
+static void func_res_display_refresh(f_reservation_t *f_res);
+static void func_res_heating_finish_check(f_reservation_t *f_res);
+
+static void func_res_display_on_info(const heat_display_info_t *info)
+{
+    f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
+    bool schedule_changed;
+    bool heat_changed;
+
+    if (info == NULL || f_res == NULL || func_cb.sta != FUNC_RESERVATION) {
+        return;
+    }
+
+    schedule_changed = (!f_res->live_schedule_ready
+                        || f_res->live_schedule_min != info->schedule_min);
+    heat_changed = (!f_res->live_heat_ready
+                    || f_res->live_remain_min != info->remain_min
+                    || f_res->live_temp_f != info->temp_f);
+
+    f_res->live_schedule_min = info->schedule_min;
+    f_res->live_remain_min = info->remain_min;
+    f_res->live_temp_f = info->temp_f;
+    if (schedule_changed) {
+        f_res->live_schedule_ready = true;
+        f_res->last_info_sec = 0xffff;
+    }
+    if (heat_changed) {
+        f_res->live_heat_ready = true;
+        f_res->last_heat_timer_key = 0xffff;
+        f_res->last_temp_f = 0xffff;
+    }
+
+    if (f_res->ui == RES_UI_HEATING && f_res->live_heat_ready && info->remain_min == 0) {
+        func_res_heating_finish_check(f_res);
+    }
+
+    if (f_res->ui == RES_UI_HEAT_SETUP || f_res->ui == RES_UI_HEATING) {
+        func_res_display_refresh(f_res);
+    }
+}
+
 static void func_res_display_refresh(f_reservation_t *f_res)
 {
     u8 hour;
@@ -948,9 +1009,21 @@ static void func_res_display_refresh(f_reservation_t *f_res)
         m_white = (f_res->focus == RES_FOCUS_HEAT_MIN);
         t_white = (f_res->focus == RES_FOCUS_HEAT_TEMP);
     } else {
+#if FUNC_LUNCHBOX_UART_EN
+        if (f_res->live_heat_ready) {
+            hour = (u8)(f_res->live_remain_min / 60);
+            min = (u8)(f_res->live_remain_min % 60);
+            temp = f_res->live_temp_f;
+        } else {
+            hour = (u8)(f_res->heat_remain_sec / 3600);
+            min = (u8)((f_res->heat_remain_sec % 3600) / 60);
+            temp = f_res->display_temp_f;
+        }
+#else
         hour = (u8)(f_res->heat_remain_sec / 3600);
         min = (u8)((f_res->heat_remain_sec % 3600) / 60);
         temp = f_res->display_temp_f;
+#endif
         h_white = true;
         m_white = true;
         t_white = true;
@@ -977,6 +1050,11 @@ static void func_res_start_heating(f_reservation_t *f_res)
         f_res->heat_total_sec = 60;
     }
     f_res->heat_remain_sec = f_res->heat_total_sec;
+    f_res->live_schedule_ready = false;
+    f_res->live_heat_ready = false;
+    f_res->live_schedule_min = 0;
+    f_res->live_remain_min = 0;
+    f_res->live_temp_f = 0;
     f_res->display_temp_f = 0;
     f_res->last_heat_timer_key = 0xffff;
     f_res->last_temp_f = 0xffff;
@@ -1331,8 +1409,42 @@ static void func_res_value_dec(f_reservation_t *f_res)
     func_res_display_refresh(f_res);
 }
 
+static void func_res_heating_finish_check(f_reservation_t *f_res)
+{
+    u16 target;
+
+    if (f_res == NULL || f_res->ui != RES_UI_HEATING) {
+        return;
+    }
+#if FUNC_LUNCHBOX_UART_EN
+    if (!f_res->live_heat_ready || f_res->live_remain_min != 0) {
+        return;
+    }
+#else
+    if (f_res->heat_remain_sec != 0) {
+        return;
+    }
+#endif
+
+    target = func_res_get_target_temp_f(f_res->temp_idx);
+    f_res->ui = RES_UI_FINISHED;
+    f_res->display_temp_f = target;
+    f_res->screen_locked = false;
+    g_res.phase = RES_PHASE_FINISHED;
+    f_res->last_heat_timer_key = 0xffff;
+    f_res->last_temp_f = 0xffff;
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_heat_stop();
+#endif
+    func_res_display_refresh(f_res);
+}
+
 static void func_res_heating_tick(f_reservation_t *f_res)
 {
+#if FUNC_LUNCHBOX_UART_EN
+    (void)f_res;
+    return;
+#else
     u16 target;
 
     if (f_res->ui != RES_UI_HEATING || f_res->heating_paused) {
@@ -1353,18 +1465,12 @@ static void func_res_heating_tick(f_reservation_t *f_res)
     }
 
     if (f_res->heat_remain_sec == 0) {
-        f_res->ui = RES_UI_FINISHED;
-        f_res->display_temp_f = target;
-        f_res->screen_locked = false;
-        g_res.phase = RES_PHASE_FINISHED;
-        f_res->last_heat_timer_key = 0xffff;
-        f_res->last_temp_f = 0xffff;
-#if FUNC_LUNCHBOX_UART_EN
-        lunchbox_heat_stop();
-#endif
+        func_res_heating_finish_check(f_res);
+        return;
     }
 
     func_res_display_refresh(f_res);
+#endif
 }
 
 static void func_res_lock_check(f_reservation_t *f_res)
@@ -1395,6 +1501,14 @@ static void func_res_status_refresh(f_reservation_t *f_res)
     }
 
     if (sec_changed && (f_res->ui == RES_UI_HEAT_SETUP)) {
+#if FUNC_LUNCHBOX_UART_EN
+        if (f_res->live_schedule_ready) {
+            if (f_res->last_info_sec != (u16)f_res->live_schedule_min) {
+                f_res->last_info_sec = (u16)f_res->live_schedule_min;
+                func_res_info_text_update(f_res);
+            }
+        } else
+#endif
         if (f_res->last_info_sec != (u16)(func_res_seconds_until_appt() / 60)) {
             f_res->last_info_sec = (u16)(func_res_seconds_until_appt() / 60);
             func_res_info_text_update(f_res);
@@ -1670,6 +1784,11 @@ void func_reservation_enter(void)
     f_res->last_heat_timer_key = 0xffff;
     f_res->last_temp_f = 0xffff;
     f_res->last_info_sec = 0xffff;
+    f_res->live_schedule_min = 0;
+    f_res->live_remain_min = 0;
+    f_res->live_temp_f = 0;
+    f_res->live_schedule_ready = false;
+    f_res->live_heat_ready = false;
 
     if (g_res.phase == RES_PHASE_HEATING || g_res.phase == RES_PHASE_FINISHED) {
         f_res->ui = (g_res.phase == RES_PHASE_FINISHED) ? RES_UI_FINISHED : RES_UI_HEATING;
@@ -1731,10 +1850,12 @@ void func_reservation_enter(void)
     func_res_status_icons_apply(f_res);
     func_res_display_refresh(f_res);
 #endif
+    heat_display_register(func_res_display_on_info);
 }
 
 void func_reservation_exit(void)
 {
+    heat_display_unregister();
     f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
     u8 i;
 
