@@ -9,7 +9,7 @@
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
-#include "heat_display_reg.h"
+#include "ui_layout_anchor.h"
 
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"

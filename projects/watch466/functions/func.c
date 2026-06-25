@@ -157,6 +157,10 @@ void func_process(void)
             pt8028_key_scan();
         }
 #endif
+#if USER_PANEL_LED && USER_PT8028_KEY
+        /* 按下对应 TCH 点亮 LED，松开全灭（原理图 LED1~6 -> PB0/PB1/PB2/PB5/PB6/PB7） */
+        panel_led_scan();
+#endif
         if (func_cb.frm_main != NULL) {
             compo_update();
             if (gui_do_refresh) {
@@ -1270,9 +1274,6 @@ void func_run(void)
 #endif
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
-#if ELUNCHBOX_PANEL_EN && USER_PANEL_LED
-    panel_led_set(PANEL_LED_ID_SWITCH, true);   /* 进 func_run 点亮 LED1，便于无屏时确认固件已跑 */
-#endif
     // func.c
     
     for (;;) {

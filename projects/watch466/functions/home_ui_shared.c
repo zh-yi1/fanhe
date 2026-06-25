@@ -12,11 +12,21 @@ u8 home_ui_shared_top_time_digit_ram[HOME_TOP_TIME_DIGIT_SLOTS][HOME_TOP_TIME_DI
 u8 home_ui_shared_top_time_colon_ram[HOME_TOP_TIME_COLONM_RAM_SIZE];
 u8 home_ui_shared_top_time_ampm_ram[HOME_TOP_TIME_AMPM_RAM_MAX_SIZE];
 bool home_ui_shared_status_inited;
+bool home_ui_shared_status_lock_preloaded;
 bool home_ui_shared_dash_inited;
 
 /* Heat/Mode 中部倒计时 wbx + w0x 共享缓冲（BSS，不增加总量） */
 u8 home_ui_shared_timer_colon_ram[HEAT_WBX_RAM_SIZE];
 u8 home_ui_shared_timer_digit_ram[4][HEAT_B_DIGIT_RAM_MAX_SIZE];
+
+void home_ui_shared_status_lock_preload(void)
+{
+    if (home_ui_shared_status_lock_preloaded) {
+        return;
+    }
+    os_spiflash_read(home_ui_shared_status_lock_ram, UI_BUF_HOME_LOCK_BIN, UI_LEN_HOME_LOCK_BIN);
+    home_ui_shared_status_lock_preloaded = true;
+}
 
 void home_ui_shared_status_init(void)
 {
@@ -24,7 +34,10 @@ void home_ui_shared_status_init(void)
         return;
     }
     os_spiflash_read(home_ui_shared_status_bt_ram, UI_BUF_HOME_BLUETOOTH_BIN, UI_LEN_HOME_BLUETOOTH_BIN);
-    os_spiflash_read(home_ui_shared_status_lock_ram, UI_BUF_HOME_LOCK_BIN, UI_LEN_HOME_LOCK_BIN);
+    if (!home_ui_shared_status_lock_preloaded) {
+        os_spiflash_read(home_ui_shared_status_lock_ram, UI_BUF_HOME_LOCK_BIN, UI_LEN_HOME_LOCK_BIN);
+    }
+    home_ui_shared_status_lock_preloaded = true;
     os_spiflash_read(home_ui_shared_status_bat_ram, UI_BUF_HOME_BATTERY_LEVEL_BIN, UI_LEN_HOME_BATTERY_LEVEL_BIN);
     home_ui_shared_status_inited = true;
 }

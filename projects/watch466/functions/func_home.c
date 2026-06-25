@@ -528,19 +528,29 @@ static void func_home_status_icons_apply(f_home_t *f_home)
     func_home_lock_icon_apply(f_home);
 }
 
+static void func_home_lock_icon_prepare(f_home_t *f_home)
+{
+    if (f_home == NULL || f_home->pic_lock == NULL) {
+        return;
+    }
+    home_ui_shared_status_lock_preload();
+    if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+        compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
+        compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
+        compo_picturebox_set_visible(f_home->pic_lock, false);
+    }
+}
+
 static void func_home_lock_icon_apply(f_home_t *f_home)
 {
     if (f_home == NULL || f_home->pic_lock == NULL) {
         return;
     }
     if (f_home->screen_locked) {
-        home_ui_shared_status_init();
-        compo_picturebox_set_pos(f_home->pic_lock, HOME_STATUS_LOCK_X, HOME_STATUS_Y);
-        if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
-            compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
-            compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
-            compo_picturebox_set_visible(f_home->pic_lock, true);
+        if (!gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
+            func_home_lock_icon_prepare(f_home);
         }
+        compo_picturebox_set_visible(f_home->pic_lock, true);
     } else {
         compo_picturebox_set_visible(f_home->pic_lock, false);
     }
@@ -1270,7 +1280,7 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
         f_home->screen_locked = !f_home->screen_locked;
         func_home_lock_icon_apply(f_home);
 #if ELUNCHBOX_PANEL_EN
-        func_home_draw_now();
+        os_gui_draw_force();
 #endif
         break;
 
@@ -1316,6 +1326,9 @@ void func_home_process(void)
     pt8028_gpio_ensure_periodic();
     pt8028_key_scan();
     func_home_pt8028_keys_process(f_home);
+#if USER_PANEL_LED
+    panel_led_scan();
+#endif
     /* 确认/TCH1 等可能在上面 func_switch_to 并已销毁 frm_main；不可再 draw */
     if (func_cb.sta != FUNC_HOME) {
         return;
@@ -1417,6 +1430,7 @@ void func_home_message(size_msg_t msg)
 #if ELUNCHBOX_PANEL_EN
         f_home->screen_locked = !f_home->screen_locked;
         func_home_lock_icon_apply(f_home);
+        os_gui_draw_force();
         break;
 #else
         HOME_DBG("Home: 锁键\n");
@@ -1500,6 +1514,11 @@ void func_home_enter(void)
     func_home_tab_bind(f_home, HOME_TAB_MODE, COMPO_ID_TAB1_SEL_BG);
     func_home_tab_bind(f_home, HOME_TAB_SETUP, COMPO_ID_TAB2_SEL_BG);
     func_home_bind_objects(f_home);
+
+#if ELUNCHBOX_PANEL_EN
+    /* 尽早预载 lock.bin 并绑定 pic_lock，避免冷启动分帧期间首按锁键读 Flash */
+    func_home_lock_icon_prepare(f_home);
+#endif
 
     if (!home_countdown_inited) {
         func_home_countdown_set(0, 0);
