@@ -25,6 +25,7 @@
  *   图一（预约时长）：时钟右上角锚点 83/141/172/225/283,90（0..9.bin + colon.bin）
  *   图二（加热/温度）：时钟 83/141/172/225/283,60；温度 89/139/185/247,158
  * PT8028：TCH4 确认 | TCH5 开关/返回 | TCH2/TCH6 减/加 | TCH0 锁键解锁童锁
+ * 图一：加减键仅调预约小时；确认键直接进入图二（加热/温度设置）
  */
 #define UI_RES_PLACEHOLDER                UI_BUF_ICON_ACTIVITY_BIN
 
@@ -1206,15 +1207,11 @@ static void func_res_ok_key(f_reservation_t *f_res)
 
     switch (f_res->ui) {
     case RES_UI_APPT_TIME:
-        if (f_res->focus == RES_FOCUS_APPT_HOUR) {
-            f_res->focus = RES_FOCUS_APPT_MIN;
-        } else {
-            f_res->ui = RES_UI_HEAT_SETUP;
-            f_res->focus = RES_FOCUS_HEAT_HOUR;
-            f_res->last_appt_key = 0xffff;
-            f_res->last_heat_timer_key = 0xffff;
-            f_res->last_temp_f = 0xffff;
-        }
+        f_res->ui = RES_UI_HEAT_SETUP;
+        f_res->focus = RES_FOCUS_HEAT_HOUR;
+        f_res->last_appt_key = 0xffff;
+        f_res->last_heat_timer_key = 0xffff;
+        f_res->last_temp_f = 0xffff;
         break;
 
     case RES_UI_HEAT_SETUP:
@@ -1283,10 +1280,7 @@ static void func_res_power_key(f_reservation_t *f_res)
 
     switch (f_res->ui) {
     case RES_UI_APPT_TIME:
-        if (f_res->focus == RES_FOCUS_APPT_MIN) {
-            f_res->focus = RES_FOCUS_APPT_HOUR;
-            f_res->last_appt_key = 0xffff;
-        } else if (func_res_switch_home()) {
+        if (func_res_switch_home()) {
             return;
         }
         break;
@@ -1295,7 +1289,7 @@ static void func_res_power_key(f_reservation_t *f_res)
         switch (f_res->focus) {
         case RES_FOCUS_HEAT_HOUR:
             f_res->ui = RES_UI_APPT_TIME;
-            f_res->focus = RES_FOCUS_APPT_MIN;
+            f_res->focus = RES_FOCUS_APPT_HOUR;
             f_res->last_appt_key = 0xffff;
             f_res->last_heat_timer_key = 0xffff;
             break;
@@ -1328,12 +1322,20 @@ static void func_res_value_inc(f_reservation_t *f_res)
         return;
     }
 
+    if (f_res->ui == RES_UI_APPT_TIME) {
+        if (f_res->appt_hour < 23) {
+            f_res->appt_hour++;
+        }
+        f_res->last_appt_key = 0xffff;
+        func_res_display_refresh(f_res);
+        return;
+    }
+
     switch (f_res->focus) {
     case RES_FOCUS_APPT_HOUR:
         if (f_res->appt_hour < 23) {
             f_res->appt_hour++;
         }
-        /* 最高23小时，超过不增加 */
         f_res->last_appt_key = 0xffff;
         break;
 
@@ -1345,7 +1347,7 @@ static void func_res_value_inc(f_reservation_t *f_res)
             if (f_res->appt_hour < 23) {
                 f_res->appt_hour++;
             } else {
-                f_res->appt_min = 59;  /* 最高23小时：到达23:59后继续加分钟保持在23:59 */
+                f_res->appt_min = 59;
             }
         }
         f_res->last_appt_key = 0xffff;
@@ -1390,12 +1392,20 @@ static void func_res_value_dec(f_reservation_t *f_res)
         return;
     }
 
+    if (f_res->ui == RES_UI_APPT_TIME) {
+        if (f_res->appt_hour > 1) {
+            f_res->appt_hour--;
+        }
+        f_res->last_appt_key = 0xffff;
+        func_res_display_refresh(f_res);
+        return;
+    }
+
     switch (f_res->focus) {
     case RES_FOCUS_APPT_HOUR:
         if (f_res->appt_hour > 1) {
             f_res->appt_hour--;
         }
-        /* 默认最低1小时，减到1后不再减少 */
         f_res->last_appt_key = 0xffff;
         break;
 
@@ -1406,7 +1416,6 @@ static void func_res_value_dec(f_reservation_t *f_res)
             f_res->appt_min = 59;
             f_res->appt_hour--;
         } else {
-            /* 最低1小时：到达 01:00 后，继续减分钟保持在 01:00 */
             f_res->appt_min = 0;
         }
         f_res->last_appt_key = 0xffff;
