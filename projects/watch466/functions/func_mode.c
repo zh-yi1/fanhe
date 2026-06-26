@@ -416,7 +416,7 @@ typedef struct {
 static const mode_tab_preset_t tbl_mode_tab_preset[MODE_TAB_CNT] = {
     {194, 1, 0},   /* Pasta       */
     {212, 1, 0},   /* Chicken     */
-    {120, 1, 0},   /* Insulation  */
+    {140, 1, 0},   /* Insulation  */
 };
 
 /* Tab → 协议模式值: Pasta=3(意面), Chicken=2(鸡腿), Insulation=5(保温) */
@@ -663,7 +663,7 @@ static void func_mode_heating_finish_check(f_mode_t *f_mode)
     f_mode->screen_locked = false;
     func_mode_lock_icon_apply(f_mode);
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_heat_stop();
+    lunchbox_keep_warm_start();
 #endif
 }
 

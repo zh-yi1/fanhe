@@ -206,6 +206,9 @@ void func_process(void)
 #if ELUNCHBOX_PANEL_EN
         func_key_lock_poll();
 #endif
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_keep_warm_poll();
+#endif
 #else
         compo_update();                                     //更新组件
 

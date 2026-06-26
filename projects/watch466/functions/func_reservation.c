@@ -1075,16 +1075,13 @@ static void func_reservation_heat_display_on_info(const heat_display_info_t *inf
 
     /* 加热完成检测 */
     if (info->remain_min == 0 && f_res->heat_remain_sec == 0) {
-        f_res->ui = RES_UI_FINISHED;
-        f_res->display_temp_f = func_res_get_target_temp_f(f_res->temp_idx);
-        f_res->screen_locked = false;
-        g_res.phase = RES_PHASE_FINISHED;
-        heat_display_unregister();
+        f_res->live_heat_ready = true;
+        f_res->live_remain_min = 0;
+        func_res_heating_finish_check(f_res);
+        return;
     }
 
-    if (f_res->ui != RES_UI_FINISHED) {
-        func_res_display_refresh(f_res);
-    }
+    func_res_display_refresh(f_res);
 }
 
 static void func_res_start_heating(f_reservation_t *f_res)
@@ -1497,7 +1494,7 @@ static void func_res_heating_finish_check(f_reservation_t *f_res)
     f_res->last_heat_timer_key = 0xffff;
     f_res->last_temp_f = 0xffff;
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_heat_stop();
+    lunchbox_keep_warm_start();
 #endif
     func_res_display_refresh(f_res);
 }
@@ -1536,7 +1533,7 @@ static void func_res_heating_tick(f_reservation_t *f_res)
         f_res->last_temp_f = 0xffff;
         heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
-        lunchbox_heat_stop();
+        lunchbox_keep_warm_start();
 #endif
     }
 

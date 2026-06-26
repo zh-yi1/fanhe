@@ -329,6 +329,18 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration);
 /** @brief LCD 停止加热 — 构造 UART 0x03 帧发给加热模块 (action=0 删除) */
 void lunchbox_heat_stop(void);
 
+/** @brief 加热自然结束后自动开启保温 (模式5, 140°F, 至低电关机) */
+void lunchbox_keep_warm_start(void);
+
+/** @brief 停止保温 */
+void lunchbox_keep_warm_stop(void);
+
+/** @brief 当前是否处于保温状态 */
+bool lunchbox_keep_warm_is_active(void);
+
+/** @brief 主循环轮询保温 (低电关机时停止) */
+void lunchbox_keep_warm_poll(void);
+
 /** @brief LCD 按键通知 — 构造 UART 0x01 DataPoint(dpid=12) 帧发往加热模块
  *  @param key_val  按键值: 0-9, 每个按键对应不同的值 */
 void lunchbox_key_notify(u8 key_val);

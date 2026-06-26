@@ -11,6 +11,7 @@
 #include "include.h"
 #include "func_lunchbox_uart.h"
 #include "heat_display_reg.h"
+#include "bsp_vbat.h"
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -369,8 +370,13 @@ static u8 lb_attr_write(u8 *data, u16 len)
 static u8 lb_pending_ble_cmd[256];
 
 // 模式信息（0x09 查询 / 0x0a 修改）：索引 1=自定义, 2=鸡腿, 3=意面, 4=预约, 5=保温
-static u8 lb_mode_temp[6]     = { 0, 3, 4, 5, 3, 0 };  // 默认: 自定义70°C, 鸡腿80°C, 意面90°C, 预约70°C, 保温40°C
+static u8 lb_mode_temp[6]     = { 0, 3, 4, 5, 3, 2 };  // 默认: 自定义70°C, 鸡腿80°C, 意面90°C, 预约70°C, 保温60°C(140°F)
 static u8 lb_mode_duration[6] = { 0, 30, 45, 20, 30, 0 }; // 默认: 自定义30min, 鸡腿45min, 意面20min, 预约30min, 保温0min
+
+#define LB_KEEP_WARM_MODE       5
+#define LB_KEEP_WARM_TEMP_F     140
+
+static bool lb_keep_warm_active = false;
 
 void lunchbox_set_device_info(lb_device_info_t *info) { if (info) memcpy(&lb_dev_info, info, sizeof(lb_device_info_t)); }
 
@@ -452,6 +458,7 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
  */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
+    lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
     u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
     u8 data[64];
     u8 *p = data;
@@ -486,6 +493,7 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
  */
 void lunchbox_heat_stop(void)
 {
+    lb_keep_warm_active = false;
     u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
     u8 data[32];
     u8 *p = data;
@@ -504,6 +512,41 @@ void lunchbox_heat_stop(void)
     lb_attr_heat_mode   = 0;  // 关闭
     lunchbox_report_all_attrs();
 #endif
+}
+
+/** @brief 加热自然结束后自动开启保温 (模式5, 140°F, 无时长限制) */
+void lunchbox_keep_warm_start(void)
+{
+    if (lb_keep_warm_active) {
+        return;
+    }
+    lunchbox_heat_start(LB_KEEP_WARM_MODE,
+                        lunchbox_temp_f_to_idx(LB_KEEP_WARM_TEMP_F), 0);
+}
+
+/** @brief 停止保温 (低电关机或用户/新加热打断) */
+void lunchbox_keep_warm_stop(void)
+{
+    if (!lb_keep_warm_active) {
+        return;
+    }
+    lunchbox_heat_stop();
+}
+
+bool lunchbox_keep_warm_is_active(void)
+{
+    return lb_keep_warm_active;
+}
+
+/** @brief 主循环轮询：低电关机时停止保温 */
+void lunchbox_keep_warm_poll(void)
+{
+    if (!lb_keep_warm_active) {
+        return;
+    }
+    if (bsp_vbat_get_lpwr_status() == 2) {
+        lunchbox_keep_warm_stop();
+    }
 }
 
 /**

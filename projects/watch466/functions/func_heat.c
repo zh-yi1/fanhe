@@ -486,7 +486,7 @@ static void func_heat_heating_finish_check(f_heat_t *f_heat)
     f_heat->screen_locked = false;
     func_heat_lock_icon_apply(f_heat);
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_heat_stop();
+    lunchbox_keep_warm_start();
 #endif
 }
 
