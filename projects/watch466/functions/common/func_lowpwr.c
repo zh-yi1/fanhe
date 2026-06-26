@@ -657,7 +657,11 @@ bool sleep_process(is_sleep_func is_sleep)
         }
     } else {
         if (sys_cb.guioff_delay == 0 && !sys_cb.gui_sleep_sta) {
+#if ELUNCHBOX_PANEL_EN
+            elunchbox_pwr_gui_off_activate();   //5 分钟无操作息屏
+#else
             gui_sleep(false);                //仅熄屏
+#endif
         }
         reset_sleep_delay();
         reset_pwroff_delay();

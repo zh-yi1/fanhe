@@ -265,7 +265,6 @@ void gui_init(void)
     sys_cb.sleep_en = 0;
     sys_cb.gui_sleep_sta = 0;
     sys_cb.sleep_delay = -1L;
-    sys_cb.guioff_delay = -1L;
 #else
     sys_cb.gui_sleep_sta = 0;
 #endif

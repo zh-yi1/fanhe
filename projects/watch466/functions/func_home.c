@@ -1380,9 +1380,14 @@ void func_home_process(void)
         if (func_home_gui_need_refresh()) {
             func_home_tab_labels_refresh_all(f_home);
         }
-        /* 冷启动：Tab 首帧绘制完成后再开背光，避免上电花屏 */
-        if (func_cb.last == 0 && f_home->display_stage == 2) {
-            tft_bglight_force_on();
+        /* 冷启动 UI 就绪后默认息屏，长按开关键 3s 亮屏 */
+        if (func_cb.last == 0 && f_home->display_stage == 0) {
+            static bool home_cold_gui_off_done;
+
+            if (!home_cold_gui_off_done) {
+                home_cold_gui_off_done = true;
+                elunchbox_pwr_gui_off_activate();
+            }
         }
         return;
     }

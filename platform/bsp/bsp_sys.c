@@ -649,8 +649,11 @@ static void bsp_var_init(void)
 #if ELUNCHBOX_KEEP_AWAKE
     sys_cb.sleep_en = 0;
     sys_cb.sleep_delay = -1L;
-    sys_cb.guioff_delay = -1L;
     sys_cb.pwroff_delay = -1L;
+#if ELUNCHBOX_PANEL_EN
+    sys_cb.sleep_time = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
+    sys_cb.guioff_delay = sys_cb.sleep_time;
+#endif
 #endif
 }
 
