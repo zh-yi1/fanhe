@@ -1,7 +1,7 @@
 /**
  * @file    func_lunchbox_uart.c
  * @brief   智能盒饭 - BLE+UART双协议实现 (大端, 同步/异步双模式)
- * @note    BLE侧: 蓝牙通讯协议1.0.5.md (APP ↔ MCU)
+ * @note    BLE侧: 蓝牙通讯协议1.0.6.md (APP ↔ MCU)
  *          UART侧: MCU通信协议.md v1.0.8 (MCU ↔ 加热模块)
  *          引脚: TX=PB8(UT1TXMAP_G2_PB8), RX=PB9(UT1RXMAP_G2_PB9)
  *          接收用 bsp_uart1_get_char() 轮询，不走 ISR 回调链
@@ -39,6 +39,29 @@ static u8  lb_tx_buf[LB_TXBUF_SIZE];     // 组帧发送缓冲区
 static lb_cmd_handler_t   cmd_handler[16];   // 命令字 → 回调，仅 0x01~0x0E 有效
 static lb_ble_tx_fn_t     lb_ble_tx_fn;      // BLE 发送回调（非 NULL 时走 BLE）
 static bool lb_uart_sync_pending = false;    // 是否有同步UART请求待应答(用于区分同步/异步0x01)
+
+//-----------------------------------------------------------------------------
+// OTA 升级状态机 (蓝牙通讯协议1.0.6.md §5)
+// 管理主单片机 (target=0x01) 的固件升级流程，对接 ota_pack_* 底层 FOTA 引擎
+//-----------------------------------------------------------------------------
+typedef enum {
+    LB_OTA_IDLE = 0,        // 空闲
+    LB_OTA_READY,           // 已收到启动命令(0x0c)，等待数据
+    LB_OTA_RECEIVING,       // 正在接收升级包数据(0x0d)
+} lb_ota_state_t;
+
+typedef struct {
+    lb_ota_state_t state;   // 当前状态
+    u32 fw_size;            // 固件总大小（字节，从 0x0c 获取）
+    u32 next_offset;        // 期望的下一个数据偏移量（用于连续性校验）
+    u32 recv_size;          // 已接收的数据总大小
+    u8  buf[512];           // 512 字节写入缓冲（ota_pack_write 要求 512 对齐）
+    u16 buf_pos;            // 缓冲区已使用字节数
+    u8  need_reset;         // 升级完成标志，主循环检测后延时复位
+} lb_ota_ctx_t;
+
+static lb_ota_ctx_t lb_ota_ctx;
+static u32 lb_ota_reset_tick = 0;           // 升级完成后延时复位的 tick
 
 //-----------------------------------------------------------------------------
 // 工具
@@ -739,6 +762,35 @@ static u8 lb_handler_product_info(lb_rx_frame_t *rx)
 
 // ─── 以下 handler/函数在桥模式和本地模式都需要 ───
 
+/**
+ * @brief 从 OTA 命令帧中提取目标设备标识 (v1.0.6)
+ *
+ * 各 OTA 命令 data 区首字节均为 target:
+ *   0x0b 升级查询: data[0] 或 无数据(查询全部)
+ *   0x0c 升级启动: data[0]=target, data[1..4]=fw_size
+ *   0x0d 升级包传输: data[0]=target, data[1..4]=offset, data[5..]=upgrade_data
+ *   0x0e 升级结束: data[0]=target
+ *
+ * @return LB_OTA_TARGET_MAIN_MCU(0x01) / LB_OTA_TARGET_HEAT_MODULE(0x02) / 0x00(查询全部/未知)
+ */
+static u8 lb_ota_get_target(lb_rx_frame_t *rx)
+{
+    if (!rx->data || rx->data_len == 0) return 0x00;  // 无数据 → 查询全部
+
+    switch (rx->cmd) {
+    case LB_CMD_OTA_QUERY:   // data_len=1: [target]
+        return rx->data[0];
+    case LB_CMD_OTA_START:   // data_len=5: [target][fw_size:4B]
+        return (rx->data_len >= 5) ? rx->data[0] : 0x00;
+    case LB_CMD_OTA_DATA:    // data_len≥5: [target][offset:4B][data]
+        return (rx->data_len >= 5) ? rx->data[0] : 0x00;
+    case LB_CMD_OTA_END:     // data_len=1: [target]
+        return rx->data[0];
+    default:
+        return 0x00;
+    }
+}
+
 void lunchbox_uart_reg_handler(u8 cmd, lb_cmd_handler_t h) { if (cmd < 16) cmd_handler[cmd] = h; }
 
 /**
@@ -801,7 +853,7 @@ static u8 lb_handler_mode_modify(lb_rx_frame_t *rx)
 /**
  * @brief 注册所有协议命令的业务处理器
  *
- * 蓝牙通讯协议1.0.5.md 命令字 → 处理函数映射:
+ * 蓝牙通讯协议1.0.6.md 命令字 → 处理函数映射:
  *   0x01 → lb_handler_product_info   (查询产品信息)    [桥/本地]
  *   0x02 → lb_handler_dynamic_attr   (查询动态属性)    [仅本地]
  *   0x04 → lb_handler_control        (控制指令)        [仅本地]
@@ -992,45 +1044,230 @@ static u8 lb_handler_schedule_delete(lb_rx_frame_t *rx)
 }
 
 /**
- * @brief 0x0b — 升级查询 (桩)
+ * @brief 0x0b — 升级查询 (v1.0.6: 支持按 target 查询指定设备)
+ *
+ * APP 发送:
+ *   - data_len=0: 查询全部设备 → 此 handler 仅返回主单片机状态
+ *   - data_len=1: [target:1B] 查询指定设备
+ *
+ * 路由规则 (桥模式):
+ *   - target=0x01(主单片机) 或 无target → 本 handler 处理, BLE 直接应答
+ *   - target=0x02(加热模块) → lb_translate_ble_to_uart() 转发 UART,
+ *     加热模块通过 UART→BLE 翻译应答
+ *
+ * MCU 返回: 每设备 2 字节 [target(1B)][status(1B)]
+ * status: 0x00=不支持MCU升级, 0x01=MCU未就绪, 0x02=支持升级
  */
 static u8 lb_handler_ota_query(lb_rx_frame_t *rx)
 {
-    u8 mode = 0x00;  // 0=不支持 MCU 升级
-    lunchbox_uart_send_response(LB_CMD_OTA_QUERY, rx->msg_flag, LB_ERR_SUCCESS, &mode, 1);
+    u8 buf[4];  // 最多 2 设备 × 2 字节 = 4
+    u16 off = 0;
+
+    // 主单片机已对接 FOTA 引擎 (ota_pack_*)，支持 MCU 升级
+    if (rx->data_len == 1 && rx->data) {
+        u8 target = rx->data[0];
+        buf[off++] = target;
+        buf[off++] = LB_OTA_STATUS_SUPPORTED;
+    } else {
+        // 查询全部 → 仅返回主单片机状态
+        buf[off++] = LB_OTA_TARGET_MAIN_MCU;
+        buf[off++] = LB_OTA_STATUS_SUPPORTED;
+    }
+
+    lunchbox_uart_send_response(LB_CMD_OTA_QUERY, rx->msg_flag, LB_ERR_SUCCESS, buf, off);
     return LB_ERR_SUCCESS;
 }
 
 /**
- * @brief 0x0c — 升级启动 (桩)
+ * @brief 0x0c — 升级启动 (v1.0.6: 新增 target 字段指定目标设备)
+ *
+ * APP 发送: 5 字节 [target(1B)][firmware_size(4B, 大端)]
+ * MCU 返回: 2 字节 [target(1B)][status(1B)]
+ *   status: 0x00=收到升级指令, 0x01=擦除flash中, 0x02=擦除完成
  */
 static u8 lb_handler_ota_start(lb_rx_frame_t *rx)
 {
-    u8 status = 0x00;  // 收到升级指令
-    lunchbox_uart_send_response(LB_CMD_OTA_START, rx->msg_flag, LB_ERR_SUCCESS, &status, 1);
+    if (!rx->data || rx->data_len < 5) {
+        lunchbox_uart_send_response(LB_CMD_OTA_START, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return LB_ERR_EXEC_FAIL;
+    }
+
+    u8  target = rx->data[0];
+    u32 fw_size = ((u32)rx->data[1] << 24) | ((u32)rx->data[2] << 16)
+                | ((u32)rx->data[3] << 8)  | rx->data[4];
+
+    printf("OTA start: target=0x%02X fw_size=%lu\n", target, fw_size);
+
+    // 初始化 FOTA 引擎 (压缩升级包写入准备)
+    ota_pack_init();
+    load_code_fota();
+
+    // 重置 OTA 上下文
+    memset(&lb_ota_ctx, 0, sizeof(lb_ota_ctx));
+    lb_ota_ctx.state = LB_OTA_READY;
+    lb_ota_ctx.fw_size = fw_size;
+
+    u8 rsp[2];
+    rsp[0] = target;
+    rsp[1] = LB_OTA_START_ERASE_DONE;  // 初始化完成，可以传输升级包
+    lunchbox_uart_send_response(LB_CMD_OTA_START, rx->msg_flag, LB_ERR_SUCCESS, rsp, 2);
     return LB_ERR_SUCCESS;
 }
 
 /**
- * @brief 0x0d — 升级包传输 (桩)
+ * @brief 0x0d — 升级包传输 (v1.0.6: 新增 target 字段区分设备)
+ *
+ * APP 发送: 5+N 字节 [target(1B)][offset(4B, 大端)][upgrade_data(N bytes)]
+ *   数据长度 = N + 5, 每包数据长度必须可被 16 整除，不足补 0
+ * MCU 返回: 无数据 (ack 帧)
  */
 static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
 {
+    if (!rx->data || rx->data_len < 5) {
+        lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return LB_ERR_EXEC_FAIL;
+    }
+
+    // 必须先收到启动命令
+    if (lb_ota_ctx.state < LB_OTA_READY) {
+        printf("OTA data err: not started\n");
+        lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return LB_ERR_EXEC_FAIL;
+    }
+
+    u8  target = rx->data[0];
+    u32 offset = ((u32)rx->data[1] << 24) | ((u32)rx->data[2] << 16)
+               | ((u32)rx->data[3] << 8)  | rx->data[4];
+    u8 *data = rx->data + 5;
+    u16 data_size = rx->data_len - 5;
+
+    // 校验 offset 连续性 (ota_pack_write 顺序写入，不支持随机偏移)
+    if (offset != lb_ota_ctx.next_offset) {
+        printf("OTA seq err: expected=%lu got=%lu\n", lb_ota_ctx.next_offset, offset);
+        lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return LB_ERR_EXEC_FAIL;
+    }
+
+    lb_ota_ctx.state = LB_OTA_RECEIVING;
+
+    // 缓冲写入: 将数据填入 512 字节缓冲，满一块写一块
+    u16 remaining = data_size;
+    u8 *src = data;
+
+    while (remaining > 0) {
+        u16 space = 512 - lb_ota_ctx.buf_pos;
+        u16 copy = (remaining < space) ? remaining : space;
+        memcpy(lb_ota_ctx.buf + lb_ota_ctx.buf_pos, src, copy);
+        lb_ota_ctx.buf_pos += copy;
+        src += copy;
+        remaining -= copy;
+
+        if (lb_ota_ctx.buf_pos >= 512) {
+            // 检查 FOTA 引擎是否有错误
+            if (ota_pack_get_err() != FOT_ERR_OK) {
+                printf("OTA write err: 0x%x\n", ota_pack_get_err());
+                lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+                return LB_ERR_EXEC_FAIL;
+            }
+            ota_pack_write(lb_ota_ctx.buf);
+            lb_ota_ctx.buf_pos = 0;
+        }
+    }
+
+    lb_ota_ctx.next_offset = offset + data_size;
+    lb_ota_ctx.recv_size += data_size;
+
     lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
     return LB_ERR_SUCCESS;
 }
 
 /**
- * @brief 0x0e — 升级结束 (桩)
+ * @brief 0x0e — 升级结束 (v1.0.6: 新增 target 字段，返回 target+结果)
+ *
+ * APP 发送: 1 字节 [target(1B)] 指定结束哪个设备的升级
+ * MCU 返回: 2 字节 [target(1B)][result(1B)]
+ *   result: 0x00=升级失败, 0x01=升级成功
  */
 static u8 lb_handler_ota_end(lb_rx_frame_t *rx)
 {
-    u8 result = 0x01;  // 升级成功
-    lunchbox_uart_send_response(LB_CMD_OTA_END, rx->msg_flag, LB_ERR_SUCCESS, &result, 1);
+    if (!rx->data || rx->data_len < 1) {
+        lunchbox_uart_send_response(LB_CMD_OTA_END, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return LB_ERR_EXEC_FAIL;
+    }
+
+    u8 target = rx->data[0];
+    u8 result = LB_OTA_RESULT_FAIL;
+
+    printf("OTA end: target=0x%02X recv_size=%lu fw_size=%lu\n",
+           target, lb_ota_ctx.recv_size, lb_ota_ctx.fw_size);
+
+    if (lb_ota_ctx.state >= LB_OTA_READY) {
+        // 刷出缓冲区中剩余数据 (不足 512 字节的部分补 0)
+        if (lb_ota_ctx.buf_pos > 0) {
+            memset(lb_ota_ctx.buf + lb_ota_ctx.buf_pos, 0, 512 - lb_ota_ctx.buf_pos);
+            ota_pack_write(lb_ota_ctx.buf);
+            lb_ota_ctx.buf_pos = 0;
+        }
+
+        // 校验写入完整性
+        if (ota_pack_is_write_done()) {
+            ota_pack_verify();
+            u8 err = ota_pack_get_err();
+            printf("OTA verify: err=%d\n", err);
+            if (err == FOT_ERR_OK) {
+                ota_pack_done();
+                printf("OTA success, will reset in 3s...\n");
+                result = LB_OTA_RESULT_SUCCESS;
+                lb_ota_ctx.need_reset = 1;
+                lb_ota_reset_tick = tick_get();
+            } else {
+                printf("OTA verify failed: 0x%x\n", err);
+            }
+        } else {
+            printf("OTA write incomplete: recv=%lu expected=%lu\n",
+                   lb_ota_ctx.recv_size, lb_ota_ctx.fw_size);
+        }
+    }
+
+    // 清理状态 (need_reset 保持，由 lb_ota_process 处理复位)
+    lb_ota_ctx.state = LB_OTA_IDLE;
+
+    if (result != LB_OTA_RESULT_SUCCESS) {
+        unlock_code_fota();  // 升级失败，解锁代码区
+    }
+
+    u8 rsp[2];
+    rsp[0] = target;
+    rsp[1] = result;
+    lunchbox_uart_send_response(LB_CMD_OTA_END, rx->msg_flag, LB_ERR_SUCCESS, rsp, 2);
     return LB_ERR_SUCCESS;
 }
 
 #endif // !LB_BRIDGE_MODE
+
+//-----------------------------------------------------------------------------
+// OTA 升级流程管理 (主单片机 target=0x01)
+// 桥模式和本地模式均可用
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief OTA 升级流程处理 (需在主循环中轮询调用)
+ *
+ * 职责: 升级成功后的延时复位。ota_pack_done() 完成后需复位 MCU
+ * 才能让 bootloader 解压新固件。延时 3 秒是为了确保 BLE 应答帧
+ * (0x0e 返回) 已成功发送给 APP。
+ *
+ * 调用位置: func.c 主循环, 与 bsp_fot_process() 并列
+ */
+void lb_ota_process(void)
+{
+    if (lb_ota_ctx.need_reset && lb_ota_reset_tick) {
+        if (tick_check_expire(lb_ota_reset_tick, 3000)) {
+            printf("OTA reset now...\n");
+            WDT_RST();
+        }
+    }
+}
 
 //-----------------------------------------------------------------------------
 // 协议翻译层 (BLE ↔ UART)
@@ -1039,7 +1276,7 @@ static u8 lb_handler_ota_end(lb_rx_frame_t *rx)
 /**
  * @brief BLE 命令字 → UART 命令字映射
  *
- * 蓝牙通讯协议1.0.5.md → MCU通信协议.md v1.0.8:
+ * 蓝牙通讯协议1.0.6.md → MCU通信协议.md v1.0.8:
  *   0x01 → 0x00 (不转发, MCU本地处理)
  *   0x02 → 0x01 (查询动态属性)
  *   0x03 → 0x00 (不转发, MCU主动上报, APP不会发)
@@ -1079,7 +1316,7 @@ u8 lb_ble_cmd_to_uart_cmd(u8 ble_cmd)
 /**
  * @brief UART 命令字 → BLE 命令字映射
  *
- * MCU通信协议.md v1.0.8 → 蓝牙通讯协议1.0.5.md:
+ * MCU通信协议.md v1.0.8 → 蓝牙通讯协议1.0.6.md:
  *   0x01(同步应答) → 0x02 (动态属性应答)
  *   0x01(异步上报) → 0x03 (状态上报)
  *   0x02 → 0x05 (预约列表条目)
@@ -1217,7 +1454,7 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
         return true;
     }
 
-    // ─── OTA 命令 → UART 0x04: 暂透传原数据 ───
+    // ─── OTA 命令 → UART 0x04 (v1.0.6: 透传含 target 字段的原始数据) ───
     case LB_CMD_OTA_QUERY:
     case LB_CMD_OTA_START:
     case LB_CMD_OTA_DATA:
@@ -1339,7 +1576,7 @@ static bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out
         return true;
     }
 
-    // ─── UART 0x04(OTA应答) → 对应 BLE OTA 应答 ───
+    // ─── UART 0x04(OTA应答, v1.0.6: 含 target 字段) → 对应 BLE OTA 应答 ───
     case LB_UART_CMD_OTA: {
         if (rx->data && rx->data_len > 0) {
             memcpy(out_data, rx->data, rx->data_len);
@@ -1475,6 +1712,9 @@ static bool lb_ble_frame_parse(u8 *raw, u16 raw_len, lb_rx_frame_t *frame)
  * 桥模式(LB_BRIDGE_MODE=1):
  *   - 0x01 产品信息 → MCU 本地回复
  *   - 0x03 状态上报 → APP不会发, 忽略
+ *   - 0x0b~0x0e OTA命令(v1.0.6) → 按 target 分流:
+ *       target=0x01(主单片机) 或 查询全部(无target) → 本地处理, BLE直接应答
+ *       target=0x02(加热模块)                      → 翻译为 UART 协议, 串口发往加热模块
  *   - 其他命令(含0x09/0x0a) → 翻译为 UART 协议 → 串口发往加热模块
  *
  * 本地模式(LB_BRIDGE_MODE=0):
@@ -1509,6 +1749,37 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
     // 0x03 状态上报 → APP 不会向 MCU 发此命令, 忽略
     if (frame.cmd == LB_CMD_STATUS_REPORT) {
         printf("BLE: unexpected 0x03 from APP, ignored\n");
+        return;
+    }
+
+    // OTA 命令 (0x0b-0x0e, v1.0.6): 根据 target 字段决定路由
+    //   target=0x01(主单片机) 或 查询全部(无target) → 本地处理, 不转发 UART
+    //   target=0x02(加热模块)                      → 转发 UART, 本地不处理
+    if (frame.cmd >= LB_CMD_OTA_QUERY && frame.cmd <= LB_CMD_OTA_END) {
+        u8 target = lb_ota_get_target(&frame);
+        bool to_main = (target == 0x00 || target == LB_OTA_TARGET_MAIN_MCU);
+        bool to_heat = (target == LB_OTA_TARGET_HEAT_MODULE);
+
+        if (to_main) {
+            // 主单片机: 本地处理，直接通过 BLE 应答 APP
+            printf("OTA: target=0x%02X → local handler\n", target ? target : LB_OTA_TARGET_MAIN_MCU);
+            if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
+                cmd_handler[frame.cmd](&frame);
+            }
+        }
+
+        if (to_heat) {
+            // 加热模块: 翻译为 UART 协议 → 串口发往加热模块
+            printf("OTA: target=0x%02X → forward to UART\n", target);
+            u8 uart_buf[LB_TXBUF_SIZE];
+            u16 uart_len = 0;
+            if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
+                printf("UART==>TX[%d]: ", uart_len);
+                for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
+                printf("\n");
+                uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
+            }
+        }
         return;
     }
 

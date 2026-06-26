@@ -254,6 +254,9 @@ void func_process(void)
 #if LE_AB_FOT_EN
     	bsp_fot_process();
 #endif
+#if FUNC_LUNCHBOX_UART_EN
+    	lb_ota_process();
+#endif
     }
 
 //#if MUSCI_BACKSTAGE_EN
