@@ -1,6 +1,6 @@
 /*
     智能盒饭 - UART串口协议 (MCU通信协议.md v1.0.8)
-    智能盒饭 - BLE蓝牙协议 (蓝牙通讯协议1.0.5.md v1.0.5)
+    智能盒饭 - BLE蓝牙协议 (蓝牙通讯协议1.0.6.md v1.0.6)
 
     引脚: TX=PB8=UT1TXMAP_G2_PB8
           RX=PB9=UT1RXMAP_G2_PB9
@@ -151,6 +151,27 @@ enum {
     // --- 异步命令：MCU 主动推送 ---
     LB_CMD_STATUS_REPORT    = 0x03,     // [异步] 状态上报（属性变化/故障通知）
 };
+
+//-----------------------------------------------------------------------------
+// OTA 目标设备标识 (蓝牙通讯协议1.0.6.md §5)
+// APP 通过 target 字段区分升级目标设备
+//-----------------------------------------------------------------------------
+#define LB_OTA_TARGET_MAIN_MCU      0x01    // 主单片机（模组）
+#define LB_OTA_TARGET_HEAT_MODULE   0x02    // 加热模块
+
+// OTA 升级状态 (蓝牙通讯协议1.0.6.md §5.1)
+#define LB_OTA_STATUS_UNSUPPORTED   0x00    // 不支持 MCU 升级
+#define LB_OTA_STATUS_NOT_READY     0x01    // MCU 未就绪
+#define LB_OTA_STATUS_SUPPORTED     0x02    // 支持升级
+
+// OTA 升级启动状态 (蓝牙通讯协议1.0.6.md §5.2)
+#define LB_OTA_START_RECEIVED       0x00    // 收到升级指令
+#define LB_OTA_START_ERASING        0x01    // MCU 擦除 flash 中
+#define LB_OTA_START_ERASE_DONE     0x02    // 擦除完成，可以传输升级包
+
+// OTA 升级结果 (蓝牙通讯协议1.0.6.md §5.4)
+#define LB_OTA_RESULT_FAIL          0x00    // 升级失败
+#define LB_OTA_RESULT_SUCCESS       0x01    // 升级成功
 
 //-----------------------------------------------------------------------------
 // MCU UART 命令字 (MCU通信协议.md v1.0.8 — MCU ↔ 加热模块)
@@ -374,6 +395,18 @@ u8 lunchbox_get_heat_mode(void);
 
 /** @brief 获取当前加热使能状态 (无本地缓存时返回0) */
 u8 lunchbox_get_heat_enable(void);
+
+//-----------------------------------------------------------------------------
+// OTA 升级流程 (蓝牙通讯协议1.0.6.md §5)
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief OTA 升级流程处理 (需在主循环中轮询调用)
+ *
+ * 升级成功 (ota_pack_done) 后延时 3 秒复位 MCU，
+ * 确保 BLE 应答帧已成功发送给 APP 后才复位。
+ */
+void lb_ota_process(void);
 
 //-----------------------------------------------------------------------------
 // 协议翻译层 (BLE ↔ UART)
