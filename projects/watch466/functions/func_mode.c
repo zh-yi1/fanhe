@@ -989,6 +989,8 @@ static void func_mode_start_heating(f_mode_t *f_mode)
         if (duration_min == 0) {
             duration_min = 1;
         }
+        printf("target_temp_f: %d, duration_min: %d, proto_mode: %d\n",
+               lunchbox_temp_f_to_idx(preset->temp_f), duration_min, tbl_mode_tab_to_proto[f_mode->tab]);
         lunchbox_heat_start(tbl_mode_tab_to_proto[f_mode->tab],
                             lunchbox_temp_f_to_idx(preset->temp_f),
                             duration_min);

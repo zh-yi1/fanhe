@@ -1131,6 +1131,8 @@ static void func_res_start_heating(f_reservation_t *f_res)
         if (duration_min == 0) {
             duration_min = 1;
         }
+        printf("target_temp_f reservation: %d, duration_min: %d, proto_mode: %d\n",
+               lunchbox_temp_f_to_idx(temp_f), duration_min, 4);
         lunchbox_heat_start(4, lunchbox_temp_f_to_idx(temp_f), duration_min);
     }
 #endif
