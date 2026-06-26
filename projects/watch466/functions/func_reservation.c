@@ -1601,6 +1601,29 @@ static void func_res_status_refresh(f_reservation_t *f_res)
     func_res_lock_check(f_res);
 }
 
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+/** Home/息屏到点：不跳预约 UI，直接 UART 开加热 */
+static void func_res_trigger_heating_uart_from_global(void)
+{
+    u16 temp_f;
+    u32 duration_min;
+
+    temp_f = (g_res.temp_idx < RES_TEMP_PRESET_CNT)
+           ? tbl_res_temp_preset[g_res.temp_idx]
+           : tbl_res_temp_preset[0];
+    duration_min = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
+    if (duration_min == 0) {
+        duration_min = 1;
+    }
+    if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
+        duration_min = LB_HEAT_DURATION_MIN_MIN;
+    } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
+        duration_min = LB_HEAT_DURATION_MAX_MIN;
+    }
+    lunchbox_heat_start(4, lunchbox_temp_f_to_idx(temp_f), duration_min);
+}
+#endif
+
 void func_reservation_poll(void)
 {
     tm_t tm;
@@ -1609,11 +1632,6 @@ void func_reservation_poll(void)
     func_reservation_led_sync();
 #endif
 
-#if ELUNCHBOX_PANEL_EN
-    if (func_cb.sta == FUNC_HOME) {
-        return;
-    }
-#endif
     if (!g_res.setup_done || g_res.phase != RES_PHASE_WAITING) {
         return;
     }
@@ -1631,7 +1649,6 @@ void func_reservation_poll(void)
 #endif
 #if FUNC_RESERVATION_UI_EN
 #if ELUNCHBOX_PANEL_EN
-        /* 到点仅在已在预约页时开加热，不从其它页强跳预约 UI */
         if (func_cb.sta == FUNC_RESERVATION) {
             f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
 
@@ -1641,6 +1658,10 @@ void func_reservation_poll(void)
                 f_res->temp_idx = g_res.temp_idx;
                 func_res_start_heating(f_res);
             }
+        } else {
+#if FUNC_LUNCHBOX_UART_EN
+            func_res_trigger_heating_uart_from_global();
+#endif
         }
 #else
         if (func_cb.sta != FUNC_RESERVATION) {
