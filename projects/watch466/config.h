@@ -95,7 +95,7 @@
 #define FLASH_UI_BASE                   0x200000                                            //UI资源起始地址(最小值为FLASH_CODE_SIZE)
 #define FLASH_UI_SIZE                   0x100000                                            //UI资源大小(ui.bin的大小)
 #define FLASH_PKG_START                 0x300000                                            //升级压缩包存放起始地址
-#define FLASH_PKG_SIZE                  0x050000                                            //升级压缩包大小
+#define FLASH_PKG_SIZE                  0x060000                                            //升级压缩包大小
 #define FLASH_DISK_START                FLASH_PKG_START                                     //FLASH DISK 功能与OTA升级复用
 #define FLASH_DISK_LEN                  FLASH_PKG_SIZE                                      //FLASH DISK 功能与OTA升级复用, 0为关闭此功能
 #define FLASH_CM_SIZE                   0x5000

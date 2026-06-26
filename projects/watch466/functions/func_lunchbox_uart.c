@@ -66,6 +66,10 @@ typedef struct {
 static lb_ota_ctx_t lb_ota_ctx;
 static u32 lb_ota_reset_tick = 0;           // 升级完成后延时复位的 tick
 
+// 桥模式: 转发加热模块 OTA 时累积 CRC32 (MCU通信协议.md §5.1)
+static u32  lb_ota_uart_crc32 = 0;
+static bool lb_ota_uart_crc_active = false;
+
 //-----------------------------------------------------------------------------
 // 模式界面 → 加热界面 预设参数传递
 //-----------------------------------------------------------------------------
@@ -93,6 +97,37 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out)
 //-----------------------------------------------------------------------------
 
 static void lb_dp_dump_hex(const u8 *data, u16 data_len);
+
+/**
+ * @brief CRC32 校验码计算 (兼容 zlib/uzlib 算法, 与 MCU通信协议.md §5.1 一致)
+ *
+ * 使用 16 项查找表, 支持增量计算:
+ *   crc = lb_crc32(buf1, len1, 0xffffffff);        // 第一段
+ *   crc = lb_crc32(buf2, len2, crc);                // 续算
+ *   final = crc ^ 0xffffffff;                       // 取反得最终值
+ *
+ * @param data  数据指针
+ * @param len   数据长度(字节)
+ * @param crc   初始值(0xffffffff) 或上一次的返回值
+ * @return      累加后的 CRC 值 (最终结果需 ^ 0xffffffff)
+ */
+static u32 lb_crc32(const void *data, u32 len, u32 crc)
+{
+    static const u32 crc32_table[16] = {
+        0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
+        0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
+        0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,
+        0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c
+    };
+    const u8 *buf = (const u8 *)data;
+    u32 i;
+    for (i = 0; i < len; ++i) {
+        crc ^= buf[i];
+        crc = crc32_table[crc & 0x0f] ^ (crc >> 4);
+        crc = crc32_table[crc & 0x0f] ^ (crc >> 4);
+    }
+    return crc;
+}
 
 /**
  * @brief 计算协议校验和
@@ -270,9 +305,9 @@ static void lb_send_frame(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
     lb_tx_buf[off] = lb_checksum(lb_tx_buf, off); off++;
 
     // 打印 TX 日志
-    printf("TX[%d]: ", off);
-    for (u16 i = 0; i < off; i++) printf("%02X ", lb_tx_buf[i]);
-    printf("\n");
+    // printf("TX[%d]: ", off);
+    // for (u16 i = 0; i < off; i++) printf("%02X ", lb_tx_buf[i]);
+    // printf("\n");
 
     if (lb_ble_tx_fn) {
         lb_ble_tx_fn(lb_tx_buf, off);           // 走 BLE Notify
@@ -1397,6 +1432,13 @@ static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
     u16 data_size = rx->data_len - 5;
     (void)target;  // target 字段已在路由层校验（本地模式恒为 0x01）
 
+    // 校验 16 字节对齐 (蓝牙通讯协议1.0.6 §5.3: 每包数据长度必须可被 16 整除)
+    if (data_size & 0x0F) {
+        printf("OTA data err: size=%u not 16B aligned\n", data_size);
+        lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return LB_ERR_EXEC_FAIL;
+    }
+
     // 校验 offset 连续性 (ota_pack_write 顺序写入，不支持随机偏移)
     if (offset != lb_ota_ctx.next_offset) {
         printf("OTA seq err: expected=%lu got=%lu\n", lb_ota_ctx.next_offset, offset);
@@ -1708,15 +1750,58 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
         return true;
     }
 
-    // ─── OTA 命令 → UART 0x04 (v1.0.6: 透传含 target 字段的原始数据) ───
+    // ─── OTA 命令 → UART 0x04 (剥离 target 字节, 格式转换) ───
+    // BLE 协议含 target 字段区分升级目标, MCU UART 协议不含此字段
     case LB_CMD_OTA_QUERY:
-    case LB_CMD_OTA_START:
-    case LB_CMD_OTA_DATA:
-    case LB_CMD_OTA_END: {
-        if (rx->data && rx->data_len > 0) {
-            memcpy(out_data, rx->data, rx->data_len);
-            *out_len = rx->data_len;
+        // MCU UART 协议无独立 OTA 查询命令, 不转发
+        return false;
+
+    case LB_CMD_OTA_START: {
+        // BLE: [target:1B][fw_size:4B BE]
+        // UART: [offset=0x00000000:4B]  (offset=0 表示升级开始)
+        if (!rx->data || rx->data_len < 5) return false;
+
+        memset(out_data, 0, 4);
+        *out_len = 4;
+
+        // 初始化 CRC32 累加器 (起始值 0xffffffff)
+        lb_ota_uart_crc32 = 0xffffffff;
+        lb_ota_uart_crc_active = true;
+        lb_ota_uart_crc32 = lb_crc32(out_data, 4, lb_ota_uart_crc32);
+        return true;
+    }
+    case LB_CMD_OTA_DATA: {
+        // BLE: [target:1B][offset:4B BE][data:N]
+        // UART: [offset:4B BE][data:N]  跳过首字节(target)
+        if (!rx->data || rx->data_len < 5) return false;
+
+        u16 copy_len = rx->data_len - 1;           // 减去 target 字节
+        memcpy(out_data, rx->data + 1, copy_len);  // 跳过 target
+        *out_len = copy_len;
+
+        // CRC32 累加: offset + 数据
+        if (lb_ota_uart_crc_active) {
+            lb_ota_uart_crc32 = lb_crc32(out_data, copy_len, lb_ota_uart_crc32);
         }
+        return true;
+    }
+    case LB_CMD_OTA_END: {
+        // BLE: [target:1B]
+        // UART: [offset=0xFFFFFFFF:4B][CRC32:4B BE]
+        if (!rx->data || rx->data_len < 1) return false;
+
+        // offset = 0xFFFFFFFF (结束标志)
+        memset(out_data, 0xFF, 4);
+
+        // CRC32 最终值 (取反)
+        u32 final_crc = lb_ota_uart_crc_active ? (lb_ota_uart_crc32 ^ 0xFFFFFFFF) : 0;
+        out_data[4] = (u8)(final_crc >> 24);
+        out_data[5] = (u8)(final_crc >> 16);
+        out_data[6] = (u8)(final_crc >> 8);
+        out_data[7] = (u8)(final_crc);
+        *out_len = 8;
+
+        lb_ota_uart_crc_active = false;
         return true;
     }
 
@@ -2016,7 +2101,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 
         if (to_main) {
             // 主单片机: 本地处理，直接通过 BLE 应答 APP
-            printf("OTA: target=0x%02X → local handler\n", target ? target : LB_OTA_TARGET_MAIN_MCU);
+            printf("OTA: target=0x%02X -> local handler\n", target ? target : LB_OTA_TARGET_MAIN_MCU);
             if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
                 cmd_handler[frame.cmd](&frame);
             }
@@ -2024,11 +2109,11 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 
         if (to_heat) {
             // 加热模块: 翻译为 UART 协议 → 串口发往加热模块
-            printf("OTA: target=0x%02X → forward to UART\n", target);
+            printf("OTA: target=0x%02X -> forward to UART\n", target);
             u8 uart_buf[LB_TXBUF_SIZE];
             u16 uart_len = 0;
             if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
-                printf("UART==>TX[%d]: ", uart_len);
+                printf("BLE->UART==>TX[%d]: ", uart_len);
                 for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
                 printf("\n");
                 {
@@ -2046,7 +2131,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
         u8 uart_buf[LB_TXBUF_SIZE];
         u16 uart_len = 0;
         if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
-            printf("UART==>TX[%d]: ", uart_len);
+            printf("BLE->UART==>TX[%d]: ", uart_len);
             for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
             printf("\n");
             {
@@ -2063,7 +2148,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
     }
 #else
     // ──── 本地模式：原帧转发到串口 + 解析分发给 cmd_handler ────
-    printf("UART==>TX[%d]: ", len);
+    printf("BLE->UART==>TX[%d]: ", len);
     for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
     printf("\n");
     {
