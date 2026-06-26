@@ -1494,8 +1494,6 @@ static void func_res_value_dec(f_reservation_t *f_res)
 
 static void func_res_heating_finish_check(f_reservation_t *f_res)
 {
-    u16 target;
-
     if (f_res == NULL || f_res->ui != RES_UI_HEATING) {
         return;
     }
@@ -1509,17 +1507,12 @@ static void func_res_heating_finish_check(f_reservation_t *f_res)
     }
 #endif
 
-    target = func_res_get_target_temp_f(f_res->temp_idx);
-    f_res->ui = RES_UI_FINISHED;
-    f_res->display_temp_f = target;
     f_res->screen_locked = false;
     g_res.phase = RES_PHASE_FINISHED;
     f_res->last_heat_timer_key = 0xffff;
     f_res->last_temp_f = 0xffff;
-#if FUNC_LUNCHBOX_UART_EN
-    lunchbox_keep_warm_start();
-#endif
-    func_res_display_refresh(f_res);
+    heat_display_unregister();
+    func_mode_keep_warm_enter();
 }
 
 static void func_res_heating_tick(f_reservation_t *f_res)
@@ -1548,16 +1541,15 @@ static void func_res_heating_tick(f_reservation_t *f_res)
     }
 
     if (f_res->heat_remain_sec == 0) {
-        f_res->ui = RES_UI_FINISHED;
-        f_res->display_temp_f = target;
+        f_res->live_heat_ready = true;
+        f_res->live_remain_min = 0;
         f_res->screen_locked = false;
         g_res.phase = RES_PHASE_FINISHED;
         f_res->last_heat_timer_key = 0xffff;
         f_res->last_temp_f = 0xffff;
         heat_display_unregister();
-#if FUNC_LUNCHBOX_UART_EN
-        lunchbox_keep_warm_start();
-#endif
+        func_mode_keep_warm_enter();
+        return;
     }
 
     func_res_display_refresh(f_res);

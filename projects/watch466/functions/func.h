@@ -162,6 +162,9 @@ enum {
 
 };
 
+/** @brief 加热自然结束后：UART 开启保温(140°F)并进入模式页 Insulation 界面 */
+void func_mode_keep_warm_enter(void);
+
 //task control block
 typedef struct {
     void *f_cb;                                     //当前任务控制指针

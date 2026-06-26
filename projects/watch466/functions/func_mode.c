@@ -298,6 +298,11 @@ static u8 mode_tab_icon_ram[MODE_TAB_CNT][HOME_ICON_RAM_SIZE];
 
 static u32 mode_countdown_remain_sec;
 static bool mode_countdown_running;
+static bool mode_keep_warm_enter_pending;
+static bool mode_in_keep_warm_ui;
+#if ELUNCHBOX_PANEL_EN
+static bool mode_keep_warm_apply_deferred;
+#endif
 
 static const u32 tbl_mode_g_digit_addr[10] = {
     UI_BUF_HOME_G0_BIN, UI_BUF_HOME_G1_BIN, UI_BUF_HOME_G2_BIN, UI_BUF_HOME_G3_BIN,
@@ -431,12 +436,14 @@ static void func_mode_tab_preview_temp(f_mode_t *f_mode, u8 tab);
 static void func_mode_tab_preview_apply(f_mode_t *f_mode, u8 tab);
 static void func_mode_tab_refresh(f_mode_t *f_mode);
 static void func_mode_tab_bind(f_mode_t *f_mode, u8 idx, u16 id_base);
+static void func_mode_tab_select(f_mode_t *f_mode, u8 tab);
 static void func_mode_tab_select_next(f_mode_t *f_mode);
 static void func_mode_start_heating(f_mode_t *f_mode);
 static void func_mode_power_key(f_mode_t *f_mode);
 void func_mode_lock_icon_apply(f_mode_t *f_mode);
 static void func_mode_lock_check(f_mode_t *f_mode);
 static void func_mode_heating_finish_check(f_mode_t *f_mode);
+static void func_mode_apply_keep_warm_ui(f_mode_t *f_mode);
 static bool func_mode_key_allowed(f_mode_t *f_mode, size_msg_t msg);
 
 static void func_mode_display_on_info(const heat_display_info_t *info)
@@ -456,10 +463,10 @@ static void func_mode_display_on_info(const heat_display_info_t *info)
     f_mode->last_timer_key = 0xffff;
     f_mode->last_temp_f = 0xffff;
 
-    if (info->remain_min == 0) {
+    if (info->remain_min == 0 && !mode_in_keep_warm_ui) {
         func_mode_heating_finish_check(f_mode);
     }
-    if (f_mode->ui_state != MODE_UI_FINISHED) {
+    if (f_mode->ui_state == MODE_UI_HEATING || f_mode->ui_state == MODE_UI_IDLE) {
         func_mode_display_refresh(f_mode);
     }
 }
@@ -644,9 +651,52 @@ static void func_mode_lock_check(f_mode_t *f_mode)
     }
 }
 
+static void func_mode_apply_keep_warm_ui(f_mode_t *f_mode)
+{
+    const mode_tab_preset_t *preset;
+
+    if (f_mode == NULL) {
+        return;
+    }
+
+    preset = &tbl_mode_tab_preset[MODE_TAB_INSULATION];
+    mode_in_keep_warm_ui = true;
+    mode_countdown_running = false;
+    f_mode->tab = MODE_TAB_INSULATION;
+    f_mode->ui_state = MODE_UI_HEATING;
+    f_mode->screen_locked = false;
+    f_mode->heat_live_ready = true;
+    f_mode->heat_live_remain_min = 0;
+    f_mode->heat_live_temp_f = preset->temp_f;
+    f_mode->last_timer_key = 0xffff;
+    f_mode->last_temp_f = 0xffff;
+    func_mode_countdown_stop();
+    func_mode_tab_select(f_mode, MODE_TAB_INSULATION);
+    func_mode_display_refresh(f_mode);
+    func_mode_lock_icon_apply(f_mode);
+}
+
+void func_mode_keep_warm_enter(void)
+{
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_keep_warm_start();
+#endif
+    mode_keep_warm_enter_pending = true;
+
+    if (func_cb.sta == FUNC_MODE && func_cb.f_cb != NULL) {
+        mode_keep_warm_enter_pending = false;
+        func_mode_apply_keep_warm_ui((f_mode_t *)func_cb.f_cb);
+        return;
+    }
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    func_switch_to(FUNC_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
 static void func_mode_heating_finish_check(f_mode_t *f_mode)
 {
-    if (f_mode->ui_state != MODE_UI_HEATING) {
+    if (f_mode->ui_state != MODE_UI_HEATING || mode_in_keep_warm_ui) {
         return;
     }
 #if FUNC_LUNCHBOX_UART_EN
@@ -658,13 +708,9 @@ static void func_mode_heating_finish_check(f_mode_t *f_mode)
         return;
     }
 #endif
-    mode_countdown_running = false;
-    f_mode->ui_state = MODE_UI_FINISHED;
     f_mode->screen_locked = false;
     func_mode_lock_icon_apply(f_mode);
-#if FUNC_LUNCHBOX_UART_EN
-    lunchbox_keep_warm_start();
-#endif
+    func_mode_keep_warm_enter();
 }
 
 static void func_mode_status_refresh(f_mode_t *f_mode)
@@ -950,6 +996,7 @@ static void func_mode_start_heating(f_mode_t *f_mode)
         return;
     }
 
+    mode_in_keep_warm_ui = false;
     preset = &tbl_mode_tab_preset[f_mode->tab];
 
     // 鸡腿/意面模式：跳转到加热界面并自动开始加热
@@ -1396,6 +1443,13 @@ static void func_mode_process(void)
             case 4:
                 func_mode_tab_refresh_enter(f_mode);
                 f_mode->display_stage = 0;
+#if ELUNCHBOX_PANEL_EN
+                if (mode_keep_warm_apply_deferred) {
+                    mode_keep_warm_apply_deferred = false;
+                    mode_keep_warm_enter_pending = false;
+                    func_mode_apply_keep_warm_ui(f_mode);
+                }
+#endif
                 break;
             default:
                 f_mode->display_stage = 0;
@@ -1487,7 +1541,11 @@ void func_mode_enter(void)
     func_cb.f_cb = func_zalloc(sizeof(f_mode_t));
 
     f_mode = (f_mode_t *)func_cb.f_cb;
-    f_mode->tab = MODE_TAB_PASTA;
+    if (mode_keep_warm_enter_pending) {
+        f_mode->tab = MODE_TAB_INSULATION;
+    } else {
+        f_mode->tab = MODE_TAB_PASTA;
+    }
     f_mode->ui_state = MODE_UI_IDLE;
     f_mode->screen_locked = false;
     f_mode->heat_start_tick = 0;
@@ -1528,14 +1586,28 @@ void func_mode_enter(void)
     func_mode_tab_preview_apply(f_mode, f_mode->tab);
     func_mode_tab_refresh(f_mode);
     func_mode_status_refresh(f_mode);
+    if (mode_keep_warm_enter_pending) {
+        mode_keep_warm_enter_pending = false;
+        func_mode_apply_keep_warm_ui(f_mode);
+    }
 #endif
     heat_display_register(func_mode_display_on_info);
+#if ELUNCHBOX_PANEL_EN
+    if (mode_keep_warm_enter_pending) {
+        mode_keep_warm_apply_deferred = true;
+    }
+#endif
 }
 
 void func_mode_exit(void)
 {
     heat_display_unregister();
     func_mode_countdown_stop();
+    mode_in_keep_warm_ui = false;
+    mode_keep_warm_enter_pending = false;
+#if ELUNCHBOX_PANEL_EN
+    mode_keep_warm_apply_deferred = false;
+#endif
     func_mode_tab_label_ram_free();
 #if ELUNCHBOX_PANEL_EN
     mode_tab_icon_defer = 0;
