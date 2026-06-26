@@ -327,15 +327,15 @@
 #define UI_LEN_HOME_WHILE_LINE_BIN                 0x80
 
 #define UI_BUF_HOME_WHX_BIN                        UI_ADDR_BASE(0xb9d0c)
-#define UI_LEN_HOME_WHX_BIN                        0x6ec
+#define UI_LEN_HOME_WHX_BIN                        0x132c
 
-#define UI_BUF_HOME_WSX_BIN                        UI_ADDR_BASE(0xba3f8)
+#define UI_BUF_HOME_WSX_BIN                        UI_ADDR_BASE(0xbb038)
 #define UI_LEN_HOME_WSX_BIN                        0xac0
 
-#define UI_BUF_HOME_YES_BIN                        UI_ADDR_BASE(0xbaeb8)
+#define UI_BUF_HOME_YES_BIN                        UI_ADDR_BASE(0xbbaf8)
 #define UI_LEN_HOME_YES_BIN                        0x28d0
 
-#define UI_BUF_ICON_ACTIVITY_BIN                   UI_ADDR_BASE(0xbd788)
+#define UI_BUF_ICON_ACTIVITY_BIN                   UI_ADDR_BASE(0xbe3c8)
 #define UI_LEN_ICON_ACTIVITY_BIN                   0x20f7
 
 #endif
