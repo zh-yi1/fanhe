@@ -7,6 +7,13 @@
 #include "home_top_time.h"
 #include "heat_display_reg.h"
 #include "ui_layout_anchor.h"
+#if ELUNCHBOX_PANEL_EN
+#include "bsp_pt8028_key.h"
+#include "func_key_lock.h"
+#endif
+#if USER_PANEL_LED
+#include "port_panel_led.h"
+#endif
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -106,6 +113,8 @@
 
 #define HEAT_LOCK_MS                      30000
 #define HEAT_TEMP_PRESET_CNT              5
+#define HEAT_MIN_STEP                     5
+#define HEAT_DEFAULT_TEMP_IDX             3       /* 194°F */
 #define HEAT_MSG_OK                       KU_BACK
 #define HEAT_MSG_PLUS                     KU_VOL_UP
 #define HEAT_MSG_MINUS                    KU_VOL_DOWN
@@ -248,6 +257,54 @@ static const u16 tbl_heat_temp_id[HEAT_TEMP_IDX_CNT] = {
 
 static void func_heat_display_refresh(f_heat_t *f_heat);
 static void func_heat_heating_finish_check(f_heat_t *f_heat);
+void func_heat_countdown_set(u8 hour, u8 min);
+void func_heat_countdown_stop(void);
+
+#if USER_PANEL_LED
+static void func_heat_led_sync(bool on)
+{
+    panel_led_set_heat_latched(on);
+}
+#else
+static void func_heat_led_sync(bool on)
+{
+    (void)on;
+}
+#endif
+
+static u16 func_heat_setup_total_min(const f_heat_t *f_heat)
+{
+    return (u16)f_heat->set_hour * 60 + f_heat->set_min;
+}
+
+static void func_heat_setup_apply_total_min(f_heat_t *f_heat, u16 total_min)
+{
+    if (total_min > (u16)99 * 60 + 59) {
+        total_min = (u16)99 * 60 + 59;
+    }
+    f_heat->set_hour = (u8)(total_min / 60);
+    f_heat->set_min = (u8)(total_min % 60);
+}
+
+static void func_heat_reset_setup(f_heat_t *f_heat)
+{
+    f_heat->ui_state = HEAT_UI_SETUP;
+    f_heat->focus = HEAT_FOCUS_TEMP;
+    f_heat->set_hour = 1;
+    f_heat->set_min = 0;
+    f_heat->temp_idx = HEAT_DEFAULT_TEMP_IDX;
+    f_heat->display_temp_f = 0;
+    f_heat->heat_live_remain_min = 0;
+    f_heat->heat_live_temp_f = 0;
+    f_heat->heat_live_ready = false;
+    f_heat->heat_total_sec = 0;
+    f_heat->heat_start_tick = 0;
+    f_heat->screen_locked = false;
+    f_heat->last_timer_key = 0xffff;
+    f_heat->last_temp_f = 0xffff;
+    func_heat_countdown_stop();
+    func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
+}
 
 static void func_heat_display_on_info(const heat_display_info_t *info)
 {
@@ -298,13 +355,13 @@ static void func_heat_status_icons_apply(f_heat_t *f_heat)
     }
 }
 
-static void func_heat_lock_icon_apply(f_heat_t *f_heat)
+void func_heat_lock_icon_apply(f_heat_t *f_heat)
 {
     if (f_heat == NULL || f_heat->pic_lock == NULL) {
         return;
     }
 
-    if (f_heat->screen_locked) {
+    if (func_key_lock_show_status_icon(f_heat->screen_locked)) {
         home_ui_shared_status_init();
         compo_picturebox_set_pos(f_heat->pic_lock, HEAT_STATUS_LOCK_X, HEAT_STATUS_Y);
         if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
@@ -393,24 +450,14 @@ static void func_heat_temp_layout_ex(f_heat_t *f_heat, u8 digits[HEAT_TEMP_IDX_C
     }
 
     if (f_heat->pic_temp_degf != NULL) {
-        u16 sym_w = white ? HEAT_WHX_W : HEAT_BHX_W;
-        u16 sym_h = white ? HEAT_WHX_H : HEAT_BHX_H;
-
-        func_heat_pic_pos_tr(f_heat->pic_temp_degf, HEAT_TEMP_TR_UNIT_X, HEAT_TEMP_TR_Y,
-                             sym_w, sym_h);
-        compo_picturebox_set_size(f_heat->pic_temp_degf, sym_w, sym_h);
+        /* 灰/白均用 bhx 布局框 (247,158) 右上角锚点，显示尺寸一致 */
+        func_heat_pic_pos_tr(f_heat->pic_temp_degf, HEAT_TEMP_TR_UNIT_X, HEAT_TEMP_TR_UNIT_Y,
+                             HEAT_BHX_W, HEAT_BHX_H);
+        compo_picturebox_set_size(f_heat->pic_temp_degf, HEAT_BHX_W, HEAT_BHX_H);
+        compo_picturebox_set_visible(f_heat->pic_temp_degf, true);
     }
-
     if (f_heat->pic_temp_suffix != NULL) {
-        if (white && HEAT_WSX_W > 0) {
-            func_heat_pic_pos_tr(f_heat->pic_temp_suffix,
-                                 HEAT_TEMP_TR_UNIT_X + (s16)HEAT_WHX_W, HEAT_TEMP_TR_Y,
-                                 HEAT_WSX_W, HEAT_WSX_H);
-            compo_picturebox_set_size(f_heat->pic_temp_suffix, HEAT_WSX_W, HEAT_WSX_H);
-            compo_picturebox_set_visible(f_heat->pic_temp_suffix, true);
-        } else {
-            compo_picturebox_set_visible(f_heat->pic_temp_suffix, false);
-        }
+        compo_picturebox_set_visible(f_heat->pic_temp_suffix, false);
     }
 }
 
@@ -445,14 +492,7 @@ static void func_heat_temp_update_ex(f_heat_t *f_heat, u16 temp_f, bool white)
     }
 
     if (f_heat->pic_temp_suffix != NULL) {
-        if (white && HEAT_WSX_W > 0) {
-            os_spiflash_read(heat_temp_suffix_ram, UI_BUF_HOME_WSX_BIN, UI_LEN_HOME_WSX_BIN);
-            if (gui_set_ram_check(heat_temp_suffix_ram, __func__)) {
-                compo_picturebox_set_ram(f_heat->pic_temp_suffix, heat_temp_suffix_ram);
-            }
-        } else {
-            compo_picturebox_set_visible(f_heat->pic_temp_suffix, false);
-        }
+        compo_picturebox_set_visible(f_heat->pic_temp_suffix, false);
     }
 
     for (i = 0; i < HEAT_TEMP_IDX_CNT; i++) {
@@ -503,8 +543,9 @@ static void func_heat_heating_finish_check(f_heat_t *f_heat)
     f_heat->screen_locked = false;
     func_heat_lock_icon_apply(f_heat);
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_heat_stop();
+    lunchbox_keep_warm_start();
 #endif
+    func_heat_led_sync(false);
 }
 
 static void func_heat_status_refresh(f_heat_t *f_heat)
@@ -677,6 +718,7 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     }
 #endif
 
+    func_heat_led_sync(true);
     func_heat_display_refresh(f_heat);
 }
 
@@ -715,7 +757,8 @@ static void func_heat_power_key(f_heat_t *f_heat)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();
 #endif
-        f_heat->screen_locked = false;
+        func_heat_led_sync(false);
+        func_heat_reset_setup(f_heat);
         func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;
     }
@@ -763,14 +806,8 @@ static void func_heat_value_inc(f_heat_t *f_heat)
         break;
 
     case HEAT_FOCUS_MIN:
-        if (f_heat->set_min < 59) {
-            f_heat->set_min++;
-        } else {
-            f_heat->set_min = 0;
-            if (f_heat->set_hour < 99) {
-                f_heat->set_hour++;
-            }
-        }
+        func_heat_setup_apply_total_min(f_heat,
+                                        func_heat_setup_total_min(f_heat) + HEAT_MIN_STEP);
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
 
@@ -804,11 +841,15 @@ static void func_heat_value_dec(f_heat_t *f_heat)
         break;
 
     case HEAT_FOCUS_MIN:
-        if (f_heat->set_min > 0) {
-            f_heat->set_min--;
-        } else if (f_heat->set_hour > 0) {
-            f_heat->set_min = 59;
-            f_heat->set_hour--;
+        {
+            u16 total = func_heat_setup_total_min(f_heat);
+
+            if (total >= HEAT_MIN_STEP) {
+                total -= HEAT_MIN_STEP;
+            } else {
+                total = 0;
+            }
+            func_heat_setup_apply_total_min(f_heat, total);
         }
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
@@ -895,16 +936,14 @@ compo_form_t *func_heat_form_create(void)
 
     pic = compo_picturebox_create(frm, UI_HEAT_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_TEMPF);
-    func_heat_pic_pos_tr(pic, HEAT_TEMP_TR_UNIT_X, HEAT_TEMP_TR_Y, HEAT_BHX_W, HEAT_BHX_H);
+    func_heat_pic_pos_tr(pic, HEAT_TEMP_TR_UNIT_X, HEAT_TEMP_TR_UNIT_Y, HEAT_BHX_W, HEAT_BHX_H);
     compo_picturebox_set_size(pic, HEAT_BHX_W, HEAT_BHX_H);
 
     pic = compo_picturebox_create(frm, UI_HEAT_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_TEMP_S);
-    func_heat_pic_pos_tr(pic, HEAT_TEMP_TR_UNIT_X + (s16)HEAT_BHX_W, HEAT_TEMP_TR_Y,
-                         HEAT_WSX_W > 0 ? HEAT_WSX_W : HEAT_BHX_W,
-                         HEAT_WSX_W > 0 ? HEAT_WSX_H : HEAT_BHX_H);
-    compo_picturebox_set_size(pic, HEAT_WSX_W > 0 ? HEAT_WSX_W : HEAT_BHX_W,
-                              HEAT_WSX_W > 0 ? HEAT_WSX_H : HEAT_BHX_H);
+    func_heat_pic_pos_tr(pic, HEAT_TEMP_TR_UNIT_X, HEAT_TEMP_TR_UNIT_Y, HEAT_BHX_W, HEAT_BHX_H);
+    compo_picturebox_set_size(pic, HEAT_BHX_W, HEAT_BHX_H);
+    compo_picturebox_set_visible(pic, false);
     compo_picturebox_set_visible(pic, false);
 
     return frm;
@@ -928,9 +967,12 @@ static void func_heat_message(size_msg_t msg)
         return;
     }
 
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+
     if (f_heat != NULL && f_heat->screen_locked) {
-        // 锁屏仅允许确认、开关、锁键
-        if (msg != HEAT_MSG_POWER && msg != HEAT_MSG_OK && msg != KU_LEFT) {
+        if (msg != HEAT_MSG_POWER && msg != HEAT_MSG_OK) {
             return;
         }
     }
@@ -953,10 +995,6 @@ static void func_heat_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        if (f_heat != NULL) {
-            f_heat->screen_locked = !f_heat->screen_locked;
-            func_heat_lock_icon_apply(f_heat);
-        }
         break;
 
     case KU_MODE:
@@ -1060,8 +1098,73 @@ void func_heat_exit(void)
 #else
     func_heat_countdown_stop();
 #endif
+    func_heat_led_sync(false);
     func_cb.last = FUNC_HEAT;
 }
+
+#if ELUNCHBOX_PANEL_EN
+static bool func_heat_key_page_ok(void)
+{
+    switch (func_cb.sta) {
+    case FUNC_HOME:
+    case FUNC_MODE:
+    case FUNC_SETUP:
+    case FUNC_HEAT:
+    case FUNC_LANGUAGEING:
+    case FUNC_TIMEING:
+    case FUNC_VERINFO:
+    case FUNC_RESERVATION:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void func_heat_key_poll(void)
+{
+    static u8 heat_key_lp_tch = PT8028_KEY_NONE;
+    static u32 heat_key_lp_tick;
+    static bool heat_key_lp_wait_rel;
+
+    u8 tch;
+
+    if (sys_cb.flag_swithing || func_cb.sta == FUNC_HEAT) {
+        return;
+    }
+    if (!func_heat_key_page_ok()) {
+        return;
+    }
+
+    if (heat_key_lp_wait_rel) {
+        if (pt8028_get_press_tch() != PT8028_KEY_TCH1) {
+            heat_key_lp_wait_rel = false;
+        }
+        return;
+    }
+
+    if (func_key_lock_is_active()) {
+        heat_key_lp_tch = PT8028_KEY_NONE;
+        return;
+    }
+
+    tch = pt8028_get_press_tch();
+    if (tch == PT8028_KEY_TCH1) {
+        if (heat_key_lp_tch != PT8028_KEY_TCH1) {
+            heat_key_lp_tch = PT8028_KEY_TCH1;
+            heat_key_lp_tick = tick_get();
+        } else if (tick_check_expire(heat_key_lp_tick, PT8028_HEAT_LONG_MS)) {
+            func_elunchbox_switch_to_heat();
+            heat_key_lp_wait_rel = true;
+        }
+    } else {
+        heat_key_lp_tch = PT8028_KEY_NONE;
+    }
+}
+#else
+void func_heat_key_poll(void)
+{
+}
+#endif
 
 void func_heat(void)
 {

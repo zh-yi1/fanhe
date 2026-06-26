@@ -1,0 +1,37 @@
+#ifndef _FUNC_KEY_LOCK_H
+#define _FUNC_KEY_LOCK_H
+
+#include "include.h"
+
+#if ELUNCHBOX_PANEL_EN
+
+#ifndef PT8028_LOCK_LONG_MS
+#define PT8028_LOCK_LONG_MS             3000
+#endif
+#ifndef KEY_LOCK_HINT_MS
+#define KEY_LOCK_HINT_MS                3000
+#endif
+
+bool func_key_lock_is_active(void);
+bool func_key_lock_show_status_icon(bool page_local_locked);
+void func_key_lock_poll(void);
+bool func_key_lock_filter_tch(u8 tch);
+bool func_key_lock_ku_blocked(u16 msg);
+void func_key_lock_on_page_change(void);
+
+#else
+
+static inline bool func_key_lock_is_active(void) { return false; }
+static inline bool func_key_lock_show_status_icon(bool page_local_locked)
+{
+    (void)page_local_locked;
+    return false;
+}
+static inline void func_key_lock_poll(void) {}
+static inline bool func_key_lock_filter_tch(u8 tch) { (void)tch; return false; }
+static inline bool func_key_lock_ku_blocked(u16 msg) { (void)msg; return false; }
+static inline void func_key_lock_on_page_change(void) {}
+
+#endif
+
+#endif

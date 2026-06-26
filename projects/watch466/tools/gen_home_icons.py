@@ -215,24 +215,21 @@ def recolor_fg_white(im: Image.Image) -> Image.Image:
 
 
 def ensure_heat_sym_pngs() -> None:
-    """Synthesize whx/wsx from bhx when designer PNGs are not yet provided."""
+    """whx.png = 完整 bhx 反色为白，与灰色单位同尺寸 (50x49)。"""
     bhx = SRC_DIR / "bhx.png"
     if not bhx.exists():
         return
 
     im = Image.open(bhx).convert("RGBA")
-    w, h = im.size
-    # bhx: ° 占 0..17，18..21 为留白，F 从 22 起
-    deg_box = (0, 0, min(18, w), h)
-    suf_box = (min(22, w), 0, w, h)
-
-    for out_name, box in (("whx.png", deg_box), ("wsx.png", suf_box)):
-        path = SRC_DIR / out_name
-        if path.exists():
-            continue
-        crop = im.crop(box)
-        recolor_fg_white(crop).save(path)
-        print(f"generated {out_name} from bhx.png crop {box}")
+    whx_path = SRC_DIR / "whx.png"
+    need_write = True
+    if whx_path.exists():
+        old = Image.open(whx_path)
+        need_write = old.size != im.size
+        old.close()
+    if need_write:
+        recolor_fg_white(im.copy()).save(whx_path)
+        print(f"generated whx.png from full bhx.png ({im.size[0]}x{im.size[1]})")
 
 
 def require_time_src(name: str) -> Path:

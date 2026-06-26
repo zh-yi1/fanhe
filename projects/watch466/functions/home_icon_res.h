@@ -64,7 +64,7 @@
 /* func_heat.c: w0x=白字时, b0x=灰字, wbx=冒号, whx+wsx=白°F, bhx=灰°F */
 #define HEAT_W_DIGIT_MAX_H              61
 #define HEAT_B_DIGIT_MAX_H              61
-#define HEAT_W_DIGIT_RAM_MAX_SIZE       4522
+#define HEAT_W_DIGIT_RAM_MAX_SIZE       4908
 #define HEAT_B_DIGIT_RAM_MAX_SIZE       4522
 #define HEAT_W0X_W                     37
 #define HEAT_W0X_H                     61
@@ -109,9 +109,9 @@
 #define HEAT_WBX_W                      9
 #define HEAT_WBX_H                      61
 #define HEAT_WBX_RAM_SIZE               1106
-#define HEAT_WHX_W                      18
+#define HEAT_WHX_W                      50
 #define HEAT_WHX_H                      49
-#define HEAT_WHX_RAM_SIZE               1772
+#define HEAT_WHX_RAM_SIZE               4908
 #define HEAT_WSX_W                      28
 #define HEAT_WSX_H                      49
 #define HEAT_WSX_RAM_SIZE               2752

@@ -96,6 +96,7 @@ SOURCES=(
     main.c config.c
     # functions
     functions/func.c functions/func_activity.c functions/func_ble_gatts.c
+    functions/func_key_lock.c
     functions/func_bt.c functions/func_charge.c functions/func_compo_select.c
     functions/func_compo_select_sub.c functions/func_debug_info.c functions/func_heat.c
     functions/heat_display_reg.c functions/func_home.c functions/home_ui_shared.c functions/home_tab_label.c

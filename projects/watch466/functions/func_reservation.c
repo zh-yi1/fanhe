@@ -13,6 +13,9 @@
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #endif
+#if USER_PANEL_LED
+#include "port_panel_led.h"
+#endif
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -136,8 +139,8 @@
 /* 图一：预约时长时钟右上角锚点 (320×240) */
 #define RES_APPT_TIMER_TR_Y               ((s16)((s32)90 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
 #define RES_APPT_TIMER_TR_H10_X           ((s16)((s32)83 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define RES_APPT_TIMER_TR_H1_X            ((s16)((s32)141 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define RES_APPT_TIMER_TR_COLON_X         ((s16)((s32)172 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define RES_APPT_TIMER_TR_H1_X            ((s16)((s32)132 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define RES_APPT_TIMER_TR_COLON_X         ((s16)((s32)175 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 #define RES_APPT_TIMER_TR_M10_X           ((s16)((s32)225 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 #define RES_APPT_TIMER_TR_M1_X            ((s16)((s32)283 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 
@@ -151,6 +154,8 @@
 
 #define RES_HEAT_LOCK_MS                  30000
 #define RES_TEMP_PRESET_CNT               5
+#define RES_MIN_STEP                      5
+#define RES_APPT_MIN_TOTAL_MIN            (1 * 60 + 0)
 #define RES_MSG_OK                        KU_BACK
 #define RES_MSG_PLUS                      KU_VOL_UP
 #define RES_MSG_MINUS                     KU_VOL_DOWN
@@ -295,18 +300,6 @@ static u16 func_res_gpu_pic_h(const u8 *ram)
 
 static const u16 tbl_res_temp_preset[RES_TEMP_PRESET_CNT] = {
     140, 158, 176, 194, 212,
-};
-
-static const u32 tbl_res_appt_digit_addr[10] = {
-    UI_BUF_HOME_0_BIN, UI_BUF_HOME_1_BIN, UI_BUF_HOME_2_BIN, UI_BUF_HOME_3_BIN,
-    UI_BUF_HOME_4_BIN, UI_BUF_HOME_5_BIN, UI_BUF_HOME_6_BIN, UI_BUF_HOME_7_BIN,
-    UI_BUF_HOME_8_BIN, UI_BUF_HOME_9_BIN,
-};
-
-static const u16 tbl_res_appt_digit_len[10] = {
-    UI_LEN_HOME_0_BIN, UI_LEN_HOME_1_BIN, UI_LEN_HOME_2_BIN, UI_LEN_HOME_3_BIN,
-    UI_LEN_HOME_4_BIN, UI_LEN_HOME_5_BIN, UI_LEN_HOME_6_BIN, UI_LEN_HOME_7_BIN,
-    UI_LEN_HOME_8_BIN, UI_LEN_HOME_9_BIN,
 };
 
 static const u32 tbl_res_w_digit_addr[10] = {
@@ -467,6 +460,19 @@ bool func_reservation_is_waiting(void)
     return g_res.setup_done && (g_res.phase == RES_PHASE_WAITING);
 }
 
+bool func_reservation_is_active(void)
+{
+    return g_res.setup_done &&
+           (g_res.phase == RES_PHASE_WAITING || g_res.phase == RES_PHASE_HEATING);
+}
+
+#if USER_PANEL_LED
+static void func_reservation_led_sync(void)
+{
+    panel_led_set_res_latched(func_reservation_is_active());
+}
+#endif
+
 static u16 func_res_get_target_temp_f(u8 temp_idx)
 {
     if (temp_idx >= RES_TEMP_PRESET_CNT) {
@@ -534,7 +540,7 @@ static void func_res_info_text_update(f_reservation_t *f_res)
     compo_textbox_set_visible(f_res->txt_info, true);
 }
 
-static void func_res_lock_icon_apply(f_reservation_t *f_res);
+void func_res_lock_icon_apply(f_reservation_t *f_res);
 
 static void func_res_status_icons_apply(f_reservation_t *f_res)
 {
@@ -564,13 +570,13 @@ static void func_res_status_icons_apply(f_reservation_t *f_res)
     func_res_lock_icon_apply(f_res);
 }
 
-static void func_res_lock_icon_apply(f_reservation_t *f_res)
+void func_res_lock_icon_apply(f_reservation_t *f_res)
 {
     if (f_res == NULL || f_res->pic_lock == NULL) {
         return;
     }
 
-    if (f_res->screen_locked) {
+    if (func_key_lock_show_status_icon(f_res->screen_locked)) {
         compo_picturebox_set_pos(f_res->pic_lock, RES_STATUS_LOCK_X, RES_STATUS_Y);
 #if ELUNCHBOX_PANEL_EN
         home_ui_shared_status_init();
@@ -635,22 +641,28 @@ static void func_res_pic_pos_tr(compo_picturebox_t *pic, s16 tr_x, s16 tr_y, u16
     compo_picturebox_set_pos(pic, tr_x - (s16)(w / 2), tr_y + (s16)(h / 2));
 }
 
-static void func_res_appt_layout(f_reservation_t *f_res, u8 hour, u8 min)
+static void func_res_appt_layout(f_reservation_t *f_res, u8 hour, u8 min,
+                               bool h_white, bool m_white)
 {
+    const u16 *htbl = h_white ? tbl_res_w_digit_w : tbl_res_b_digit_w;
+    const u16 *mtbl = m_white ? tbl_res_w_digit_w : tbl_res_b_digit_w;
+    u8 hd[2] = { hour / 10, hour % 10 };
+    u8 md[2] = { min / 10, min % 10 };
+    u16 h_digit_h = h_white ? HEAT_W_DIGIT_MAX_H : HEAT_B_DIGIT_MAX_H;
+    u16 m_digit_h = m_white ? HEAT_W_DIGIT_MAX_H : HEAT_B_DIGIT_MAX_H;
+
     (void)hour;
     (void)min;
 
     func_res_pic_pos_tr(f_res->pic_appt[RES_TIMER_IDX_H10],
                         RES_APPT_TIMER_TR_H10_X, RES_APPT_TIMER_TR_Y,
-                        RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
-    compo_picturebox_set_size(f_res->pic_appt[RES_TIMER_IDX_H10],
-                              RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
+                        htbl[hd[0]], h_digit_h);
+    compo_picturebox_set_size(f_res->pic_appt[RES_TIMER_IDX_H10], htbl[hd[0]], h_digit_h);
 
     func_res_pic_pos_tr(f_res->pic_appt[RES_TIMER_IDX_H1],
                         RES_APPT_TIMER_TR_H1_X, RES_APPT_TIMER_TR_Y,
-                        RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
-    compo_picturebox_set_size(f_res->pic_appt[RES_TIMER_IDX_H1],
-                              RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
+                        htbl[hd[1]], h_digit_h);
+    compo_picturebox_set_size(f_res->pic_appt[RES_TIMER_IDX_H1], htbl[hd[1]], h_digit_h);
 
     func_res_pic_pos_tr(f_res->pic_appt_colon,
                         RES_APPT_TIMER_TR_COLON_X, RES_APPT_TIMER_TR_Y,
@@ -659,18 +671,47 @@ static void func_res_appt_layout(f_reservation_t *f_res, u8 hour, u8 min)
 
     func_res_pic_pos_tr(f_res->pic_appt[RES_TIMER_IDX_M10],
                         RES_APPT_TIMER_TR_M10_X, RES_APPT_TIMER_TR_Y,
-                        RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
-    compo_picturebox_set_size(f_res->pic_appt[RES_TIMER_IDX_M10],
-                              RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
+                        mtbl[md[0]], m_digit_h);
+    compo_picturebox_set_size(f_res->pic_appt[RES_TIMER_IDX_M10], mtbl[md[0]], m_digit_h);
 
     func_res_pic_pos_tr(f_res->pic_appt[RES_TIMER_IDX_M1],
                         RES_APPT_TIMER_TR_M1_X, RES_APPT_TIMER_TR_Y,
-                        RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
-    compo_picturebox_set_size(f_res->pic_appt[RES_TIMER_IDX_M1],
-                              RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
+                        mtbl[md[1]], m_digit_h);
+    compo_picturebox_set_size(f_res->pic_appt[RES_TIMER_IDX_M1], mtbl[md[1]], m_digit_h);
 }
 
-static void func_res_appt_update(f_reservation_t *f_res)
+static u16 func_res_appt_total_min(const f_reservation_t *f_res)
+{
+    return (u16)f_res->appt_hour * 60 + f_res->appt_min;
+}
+
+static void func_res_appt_apply_total_min(f_reservation_t *f_res, u16 total_min)
+{
+    if (total_min < RES_APPT_MIN_TOTAL_MIN) {
+        total_min = RES_APPT_MIN_TOTAL_MIN;
+    }
+    if (total_min > (u16)23 * 60 + 59) {
+        total_min = (u16)23 * 60 + 59;
+    }
+    f_res->appt_hour = (u8)(total_min / 60);
+    f_res->appt_min = (u8)(total_min % 60);
+}
+
+static u16 func_res_heat_setup_total_min(const f_reservation_t *f_res)
+{
+    return (u16)f_res->heat_hour * 60 + f_res->heat_min;
+}
+
+static void func_res_heat_setup_apply_total_min(f_reservation_t *f_res, u16 total_min)
+{
+    if (total_min > (u16)99 * 60 + 59) {
+        total_min = (u16)99 * 60 + 59;
+    }
+    f_res->heat_hour = (u8)(total_min / 60);
+    f_res->heat_min = (u8)(total_min % 60);
+}
+
+static void func_res_appt_update(f_reservation_t *f_res, bool h_white, bool m_white)
 {
     u8 digits[RES_TIMER_IDX_CNT];
     u16 key;
@@ -686,11 +727,14 @@ static void func_res_appt_update(f_reservation_t *f_res)
     digits[RES_TIMER_IDX_M1] = f_res->appt_min % 10;
     key = (u16)f_res->appt_hour * 100 + f_res->appt_min;
 
-    if (f_res->last_appt_key == key) {
-        func_res_appt_layout(f_res, f_res->appt_hour, f_res->appt_min);
+    if (f_res->last_appt_key == key
+        && f_res->last_h_white == h_white && f_res->last_m_white == m_white) {
+        func_res_appt_layout(f_res, f_res->appt_hour, f_res->appt_min, h_white, m_white);
         return;
     }
     f_res->last_appt_key = key;
+    f_res->last_h_white = h_white;
+    f_res->last_m_white = m_white;
 
 #if ELUNCHBOX_PANEL_EN
     /* 预约页与 Home 互斥：复用 home_ui_digit_ram / home_ui_colon_ram（已在 .disp） */
@@ -698,10 +742,12 @@ static void func_res_appt_update(f_reservation_t *f_res)
                      UI_BUF_HOME_COLON_BIN, UI_LEN_HOME_COLON_BIN, f_res->pic_appt_colon);
     for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
         u8 d = digits[i];
+        bool white = (i <= RES_TIMER_IDX_H1) ? h_white : m_white;
+        u32 addr = white ? tbl_res_w_digit_addr[d] : tbl_res_b_digit_addr[d];
+        u16 len = white ? tbl_res_w_digit_len[d] : tbl_res_b_digit_len[d];
 
         func_res_gpu_ram(home_ui_digit_ram[i], HOME_DIGIT_RAM_MAX_SIZE,
-                         tbl_res_appt_digit_addr[d], tbl_res_appt_digit_len[d],
-                         f_res->pic_appt[i]);
+                         addr, len, f_res->pic_appt[i]);
     }
 #else
     home_ui_pic_set_flash(f_res->pic_appt_colon, UI_BUF_HOME_COLON_BIN,
@@ -709,13 +755,16 @@ static void func_res_appt_update(f_reservation_t *f_res)
 
     for (i = 0; i < RES_TIMER_IDX_CNT; i++) {
         u8 d = digits[i];
+        bool white = (i <= RES_TIMER_IDX_H1) ? h_white : m_white;
+        u32 addr = white ? tbl_res_w_digit_addr[d] : tbl_res_b_digit_addr[d];
+        u16 w = white ? tbl_res_w_digit_w[d] : tbl_res_b_digit_w[d];
 
-        home_ui_pic_set_flash(f_res->pic_appt[i], tbl_res_appt_digit_addr[d],
-                              RES_APPT_DIGIT_W, RES_APPT_DIGIT_H);
+        home_ui_pic_set_flash(f_res->pic_appt[i], addr, w,
+                              white ? HEAT_W_DIGIT_MAX_H : HEAT_B_DIGIT_MAX_H);
     }
 #endif
 
-    func_res_appt_layout(f_res, f_res->appt_hour, f_res->appt_min);
+    func_res_appt_layout(f_res, f_res->appt_hour, f_res->appt_min, h_white, m_white);
 }
 
 static void func_res_heat_timer_layout(f_reservation_t *f_res, u8 hour, u8 min,
@@ -833,24 +882,13 @@ static void func_res_temp_layout(f_reservation_t *f_res, u8 digits[RES_TEMP_IDX_
     }
 
     if (f_res->pic_temp_degf != NULL) {
-        u16 sym_w = white ? HEAT_WHX_W : HEAT_BHX_W;
-        u16 sym_h = white ? HEAT_WHX_H : HEAT_BHX_H;
-
-        func_res_pic_pos_tr(f_res->pic_temp_degf, HEAT_TEMP_TR_UNIT_X, HEAT_TEMP_TR_Y,
-                            sym_w, sym_h);
-        compo_picturebox_set_size(f_res->pic_temp_degf, sym_w, sym_h);
+        func_res_pic_pos_tr(f_res->pic_temp_degf, HEAT_TEMP_TR_UNIT_X, HEAT_TEMP_TR_UNIT_Y,
+                            HEAT_BHX_W, HEAT_BHX_H);
+        compo_picturebox_set_size(f_res->pic_temp_degf, HEAT_BHX_W, HEAT_BHX_H);
+        compo_picturebox_set_visible(f_res->pic_temp_degf, true);
     }
-
     if (f_res->pic_temp_suffix != NULL) {
-        if (white && HEAT_WSX_W > 0) {
-            func_res_pic_pos_tr(f_res->pic_temp_suffix,
-                                HEAT_TEMP_TR_UNIT_X + (s16)HEAT_WHX_W, HEAT_TEMP_TR_Y,
-                                HEAT_WSX_W, HEAT_WSX_H);
-            compo_picturebox_set_size(f_res->pic_temp_suffix, HEAT_WSX_W, HEAT_WSX_H);
-            compo_picturebox_set_visible(f_res->pic_temp_suffix, true);
-        } else {
-            compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
-        }
+        compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
     }
 }
 
@@ -895,12 +933,7 @@ static void func_res_temp_update(f_reservation_t *f_res, u16 temp_f, bool white)
     }
 
     if (f_res->pic_temp_suffix != NULL) {
-        if (white && HEAT_WSX_W > 0) {
-            func_res_gpu_ram(res_temp_suffix_ram, RES_TEMP_SUF_RAM_MAX_SIZE,
-                             UI_BUF_HOME_WSX_BIN, UI_LEN_HOME_WSX_BIN, f_res->pic_temp_suffix);
-        } else {
-            compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
-        }
+        compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
     }
 
     for (i = 0; i < RES_TEMP_IDX_CNT; i++) {
@@ -913,16 +946,10 @@ static void func_res_temp_update(f_reservation_t *f_res, u16 temp_f, bool white)
     }
 #else
     home_ui_pic_set_flash(f_res->pic_temp_degf, white ? UI_BUF_HOME_WHX_BIN : UI_BUF_HOME_BHX_BIN,
-                          white ? HEAT_WHX_W : HEAT_BHX_W,
-                          white ? HEAT_WHX_H : HEAT_BHX_H);
+                          HEAT_BHX_W, HEAT_BHX_H);
 
     if (f_res->pic_temp_suffix != NULL) {
-        if (white && HEAT_WSX_W > 0) {
-            home_ui_pic_set_flash(f_res->pic_temp_suffix, UI_BUF_HOME_WSX_BIN,
-                                  HEAT_WSX_W, HEAT_WSX_H);
-        } else {
-            compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
-        }
+        compo_picturebox_set_visible(f_res->pic_temp_suffix, false);
     }
 
     for (i = 0; i < RES_TEMP_IDX_CNT; i++) {
@@ -990,11 +1017,13 @@ static void func_res_display_refresh(f_reservation_t *f_res)
 
     if (f_res->ui == RES_UI_APPT_TIME) {
         tm_t tm = rtc_clock_get();
+        bool h_white = (f_res->focus == RES_FOCUS_APPT_HOUR);
+        bool m_white = (f_res->focus == RES_FOCUS_APPT_MIN);
 
         func_res_hide_heat_temp_ui(f_res);
         f_res->top_time.last_key = 0;
         func_res_top_time_refresh(f_res, &tm);
-        func_res_appt_update(f_res);
+        func_res_appt_update(f_res, h_white, m_white);
         func_res_info_text_update(f_res);
         func_res_lock_icon_apply(f_res);
         return;
@@ -1059,16 +1088,13 @@ static void func_reservation_heat_display_on_info(const heat_display_info_t *inf
 
     /* 加热完成检测 */
     if (info->remain_min == 0 && f_res->heat_remain_sec == 0) {
-        f_res->ui = RES_UI_FINISHED;
-        f_res->display_temp_f = func_res_get_target_temp_f(f_res->temp_idx);
-        f_res->screen_locked = false;
-        g_res.phase = RES_PHASE_FINISHED;
-        heat_display_unregister();
+        f_res->live_heat_ready = true;
+        f_res->live_remain_min = 0;
+        func_res_heating_finish_check(f_res);
+        return;
     }
 
-    if (f_res->ui != RES_UI_FINISHED) {
-        func_res_display_refresh(f_res);
-    }
+    func_res_display_refresh(f_res);
 }
 
 static void func_res_start_heating(f_reservation_t *f_res)
@@ -1169,6 +1195,10 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
     g_res.temp_idx = f_res->temp_idx;
     g_res.appt_triggered_today = false;
 
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+
 #if FUNC_LUNCHBOX_UART_EN
     {
         u32 now = RTCCNT + LB_RTC_UNIX_OFFSET;  // RTCCNT 从2020起算, +offset 转Unix时间戳
@@ -1207,8 +1237,17 @@ static void func_res_ok_key(f_reservation_t *f_res)
 
     switch (f_res->ui) {
     case RES_UI_APPT_TIME:
-        f_res->ui = RES_UI_HEAT_SETUP;
-        f_res->focus = RES_FOCUS_HEAT_HOUR;
+        switch (f_res->focus) {
+        case RES_FOCUS_APPT_HOUR:
+            f_res->focus = RES_FOCUS_APPT_MIN;
+            break;
+        case RES_FOCUS_APPT_MIN:
+            f_res->ui = RES_UI_HEAT_SETUP;
+            f_res->focus = RES_FOCUS_HEAT_HOUR;
+            break;
+        default:
+            break;
+        }
         f_res->last_appt_key = 0xffff;
         f_res->last_heat_timer_key = 0xffff;
         f_res->last_temp_f = 0xffff;
@@ -1280,8 +1319,18 @@ static void func_res_power_key(f_reservation_t *f_res)
 
     switch (f_res->ui) {
     case RES_UI_APPT_TIME:
-        if (func_res_switch_home()) {
-            return;
+        switch (f_res->focus) {
+        case RES_FOCUS_APPT_HOUR:
+            if (func_res_switch_home()) {
+                return;
+            }
+            break;
+        case RES_FOCUS_APPT_MIN:
+            f_res->focus = RES_FOCUS_APPT_HOUR;
+            f_res->last_appt_key = 0xffff;
+            break;
+        default:
+            break;
         }
         break;
 
@@ -1322,68 +1371,47 @@ static void func_res_value_inc(f_reservation_t *f_res)
         return;
     }
 
-    if (f_res->ui == RES_UI_APPT_TIME) {
-        if (f_res->appt_hour < 23) {
-            f_res->appt_hour++;
-        }
-        f_res->last_appt_key = 0xffff;
-        func_res_display_refresh(f_res);
-        return;
-    }
-
-    switch (f_res->focus) {
-    case RES_FOCUS_APPT_HOUR:
-        if (f_res->appt_hour < 23) {
-            f_res->appt_hour++;
-        }
-        f_res->last_appt_key = 0xffff;
-        break;
-
-    case RES_FOCUS_APPT_MIN:
-        if (f_res->appt_min < 59) {
-            f_res->appt_min++;
-        } else {
-            f_res->appt_min = 0;
+    if (f_res->ui == RES_UI_APPT_TIME || f_res->ui == RES_UI_HEAT_SETUP) {
+        switch (f_res->focus) {
+        case RES_FOCUS_APPT_HOUR:
             if (f_res->appt_hour < 23) {
                 f_res->appt_hour++;
-            } else {
-                f_res->appt_min = 59;
             }
-        }
-        f_res->last_appt_key = 0xffff;
-        break;
+            f_res->last_appt_key = 0xffff;
+            break;
 
-    case RES_FOCUS_HEAT_HOUR:
-        if (f_res->heat_hour < 99) {
-            f_res->heat_hour++;
-        }
-        f_res->last_heat_timer_key = 0xffff;
-        break;
+        case RES_FOCUS_APPT_MIN:
+            func_res_appt_apply_total_min(f_res,
+                                          func_res_appt_total_min(f_res) + RES_MIN_STEP);
+            f_res->last_appt_key = 0xffff;
+            break;
 
-    case RES_FOCUS_HEAT_MIN:
-        if (f_res->heat_min < 59) {
-            f_res->heat_min++;
-        } else {
-            f_res->heat_min = 0;
+        case RES_FOCUS_HEAT_HOUR:
             if (f_res->heat_hour < 99) {
                 f_res->heat_hour++;
             }
-        }
-        f_res->last_heat_timer_key = 0xffff;
-        break;
+            f_res->last_heat_timer_key = 0xffff;
+            break;
 
-    case RES_FOCUS_HEAT_TEMP:
-        if (f_res->temp_idx + 1 < RES_TEMP_PRESET_CNT) {
-            f_res->temp_idx++;
-        }
-        f_res->last_temp_f = 0xffff;
-        break;
+        case RES_FOCUS_HEAT_MIN:
+            func_res_heat_setup_apply_total_min(f_res,
+                                                func_res_heat_setup_total_min(f_res) + RES_MIN_STEP);
+            f_res->last_heat_timer_key = 0xffff;
+            break;
 
-    default:
-        break;
+        case RES_FOCUS_HEAT_TEMP:
+            if (f_res->temp_idx + 1 < RES_TEMP_PRESET_CNT) {
+                f_res->temp_idx++;
+            }
+            f_res->last_temp_f = 0xffff;
+            break;
+
+        default:
+            break;
+        }
+
+        func_res_display_refresh(f_res);
     }
-
-    func_res_display_refresh(f_res);
 }
 
 static void func_res_value_dec(f_reservation_t *f_res)
@@ -1392,64 +1420,63 @@ static void func_res_value_dec(f_reservation_t *f_res)
         return;
     }
 
-    if (f_res->ui == RES_UI_APPT_TIME) {
-        if (f_res->appt_hour > 1) {
-            f_res->appt_hour--;
+    if (f_res->ui == RES_UI_APPT_TIME || f_res->ui == RES_UI_HEAT_SETUP) {
+        switch (f_res->focus) {
+        case RES_FOCUS_APPT_HOUR:
+            if (f_res->appt_hour > 1) {
+                f_res->appt_hour--;
+            }
+            f_res->last_appt_key = 0xffff;
+            break;
+
+        case RES_FOCUS_APPT_MIN:
+            {
+                u16 total = func_res_appt_total_min(f_res);
+
+                if (total >= RES_APPT_MIN_TOTAL_MIN + RES_MIN_STEP) {
+                    total -= RES_MIN_STEP;
+                } else {
+                    total = RES_APPT_MIN_TOTAL_MIN;
+                }
+                func_res_appt_apply_total_min(f_res, total);
+            }
+            f_res->last_appt_key = 0xffff;
+            break;
+
+        case RES_FOCUS_HEAT_HOUR:
+            if (f_res->heat_hour > 0) {
+                f_res->heat_hour--;
+            }
+            f_res->last_heat_timer_key = 0xffff;
+            break;
+
+        case RES_FOCUS_HEAT_MIN:
+            {
+                u16 total = func_res_heat_setup_total_min(f_res);
+
+                if (total >= RES_MIN_STEP) {
+                    total -= RES_MIN_STEP;
+                } else {
+                    total = 0;
+                }
+                func_res_heat_setup_apply_total_min(f_res, total);
+            }
+            f_res->last_heat_timer_key = 0xffff;
+            break;
+
+        case RES_FOCUS_HEAT_TEMP:
+            if (f_res->temp_idx > 0) {
+                f_res->temp_idx--;
+            }
+            f_res->last_temp_f = 0xffff;
+            break;
+
+        default:
+            break;
         }
-        f_res->last_appt_key = 0xffff;
+
         func_res_display_refresh(f_res);
-        return;
     }
-
-    switch (f_res->focus) {
-    case RES_FOCUS_APPT_HOUR:
-        if (f_res->appt_hour > 1) {
-            f_res->appt_hour--;
-        }
-        f_res->last_appt_key = 0xffff;
-        break;
-
-    case RES_FOCUS_APPT_MIN:
-        if (f_res->appt_min > 0) {
-            f_res->appt_min--;
-        } else if (f_res->appt_hour > 1) {
-            f_res->appt_min = 59;
-            f_res->appt_hour--;
-        } else {
-            f_res->appt_min = 0;
-        }
-        f_res->last_appt_key = 0xffff;
-        break;
-
-    case RES_FOCUS_HEAT_HOUR:
-        if (f_res->heat_hour > 0) {
-            f_res->heat_hour--;
-        }
-        f_res->last_heat_timer_key = 0xffff;
-        break;
-
-    case RES_FOCUS_HEAT_MIN:
-        if (f_res->heat_min > 0) {
-            f_res->heat_min--;
-        } else if (f_res->heat_hour > 0) {
-            f_res->heat_min = 59;
-            f_res->heat_hour--;
-        }
-        f_res->last_heat_timer_key = 0xffff;
-        break;
-
-    case RES_FOCUS_HEAT_TEMP:
-        if (f_res->temp_idx > 0) {
-            f_res->temp_idx--;
-        }
-        f_res->last_temp_f = 0xffff;
-        break;
-
-    default:
-        break;
-    }
-
-    func_res_display_refresh(f_res);
 }
 
 static void func_res_heating_finish_check(f_reservation_t *f_res)
@@ -1477,7 +1504,7 @@ static void func_res_heating_finish_check(f_reservation_t *f_res)
     f_res->last_heat_timer_key = 0xffff;
     f_res->last_temp_f = 0xffff;
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_heat_stop();
+    lunchbox_keep_warm_start();
 #endif
     func_res_display_refresh(f_res);
 }
@@ -1516,7 +1543,7 @@ static void func_res_heating_tick(f_reservation_t *f_res)
         f_res->last_temp_f = 0xffff;
         heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
-        lunchbox_heat_stop();
+        lunchbox_keep_warm_start();
 #endif
     }
 
@@ -1573,6 +1600,10 @@ void func_reservation_poll(void)
 {
     tm_t tm;
 
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.sta == FUNC_HOME) {
         return;
@@ -1590,6 +1621,9 @@ void func_reservation_poll(void)
 
     if (tm.hour == g_res.appt_hour && tm.min == g_res.appt_min) {
         g_res.phase = RES_PHASE_HEATING;
+#if USER_PANEL_LED
+        func_reservation_led_sync();
+#endif
 #if FUNC_RESERVATION_UI_EN
 #if ELUNCHBOX_PANEL_EN
         /* 到点仅在已在预约页时开加热，不从其它页强跳预约 UI */
@@ -1694,7 +1728,7 @@ compo_form_t *func_reservation_form_create(void)
     compo_picturebox_set_size(pic, HEAT_B0X_W, HEAT_B_DIGIT_MAX_H);
 
     pic = func_res_pic_create_hidden(frm, COMPO_ID_PIC_TEMPF);
-    func_res_pic_pos_tr(pic, HEAT_TEMP_TR_UNIT_X, HEAT_TEMP_TR_Y, HEAT_BHX_W, HEAT_BHX_H);
+    func_res_pic_pos_tr(pic, HEAT_TEMP_TR_UNIT_X, HEAT_TEMP_TR_UNIT_Y, HEAT_BHX_W, HEAT_BHX_H);
     compo_picturebox_set_size(pic, HEAT_BHX_W, HEAT_BHX_H);
 
     func_res_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_S);
@@ -1746,8 +1780,12 @@ static void func_reservation_message(size_msg_t msg)
         return;
     }
 
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+
     if (f_res != NULL && f_res->screen_locked) {
-        if (msg != RES_MSG_POWER && msg != KU_LEFT) {
+        if (msg != RES_MSG_POWER) {
             return;
         }
     }
@@ -1774,10 +1812,6 @@ static void func_reservation_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        if (f_res != NULL) {
-            f_res->screen_locked = !f_res->screen_locked;
-            func_res_lock_icon_apply(f_res);
-        }
         break;
 
 #if ELUNCHBOX_PANEL_EN

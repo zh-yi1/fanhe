@@ -18,5 +18,6 @@
 #define HEAT_TEMP_TR_T10_X                ((s16)((s32)139 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 #define HEAT_TEMP_TR_T1_X                 ((s16)((s32)185 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 #define HEAT_TEMP_TR_UNIT_X               ((s16)((s32)247 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define HEAT_TEMP_TR_UNIT_Y               HEAT_TEMP_TR_Y
 
 #endif

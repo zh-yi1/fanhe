@@ -840,6 +840,10 @@
 		<Unit filename="functions/heat_display_reg.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_key_lock.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_key_lock.h" />
 		<Unit filename="functions/func_home.c">
 			<Option compilerVar="CC" />
 		</Unit>

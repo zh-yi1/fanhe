@@ -1,5 +1,8 @@
 #include "include.h"
 #include "func.h"
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+#include "port_pt8028_key.h"
+#endif
 
 AT(.sleep_backup.gui)
 u8 sys_backup_buf[32 * 1024];
@@ -597,6 +600,11 @@ static void sfunc_sleep(void)
 bool sleep_process(is_sleep_func is_sleep)
 {
 //    printf("%s->%d,%d\n", __func__, sys_cb.gui_need_wakeup, sys_cb.gui_sleep_sta);
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
+        sys_cb.gui_need_wakeup = 0;
+    } else
+#endif
     if (sys_cb.gui_need_wakeup && sys_cb.gui_sleep_sta) {
         gui_wakeup();                   //按键亮屏
         reset_sleep_delay_all();
@@ -791,6 +799,11 @@ void sfunc_pwrdown_do(u8 vusb_wakeup_en)
     rtccon3 &= ~BIT(3);                         //RI_EN_VDD11 = 0
     rtccon3 |= BIT(6) | BIT(4) | BIT(19);       //PDCORE, PDCORE2, PDCORE3
     rtccon3 |= BIT(10);                         //WK pin wake up enable
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    GPIOEDE |= BIT(1);                          //PE1=PT8028 OUT_FLAG 作唤醒
+    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
+    rtccon3 |= BIT(17);                         //port io wakeup enable
+#endif
 #if SOFT_POWER_VDDIO_EN
     rtccon3 |= BIT(7);                          //VDDIO AON enable
 #endif

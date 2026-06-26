@@ -246,7 +246,7 @@ static compo_shape_t *func_verinfo_shape_create(compo_form_t *frm, u16 id, s16 x
     return shape;
 }
 
-static void func_verinfo_lock_icon_apply(f_verinfo_t *f_verinfo);
+void func_verinfo_lock_icon_apply(f_verinfo_t *f_verinfo);
 
 static void func_verinfo_status_icons_apply(f_verinfo_t *f_verinfo)
 {
@@ -270,12 +270,12 @@ static void func_verinfo_status_icons_apply(f_verinfo_t *f_verinfo)
     func_verinfo_lock_icon_apply(f_verinfo);
 }
 
-static void func_verinfo_lock_icon_apply(f_verinfo_t *f_verinfo)
+void func_verinfo_lock_icon_apply(f_verinfo_t *f_verinfo)
 {
     if (f_verinfo == NULL || f_verinfo->pic_lock == NULL) {
         return;
     }
-    if (f_verinfo->screen_locked) {
+    if (func_key_lock_show_status_icon(f_verinfo->screen_locked)) {
         home_ui_shared_status_init();
         compo_picturebox_set_pos(f_verinfo->pic_lock, VERINFO_STATUS_LOCK_X, VERINFO_STATUS_Y);
         if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
@@ -356,8 +356,12 @@ static void func_verinfo_message(size_msg_t msg)
 {
     f_verinfo_t *f_verinfo = (f_verinfo_t *)func_cb.f_cb;
 
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+
     if (f_verinfo != NULL && f_verinfo->screen_locked) {
-        if (msg != VERINFO_MSG_POWER && msg != KU_BACK && msg != KU_LEFT) {
+        if (msg != VERINFO_MSG_POWER && msg != KU_BACK) {
             return;
         }
     }
@@ -368,10 +372,6 @@ static void func_verinfo_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        if (f_verinfo != NULL) {
-            f_verinfo->screen_locked = !f_verinfo->screen_locked;
-            func_verinfo_lock_icon_apply(f_verinfo);
-        }
         break;
 
     case VERINFO_MSG_POWER:

@@ -416,7 +416,7 @@ typedef struct {
 static const mode_tab_preset_t tbl_mode_tab_preset[MODE_TAB_CNT] = {
     {194, 1, 0},   /* Pasta       */
     {212, 1, 0},   /* Chicken     */
-    {120, 1, 0},   /* Insulation  */
+    {140, 1, 0},   /* Insulation  */
 };
 
 /* Tab → 协议模式值: Pasta=3(意面), Chicken=2(鸡腿), Insulation=5(保温) */
@@ -434,7 +434,7 @@ static void func_mode_tab_bind(f_mode_t *f_mode, u8 idx, u16 id_base);
 static void func_mode_tab_select_next(f_mode_t *f_mode);
 static void func_mode_start_heating(f_mode_t *f_mode);
 static void func_mode_power_key(f_mode_t *f_mode);
-static void func_mode_lock_icon_apply(f_mode_t *f_mode);
+void func_mode_lock_icon_apply(f_mode_t *f_mode);
 static void func_mode_lock_check(f_mode_t *f_mode);
 static void func_mode_heating_finish_check(f_mode_t *f_mode);
 static bool func_mode_key_allowed(f_mode_t *f_mode, size_msg_t msg);
@@ -571,13 +571,13 @@ static void func_mode_status_icons_apply(f_mode_t *f_mode)
     func_mode_lock_icon_apply(f_mode);
 }
 
-static void func_mode_lock_icon_apply(f_mode_t *f_mode)
+void func_mode_lock_icon_apply(f_mode_t *f_mode)
 {
     if (f_mode == NULL || f_mode->pic_lock == NULL) {
         return;
     }
 
-    if (f_mode->screen_locked) {
+    if (func_key_lock_show_status_icon(f_mode->screen_locked)) {
         home_ui_shared_status_init();
         compo_picturebox_set_pos(f_mode->pic_lock, MODE_STATUS_LOCK_X, MODE_STATUS_Y);
         if (gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
@@ -663,7 +663,7 @@ static void func_mode_heating_finish_check(f_mode_t *f_mode)
     f_mode->screen_locked = false;
     func_mode_lock_icon_apply(f_mode);
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_heat_stop();
+    lunchbox_keep_warm_start();
 #endif
 }
 
@@ -1424,6 +1424,10 @@ static void func_mode_message(size_msg_t msg)
 {
     f_mode_t *f_mode = (f_mode_t *)func_cb.f_cb;
 
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+
     switch (msg) {
     case MSG_CTP_CLICK:
         if (f_mode != NULL &&
@@ -1459,10 +1463,6 @@ static void func_mode_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-        if (f_mode != NULL) {
-            f_mode->screen_locked = !f_mode->screen_locked;
-            func_mode_lock_icon_apply(f_mode);
-        }
         break;
 
     default:

@@ -254,10 +254,10 @@ void gui_init(void)
     ctp_init();
 #endif // CTP_SELECT
     tft_init();
-    tft_bglight_open();
-
 #if ELUNCHBOX_PANEL_EN
-    tft_bglight_force_on();
+    /* 背光延后至 Home 首帧绘制后再开，避免上电花屏 */
+#else
+    tft_bglight_open();
 #endif
 
     sys_cb.sleep_en = 1;            //允许进休眠

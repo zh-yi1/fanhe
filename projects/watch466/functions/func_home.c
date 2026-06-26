@@ -506,7 +506,7 @@ static void func_home_status_icons_init(void)
     home_ui_shared_status_init();
 }
 
-static void func_home_lock_icon_apply(f_home_t *f_home);
+void func_home_lock_icon_apply(f_home_t *f_home);
 
 static void func_home_status_icons_apply(f_home_t *f_home)
 {
@@ -541,12 +541,12 @@ static void func_home_lock_icon_prepare(f_home_t *f_home)
     }
 }
 
-static void func_home_lock_icon_apply(f_home_t *f_home)
+void func_home_lock_icon_apply(f_home_t *f_home)
 {
     if (f_home == NULL || f_home->pic_lock == NULL) {
         return;
     }
-    if (f_home->screen_locked) {
+    if (func_key_lock_show_status_icon(f_home->screen_locked)) {
         if (!gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
             func_home_lock_icon_prepare(f_home);
         }
@@ -1264,8 +1264,12 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
     last_ms = tick_get();
     last_tch = tch;
 
-    if (f_home->screen_locked && tch != PT8028_KEY_TCH0 && tch != PT8028_KEY_TCH4 && tch != PT8028_KEY_TCH5) {
-        return;  // 锁屏时仅允许锁键、确认、开关
+    if (func_key_lock_filter_tch(tch)) {
+        return;
+    }
+
+    if (f_home->screen_locked && tch != PT8028_KEY_TCH5) {
+        return;
     }
 
     switch (tch) {
@@ -1275,18 +1279,11 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
         break;
 
     case PT8028_KEY_TCH1:
-        HOME_DBG("Home: TCH1 加热键按下\n");
-        home_gpu_wait_idle();
-        func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        /* 加热键：长按 3s 由 func_heat_key_poll 进入加热页 */
         break;
 
     case PT8028_KEY_TCH0:
-        HOME_DBG("Home: TCH0 锁键按下\n");
-        f_home->screen_locked = !f_home->screen_locked;
-        func_home_lock_icon_apply(f_home);
-#if ELUNCHBOX_PANEL_EN
-        os_gui_draw_force();
-#endif
+        /* 全局按键锁：TCH0 长按 3s 由 func_key_lock_poll 处理 */
         break;
 
     case PT8028_KEY_TCH5:
@@ -1330,6 +1327,10 @@ void func_home_process(void)
     /* 先扫键、改 UI 状态，再 func_process 刷屏，避免按键与显示差一帧 */
     pt8028_gpio_ensure_periodic();
     pt8028_key_scan();
+    if (sys_cb.gui_sleep_sta) {
+        func_process();
+        return;
+    }
     func_home_pt8028_keys_process(f_home);
 #if USER_PANEL_LED
     panel_led_scan();
@@ -1379,6 +1380,10 @@ void func_home_process(void)
         if (func_home_gui_need_refresh()) {
             func_home_tab_labels_refresh_all(f_home);
         }
+        /* 冷启动：Tab 首帧绘制完成后再开背光，避免上电花屏 */
+        if (func_cb.last == 0 && f_home->display_stage == 2) {
+            tft_bglight_force_on();
+        }
         return;
     }
 #endif
@@ -1422,9 +1427,12 @@ void func_home_message(size_msg_t msg)
     }
 #endif
 
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+
     if (f_home != NULL && f_home->screen_locked) {
-        // 锁屏状态下仅允许锁键(解锁)、确认键、开关键
-        if (msg != KU_LEFT && msg != KU_BACK && msg != KU_RIGHT) {
+        if (msg != KU_RIGHT) {
             return;
         }
     }
@@ -1435,20 +1443,10 @@ void func_home_message(size_msg_t msg)
         break;
 
     case KU_LEFT:
-#if ELUNCHBOX_PANEL_EN
-        f_home->screen_locked = !f_home->screen_locked;
-        func_home_lock_icon_apply(f_home);
-        os_gui_draw_force();
-        break;
-#else
-        HOME_DBG("Home: 锁键\n");
-#endif
         break;
 
     case KU_PREV:
-        HOME_DBG("Home: 加热键 -> 跳转加热页\n");
-        home_gpu_wait_idle();
-        func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        /* 加热键短按/释放不产生跳转，仅长按 3s 进入加热页 */
         break;
 
     case KU_MODE:
@@ -1507,9 +1505,6 @@ void func_home_enter(void)
     }
     func_cb.f_cb = func_zalloc(sizeof(f_home_t));
     func_cb.frm_main = func_home_form_create();
-#if ELUNCHBOX_PANEL_EN
-    tft_bglight_force_on();
-#endif
 
     f_home = (f_home_t *)func_cb.f_cb;
     f_home->tab = HOME_TAB_HEAT;
@@ -1555,6 +1550,7 @@ void func_home_enter(void)
         func_home_status_refresh(f_home);
         func_home_res_marquee_refresh(f_home);
         func_home_gui_mark_dirty();
+        tft_bglight_force_on();
     }
     WDT_CLR();
     pt8028_release_clear();
