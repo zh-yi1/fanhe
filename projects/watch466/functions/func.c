@@ -105,6 +105,23 @@ void func_elunchbox_switch_to_reservation(void)
     func_res_allow_switch = 0;
 }
 
+void func_elunchbox_switch_to_heat(void)
+{
+    if (func_cb.sta == FUNC_HEAT) {
+        return;
+    }
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
+    home_gpu_wait_idle();
+    WDT_CLR();
+    func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
 void func_elunchbox_res_key_poll(void)
 {
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
@@ -199,6 +216,9 @@ void func_process(void)
         }
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
         func_elunchbox_res_key_poll();
+#endif
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        func_heat_key_poll();
 #endif
 #if USER_PT8028_KEY && SOFT_POWER_ON_OFF
         func_elunchbox_pwr_long_poll();

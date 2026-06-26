@@ -609,6 +609,7 @@
 #define PT8028_RES_LONG_MS              2000        //预约键长按(ms)；短按/误读 BCD7 当模式键
 #define PT8028_PWR_LONG_MS              3000        //开关键(TCH5)长按(ms)全局开关机
 #define PT8028_LOCK_LONG_MS             3000        //锁键(TCH0)长按(ms)全局按键锁
+#define PT8028_HEAT_LONG_MS             3000        //加热键(TCH1)长按(ms)进入加热页
 #define KEY_LOCK_HINT_MS                3000        //右上角锁图标提示显示(ms)
 
 #define USER_PANEL_LED                  1           //面板白色 LED1~6（原理图 510Ω 到 GND）

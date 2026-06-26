@@ -1279,9 +1279,7 @@ static void func_home_pt8028_handle_press(f_home_t *f_home, u8 tch)
         break;
 
     case PT8028_KEY_TCH1:
-        HOME_DBG("Home: TCH1 加热键按下\n");
-        home_gpu_wait_idle();
-        func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        /* 加热键：长按 3s 由 func_heat_key_poll 进入加热页 */
         break;
 
     case PT8028_KEY_TCH0:
@@ -1440,9 +1438,7 @@ void func_home_message(size_msg_t msg)
         break;
 
     case KU_PREV:
-        HOME_DBG("Home: 加热键 -> 跳转加热页\n");
-        home_gpu_wait_idle();
-        func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        /* 加热键短按/释放不产生跳转，仅长按 3s 进入加热页 */
         break;
 
     case KU_MODE:

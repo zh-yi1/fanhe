@@ -7,6 +7,13 @@
 #include "home_top_time.h"
 #include "heat_display_reg.h"
 #include "ui_layout_anchor.h"
+#if ELUNCHBOX_PANEL_EN
+#include "bsp_pt8028_key.h"
+#include "func_key_lock.h"
+#endif
+#if USER_PANEL_LED
+#include "port_panel_led.h"
+#endif
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -107,6 +114,7 @@
 #define HEAT_LOCK_MS                      30000
 #define HEAT_TEMP_PRESET_CNT              5
 #define HEAT_MIN_STEP                     5
+#define HEAT_DEFAULT_TEMP_IDX             3       /* 194°F */
 #define HEAT_MSG_OK                       KU_BACK
 #define HEAT_MSG_PLUS                     KU_VOL_UP
 #define HEAT_MSG_MINUS                    KU_VOL_DOWN
@@ -251,6 +259,18 @@ static void func_heat_heating_finish_check(f_heat_t *f_heat);
 void func_heat_countdown_set(u8 hour, u8 min);
 void func_heat_countdown_stop(void);
 
+#if USER_PANEL_LED
+static void func_heat_led_sync(bool on)
+{
+    panel_led_set_heat_latched(on);
+}
+#else
+static void func_heat_led_sync(bool on)
+{
+    (void)on;
+}
+#endif
+
 static u16 func_heat_setup_total_min(const f_heat_t *f_heat)
 {
     return (u16)f_heat->set_hour * 60 + f_heat->set_min;
@@ -268,10 +288,10 @@ static void func_heat_setup_apply_total_min(f_heat_t *f_heat, u16 total_min)
 static void func_heat_reset_setup(f_heat_t *f_heat)
 {
     f_heat->ui_state = HEAT_UI_SETUP;
-    f_heat->focus = HEAT_FOCUS_HOUR;
+    f_heat->focus = HEAT_FOCUS_TEMP;
     f_heat->set_hour = 1;
     f_heat->set_min = 0;
-    f_heat->temp_idx = 2;
+    f_heat->temp_idx = HEAT_DEFAULT_TEMP_IDX;
     f_heat->display_temp_f = 0;
     f_heat->heat_live_remain_min = 0;
     f_heat->heat_live_temp_f = 0;
@@ -525,6 +545,7 @@ static void func_heat_heating_finish_check(f_heat_t *f_heat)
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_keep_warm_start();
 #endif
+    func_heat_led_sync(false);
 }
 
 static void func_heat_status_refresh(f_heat_t *f_heat)
@@ -696,6 +717,7 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     }
 #endif
 
+    func_heat_led_sync(true);
     func_heat_display_refresh(f_heat);
 }
 
@@ -734,6 +756,7 @@ static void func_heat_power_key(f_heat_t *f_heat)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();
 #endif
+        func_heat_led_sync(false);
         func_heat_reset_setup(f_heat);
         func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;
@@ -992,11 +1015,11 @@ void func_heat_enter(void)
     func_cb.frm_main = func_heat_form_create();
 
     f_heat = (f_heat_t *)func_cb.f_cb;
-    f_heat->focus = HEAT_FOCUS_HOUR;
+    f_heat->focus = HEAT_FOCUS_TEMP;
     f_heat->ui_state = HEAT_UI_SETUP;
     f_heat->set_hour = 1;
     f_heat->set_min = 0;
-    f_heat->temp_idx = 2;
+    f_heat->temp_idx = HEAT_DEFAULT_TEMP_IDX;
     f_heat->display_temp_f = 0;
     f_heat->heat_live_remain_min = 0;
     f_heat->heat_live_temp_f = 0;
@@ -1053,8 +1076,73 @@ void func_heat_exit(void)
 #else
     func_heat_countdown_stop();
 #endif
+    func_heat_led_sync(false);
     func_cb.last = FUNC_HEAT;
 }
+
+#if ELUNCHBOX_PANEL_EN
+static bool func_heat_key_page_ok(void)
+{
+    switch (func_cb.sta) {
+    case FUNC_HOME:
+    case FUNC_MODE:
+    case FUNC_SETUP:
+    case FUNC_HEAT:
+    case FUNC_LANGUAGEING:
+    case FUNC_TIMEING:
+    case FUNC_VERINFO:
+    case FUNC_RESERVATION:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void func_heat_key_poll(void)
+{
+    static u8 heat_key_lp_tch = PT8028_KEY_NONE;
+    static u32 heat_key_lp_tick;
+    static bool heat_key_lp_wait_rel;
+
+    u8 tch;
+
+    if (sys_cb.flag_swithing || func_cb.sta == FUNC_HEAT) {
+        return;
+    }
+    if (!func_heat_key_page_ok()) {
+        return;
+    }
+
+    if (heat_key_lp_wait_rel) {
+        if (pt8028_get_press_tch() != PT8028_KEY_TCH1) {
+            heat_key_lp_wait_rel = false;
+        }
+        return;
+    }
+
+    if (func_key_lock_is_active()) {
+        heat_key_lp_tch = PT8028_KEY_NONE;
+        return;
+    }
+
+    tch = pt8028_get_press_tch();
+    if (tch == PT8028_KEY_TCH1) {
+        if (heat_key_lp_tch != PT8028_KEY_TCH1) {
+            heat_key_lp_tch = PT8028_KEY_TCH1;
+            heat_key_lp_tick = tick_get();
+        } else if (tick_check_expire(heat_key_lp_tick, PT8028_HEAT_LONG_MS)) {
+            func_elunchbox_switch_to_heat();
+            heat_key_lp_wait_rel = true;
+        }
+    } else {
+        heat_key_lp_tch = PT8028_KEY_NONE;
+    }
+}
+#else
+void func_heat_key_poll(void)
+{
+}
+#endif
 
 void func_heat(void)
 {
