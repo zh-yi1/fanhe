@@ -1,6 +1,7 @@
 #include "include.h"
 #include "func.h"
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+#include "bsp_pt8028_key.h"
 #include "port_pt8028_key.h"
 #endif
 
@@ -804,11 +805,12 @@ void sfunc_pwrdown_do(u8 vusb_wakeup_en)
     rtccon3 |= BIT(6) | BIT(4) | BIT(19);       //PDCORE, PDCORE2, PDCORE3
     rtccon3 |= BIT(10);                         //WK pin wake up enable
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    GPIOEDE |= BIT(1);                          //PE1=PT8028 OUT_FLAG 作唤醒
+    rtccon3 |= BIT(7);                          //VDDIO AON：PT8028 与 PE 口在硬关机态仍需供电
+    GPIOEDE |= (BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4)); //PE0~PE4 PT8028
+    pt8028_port_pwrdown_wake_prep();            //恢复 OUT_FLAG 上拉与数字使能
     port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
     rtccon3 |= BIT(17);                         //port io wakeup enable
-#endif
-#if SOFT_POWER_VDDIO_EN
+#elif SOFT_POWER_VDDIO_EN
     rtccon3 |= BIT(7);                          //VDDIO AON enable
 #endif
 //    rtccon3 |= BIT(16);                         //RTC_WDT wake ep enable
@@ -820,7 +822,11 @@ void sfunc_pwrdown_do(u8 vusb_wakeup_en)
     RTCCON &= ~(0xf << 7);                      //disable sleep wakeup
     QDECCON &= ~BIT(2);                         //disable sleep wakeup
     WKUPCPND = (0xff << 16);                    //clear pending
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    WKUPCON |= BIT(17);                         //port io 唤醒（PE1/TCH5 OUT_FLAG 下降沿）
+#else
     WKUPCON &= ~BIT(17);                        //disable sleep wakeup
+#endif
     RTCCON &= ~(3 << 1);                        //避免关机时rtc配置来不及生效问题
     RTCCON |= BIT(5);                           //PowerDown Reset，如果有Pending，则马上Reset
     RTCCON1 = rtccon1;
@@ -881,7 +887,11 @@ void func_pwroff(int pwroff_tone_en)
     }
 #endif // WARNING_POWER_OFF
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    gui_sleep(!elunchbox_is_key_pwroff_pending());  /* 饭盒 idle 关机仅熄屏，保留 GPU 供 func_exit 安全销毁窗体 */
+#else
     gui_sleep(true);
+#endif
 
     if (SOFT_POWER_ON_OFF) {
         if (!PWRKEY_2_HW_PWRON) {
@@ -899,6 +909,16 @@ void func_pwroff(int pwroff_tone_en)
                 return;
             }
         }
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        while (pt8028_boot_tch5_down()) {
+            WDT_CLR();
+            delay_5ms(1);
+        }
+        if (elunchbox_take_key_pwroff()) {
+            elunchbox_pwroff_idle_loop();
+            return;
+        }
+#endif
         bsp_saradc_exit();                  //close saradc及相关通路模拟
         if ((PWRKEY_2_HW_PWRON) && (sys_cb.poweron_flag)) {
             RTCCON1 |= BIT(6);              //WK PIN High level wakeup

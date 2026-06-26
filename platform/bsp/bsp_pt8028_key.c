@@ -1518,6 +1518,37 @@ bool pt8028_pwr_key_long_ready(void)
 }
 
 AT(.com_text.bsp.pt8028)
+bool pt8028_is_press_active(void)
+{
+    return pt8028_cb.press_active != 0;
+}
+
+AT(.com_text.bsp.pt8028)
+bool pt8028_is_power_key_held(void)
+{
+    if (!pt8028_cb.press_active) {
+        return false;
+    }
+    if (pt8028_cb.press_emitted && pt8028_cb.session_tch == PT8028_KEY_TCH5) {
+        return true;
+    }
+    if (pt8028_cb.press_ln_valid && pt8028_cb.press_ln_bcd == PT8028_KEY_TCH5) {
+        return true;
+    }
+    return false;
+}
+
+AT(.com_text.bsp.pt8028)
+bool pt8028_boot_tch5_down(void)
+{
+    pt8028_lines_t ln;
+
+    pt8028_gpio_bcd_ensure();
+    ln = pt8028_read_lines();
+    return (ln.out_flag == 0 && ln.bcd == PT8028_KEY_TCH5);
+}
+
+AT(.com_text.bsp.pt8028)
 void pt8028_pwr_long_consume(void)
 {
     pt8028_cb.pwr_long_fired = 0;
@@ -1595,7 +1626,6 @@ void pt8028_set_home_msg_block(u8 en)
 
 #if ELUNCHBOX_PANEL_EN
 bool func_key_lock_ku_blocked(u16 msg);
-bool elunchbox_is_device_powered(void);
 bool elunchbox_pwr_gui_off_is_on(void);
 void elunchbox_pwr_gui_wake(void);
 #endif
@@ -1631,8 +1661,8 @@ void pt8028_key_scan(void)
 #endif
 #if ELUNCHBOX_PANEL_EN
     if (sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off_is_on()) {
-        /* 软关机：仅长按 3s 调 lunchbox_power_on 开电源；开机息屏：短按开关键仅亮屏 */
-        if (elunchbox_is_device_powered() && (key & KEY_USAGE_MASK) == KEY_RIGHT) {
+        /* 硬关机后由 power_on_check 长按 3s 开机；开机息屏：短按开关键仅亮屏 */
+        if ((key & KEY_USAGE_MASK) == KEY_RIGHT) {
             elunchbox_pwr_gui_wake();
         }
         return;

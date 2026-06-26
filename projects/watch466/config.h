@@ -196,6 +196,8 @@
 #define ELUNCHBOX_PANEL_EN              1
 
 #if ELUNCHBOX_PANEL_EN
+#undef  SOFT_POWER_VDDIO_EN
+#define SOFT_POWER_VDDIO_EN             1           /* 硬关机保持 VDDIO，PT8028/PE1 可唤醒开机 */
 #define ELUNCHBOX_KEEP_AWAKE            1           /* 禁止深度休眠；允许 guioff 定时息屏 */
 #define ELUNCHBOX_GUIOFF_TIME_SEC       300         /* 5 分钟无操作自动息屏 */
 #define FUNC_RESERVATION_UI_EN          1           /* 1=预约键(TCH7)可进预约页 */
@@ -610,7 +612,7 @@
 #define PT8028_PRESS_SETTLE_SCANS       2           //OUT_FLAG 变 0 后约 10ms 再采 BCD
 #endif
 #define PT8028_RES_LONG_MS              2000        //预约键长按(ms)；短按/误读 BCD7 当模式键
-#define PT8028_PWR_LONG_MS              3000        //开关键(TCH5)长按(ms)软开/软关
+#define PT8028_PWR_LONG_MS              3000        //开关键(TCH5)长按(ms)硬关/硬开
 #define PT8028_LOCK_LONG_MS             3000        //锁键(TCH0)长按(ms)全局按键锁
 #define PT8028_HEAT_LONG_MS             3000        //加热键(TCH1)长按(ms)进入加热页
 #define KEY_LOCK_HINT_MS                3000        //锁定/误触：右上角锁图标显示(ms)

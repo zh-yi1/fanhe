@@ -47,6 +47,7 @@ u8 pt8028_tch_to_lunchbox_key(u8 tch);
 
 void pt8028_port_gpio_init(void);
 /* 热路径：寄存器级 reclaim PE1~4 为 GPIO 输入（读 BCD 前调用） */
+void pt8028_port_pwrdown_wake_prep(void);
 void pt8028_pe_reclaim_fast(void);
 bool pt8028_pe_gpio_ok(void);
 void pt8028_port_gpio_dump(void);

@@ -255,7 +255,7 @@ void power_on_check(void)
         return;
     }
 
-#if USER_PWRKEY
+#if USER_PWRKEY && !(USER_PT8028_KEY && ELUNCHBOX_PANEL_EN)
     int up_cnt = 0, ticks = 0;
     if (!IS_PWRKEY_PRESS()) {
         pwrkey_pressed_flag = 1;
@@ -275,13 +275,21 @@ void power_on_check(void)
     }
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    pt8028_pwr_boot_scan_begin();
+    u16 pt8028_pwron_hold_ms = 0;
+    bool pt8028_pwron_boot_delay = true;
 #endif
 
     while (1) {
         WDT_CLR();
         delay_ms(1);
         bsp_saradc_tmr1ms_process();
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        if (pt8028_pwron_boot_delay) {
+            pt8028_pwron_boot_delay = false;
+            delay_ms(50);                           //PT8028 上电稳定后再判 TCH5
+        }
+#endif
 
 #if CHARGE_EN
         // 实时更新电池电压会有100mv的误差   否则在while(1)循环中电池电压更新慢且不准
@@ -290,7 +298,7 @@ void power_on_check(void)
         }
 #endif
 
-#if USER_PWRKEY
+#if USER_PWRKEY && !(USER_PT8028_KEY && ELUNCHBOX_PANEL_EN)
         u8 key_val = bsp_key_scan();
         if ((key_val & KEY_USAGE_MASK) == key_cb.pwr_usage_id) {
             up_cnt = 0;
@@ -319,14 +327,22 @@ void power_on_check(void)
 #endif // USER_PWRKEY
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-        get_pt8028_key();
-        if (pt8028_pwr_key_long_ready()) {
-            sys_cb.poweron_flag = 1;
-            pt8028_pwr_long_consume();
-        } else if (pt8028_pwr_boot_short_rel()) {
-            if (!CHARGE_DC_IN()) {
-                bsp_elunchbox_pwrdown_again();
+        if (pt8028_boot_tch5_down()) {
+            if (pt8028_pwron_hold_ms < 0xffff) {
+                pt8028_pwron_hold_ms++;
             }
+            if (pt8028_pwron_hold_ms >= PT8028_PWR_LONG_MS) {
+                sys_cb.poweron_flag = 1;
+                pt8028_pwron_hold_ms = 0;
+                pt8028_pwr_long_consume();
+            }
+        } else {
+            if (pt8028_pwron_hold_ms > 0 && pt8028_pwron_hold_ms < PT8028_PWR_LONG_MS) {
+                if (!CHARGE_DC_IN()) {
+                    bsp_elunchbox_pwrdown_again();
+                }
+            }
+            pt8028_pwron_hold_ms = 0;
         }
 #endif
 
@@ -376,7 +392,11 @@ __pwron:
             break;
         } else {
             //PWKKEY松开，立刻关机
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+            if (!pt8028_boot_tch5_down()) {
+#else
             if (!pwrkey_pressed_flag) {
+#endif
                 if (!CHARGE_DC_IN()) {
                     if ((!SOFT_POWER_ON_OFF) || ((!USER_PWRKEY) && (!PWRKEY_2_HW_PWRON))) {
                         goto __pwron;       //没有软开关机功能，直接开机。
@@ -435,6 +455,10 @@ void key_init(void)
 #endif
 
     bsp_saradc_init();
+#if ELUNCHBOX_PANEL_EN
+    /* power_on_check 内 PT8028 长按 3s 依赖 tick；须在 power_on_check 前开定时器 */
+    sys_set_tmr_enable(1, 1);
+#endif
     power_on_check();
     CRSTPND = 0x1ff0000;                        //clear reset pending
 }

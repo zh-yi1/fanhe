@@ -96,6 +96,11 @@ void pt8028_pwr_long_consume(void);
 void pt8028_pwr_boot_scan_begin(void);
 /* TCH5 未满 3s 松开，取走后清零 */
 bool pt8028_pwr_boot_short_rel(void);
+/* power_on_check：TCH5(OUT_FLAG=0 且 BCD=5) 是否按下 */
+bool pt8028_boot_tch5_down(void);
+/* power_on_check：是否有键按下（含 TCH5 长按开机） */
+bool pt8028_is_press_active(void);
+bool pt8028_is_power_key_held(void);
 #endif
 
 #endif // _BSP_PT8028_KEY_H

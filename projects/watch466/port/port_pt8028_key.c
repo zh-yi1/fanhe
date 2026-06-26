@@ -338,6 +338,19 @@ static void pt8028_gpio_input_init(u8 io, u8 pull)
 
 
 
+AT(.text.pwroff.pwrdwn)
+void pt8028_port_pwrdown_wake_prep(void)
+{
+    bsp_gpio_de_en(PT8028_GPIO_OUT_FLAG);
+    bsp_gpio_pu_en(PT8028_GPIO_OUT_FLAG, GPIOxPU200K);
+    bsp_gpio_de_en(PT8028_GPIO_D0);
+    bsp_gpio_de_en(PT8028_GPIO_D1);
+    bsp_gpio_de_en(PT8028_GPIO_D2);
+    bsp_gpio_de_en(IO_PE0);
+}
+
+
+
 AT(.text.key.init)
 
 void pt8028_port_gpio_init(void)
