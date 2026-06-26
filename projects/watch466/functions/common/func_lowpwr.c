@@ -600,6 +600,11 @@ static void sfunc_sleep(void)
 bool sleep_process(is_sleep_func is_sleep)
 {
 //    printf("%s->%d,%d\n", __func__, sys_cb.gui_need_wakeup, sys_cb.gui_sleep_sta);
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
+        sys_cb.gui_need_wakeup = 0;
+    } else
+#endif
     if (sys_cb.gui_need_wakeup && sys_cb.gui_sleep_sta) {
         gui_wakeup();                   //按键亮屏
         reset_sleep_delay_all();

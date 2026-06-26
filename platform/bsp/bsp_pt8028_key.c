@@ -1616,6 +1616,12 @@ void pt8028_key_scan(void)
         return;
     }
 #endif
+#if ELUNCHBOX_PANEL_EN
+    if (sys_cb.gui_sleep_sta) {
+        /* 息屏态仅长按 TCH5 亮屏，短按及其他键忽略 */
+        return;
+    }
+#endif
     if (sys_cb.gui_sleep_sta) {
         sys_cb.gui_need_wakeup = 1;
     }

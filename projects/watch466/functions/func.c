@@ -135,11 +135,47 @@ void func_elunchbox_res_key_poll(void)
 }
 
 #if USER_PT8028_KEY && SOFT_POWER_ON_OFF
+#if ELUNCHBOX_PANEL_EN
+static bool elunchbox_pwr_gui_off;
+
+bool elunchbox_pwr_gui_off_is_on(void)
+{
+    return elunchbox_pwr_gui_off;
+}
+
+static void elunchbox_pwr_gui_off_enter(void)
+{
+#if USER_PANEL_LED
+    panel_led_all_off();
+#endif
+    gui_sleep(false);
+    elunchbox_pwr_gui_off = true;
+    sys_cb.gui_need_wakeup = 0;
+}
+
+static void elunchbox_pwr_gui_off_exit(void)
+{
+    elunchbox_pwr_gui_off = false;
+    gui_wakeup();
+    tft_bglight_force_on();
+    reset_sleep_delay_all();
+}
+#endif
+
 static void func_elunchbox_pwr_long_poll(void)
 {
-    if (pt8028_take_pwr_long_pending()) {
-        func_cb.sta = FUNC_PWROFF;
+    if (!pt8028_take_pwr_long_pending()) {
+        return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_gui_off) {
+        elunchbox_pwr_gui_off_exit();
+    } else {
+        elunchbox_pwr_gui_off_enter();
+    }
+#else
+    func_cb.sta = FUNC_PWROFF;
+#endif
 }
 #endif
 
@@ -179,6 +215,9 @@ void func_process(void)
     sd_soft_cmd_detect(120);
 #endif
 
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_gui_off_is_on() || !sys_cb.gui_sleep_sta)
+#endif
     tft_bglight_frist_set_check();
 
     // gui 没有休眠才更新
@@ -220,9 +259,6 @@ void func_process(void)
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         func_heat_key_poll();
 #endif
-#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
-        func_elunchbox_pwr_long_poll();
-#endif
 #if ELUNCHBOX_PANEL_EN
         func_key_lock_poll();
 #endif
@@ -238,6 +274,17 @@ void func_process(void)
         func_reservation_poll();
 
     }
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    /* 息屏态非 Home 页仍须扫键，否则长按开关键无法亮屏 */
+    if (sys_cb.gui_sleep_sta && func_cb.sta != FUNC_HOME) {
+        pt8028_gpio_ensure_periodic();
+        get_pt8028_key();
+    }
+#endif
+#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
+    func_elunchbox_pwr_long_poll();
+#endif
 
 //#if OPUS_ENC_EN
 //    if (bsp_opus_is_encode()) {

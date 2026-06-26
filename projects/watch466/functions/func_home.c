@@ -1327,6 +1327,10 @@ void func_home_process(void)
     /* 先扫键、改 UI 状态，再 func_process 刷屏，避免按键与显示差一帧 */
     pt8028_gpio_ensure_periodic();
     pt8028_key_scan();
+    if (sys_cb.gui_sleep_sta) {
+        func_process();
+        return;
+    }
     func_home_pt8028_keys_process(f_home);
 #if USER_PANEL_LED
     panel_led_scan();
