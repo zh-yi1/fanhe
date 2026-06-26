@@ -200,6 +200,8 @@
 #define SOFT_POWER_VDDIO_EN             1           /* 硬关机保持 VDDIO，PT8028/PE1 可唤醒开机 */
 #define ELUNCHBOX_KEEP_AWAKE            1           /* 禁止深度休眠；允许 guioff 定时息屏 */
 #define ELUNCHBOX_GUIOFF_TIME_SEC       300         /* 5 分钟无操作自动息屏 */
+#define ELUNCHBOX_GUIOFF_SLEEP_EN       1           /* 息屏后再进 BT 浅睡降功耗 */
+#define ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC 30          /* 息屏后延迟多少秒进浅睡 */
 #define FUNC_RESERVATION_UI_EN          1           /* 1=预约键(TCH7)可进预约页 */
 /* 日志走全局 UART0_PRINTF_SEL（PRINTF_PB3 / PRINTF_NONE）；TRACE_EN 仅控各文件 TRACE() 宏 */
 /* LEVEL_HIGH_PRI 定时器在 tmr 线程执行；饭盒须保持 BT_EMIT_EN=0，避免额外高优先级 co_timer */
@@ -234,6 +236,7 @@
 #define DEFAULE_START_FUNC              FUNC_HOME   /* 饭盒上电默认进 Home 页 */
 #else
 #define ELUNCHBOX_KEEP_AWAKE            0
+#define ELUNCHBOX_GUIOFF_SLEEP_EN       0
 #endif
 
 #ifndef FUNC_RESERVATION_UI_EN

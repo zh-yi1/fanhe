@@ -37,6 +37,9 @@ void lowpwr_tout_ticks(void)
     if(sys_cb.guioff_delay != -1L && sys_cb.guioff_delay > 0) {
         sys_cb.guioff_delay--;
     }
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    elunchbox_guioff_sleep_delay_tick();
+#endif
     if(sys_cb.pwroff_delay != -1L && sys_cb.pwroff_delay > 0) {
         sys_cb.pwroff_delay--;
     }
@@ -211,6 +214,12 @@ uint32_t sleep_timer(void)
     rtc_sleep_process();
 	sleep_ble_param_check();
 
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_guioff_in_sleep_mode()) {
+        elunchbox_guioff_sleep_service();
+    }
+#endif
+
     return ret;
 }
 
@@ -327,6 +336,11 @@ static void sfunc_sleep(void)
     uint32_t sysclk;
     u32 wkie;
     bool gui_need_wkp = false;
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    bool elunchbox_guioff_slp = elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta;
+#else
+    bool elunchbox_guioff_slp = false;
+#endif
 #if LE_EN
     u16 interval = 0;
     u16 latency = 0;
@@ -342,7 +356,12 @@ static void sfunc_sleep(void)
     }
 #endif
 
-    printf("%s\n", __func__);
+    printf("%s%s\n", __func__, elunchbox_guioff_slp ? "(elunchbox guioff)" : "");
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_guioff_slp) {
+        elunchbox_guioff_sleep_mode_enter();
+    }
+#endif
 
 #if VIDEO_PLAY_EN
     if ((api_video_play_sta_get() != AVI_STA_STOP) && (func_cb.sta == FUNC_CLOCK)) {
@@ -422,7 +441,9 @@ static void sfunc_sleep(void)
     SD0_LDO_DIS();
 #endif
 
-    gui_sleep(true);
+    if (!elunchbox_guioff_slp) {
+        gui_sleep(true);
+    }
 
 #if MODEM_CAT1_EN
     bsp_modem_sleep_enter();
@@ -457,26 +478,36 @@ static void sfunc_sleep(void)
 
     u32 pf_keep = 0;
 
-    u8 sensor_type = bsp_sensor_init_sta_get(SENSOR_INIT_ALL);
-    if (sensor_type) {
-        bool sensor_type_hr = (sensor_type & SENSOR_INIT_HR);
-        bool sensor_type_step = (sensor_type & SENSOR_INIT_STEP);
-        u32 gpioede = (BIT(4) | BIT(3))*sensor_type_hr | (BIT(8) | BIT(7))*sensor_type_step;
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_guioff_slp) {
+        GPIOBDE = BIT(3) | BIT(8) | BIT(9);     //PB3 日志 / PB8 PB9 UART1
+        GPIOEDE = (BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4)); //PT8028 PE0~PE4
+        GPIOFDE = 0;
+    } else
+#endif
+    {
+        u8 sensor_type = bsp_sensor_init_sta_get(SENSOR_INIT_ALL);
+        if (sensor_type) {
+            bool sensor_type_hr = (sensor_type & SENSOR_INIT_HR);
+            bool sensor_type_step = (sensor_type & SENSOR_INIT_STEP);
+            u32 gpioede = (BIT(4) | BIT(3))*sensor_type_hr | (BIT(8) | BIT(7))*sensor_type_step;
 //        printf("hr: %d, step:%d\n", sensor_type_hr, sensor_type_step);
-        gpioede |= BIT(4) | BIT(3);          //SENSOR I2C
-        pf_keep |= BIT(2);                      //SENSOR PG
-    } else {
-        GPIOEDE = 0;
-    }
+            gpioede |= BIT(4) | BIT(3);          //SENSOR I2C
+            pf_keep |= BIT(2);                      //SENSOR PG
+            GPIOEDE = gpioede;
+        } else {
+            GPIOEDE = 0;
+        }
 
 #if MODEM_CAT1_EN
-    if (bsp_modem_get_init_flag()) {
-        pf_keep |= BIT(1) | BIT(2) | BIT(3);
-    } else {
-        pf_keep |= BIT(3);
-    }
+        if (bsp_modem_get_init_flag()) {
+            pf_keep |= BIT(1) | BIT(2) | BIT(3);
+        } else {
+            pf_keep |= BIT(3);
+        }
 #endif
-    GPIOFDE = pf_keep;
+        GPIOFDE = pf_keep;
+    }
 
 #if AVI_DVP_USE_CAMERA && IMG_SENSOR_SELECT
     image_sensor_drv_enter_pwdn();
@@ -553,11 +584,25 @@ static void sfunc_sleep(void)
 #endif
 
     if (gui_need_wkp) {
-        printf("gui_wakeup\n");
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+        if (elunchbox_guioff_slp) {
+            elunchbox_guioff_sleep_post_wake(true);
+        } else
+#endif
+        {
+            printf("gui_wakeup\n");
 //        func_create_form(func_cb.sta);
-        gui_wakeup();
+            gui_wakeup();
+        }
     } else {
-        gpu_init();
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+        if (elunchbox_guioff_slp) {
+            elunchbox_guioff_sleep_post_wake(false);
+        } else
+#endif
+        {
+            gpu_init();
+        }
     }
 
 #if LE_EN
@@ -601,6 +646,20 @@ static void sfunc_sleep(void)
 bool sleep_process(is_sleep_func is_sleep)
 {
 //    printf("%s->%d,%d\n", __func__, sys_cb.gui_need_wakeup, sys_cb.gui_sleep_sta);
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
+        sys_cb.gui_need_wakeup = 0;
+        if (elunchbox_guioff_sleep_ready() && (*is_sleep)()) {
+            sfunc_sleep();
+            reset_sleep_delay_all();
+            reset_pwroff_delay();
+            return false;
+        }
+        reset_sleep_delay();
+        reset_pwroff_delay();
+        return false;
+    } else
+#endif
 #if ELUNCHBOX_PANEL_EN
     if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
         sys_cb.gui_need_wakeup = 0;

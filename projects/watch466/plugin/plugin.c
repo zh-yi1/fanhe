@@ -1,4 +1,7 @@
 #include "include.h"
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+#include "port_pt8028_key.h"
+#endif
 
 void plugin_init(void)
 {
@@ -67,6 +70,10 @@ void sleep_wakeup_config(void)
     WKUPCON |= BIT(17);                                 //wakup sniff enable
     wko_wakeup_init(1);                                 //wko下降沿唤醒
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);       //TCH5/PT8028 OUT_FLAG 下降沿唤醒
+#endif
+
 #if USER_ADKEY
     port_wakeup_init(get_adc_gpio_num(ADKEY_CH), 1, 1); //配置ADKEY IO下降沿唤醒。
 #endif // USER_ADKEY
@@ -82,6 +89,10 @@ void sleep_wakeup_config(void)
 void sleep_wakeup_exit(void)
 {
     wko_wakeup_exit();
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    port_wakeup_exit(PT8028_GPIO_OUT_FLAG);
+#endif
 
 #if USER_ADKEY
     port_wakeup_exit(get_adc_gpio_num(ADKEY_CH));

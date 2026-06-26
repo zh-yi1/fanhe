@@ -145,6 +145,59 @@ void func_elunchbox_res_key_poll(void)
 static bool elunchbox_pwr_gui_off;
 static bool elunchbox_boot_power_sent;
 static u8 elunchbox_key_pwroff_flag;
+static s32 elunchbox_guioff_sleep_delay = -1L;
+static u8 elunchbox_guioff_sleep_mode;
+
+void elunchbox_guioff_sleep_delay_reset(void)
+{
+#if ELUNCHBOX_GUIOFF_SLEEP_EN
+    elunchbox_guioff_sleep_delay = (s32)ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC * 10;
+#else
+    elunchbox_guioff_sleep_delay = -1L;
+#endif
+}
+
+void elunchbox_guioff_sleep_delay_tick(void)
+{
+    if (elunchbox_guioff_sleep_delay > 0) {
+        elunchbox_guioff_sleep_delay--;
+    }
+}
+
+bool elunchbox_guioff_sleep_ready(void)
+{
+#if ELUNCHBOX_GUIOFF_SLEEP_EN
+    return elunchbox_guioff_sleep_delay == 0;
+#else
+    return false;
+#endif
+}
+
+void elunchbox_guioff_sleep_delay_rearm(void)
+{
+#if ELUNCHBOX_GUIOFF_SLEEP_EN
+    elunchbox_guioff_sleep_delay = 10;             /* 浅睡唤醒后 1s 再允许入睡 */
+#endif
+}
+
+bool elunchbox_guioff_in_sleep_mode(void)
+{
+    return elunchbox_guioff_sleep_mode != 0;
+}
+
+void elunchbox_guioff_sleep_service(void)
+{
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_uart_process();
+    lunchbox_keep_warm_poll();
+#endif
+    func_reservation_poll();
+}
+
+void elunchbox_guioff_sleep_mode_enter(void)
+{
+    elunchbox_guioff_sleep_mode = 1;
+}
 
 static void elunchbox_device_hard_power_off(void);
 static void elunchbox_pwr_gui_off_exit(void);
@@ -173,6 +226,20 @@ void elunchbox_pwr_gui_off_activate(void)
     gui_sleep(false);
     elunchbox_pwr_gui_off = true;
     sys_cb.gui_need_wakeup = 0;
+    elunchbox_guioff_sleep_delay_reset();
+}
+
+void elunchbox_guioff_sleep_post_wake(bool key_wake)
+{
+    elunchbox_guioff_sleep_mode = 0;
+    pt8028_port_gpio_init();
+    pt8028_key_scan();
+    elunchbox_guioff_sleep_service();
+    if (key_wake) {
+        elunchbox_guioff_sleep_delay_reset();
+    } else {
+        elunchbox_guioff_sleep_delay_rearm();
+    }
 }
 
 void elunchbox_pwr_gui_wake(void)
@@ -186,6 +253,7 @@ void elunchbox_pwr_gui_wake(void)
 static void elunchbox_screen_wake(void)
 {
     elunchbox_pwr_gui_off = false;
+    elunchbox_guioff_sleep_delay_reset();
     if (sys_cb.gui_sleep_sta) {
         gui_wakeup();
     }
@@ -299,7 +367,7 @@ static void elunchbox_guioff_key_scan(void)
 {
     static u32 last_scan_ms;
 
-    if (!tick_check_expire(last_scan_ms, 100)) {
+    if (!tick_check_expire(last_scan_ms, 500)) {
         return;
     }
     last_scan_ms = tick_get();
