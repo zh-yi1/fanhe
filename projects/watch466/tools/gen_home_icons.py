@@ -350,7 +350,7 @@ def timeing_suffix_block() -> str:
         minm_w, minm_h, minm_sz = gpu_size_from_bin(minm_path)
     suffix_max = max(hm_sz, minm_sz)
     return "\n".join([
-        "/* Time setting page H/Min suffix (same visual size as AMm/PMm) */",
+        "/* Time setting page H/Min suffix bitmap (8px height, Hm.bin / Minm.bin) */",
         f"#define HOME_TIMEING_HM_W                 {hm_w}",
         f"#define HOME_TIMEING_HM_H                 {hm_h}",
         f"#define HOME_TIMEING_MINM_W               {minm_w}",

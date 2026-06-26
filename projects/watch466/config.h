@@ -288,7 +288,9 @@
 
 #define UI_BUF_FONT_SYS                 UI_BUF_0FONT_FONT_BIN           //系统字体
 #define UI_BUF_FONT_FORM_TIME           UI_BUF_0FONT_FONT_ASC_BIN       //窗体标题栏时间字体
-#if defined(UI_BUF_0FONT_FONT_ASC_10_BIN)
+#if defined(UI_BUF_0FONT_FONT_ASC_8_BIN)
+#define UI_BUF_FONT_TIMEING_SUFFIX      UI_BUF_0FONT_FONT_ASC_8_BIN    //Time 页 H/Min 更小字
+#elif defined(UI_BUF_0FONT_FONT_ASC_10_BIN)
 #define UI_BUF_FONT_TIMEING_SUFFIX      UI_BUF_0FONT_FONT_ASC_10_BIN    //Time 页 H/Min 小字
 #else
 #define UI_BUF_FONT_TIMEING_SUFFIX      UI_BUF_0FONT_FONT_ASC_BIN       //缩放至设计尺寸
