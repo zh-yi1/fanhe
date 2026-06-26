@@ -40,6 +40,8 @@ static u8  lb_tx_buf[LB_TXBUF_SIZE];     // 组帧发送缓冲区
 static lb_cmd_handler_t   cmd_handler[16];   // 命令字 → 回调，仅 0x01~0x0E 有效
 static lb_ble_tx_fn_t     lb_ble_tx_fn;      // BLE 发送回调（非 NULL 时走 BLE）
 static bool lb_uart_sync_pending = false;    // 是否有同步UART请求待应答(用于区分同步/异步0x01)
+static u32  lb_last_ble_ts = 0;              // 最近一次从 BLE 收到的时间戳 (unix秒)
+static bool lb_has_ble_ts = false;           // 是否已收到过 BLE 时间戳
 
 //-----------------------------------------------------------------------------
 // OTA 升级状态机 (蓝牙通讯协议1.0.6.md §5)
@@ -731,6 +733,42 @@ void lunchbox_key_notify(u8 key_val)
 }
 
 /**
+ * @brief LCD 关机 — 发送 PowerSwitch=OFF 给加热模块
+ *
+ * 仅发送 dpid=1(总开关) bool=0(关)，不含其他 DataPoint。
+ * 长按开关键 3 秒触发关机时调用。
+ */
+void lunchbox_power_off(void)
+{
+    u8 data[8];
+    u16 len;
+    len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, 0);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len);
+}
+
+/**
+ * @brief LCD 开机 — 发送 PowerSwitch=ON 给加热模块
+ *
+ * 长按开关键 3 秒触发开机时调用。
+ *  - 蓝牙已连接: 附带 dpid=11(时间戳)，时间戳来自 BLE 同步值
+ *  - 蓝牙未连接: 仅发送 dpid=1(总开关) bool=1(开)
+ */
+void lunchbox_power_on(void)
+{
+    u8 data[16];
+    u8 *p = data;
+
+    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+    if (ble_is_connected()) {
+        u32 ts = lb_has_ble_ts ? lb_last_ble_ts : (RTCCNT + LB_RTC_UNIX_OFFSET);
+        p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
+    }
+
+    u16 len = (u16)(p - data);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len);
+}
+
+/**
  * @brief LCD 发送预约 — 构造 UART 0x03 帧发往加热模块
  *
  * UART 0x03 帧格式(42B): action(1)+id(1)+name(32)+time(4)+temp(1)+duration(1)+enabled(1)+repeat(1)
@@ -928,6 +966,13 @@ static u8 lb_handler_product_info(lb_rx_frame_t *rx)
 {
     u8 buf[73]; // 16+8+10+6+32+1 = 73
     u16 off = 0;
+
+    // 保存 APP 发来的 Unix 时间戳 (大端 4B)
+    if (rx->data && rx->data_len >= 4) {
+        lb_last_ble_ts = ((u32)rx->data[0] << 24) | ((u32)rx->data[1] << 16)
+                       | ((u32)rx->data[2] << 8)  | rx->data[3];
+        lb_has_ble_ts = true;
+    }
 
     // 蓝牙名称 16B
     memcpy(buf + off, lb_dev_info.bt_name, 16); off += 16;

@@ -353,6 +353,13 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration);
 /** @brief LCD 停止加热 — 构造 UART 0x03 帧发给加热模块 (action=0 删除) */
 void lunchbox_heat_stop(void);
 
+/** @brief LCD 关机 — 发送 PowerSwitch=OFF 给加热模块 (长按开关键3秒) */
+void lunchbox_power_off(void);
+
+/** @brief LCD 开机 — 发送 PowerSwitch=ON 给加热模块
+ *  蓝牙已连接时附带时间戳(DPID=11)，未连接时仅发送开机字段 (长按开关键3秒) */
+void lunchbox_power_on(void);
+
 /** @brief 加热自然结束后自动开启保温 (模式5, 140°F, 至低电关机) */
 void lunchbox_keep_warm_start(void);
 
