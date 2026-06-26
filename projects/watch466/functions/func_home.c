@@ -1328,7 +1328,7 @@ void func_home_process(void)
     f_home_t *f_home = (f_home_t *)func_cb.f_cb;
 
 #if ELUNCHBOX_PANEL_EN
-    if (sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off_is_on()) {
+    if (!elunchbox_is_device_powered() || sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off_is_on()) {
         func_process();
         return;
     }
@@ -1500,6 +1500,9 @@ void func_home_enter(void)
 {
     f_home_t *f_home;
 
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_panel_boot_power_on();
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();

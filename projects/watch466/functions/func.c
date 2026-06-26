@@ -143,10 +143,21 @@ void func_elunchbox_res_key_poll(void)
 #if USER_PT8028_KEY && SOFT_POWER_ON_OFF
 #if ELUNCHBOX_PANEL_EN
 static bool elunchbox_pwr_gui_off;
+static bool elunchbox_device_powered = true;
+static bool elunchbox_boot_power_sent;
+
+static void elunchbox_device_power_on(void);
+static void elunchbox_device_power_off(void);
+static void elunchbox_pwr_gui_off_exit(void);
 
 bool elunchbox_pwr_gui_off_is_on(void)
 {
     return elunchbox_pwr_gui_off;
+}
+
+bool elunchbox_is_device_powered(void)
+{
+    return elunchbox_device_powered;
 }
 
 void elunchbox_pwr_gui_off_activate(void)
@@ -156,37 +167,113 @@ void elunchbox_pwr_gui_off_activate(void)
     }
 #if USER_PANEL_LED
     panel_led_all_off();
+    if (elunchbox_device_powered) {
+        panel_led_set_switch_latched(true);
+        panel_led_set(PANEL_LED_ID_SWITCH, true);
+    }
 #endif
     gui_sleep(false);
     elunchbox_pwr_gui_off = true;
     sys_cb.gui_need_wakeup = 0;
 }
 
-static void elunchbox_pwr_gui_off_exit(void)
+void elunchbox_pwr_gui_wake(void)
+{
+    if (!elunchbox_device_powered) {
+        return;
+    }
+    if (!elunchbox_pwr_gui_off && !sys_cb.gui_sleep_sta) {
+        return;
+    }
+    elunchbox_pwr_gui_off_exit();
+}
+
+static void elunchbox_screen_wake(void)
 {
     elunchbox_pwr_gui_off = false;
-    gui_wakeup();
+    if (sys_cb.gui_sleep_sta) {
+        gui_wakeup();
+    }
     tft_bglight_force_on();
     reset_sleep_delay_all();
+#if USER_PANEL_LED
+    panel_led_scan();
+#endif
+}
+
+static void elunchbox_pwr_gui_off_exit(void)
+{
+    elunchbox_screen_wake();
+}
+
+void elunchbox_panel_boot_power_on(void)
+{
+    if (elunchbox_boot_power_sent) {
+        return;
+    }
+    elunchbox_boot_power_sent = true;
+#if USER_PANEL_LED
+    panel_led_set_switch_latched(true);
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_power_on();
+#endif
+}
+
+static void elunchbox_device_power_on(void)
+{
+    /* 先亮屏/背光，再 UART 开机，缩短用户感知延迟 */
+    elunchbox_device_powered = true;
+#if USER_PANEL_LED
+    panel_led_set_switch_latched(true);
+    panel_led_set(PANEL_LED_ID_SWITCH, true);
+#endif
+    elunchbox_screen_wake();
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_power_on();
+#endif
+}
+
+static void elunchbox_device_power_off(void)
+{
+    /* 开关键长按：lunchbox_power_off() + 停保温 + LED1 灭 + 关背光息屏 */
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_keep_warm_stop();
+    lunchbox_power_off();
+#endif
+#if USER_PANEL_LED
+    panel_led_set_switch_latched(false);
+    panel_led_all_off();
+#endif
+    elunchbox_pwr_gui_off = false;
+    elunchbox_device_powered = false;
+    /* gui_sleep(false)：不 gpu_exit，与 5 分钟息屏一致，再次长按开机亮屏更快 */
+    gui_sleep(false);
+    LCD_BL_DIS();
 }
 
 static void func_elunchbox_pwr_long_poll(void);
 
 static bool elunchbox_is_guioff(void)
 {
+    if (!elunchbox_device_powered) {
+        return true;
+    }
     return sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off;
 }
 
 static void elunchbox_guioff_key_scan(void)
 {
-    static u32 last_scan_ms;
+    if (elunchbox_device_powered) {
+        static u32 last_scan_ms;
 
-    if (!tick_check_expire(last_scan_ms, 100)) {
-        return;
+        if (!tick_check_expire(last_scan_ms, 100)) {
+            return;
+        }
+        last_scan_ms = tick_get();
     }
-    last_scan_ms = tick_get();
     pt8028_gpio_ensure_periodic();
-    get_pt8028_key();
+    pt8028_key_scan();
 }
 
 static void elunchbox_guioff_idle_process(void)
@@ -196,9 +283,6 @@ static void elunchbox_guioff_idle_process(void)
     lunchbox_keep_warm_poll();
 #endif
     func_reservation_poll();
-#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
-    func_elunchbox_pwr_long_poll();
-#endif
 }
 #endif
 
@@ -208,8 +292,10 @@ static void func_elunchbox_pwr_long_poll(void)
         return;
     }
 #if ELUNCHBOX_PANEL_EN
-    if (elunchbox_pwr_gui_off || sys_cb.gui_sleep_sta) {
-        elunchbox_pwr_gui_off_exit();
+    if (elunchbox_device_powered) {
+        elunchbox_device_power_off();
+    } else {
+        elunchbox_device_power_on();
     }
 #else
     func_cb.sta = FUNC_PWROFF;
@@ -224,7 +310,7 @@ static void func_elunchbox_key_notify_poll(void)
     u8 key_val;
 
     tch = pt8028_take_key_notify_tch();
-    if (tch > PT8028_KEY_TCH7) {
+    if (tch > PT8028_KEY_TCH7 || tch == PT8028_KEY_TCH5) {
         return;
     }
     key_val = pt8028_tch_to_lunchbox_key(tch);
@@ -414,6 +500,10 @@ void func_process(void)
     if (!guioff) {
         lunchbox_uart_process();
     }
+#endif
+
+#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
+    func_elunchbox_pwr_long_poll();
 #endif
 }
 
@@ -1220,8 +1310,13 @@ void func_message(size_msg_t msg)
         case KLH_BACK:
         case KLH_LEFT:
         case KLH_RIGHT:
+#if ELUNCHBOX_PANEL_EN
+            /* 饭盒：开关键长按由 func_elunchbox_pwr_long_poll 软开/软关 */
+            break;
+#else
             func_cb.sta = FUNC_PWROFF;
             break;
+#endif
 #endif
 
     case KU_MODE:

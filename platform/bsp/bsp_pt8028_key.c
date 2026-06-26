@@ -811,7 +811,13 @@ static void pt8028_emit_press(u8 tch)
         pt8028_queue_edge(0, tch, 0);
         pt8028_queue_key(tch, key, (u16)(key | KEY_SHORT), tch, 0);
     }
-    pt8028_queue_key_notify(tch);
+#if ELUNCHBOX_PANEL_EN
+    /* 开关键(TCH5)仅长按 3s 调 lunchbox_power_on/off，不走 key_notify */
+    if (tch != PT8028_KEY_TCH5)
+#endif
+    {
+        pt8028_queue_key_notify(tch);
+    }
 }
 
 AT(.com_text.bsp.pt8028)
@@ -1039,6 +1045,10 @@ u8 get_pt8028_key(void)
                     pt8028_cb.pwr_long_pending = 1;
                 }
                 pt8028_cb.pending_ku = NO_KEY;
+#if ELUNCHBOX_PANEL_EN
+                pt8028_cb.key_notify_pending = 0;
+                pt8028_cb.key_notify_tch = 0xff;
+#endif
             }
 #endif
         }
@@ -1585,6 +1595,9 @@ void pt8028_set_home_msg_block(u8 en)
 
 #if ELUNCHBOX_PANEL_EN
 bool func_key_lock_ku_blocked(u16 msg);
+bool elunchbox_is_device_powered(void);
+bool elunchbox_pwr_gui_off_is_on(void);
+void elunchbox_pwr_gui_wake(void);
 #endif
 
 AT(.text.bsp.pt8028)
@@ -1617,8 +1630,11 @@ void pt8028_key_scan(void)
     }
 #endif
 #if ELUNCHBOX_PANEL_EN
-    if (sys_cb.gui_sleep_sta) {
-        /* 息屏态仅长按 TCH5 亮屏，短按及其他键忽略 */
+    if (sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off_is_on()) {
+        /* 软关机：仅长按 3s 调 lunchbox_power_on 开电源；开机息屏：短按开关键仅亮屏 */
+        if (elunchbox_is_device_powered() && (key & KEY_USAGE_MASK) == KEY_RIGHT) {
+            elunchbox_pwr_gui_wake();
+        }
         return;
     }
 #endif

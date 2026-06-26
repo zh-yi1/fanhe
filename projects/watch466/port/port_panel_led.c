@@ -41,6 +41,7 @@ static u8 panel_led_last_tch AT(.buf.panel_led);
 static bool panel_led_lock_latched AT(.buf.panel_led);
 static bool panel_led_res_latched AT(.buf.panel_led);
 static bool panel_led_heat_latched AT(.buf.panel_led);
+static bool panel_led_switch_latched AT(.buf.panel_led);
 
 AT(.com_text.port.panel_led)
 static void panel_led_gpio_set(u8 gpio, bool on)
@@ -89,6 +90,12 @@ void panel_led_set(panel_led_id_t id, bool on)
 }
 
 AT(.com_text.port.panel_led)
+void panel_led_set_switch_latched(bool on)
+{
+    panel_led_switch_latched = on;
+}
+
+AT(.com_text.port.panel_led)
 void panel_led_set_lock_latched(bool on)
 {
     panel_led_lock_latched = on;
@@ -113,6 +120,9 @@ void panel_led_scan(void)
 
     panel_led_all_off();
 
+    if (panel_led_switch_latched) {
+        panel_led_set(PANEL_LED_ID_SWITCH, true);
+    }
     if (panel_led_lock_latched) {
         panel_led_set(PANEL_LED_ID_LOCK, true);
     }
