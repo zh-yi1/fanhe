@@ -166,6 +166,7 @@ typedef struct f_heat_t_ {
     u8 set_hour;
     u8 set_min;
     u8 temp_idx;
+    u8 proto_mode;              // 协议加热模式 (1=自定义, 2=鸡腿, 3=意面, 5=保温)
     u16 display_temp_f;
     u32 heat_live_remain_min;   /* 加热中：回调推送的剩余分钟 */
     u16 heat_live_temp_f;       /* 加热中：回调推送的实时温度 °F */
@@ -322,6 +323,22 @@ static u16 func_heat_get_target_temp_f(const f_heat_t *f_heat)
         return tbl_heat_temp_preset[0];
     }
     return tbl_heat_temp_preset[f_heat->temp_idx];
+}
+
+/** @brief 将华氏温度映射到预设温度档位索引 (找最接近的) */
+static u8 func_heat_temp_f_to_idx(u16 temp_f)
+{
+    u8 best = 0;
+    s16 best_diff = 999;
+    for (u8 i = 0; i < HEAT_TEMP_PRESET_CNT; i++) {
+        s16 diff = (s16)temp_f - (s16)tbl_heat_temp_preset[i];
+        if (diff < 0) diff = -diff;
+        if (diff < best_diff) {
+            best_diff = diff;
+            best = i;
+        }
+    }
+    return best;
 }
 
 void func_heat_countdown_set(u8 hour, u8 min)
@@ -654,8 +671,9 @@ static void func_heat_start_heating(f_heat_t *f_heat)
             duration_min = 1;
         }
         printf("lb: heat_start -> UART\n");
-        printf("target_temp_f: %d, duration_min: %d\n", lunchbox_temp_f_to_idx(target_temp_f), duration_min);
-        lunchbox_heat_start(1, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
+        printf("target_temp_f: %d, duration_min: %d, proto_mode: %d\n",
+               lunchbox_temp_f_to_idx(target_temp_f), duration_min, f_heat->proto_mode);
+        lunchbox_heat_start(f_heat->proto_mode, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
     }
 #endif
 
@@ -959,10 +977,27 @@ void func_heat_enter(void)
 
     f_heat = (f_heat_t *)func_cb.f_cb;
     f_heat->focus = HEAT_FOCUS_HOUR;
-    f_heat->ui_state = HEAT_UI_SETUP;
-    f_heat->set_hour = 1;
-    f_heat->set_min = 0;
-    f_heat->temp_idx = 2;
+
+    // 检查是否从模式界面 (鸡腿/意面) 跳转过来
+    {
+        lb_mode_to_heat_preset_t preset;
+        if (lb_mode_to_heat_get(&preset)) {
+            // 使用模式界面的预设参数
+            f_heat->ui_state   = HEAT_UI_SETUP;
+            f_heat->set_hour   = preset.hour;
+            f_heat->set_min    = preset.min;
+            f_heat->temp_idx   = func_heat_temp_f_to_idx(preset.temp_f);
+            f_heat->proto_mode = preset.proto_mode;
+        } else {
+            // 默认：自定义加热
+            f_heat->ui_state   = HEAT_UI_SETUP;
+            f_heat->set_hour   = 1;
+            f_heat->set_min    = 0;
+            f_heat->temp_idx   = 2;
+            f_heat->proto_mode = 1;
+        }
+    }
+
     f_heat->display_temp_f = 0;
     f_heat->heat_live_remain_min = 0;
     f_heat->heat_live_temp_f = 0;
@@ -1005,6 +1040,12 @@ void func_heat_enter(void)
     func_heat_status_refresh(f_heat);
     printf("heat_display_register\n");
     heat_display_register(func_heat_display_on_info);
+
+    // 如果是从模式界面跳转过来的，自动开始加热
+    if (f_heat->proto_mode != 1) {
+        printf("auto-start heating from mode, proto_mode=%d\n", f_heat->proto_mode);
+        func_heat_start_heating(f_heat);
+    }
 }
 
 void func_heat_exit(void)

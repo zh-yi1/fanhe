@@ -951,6 +951,18 @@ static void func_mode_start_heating(f_mode_t *f_mode)
     }
 
     preset = &tbl_mode_tab_preset[f_mode->tab];
+
+    // 鸡腿/意面模式：跳转到加热界面并自动开始加热
+    if (f_mode->tab == MODE_TAB_PASTA || f_mode->tab == MODE_TAB_CHICKEN) {
+        u32 duration_min = (u32)preset->hour * 60 + preset->min;
+        if (duration_min == 0) duration_min = 1;
+        lb_mode_to_heat_set(tbl_mode_tab_to_proto[f_mode->tab],
+                            preset->temp_f, preset->hour, preset->min);
+        func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        return;
+    }
+
+    // 保温模式：原地加热（保持原有逻辑）
     f_mode->ui_state = MODE_UI_HEATING;
     f_mode->screen_locked = false;
     f_mode->heat_start_tick = tick_get();

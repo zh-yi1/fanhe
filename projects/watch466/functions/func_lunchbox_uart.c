@@ -64,6 +64,28 @@ static lb_ota_ctx_t lb_ota_ctx;
 static u32 lb_ota_reset_tick = 0;           // 升级完成后延时复位的 tick
 
 //-----------------------------------------------------------------------------
+// 模式界面 → 加热界面 预设参数传递
+//-----------------------------------------------------------------------------
+static lb_mode_to_heat_preset_t lb_mode_heat_preset;
+
+void lb_mode_to_heat_set(u8 proto_mode, u16 temp_f, u8 hour, u8 min)
+{
+    lb_mode_heat_preset.active     = true;
+    lb_mode_heat_preset.proto_mode = proto_mode;
+    lb_mode_heat_preset.temp_f     = temp_f;
+    lb_mode_heat_preset.hour       = hour;
+    lb_mode_heat_preset.min        = min;
+}
+
+bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out)
+{
+    if (!lb_mode_heat_preset.active) return false;
+    if (out) memcpy(out, &lb_mode_heat_preset, sizeof(lb_mode_to_heat_preset_t));
+    lb_mode_heat_preset.active = false;  // 一次性消费，防止重复触发
+    return true;
+}
+
+//-----------------------------------------------------------------------------
 // 工具
 //-----------------------------------------------------------------------------
 
