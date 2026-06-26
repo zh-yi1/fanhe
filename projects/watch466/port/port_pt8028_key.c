@@ -361,6 +361,8 @@ void pt8028_port_gpio_init(void)
     pt8028_gpio_input_init(PT8028_GPIO_D1, PT8028_GPIO_BCD_PULL);
 
     pt8028_gpio_input_init(PT8028_GPIO_D2, PT8028_GPIO_BCD_PULL);
+    
+    pt8028_gpio_input_init(IO_PE0, PT8028_GPIO_BCD_PULL);
 
     pt8028_pe_reclaim_fast();
 

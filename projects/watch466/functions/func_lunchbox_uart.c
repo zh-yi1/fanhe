@@ -90,6 +90,8 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out)
 // 工具
 //-----------------------------------------------------------------------------
 
+static void lb_dp_dump_hex(const u8 *data, u16 data_len);
+
 /**
  * @brief 计算协议校验和
  *
@@ -182,6 +184,7 @@ static bool lb_frame_parse(void)
         printf("UART==>RX[%d]: ", total);
         for (u16 i = 0; i < total; i++) printf("%02X ", lb_rx_buf[i]);
         printf("\n");
+        lb_dp_dump_hex(rx.data, rx.data_len);
     }
 
 #if FUNC_LUNCHBOX_UART_EN
@@ -339,6 +342,121 @@ static u16 lb_dp_encode_value(u8 *buf, u8 dpid, u32 val)
 }
 
 //-----------------------------------------------------------------------------
+// DataPoint 解析打印（调试用 — 在 UART TX/RX 日志下方打印可读描述）
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief 遍历数据区的 DataPoints 并打印 hex + 简短英文描述
+ *
+ * DataPoint 格式: dpid(1B) + type(1B) + val_len(2B,BE) + value(val_len)
+ *
+ * @param data     数据区首指针
+ * @param data_len 数据区总字节数
+ */
+static void lb_dp_dump_hex(const u8 *data, u16 data_len)
+{
+    if (!data || data_len < 4) return;
+
+    u16  off  = 0;
+    bool head = true;
+
+    while (off + 4 <= data_len) {
+        u8  dpid    = data[off];
+        u16 val_len = ((u16)data[off + 2] << 8) | data[off + 3];
+
+        if (off + 4 + val_len > data_len) break;
+
+        const u8 *val = data + off + 4;
+        u16       dp_total = 4 + val_len;
+
+        // --- 首条前打印顶部分隔线 ---
+        if (head) {
+            printf("-------------------------------------------------------\n");
+            head = false;
+        }
+
+        // --- 打印原始 hex ---
+        for (u16 i = 0; i < dp_total; i++) printf("%02X ", data[off + i]);
+
+        // 填充至 26 列对齐（8 hex 字节 = 24 字符 + 余量）
+        u8 hex_chars = dp_total * 3;
+        for (u8 p = hex_chars; p < 26; p++) printf(" ");
+
+        printf("DP%02d:", dpid);
+
+        // --- 按 dpid 输出描述 ---
+        switch (dpid) {
+        case LB_DPID_POWER_SWITCH:   // 1: bool
+            printf(" PowerSwitch=%s", val[0] ? "ON" : "OFF");
+            break;
+        case LB_DPID_HEAT_MODE: {    // 2: enum
+            static const char *modes[] = {"Off","Custom","Chicken","Pasta","Schedule","KeepWarm"};
+            printf(" HeatMode=%s(%d)", val[0] < 6 ? modes[val[0]] : "?", val[0]);
+            break;
+        }
+        case LB_DPID_BATTERY: {      // 3: enum
+            static const char *bats[] = {"?","Low","Mid","High","Full"};
+            printf(" Battery=%s(%d)", val[0] <= 4 ? bats[val[0]] : "?", val[0]);
+            break;
+        }
+        case LB_DPID_CHARGE_STATUS: { // 4: enum
+            static const char *chgs[] = {"NoCharge","Charging","Full"};
+            printf(" Charge=%s(%d)", val[0] < 3 ? chgs[val[0]] : "?", val[0]);
+            break;
+        }
+        case LB_DPID_HEAT_DURATION: { // 5: value(4B)
+            u32 v = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                  | ((u32)val[2] << 8)  |  (u32)val[3];
+            printf(" HeatDur=%lumin", (unsigned long)v);
+            break;
+        }
+        case LB_DPID_REMAIN_TIME: {   // 6: value(4B)
+            u32 v = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                  | ((u32)val[2] << 8)  |  (u32)val[3];
+            printf(" Remain=%lumin", (unsigned long)v);
+            break;
+        }
+        case LB_DPID_HEAT_TEMP: {     // 7: enum
+            static const char *temps[] = {"40C","50C","60C","70C","80C","90C"};
+            printf(" HeatTemp=%s(%d)", val[0] < 6 ? temps[val[0]] : "?", val[0]);
+            break;
+        }
+        case LB_DPID_LANGUAGE:        // 8: enum
+            printf(" Lang=%d", val[0]);
+            break;
+        case LB_DPID_FAULT: {         // 9: enum
+            static const char *faults[] = {"OK","HighTemp"};
+            printf(" Fault=%s(%d)", val[0] < 2 ? faults[val[0]] : "?", val[0]);
+            break;
+        }
+        case LB_DPID_HEAT_ENABLE:     // 10: bool
+            printf(" HeatEn=%s", val[0] ? "ON" : "OFF");
+            break;
+        case LB_DPID_TIME_SYNC: {     // 11: value(4B)
+            u32 v = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                  | ((u32)val[2] << 8)  |  (u32)val[3];
+            printf(" TimeSync=%lu", (unsigned long)v);
+            break;
+        }
+        case LB_DPID_KEY_NOTIFY:      // 12: enum
+            printf(" Key=%d", val[0]);
+            break;
+        default:
+            printf(" DPID%d=?", dpid);
+            break;
+        }
+        printf("\n");
+
+        off += dp_total;
+    }
+
+    // --- 尾部分隔线 ---
+    if (!head) {
+        printf("-------------------------------------------------------\n");
+    }
+}
+
+//-----------------------------------------------------------------------------
 // 业务状态（本地模式使用）
 //-----------------------------------------------------------------------------
 #if !LB_BRIDGE_MODE
@@ -490,6 +608,7 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
         printf("LCD->UART==>TX[%d]: ", off);
         for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
         printf("\n");
+        lb_dp_dump_hex(data, data_len);
     }
 
     uart_bufs_tx(UART_TYPE_1,buf, off);
@@ -934,13 +1053,18 @@ static u8 lb_handler_mode_modify(lb_rx_frame_t *rx)
  *   0x08 → lb_handler_schedule_delete(删除预约)        [仅本地]
  *   0x09 → lb_handler_mode_query     (获取模式信息)    [桥/本地]
  *   0x0a → lb_handler_mode_modify    (修改模式信息)    [桥/本地]
- *   0x0b → lb_handler_ota_query      (升级查询)        [仅本地]
- *   0x0c → lb_handler_ota_start      (升级启动)        [仅本地]
- *   0x0d → lb_handler_ota_data       (升级包传输)      [仅本地]
- *   0x0e → lb_handler_ota_end        (升级结束)        [仅本地]
+ *   0x0b → lb_handler_ota_query      (升级查询)        [桥/本地]
+ *   0x0c → lb_handler_ota_start      (升级启动)        [桥/本地]
+ *   0x0d → lb_handler_ota_data       (升级包传输)      [桥/本地]
+ *   0x0e → lb_handler_ota_end        (升级结束)        [桥/本地]
  */
 
 // 前向声明 (函数定义在 lunchbox_uart_init_handlers 之后)
+// OTA handler: 桥模式和本地模式均需 (target=0x01 主单片机升级)
+static u8 lb_handler_ota_query(lb_rx_frame_t *rx);
+static u8 lb_handler_ota_start(lb_rx_frame_t *rx);
+static u8 lb_handler_ota_data(lb_rx_frame_t *rx);
+static u8 lb_handler_ota_end(lb_rx_frame_t *rx);
 #if !LB_BRIDGE_MODE
 static u8 lb_handler_dynamic_attr(lb_rx_frame_t *rx);
 static u8 lb_handler_control(lb_rx_frame_t *rx);
@@ -948,10 +1072,6 @@ static u8 lb_handler_schedule_list(lb_rx_frame_t *rx);
 static u8 lb_handler_schedule_add(lb_rx_frame_t *rx);
 static u8 lb_handler_schedule_modify(lb_rx_frame_t *rx);
 static u8 lb_handler_schedule_delete(lb_rx_frame_t *rx);
-static u8 lb_handler_ota_query(lb_rx_frame_t *rx);
-static u8 lb_handler_ota_start(lb_rx_frame_t *rx);
-static u8 lb_handler_ota_data(lb_rx_frame_t *rx);
-static u8 lb_handler_ota_end(lb_rx_frame_t *rx);
 #endif
 
 void lunchbox_uart_init_handlers(void)
@@ -960,6 +1080,11 @@ void lunchbox_uart_init_handlers(void)
     lunchbox_uart_reg_handler(LB_CMD_PRODUCT_INFO,    lb_handler_product_info);
     lunchbox_uart_reg_handler(LB_CMD_MODE_QUERY,      lb_handler_mode_query);
     lunchbox_uart_reg_handler(LB_CMD_MODE_MODIFY,     lb_handler_mode_modify);
+    // OTA 命令 (v1.0.6 §5): 主单片机(target=0x01)升级在桥模式/本地模式均需处理
+    lunchbox_uart_reg_handler(LB_CMD_OTA_QUERY,       lb_handler_ota_query);
+    lunchbox_uart_reg_handler(LB_CMD_OTA_START,       lb_handler_ota_start);
+    lunchbox_uart_reg_handler(LB_CMD_OTA_DATA,        lb_handler_ota_data);
+    lunchbox_uart_reg_handler(LB_CMD_OTA_END,         lb_handler_ota_end);
 
 #if !LB_BRIDGE_MODE
     // 仅本地模式
@@ -969,10 +1094,6 @@ void lunchbox_uart_init_handlers(void)
     lunchbox_uart_reg_handler(LB_CMD_SCHEDULE_ADD,    lb_handler_schedule_add);
     lunchbox_uart_reg_handler(LB_CMD_SCHEDULE_MODIFY, lb_handler_schedule_modify);
     lunchbox_uart_reg_handler(LB_CMD_SCHEDULE_DELETE, lb_handler_schedule_delete);
-    lunchbox_uart_reg_handler(LB_CMD_OTA_QUERY,       lb_handler_ota_query);
-    lunchbox_uart_reg_handler(LB_CMD_OTA_START,       lb_handler_ota_start);
-    lunchbox_uart_reg_handler(LB_CMD_OTA_DATA,        lb_handler_ota_data);
-    lunchbox_uart_reg_handler(LB_CMD_OTA_END,         lb_handler_ota_end);
 #endif
 }
 
@@ -1128,6 +1249,8 @@ static u8 lb_handler_schedule_delete(lb_rx_frame_t *rx)
     lunchbox_uart_send_response(LB_CMD_SCHEDULE_DELETE, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
     return LB_ERR_SUCCESS;
 }
+
+#endif // !LB_BRIDGE_MODE
 
 /**
  * @brief 0x0b — 升级查询 (v1.0.6: 支持按 target 查询指定设备)
@@ -1329,8 +1452,6 @@ static u8 lb_handler_ota_end(lb_rx_frame_t *rx)
     lunchbox_uart_send_response(LB_CMD_OTA_END, rx->msg_flag, LB_ERR_SUCCESS, rsp, 2);
     return LB_ERR_SUCCESS;
 }
-
-#endif // !LB_BRIDGE_MODE
 
 //-----------------------------------------------------------------------------
 // OTA 升级流程管理 (主单片机 target=0x01)
@@ -1864,6 +1985,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
                 printf("UART==>TX[%d]: ", uart_len);
                 for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
                 printf("\n");
+                {
+                    u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
+                    if (dl) lb_dp_dump_hex(uart_buf + 8, dl);
+                }
                 uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
             }
         }
@@ -1878,6 +2003,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             printf("UART==>TX[%d]: ", uart_len);
             for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
             printf("\n");
+            {
+                u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
+                if (dl) lb_dp_dump_hex(uart_buf + 8, dl);
+            }
             uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
         }
 
@@ -1891,6 +2020,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
     printf("UART==>TX[%d]: ", len);
     for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
     printf("\n");
+    {
+        u16 dl = ((u16)data[6] << 8) | data[7];
+        if (dl) lb_dp_dump_hex(data + 8, dl);
+    }
     uart_bufs_tx(UART_TYPE_1,data, len);
 
     LB_TRACE("lb_ble: rx cmd=0x%02x msg=%d len=%d\n", frame.cmd, frame.msg_flag, frame.data_len);
