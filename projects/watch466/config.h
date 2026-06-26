@@ -611,7 +611,8 @@
 #define PT8028_PWR_LONG_MS              3000        //开关键(TCH5)长按(ms)亮屏
 #define PT8028_LOCK_LONG_MS             3000        //锁键(TCH0)长按(ms)全局按键锁
 #define PT8028_HEAT_LONG_MS             3000        //加热键(TCH1)长按(ms)进入加热页
-#define KEY_LOCK_HINT_MS                3000        //右上角锁图标提示显示(ms)
+#define KEY_LOCK_HINT_MS                3000        //锁定/误触：右上角锁图标显示(ms)
+#define KEY_UNLOCK_HINT_MS              1500        //解锁图标显示(ms)
 
 #define USER_PANEL_LED                  1           //面板白色 LED1~6（原理图 510Ω 到 GND）
 #define PANEL_LED_ACTIVE_HIGH           1           //1=GPIO 高电平点亮 LED

@@ -128,8 +128,14 @@ void func_elunchbox_res_key_poll(void)
     if (sys_cb.flag_swithing) {
         return;
     }
-    if (pt8028_take_res_key_pending() && func_elunchbox_res_key_page_ok()) {
-        func_elunchbox_switch_to_reservation();
+    if (pt8028_take_res_key_pending()) {
+        if (func_key_lock_is_active()) {
+            func_key_lock_notify_blocked();
+            return;
+        }
+        if (func_elunchbox_res_key_page_ok()) {
+            func_elunchbox_switch_to_reservation();
+        }
     }
 #endif
 }
@@ -274,6 +280,10 @@ void func_process(void)
 
         func_reservation_poll();
 
+    } else {
+#if ELUNCHBOX_PANEL_EN
+        func_key_lock_poll();
+#endif
     }
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN

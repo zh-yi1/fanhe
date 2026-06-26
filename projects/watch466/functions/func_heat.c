@@ -1143,6 +1143,10 @@ void func_heat_key_poll(void)
     }
 
     if (func_key_lock_is_active()) {
+        tch = pt8028_get_press_tch();
+        if (tch != PT8028_KEY_NONE && tch != PT8028_KEY_TCH5) {
+            func_key_lock_notify_blocked();
+        }
         heat_key_lp_tch = PT8028_KEY_NONE;
         return;
     }

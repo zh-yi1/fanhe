@@ -1218,7 +1218,11 @@ static void func_home_pt8028_keys_process(f_home_t *f_home)
     func_home_drain_stale_key_msgs();
 
     if (act == PT8028_HOME_ACT_CONFIRM) {
-        func_home_pt8028_do_confirm(f_home);
+        if (func_key_lock_is_active()) {
+            func_key_lock_notify_blocked();
+        } else {
+            func_home_pt8028_do_confirm(f_home);
+        }
     }
 
     if (press_tch <= PT8028_KEY_TCH6 &&
