@@ -1376,6 +1376,10 @@ void func_home_process(void)
         if (func_home_gui_need_refresh()) {
             func_home_tab_labels_refresh_all(f_home);
         }
+        /* 冷启动：Tab 首帧绘制完成后再开背光，避免上电花屏 */
+        if (func_cb.last == 0 && f_home->display_stage == 2) {
+            tft_bglight_force_on();
+        }
         return;
     }
 #endif
@@ -1497,9 +1501,6 @@ void func_home_enter(void)
     }
     func_cb.f_cb = func_zalloc(sizeof(f_home_t));
     func_cb.frm_main = func_home_form_create();
-#if ELUNCHBOX_PANEL_EN
-    tft_bglight_force_on();
-#endif
 
     f_home = (f_home_t *)func_cb.f_cb;
     f_home->tab = HOME_TAB_HEAT;
@@ -1545,6 +1546,7 @@ void func_home_enter(void)
         func_home_status_refresh(f_home);
         func_home_res_marquee_refresh(f_home);
         func_home_gui_mark_dirty();
+        tft_bglight_force_on();
     }
     WDT_CLR();
     pt8028_release_clear();

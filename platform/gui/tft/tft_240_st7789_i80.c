@@ -3,6 +3,23 @@
 
 //#define Delay(ms) bsp_spide_cs(1);delay_ms(ms)
 #if (GUI_SELECT == GUI_TFT_240_ST789_i80)
+#if ELUNCHBOX_PANEL_EN
+static void tft_240_st7789_i80_clear_black(void)
+{
+    u16 y;
+    static u8 line[GUI_SCREEN_WIDTH * 2];
+
+    memset(line, 0, sizeof(line));
+    lcd_drv_set_window(0, 0, GUI_SCREEN_WIDTH - 1, GUI_SCREEN_HEIGHT - 1);
+    tft_write_data_start();
+    for (y = 0; y < GUI_SCREEN_HEIGHT; y++) {
+        WDT_CLR();
+        tft_spi_send(line, GUI_SCREEN_WIDTH, 1);
+    }
+    tft_write_end();
+}
+#endif
+
 static void tft_240_st7789_i80_init(void)
 {
     port_gpio_set_out(IO_PA6, 1);
@@ -116,6 +133,9 @@ static void tft_240_st7789_i80_init(void)
     WriteComm(0x35);
     WriteData(0x00);
 
+#if ELUNCHBOX_PANEL_EN
+    tft_240_st7789_i80_clear_black();
+#endif
     WriteComm(0x29);	  //Display on
     CommEnd();
 }
