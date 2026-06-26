@@ -704,8 +704,8 @@ static u16 func_res_heat_setup_total_min(const f_reservation_t *f_res)
 
 static void func_res_heat_setup_apply_total_min(f_reservation_t *f_res, u16 total_min)
 {
-    if (total_min > (u16)99 * 60 + 59) {
-        total_min = (u16)99 * 60 + 59;
+    if (total_min > LB_HEAT_DURATION_MAX_MIN) {
+        total_min = LB_HEAT_DURATION_MAX_MIN;
     }
     f_res->heat_hour = (u8)(total_min / 60);
     f_res->heat_min = (u8)(total_min % 60);
@@ -1213,8 +1213,10 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
         if (target_sec <= (now % 86400)) {
             unix_time += 86400;
         }
-        if (duration == 0) {
-            duration = 1;
+        if (duration < LB_HEAT_DURATION_MIN_MIN) {
+            duration = LB_HEAT_DURATION_MIN_MIN;
+        } else if (duration > LB_HEAT_DURATION_MAX_MIN) {
+            duration = LB_HEAT_DURATION_MAX_MIN;
         }
         lunchbox_reservation_send(1, 0, NULL, unix_time,
                                   lunchbox_temp_f_to_idx(temp_f),
@@ -1387,8 +1389,12 @@ static void func_res_value_inc(f_reservation_t *f_res)
             break;
 
         case RES_FOCUS_HEAT_HOUR:
-            if (f_res->heat_hour < 99) {
-                f_res->heat_hour++;
+            {
+                u16 total = func_res_heat_setup_total_min(f_res);
+
+                if (total + 60 <= LB_HEAT_DURATION_MAX_MIN) {
+                    func_res_heat_setup_apply_total_min(f_res, total + 60);
+                }
             }
             f_res->last_heat_timer_key = 0xffff;
             break;

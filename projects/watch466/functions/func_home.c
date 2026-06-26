@@ -1374,6 +1374,7 @@ void func_home_process(void)
             func_home_res_marquee_refresh(f_home);
             f_home->display_stage = 0;
             func_home_gui_mark_dirty();
+            tft_bglight_force_on();
             break;
         }
         default:
@@ -1383,15 +1384,6 @@ void func_home_process(void)
         func_process();
         if (func_home_gui_need_refresh()) {
             func_home_tab_labels_refresh_all(f_home);
-        }
-        /* 冷启动 UI 就绪后默认息屏，长按开关键 3s 亮屏 */
-        if (func_cb.last == 0 && f_home->display_stage == 0) {
-            static bool home_cold_gui_off_done;
-
-            if (!home_cold_gui_off_done) {
-                home_cold_gui_off_done = true;
-                elunchbox_pwr_gui_off_activate();
-            }
         }
         return;
     }
@@ -1541,7 +1533,7 @@ void func_home_enter(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.last == 0) {
-        /* 冷启动分 3 帧：Tab → 顶栏/状态 → 倒计时，enter 内不 draw_force */
+        /* 冷启动分 3 帧加载 UI，完成后亮屏 */
         f_home->display_stage = 1;
         func_home_gui_mark_dirty();
     } else {

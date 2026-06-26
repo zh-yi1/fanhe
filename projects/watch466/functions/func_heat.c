@@ -279,8 +279,8 @@ static u16 func_heat_setup_total_min(const f_heat_t *f_heat)
 
 static void func_heat_setup_apply_total_min(f_heat_t *f_heat, u16 total_min)
 {
-    if (total_min > (u16)99 * 60 + 59) {
-        total_min = (u16)99 * 60 + 59;
+    if (total_min > LB_HEAT_DURATION_MAX_MIN) {
+        total_min = LB_HEAT_DURATION_MAX_MIN;
     }
     f_heat->set_hour = (u8)(total_min / 60);
     f_heat->set_min = (u8)(total_min % 60);
@@ -708,8 +708,10 @@ static void func_heat_start_heating(f_heat_t *f_heat)
                           : tbl_heat_temp_preset[0];
         u32 duration_min = f_heat->heat_total_sec / 60;
 
-        if (duration_min == 0) {
-            duration_min = 1;
+        if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
+            duration_min = LB_HEAT_DURATION_MIN_MIN;
+        } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
+            duration_min = LB_HEAT_DURATION_MAX_MIN;
         }
         printf("lb: heat_start -> UART\n");
         printf("target_temp_f: %d, duration_min: %d, proto_mode: %d\n",
@@ -799,8 +801,12 @@ static void func_heat_value_inc(f_heat_t *f_heat)
 
     switch (f_heat->focus) {
     case HEAT_FOCUS_HOUR:
-        if (f_heat->set_hour < 99) {
-            f_heat->set_hour++;
+        {
+            u16 total = func_heat_setup_total_min(f_heat);
+
+            if (total + 60 <= LB_HEAT_DURATION_MAX_MIN) {
+                func_heat_setup_apply_total_min(f_heat, total + 60);
+            }
         }
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
