@@ -366,6 +366,7 @@ static u8 lb_attr_write(u8 *data, u16 len)
         u8  dpid    = data[off];
         u8  type    = data[off + 1];
         u16 val_len = ((u16)data[off + 2] << 8) | data[off + 3];
+        (void)type;  // 数据类型标记，暂未做校验（协议约定 bool=0x01, value=0x02, enum=0x04）
         if (off + 4 + val_len > len) break;
         u8 *val = data + off + 4;
 
@@ -762,8 +763,12 @@ static u8 lb_handler_product_info(lb_rx_frame_t *rx)
 
 // ─── 以下 handler/函数在桥模式和本地模式都需要 ───
 
+#if LB_BRIDGE_MODE
 /**
  * @brief 从 OTA 命令帧中提取目标设备标识 (v1.0.6)
+ *
+ * 仅桥模式使用: 根据 target 字段决定 OTA 命令是本地处理还是转发 UART。
+ * 本地模式下 APP 直接与 MCU 通信, target 恒为 0x01, 无需提取。
  *
  * 各 OTA 命令 data 区首字节均为 target:
  *   0x0b 升级查询: data[0] 或 无数据(查询全部)
@@ -790,6 +795,7 @@ static u8 lb_ota_get_target(lb_rx_frame_t *rx)
         return 0x00;
     }
 }
+#endif // LB_BRIDGE_MODE
 
 void lunchbox_uart_reg_handler(u8 cmd, lb_cmd_handler_t h) { if (cmd < 16) cmd_handler[cmd] = h; }
 
@@ -868,6 +874,21 @@ static u8 lb_handler_mode_modify(lb_rx_frame_t *rx)
  *   0x0d → lb_handler_ota_data       (升级包传输)      [仅本地]
  *   0x0e → lb_handler_ota_end        (升级结束)        [仅本地]
  */
+
+// 前向声明 (函数定义在 lunchbox_uart_init_handlers 之后)
+#if !LB_BRIDGE_MODE
+static u8 lb_handler_dynamic_attr(lb_rx_frame_t *rx);
+static u8 lb_handler_control(lb_rx_frame_t *rx);
+static u8 lb_handler_schedule_list(lb_rx_frame_t *rx);
+static u8 lb_handler_schedule_add(lb_rx_frame_t *rx);
+static u8 lb_handler_schedule_modify(lb_rx_frame_t *rx);
+static u8 lb_handler_schedule_delete(lb_rx_frame_t *rx);
+static u8 lb_handler_ota_query(lb_rx_frame_t *rx);
+static u8 lb_handler_ota_start(lb_rx_frame_t *rx);
+static u8 lb_handler_ota_data(lb_rx_frame_t *rx);
+static u8 lb_handler_ota_end(lb_rx_frame_t *rx);
+#endif
+
 void lunchbox_uart_init_handlers(void)
 {
     // 桥模式和本地模式都需要
@@ -1140,6 +1161,7 @@ static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
                | ((u32)rx->data[3] << 8)  | rx->data[4];
     u8 *data = rx->data + 5;
     u16 data_size = rx->data_len - 5;
+    (void)target;  // target 字段已在路由层校验（本地模式恒为 0x01）
 
     // 校验 offset 连续性 (ota_pack_write 顺序写入，不支持随机偏移)
     if (offset != lb_ota_ctx.next_offset) {
