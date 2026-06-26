@@ -812,8 +812,13 @@ static void func_heat_value_inc(f_heat_t *f_heat)
         break;
 
     case HEAT_FOCUS_MIN:
-        func_heat_setup_apply_total_min(f_heat,
-                                        func_heat_setup_total_min(f_heat) + HEAT_MIN_STEP);
+        {
+            u16 total = func_heat_setup_total_min(f_heat);
+
+            if (total + HEAT_MIN_STEP <= LB_HEAT_DURATION_MAX_MIN) {
+                func_heat_setup_apply_total_min(f_heat, total + HEAT_MIN_STEP);
+            }
+        }
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
 
@@ -1041,6 +1046,7 @@ void func_heat_enter(void)
             f_heat->proto_mode = 1;
         }
     }
+    func_heat_setup_apply_total_min(f_heat, func_heat_setup_total_min(f_heat));
 
     f_heat->display_temp_f = 0;
     f_heat->heat_live_remain_min = 0;

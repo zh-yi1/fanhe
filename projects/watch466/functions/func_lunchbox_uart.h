@@ -54,7 +54,7 @@ enum {
 };
 
 #define LB_HEAT_DURATION_MIN_MIN          30      // 加热时长下限(分钟)
-#define LB_HEAT_DURATION_MAX_MIN          210     // 加热时长上限(分钟)，MCU 协议 30~210
+#define LB_HEAT_DURATION_MAX_MIN          120     // UI 加热时长上限(分钟)，产品上限 2 小时
 
 // DataPoint 数据类型
 #define LB_DP_TYPE_BOOL     0x01

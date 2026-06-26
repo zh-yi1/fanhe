@@ -1400,8 +1400,13 @@ static void func_res_value_inc(f_reservation_t *f_res)
             break;
 
         case RES_FOCUS_HEAT_MIN:
-            func_res_heat_setup_apply_total_min(f_res,
-                                                func_res_heat_setup_total_min(f_res) + RES_MIN_STEP);
+            {
+                u16 total = func_res_heat_setup_total_min(f_res);
+
+                if (total + RES_MIN_STEP <= LB_HEAT_DURATION_MAX_MIN) {
+                    func_res_heat_setup_apply_total_min(f_res, total + RES_MIN_STEP);
+                }
+            }
             f_res->last_heat_timer_key = 0xffff;
             break;
 
@@ -1929,6 +1934,7 @@ void func_reservation_enter(void)
     /* 确保预约时间范围：默认1小时，最高23小时（进入时夹紧，防止旧数据或外部设置导致越界） */
     if (f_res->appt_hour < 1) f_res->appt_hour = 1;
     if (f_res->appt_hour > 23) f_res->appt_hour = 23;
+    func_res_heat_setup_apply_total_min(f_res, func_res_heat_setup_total_min(f_res));
 
     tm = rtc_clock_get();
     g_res.last_poll_min = tm.min;
