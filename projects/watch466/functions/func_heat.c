@@ -106,6 +106,7 @@
 
 #define HEAT_LOCK_MS                      30000
 #define HEAT_TEMP_PRESET_CNT              5
+#define HEAT_MIN_STEP                     5
 #define HEAT_MSG_OK                       KU_BACK
 #define HEAT_MSG_PLUS                     KU_VOL_UP
 #define HEAT_MSG_MINUS                    KU_VOL_DOWN
@@ -247,6 +248,42 @@ static const u16 tbl_heat_temp_id[HEAT_TEMP_IDX_CNT] = {
 
 static void func_heat_display_refresh(f_heat_t *f_heat);
 static void func_heat_heating_finish_check(f_heat_t *f_heat);
+void func_heat_countdown_set(u8 hour, u8 min);
+void func_heat_countdown_stop(void);
+
+static u16 func_heat_setup_total_min(const f_heat_t *f_heat)
+{
+    return (u16)f_heat->set_hour * 60 + f_heat->set_min;
+}
+
+static void func_heat_setup_apply_total_min(f_heat_t *f_heat, u16 total_min)
+{
+    if (total_min > (u16)99 * 60 + 59) {
+        total_min = (u16)99 * 60 + 59;
+    }
+    f_heat->set_hour = (u8)(total_min / 60);
+    f_heat->set_min = (u8)(total_min % 60);
+}
+
+static void func_heat_reset_setup(f_heat_t *f_heat)
+{
+    f_heat->ui_state = HEAT_UI_SETUP;
+    f_heat->focus = HEAT_FOCUS_HOUR;
+    f_heat->set_hour = 1;
+    f_heat->set_min = 0;
+    f_heat->temp_idx = 2;
+    f_heat->display_temp_f = 0;
+    f_heat->heat_live_remain_min = 0;
+    f_heat->heat_live_temp_f = 0;
+    f_heat->heat_live_ready = false;
+    f_heat->heat_total_sec = 0;
+    f_heat->heat_start_tick = 0;
+    f_heat->screen_locked = false;
+    f_heat->last_timer_key = 0xffff;
+    f_heat->last_temp_f = 0xffff;
+    func_heat_countdown_stop();
+    func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
+}
 
 static void func_heat_display_on_info(const heat_display_info_t *info)
 {
@@ -697,7 +734,7 @@ static void func_heat_power_key(f_heat_t *f_heat)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();
 #endif
-        f_heat->screen_locked = false;
+        func_heat_reset_setup(f_heat);
         func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;
     }
@@ -745,14 +782,8 @@ static void func_heat_value_inc(f_heat_t *f_heat)
         break;
 
     case HEAT_FOCUS_MIN:
-        if (f_heat->set_min < 59) {
-            f_heat->set_min++;
-        } else {
-            f_heat->set_min = 0;
-            if (f_heat->set_hour < 99) {
-                f_heat->set_hour++;
-            }
-        }
+        func_heat_setup_apply_total_min(f_heat,
+                                        func_heat_setup_total_min(f_heat) + HEAT_MIN_STEP);
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
 
@@ -786,11 +817,15 @@ static void func_heat_value_dec(f_heat_t *f_heat)
         break;
 
     case HEAT_FOCUS_MIN:
-        if (f_heat->set_min > 0) {
-            f_heat->set_min--;
-        } else if (f_heat->set_hour > 0) {
-            f_heat->set_min = 59;
-            f_heat->set_hour--;
+        {
+            u16 total = func_heat_setup_total_min(f_heat);
+
+            if (total >= HEAT_MIN_STEP) {
+                total -= HEAT_MIN_STEP;
+            } else {
+                total = 0;
+            }
+            func_heat_setup_apply_total_min(f_heat, total);
         }
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
