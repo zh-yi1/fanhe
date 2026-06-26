@@ -552,10 +552,11 @@ void lunchbox_set_device_info(lb_device_info_t *info) { if (info) memcpy(&lb_dev
 /** @brief 华氏度 → 温度档位 (0=40°C ~ 5=90°C) */
 u8 lunchbox_temp_f_to_idx(u16 temp_f)
 {
-    if (temp_f < 149) return 2;      // <65°C:  档位2 (60°C)
-    if (temp_f < 167) return 3;      // <75°C:  档位3 (70°C)
-    if (temp_f < 185) return 4;      // <85°C:  档位4 (80°C)
-    return 5;                         // ≥85°C:  档位5 (90°C)
+    if (temp_f == 140) return 1;      // 140°F:  档位1 (60°C)
+    if (temp_f == 158) return 2;      // 158°F:  档位2 (70°C)
+    if (temp_f == 176) return 3;      // 176°F:  档位3 (80°C)
+    if (temp_f == 194) return 4;      // 194°F:  档位4 (90°C)
+    if (temp_f == 212) return 5;      // 212°F:  档位5 (100°C)
 }
 
 u8 lunchbox_mode_get_temp(u8 mode) {

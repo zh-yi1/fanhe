@@ -2,6 +2,7 @@
 #include "func.h"
 #include "home_icon_res.h"
 #include "home_ui_shared.h"
+#include "ui_layout_anchor.h"
 
 #if TRACE_EN
 #define TRACE(...)              printf(__VA_ARGS__)
@@ -48,6 +49,14 @@
 
 #ifndef UI_BUF_HOME_WCM_BIN
 #error "Missing wcm.bin: run tools/convert_ui_home.bat + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_HM_BIN
+#error "Missing Hm.bin: run tools/gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_MINM_BIN
+#error "Missing Minm.bin: run tools/gen_home_icons.py + prebuild.bat"
 #endif
 
 #ifndef UI_BUF_HOME_BLUE_AM_BIN
@@ -141,13 +150,6 @@
 #define TIMEING_AM_Y                      100
 #define TIMEING_PM_Y                      136
 #define TIMEING_DIGIT_GAP                 2
-#define TIMEING_SUFFIX_FONT               UI_BUF_FONT_TIMEING_SUFFIX
-#define TIMEING_SUFFIX_RIGHT_PAD          0
-#define TIMEING_SUFFIX_BOTTOM_PAD         0
-#define TIMEING_SUFFIX_DIGIT_GAP          0
-#define TIMEING_SUFFIX_H_W                7
-#define TIMEING_SUFFIX_MIN_W              19
-#define TIMEING_SUFFIX_H                  10
 #define TIMEING_ARROW_BTN_DX              18
 #define TIMEING_ARROW_BTN_DY              12
 #define TIMEING_ARROW_BTN_W               40
@@ -192,13 +194,6 @@
 #define TIMEING_AM_Y                      TIMEING_SY(178)
 #define TIMEING_PM_Y                      TIMEING_SY(248)
 #define TIMEING_DIGIT_GAP                 TIMEING_SX(10)
-#define TIMEING_SUFFIX_FONT               UI_BUF_FONT_TIMEING_SUFFIX
-#define TIMEING_SUFFIX_RIGHT_PAD          0
-#define TIMEING_SUFFIX_BOTTOM_PAD         0
-#define TIMEING_SUFFIX_DIGIT_GAP          TIMEING_SX(2)
-#define TIMEING_SUFFIX_H_W                TIMEING_SX(7)
-#define TIMEING_SUFFIX_MIN_W              TIMEING_SX(19)
-#define TIMEING_SUFFIX_H                  TIMEING_SY(10)
 #define TIMEING_ARROW_BTN_DX              TIMEING_SX(24)
 #define TIMEING_ARROW_BTN_DY              TIMEING_SY(16)
 #define TIMEING_ARROW_BTN_W               TIMEING_SX(48)
@@ -215,6 +210,19 @@
 #define TIMEING_BTN_BOTTOM_Y              TIMEING_SY(418)
 #define TIMEING_TITLE_W                   TIMEING_SX(220)
 #endif
+
+/* Time 页时钟：右上角锚点 (320×240) */
+#define TIMEING_CLOCK_TR_Y                ((s16)((s32)101 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
+#define TIMEING_CLOCK_TR_H10_X            ((s16)((s32)65 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define TIMEING_CLOCK_TR_H1_X             ((s16)((s32)90 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define TIMEING_CLOCK_TR_COLON_X          ((s16)((s32)125 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define TIMEING_CLOCK_TR_M10_X            ((s16)((s32)165 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define TIMEING_CLOCK_TR_M1_X             ((s16)((s32)190 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+
+/* Time 页 H/Min 点阵后缀：右上角锚点 (320×240)，Hm.bin / Minm.bin 8px 高 */
+#define TIMEING_SUFFIX_TR_Y               ((s16)((s32)130 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
+#define TIMEING_SUFFIX_H_TR_X             ((s16)((s32)100 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define TIMEING_SUFFIX_MIN_TR_X           ((s16)((s32)210 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 
 #define TIMEING_STATUS_BAT_X              (GUI_SCREEN_WIDTH - TIMEING_STATUS_RIGHT_MARGIN - HOME_STATUS_BAT_W / 2)
 #define TIMEING_STATUS_LOCK_X             (TIMEING_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - TIMEING_STATUS_GAP - HOME_STATUS_LOCK_W / 2)
@@ -258,8 +266,8 @@ enum {
     COMPO_ID_PIC_COLON,
     COMPO_ID_PIC_M10,
     COMPO_ID_PIC_M1,
-    COMPO_ID_TXT_H_SUFFIX,
-    COMPO_ID_TXT_MIN_SUFFIX,
+    COMPO_ID_PIC_H_SUFFIX,
+    COMPO_ID_PIC_MIN_SUFFIX,
     COMPO_ID_PIC_AM,
     COMPO_ID_BTN_AM,
     COMPO_ID_PIC_PM,
@@ -298,16 +306,18 @@ typedef struct f_timeing_t_ {
     compo_picturebox_t *pic_colon;
     compo_picturebox_t *pic_m10;
     compo_picturebox_t *pic_m1;
+    compo_picturebox_t *pic_h_suffix;
+    compo_picturebox_t *pic_min_suffix;
     compo_picturebox_t *pic_am;
     compo_picturebox_t *pic_pm;
-    compo_textbox_t *txt_h_suffix;
-    compo_textbox_t *txt_min_suffix;
 } f_timeing_t;
 
 static u8 timeing_left_ram[TIMEING_LEFT_RAM_SIZE];
 static u8 timeing_arrow_ram[4][TIMEING_ARROW_RAM_SIZE];
 static u8 timeing_colon_ram[TIMEING_COLON_RAM_SIZE];
 static u8 timeing_ampm_ram[2][TIMEING_AMPM_RAM_SIZE];
+static u8 timeing_hm_ram[HOME_TIMEING_SUFFIX_RAM_MAX_SIZE];
+static u8 timeing_minm_ram[HOME_TIMEING_SUFFIX_RAM_MAX_SIZE];
 static u8 timeing_digit_ram[TIMEING_DIGIT_SLOT_CNT][TIMEING_DIGIT_RAM_MAX_SIZE];
 
 static const u32 tbl_timeing_digit_addr[10] = {
@@ -330,141 +340,12 @@ static const u16 tbl_timeing_digit_h[10] = {
     34, 32, 34, 34, 32, 34, 34, 33, 34, 34,
 };
 
-typedef struct timeing_pair_layout_t_ {
-    s16 d10_x;
-    s16 d1_x;
-    s16 digit_y;
-    u16 digit_h;
-    s16 suffix_left;
-    s16 suffix_top;
-} timeing_pair_layout_t;
-
-static void func_timeing_box_bounds(s16 col_cx, s16 *left, s16 *right, s16 *top, s16 *bottom)
+static void func_timeing_pic_pos_tr(compo_picturebox_t *pic, s16 tr_x, s16 tr_y, u16 w, u16 h)
 {
-    *left = (s16)(col_cx - TIMEING_BOX_W / 2 + TIMEING_BOX_INSET);
-    *right = (s16)(col_cx + TIMEING_BOX_W / 2 - TIMEING_BOX_INSET);
-    *top = (s16)(TIMEING_BOX_Y - TIMEING_BOX_H / 2 + TIMEING_BOX_INSET);
-    *bottom = (s16)(TIMEING_BOX_Y + TIMEING_BOX_H / 2 - TIMEING_BOX_INSET);
-}
-
-static void func_timeing_pair_layout(s16 col_cx, u8 d10, u8 d1, s16 suffix_w, s16 suffix_h,
-                                     timeing_pair_layout_t *layout)
-{
-    s16 box_l;
-    s16 box_r;
-    s16 box_t;
-    s16 box_b;
-    u16 w10;
-    u16 w1;
-    u16 digit_h;
-    s16 group_w;
-    s16 group_left;
-    s16 group_right;
-    s16 shift;
-
-    if (layout == NULL || suffix_w <= 0 || suffix_h <= 0 || d10 > 9 || d1 > 9) {
+    if (pic == NULL) {
         return;
     }
-
-    memset(layout, 0, sizeof(*layout));
-
-    w10 = tbl_timeing_digit_w[d10];
-    w1 = tbl_timeing_digit_w[d1];
-    digit_h = tbl_timeing_digit_h[d10];
-    if (tbl_timeing_digit_h[d1] > digit_h) {
-        digit_h = tbl_timeing_digit_h[d1];
-    }
-
-    func_timeing_box_bounds(col_cx, &box_l, &box_r, &box_t, &box_b);
-
-    group_w = (s16)(w10 + TIMEING_DIGIT_GAP + w1 + TIMEING_SUFFIX_DIGIT_GAP + suffix_w);
-    group_left = (s16)(col_cx - group_w / 2);
-
-    layout->d10_x = (s16)(group_left + w10 / 2);
-    layout->d1_x = (s16)(layout->d10_x + w10 / 2 + TIMEING_DIGIT_GAP + w1 / 2);
-    layout->digit_y = TIMEING_BOX_Y;
-    layout->digit_h = digit_h;
-    layout->suffix_left = (s16)(layout->d1_x + w1 / 2 + TIMEING_SUFFIX_DIGIT_GAP);
-    layout->suffix_top = (s16)(layout->digit_y + digit_h / 2 - suffix_h);
-
-    group_right = (s16)(layout->suffix_left + suffix_w);
-    if (group_right > box_r) {
-        shift = (s16)(box_r - group_right);
-        layout->d10_x += shift;
-        layout->d1_x += shift;
-        layout->suffix_left += shift;
-    }
-    group_left = (s16)(layout->d10_x - (s16)(w10 / 2));
-    if (group_left < box_l) {
-        shift = (s16)(box_l - group_left);
-        layout->d10_x += shift;
-        layout->d1_x += shift;
-        layout->suffix_left += shift;
-    }
-
-    if (layout->digit_y - (s16)(digit_h / 2) < box_t) {
-        layout->digit_y = (s16)(box_t + digit_h / 2);
-    }
-    if (layout->digit_y + (s16)(digit_h / 2) > box_b) {
-        layout->digit_y = (s16)(box_b - digit_h / 2);
-    }
-    layout->suffix_top = (s16)(layout->digit_y + digit_h / 2 - suffix_h);
-    if (layout->suffix_top < box_t) {
-        layout->suffix_top = box_t;
-    }
-
-    if (layout->suffix_left + suffix_w > box_r) {
-        layout->suffix_left = (s16)(box_r - suffix_w);
-        layout->d1_x = (s16)(layout->suffix_left - TIMEING_SUFFIX_DIGIT_GAP - w1 / 2);
-        layout->d10_x = (s16)(layout->d1_x - (s16)(w1 / 2) - TIMEING_DIGIT_GAP - w10 / 2);
-    }
-    if (layout->d10_x - (s16)(w10 / 2) < box_l) {
-        layout->d10_x = (s16)(box_l + w10 / 2);
-        layout->d1_x = (s16)(layout->d10_x + w10 / 2 + TIMEING_DIGIT_GAP + w1 / 2);
-        layout->suffix_left = (s16)(layout->d1_x + w1 / 2 + TIMEING_SUFFIX_DIGIT_GAP);
-        if (layout->suffix_left + suffix_w > box_r) {
-            layout->suffix_left = (s16)(box_r - suffix_w);
-        }
-    }
-}
-
-static void func_timeing_suffix_set_pos(compo_textbox_t *txt, s16 left, s16 top, s16 w, s16 h,
-                                        s16 digit_y, u16 digit_h)
-{
-    widget_text_t *widget;
-    area_t text_area;
-    s16 draw_w;
-    s16 draw_h;
-    s16 draw_top;
-
-    if (txt == NULL || w <= 0 || h <= 0) {
-        return;
-    }
-
-    widget = txt->txt;
-    text_area = widget_text_get_area(widget);
-    draw_w = w;
-    draw_h = h;
-    if (text_area.wid > 0 && text_area.wid > (u16)draw_w) {
-        draw_w = (s16)(text_area.wid + 1);
-    }
-    if (text_area.hei > 0 && text_area.hei > (u16)draw_h) {
-        draw_h = (s16)text_area.hei;
-    }
-
-    draw_top = (s16)(digit_y + (s16)(digit_h / 2) - draw_h);
-    if (draw_top < top) {
-        top = draw_top;
-    }
-
-    compo_textbox_set_location(txt, left, top, draw_w, draw_h);
-    text_area = widget_text_get_area(widget);
-    if (text_area.hei > 0 && draw_h > (s16)text_area.hei) {
-        widget_text_set_client(widget, 0, (s16)(draw_h - (s16)text_area.hei));
-    } else {
-        widget_text_set_client(widget, 0, 0);
-    }
-    compo_textbox_set_visible(txt, true);
+    compo_picturebox_set_pos(pic, tr_x - (s16)(w / 2), tr_y + (s16)(h / 2));
 }
 
 static bool func_timeing_gpu_ram_set(u8 *ram, u16 buf_size, u16 data_len, compo_picturebox_t *pic)
@@ -514,6 +395,27 @@ static bool func_timeing_gpu_flash_to_ram(u8 *ram, u16 buf_size, u32 flash_addr,
     return func_timeing_gpu_ram_set(ram, buf_size, flash_len, pic);
 }
 
+static void func_timeing_suffix_apply(f_timeing_t *f_timeing)
+{
+    if (f_timeing == NULL) {
+        return;
+    }
+
+    if (func_timeing_gpu_flash_to_ram(timeing_hm_ram, HOME_TIMEING_SUFFIX_RAM_MAX_SIZE,
+                                      UI_BUF_HOME_HM_BIN, UI_LEN_HOME_HM_BIN,
+                                      f_timeing->pic_h_suffix)) {
+        func_timeing_pic_pos_tr(f_timeing->pic_h_suffix, TIMEING_SUFFIX_H_TR_X, TIMEING_SUFFIX_TR_Y,
+                                HOME_TIMEING_HM_W, HOME_TIMEING_HM_H);
+    }
+
+    if (func_timeing_gpu_flash_to_ram(timeing_minm_ram, HOME_TIMEING_SUFFIX_RAM_MAX_SIZE,
+                                      UI_BUF_HOME_MINM_BIN, UI_LEN_HOME_MINM_BIN,
+                                      f_timeing->pic_min_suffix)) {
+        func_timeing_pic_pos_tr(f_timeing->pic_min_suffix, TIMEING_SUFFIX_MIN_TR_X, TIMEING_SUFFIX_TR_Y,
+                                HOME_TIMEING_MINM_W, HOME_TIMEING_MINM_H);
+    }
+}
+
 static compo_shape_t *func_timeing_shape_create(compo_form_t *frm, u16 id, s16 x, s16 y,
                                                 s16 w, s16 h, u16 color, u16 radius)
 {
@@ -551,24 +453,6 @@ static void func_timeing_config_title(compo_textbox_t *txt)
     } else {
         widget_text_set_client(widget, 0, 0);
     }
-}
-
-static void func_timeing_config_suffix_label(compo_textbox_t *txt, const char *text,
-                                             s16 left, s16 top, s16 w, s16 h)
-{
-    widget_text_t *widget = txt->txt;
-
-    compo_textbox_set_font(txt, TIMEING_SUFFIX_FONT);
-    compo_textbox_set_align_center(txt, false);
-    widget_set_align_center(widget, false);
-    compo_textbox_set_wholewrap(txt, false);
-    compo_textbox_set_autoroll(txt, false);
-    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
-    widget_text_set_ellipsis(widget, false);
-    compo_textbox_set_autosize(txt, false);
-    compo_textbox_set_forecolor(txt, COLOR_WHITE);
-    compo_textbox_set_location(txt, left, top, w, h);
-    compo_textbox_set(txt, text);
 }
 
 static void func_timeing_config_center_label(compo_textbox_t *txt, const char *text,
@@ -624,6 +508,22 @@ static bool func_timeing_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic)
     return false;
 }
 
+static void func_timeing_clock_digit_pos_tr(compo_picturebox_t *pic, u8 digit, s16 tr_x, s16 tr_y)
+{
+    u16 w;
+    u16 h;
+
+    if (digit > 9 || pic == NULL) {
+        return;
+    }
+
+    w = tbl_timeing_digit_w[digit];
+    h = tbl_timeing_digit_h[digit];
+    func_timeing_pic_pos_tr(pic, tr_x, tr_y, w, h);
+    compo_picturebox_set_size(pic, w, h);
+    compo_picturebox_set_visible(pic, true);
+}
+
 static void func_timeing_ampm_apply(f_timeing_t *f_timeing)
 {
     u32 am_addr;
@@ -655,36 +555,39 @@ static void func_timeing_digits_apply(f_timeing_t *f_timeing)
     u8 h1 = (u8)(f_timeing->disp_h % 10);
     u8 m10 = (u8)(f_timeing->min / 10);
     u8 m1 = (u8)(f_timeing->min % 10);
-    timeing_pair_layout_t hour_layout;
-    timeing_pair_layout_t min_layout;
 
     if (f_timeing == NULL) {
         return;
     }
 
-    func_timeing_pair_layout(TIMEING_HOUR_COL_X, h10, h1,
-                             TIMEING_SUFFIX_H_W, TIMEING_SUFFIX_H, &hour_layout);
-    func_timeing_pair_layout(TIMEING_MIN_COL_X, m10, m1,
-                             TIMEING_SUFFIX_MIN_W, TIMEING_SUFFIX_H, &min_layout);
+    if (func_timeing_load_digit(0, h10, f_timeing->pic_h10)) {
+        func_timeing_clock_digit_pos_tr(f_timeing->pic_h10, h10,
+                                        TIMEING_CLOCK_TR_H10_X, TIMEING_CLOCK_TR_Y);
+    }
 
-    func_timeing_load_digit(0, h10, f_timeing->pic_h10);
-    compo_picturebox_set_pos(f_timeing->pic_h10, hour_layout.d10_x, hour_layout.digit_y);
+    if (func_timeing_load_digit(1, h1, f_timeing->pic_h1)) {
+        func_timeing_clock_digit_pos_tr(f_timeing->pic_h1, h1,
+                                        TIMEING_CLOCK_TR_H1_X, TIMEING_CLOCK_TR_Y);
+    }
 
-    func_timeing_load_digit(1, h1, f_timeing->pic_h1);
-    compo_picturebox_set_pos(f_timeing->pic_h1, hour_layout.d1_x, hour_layout.digit_y);
+    if (f_timeing->pic_colon != NULL) {
+        func_timeing_pic_pos_tr(f_timeing->pic_colon, TIMEING_CLOCK_TR_COLON_X, TIMEING_CLOCK_TR_Y,
+                                TIMEING_COLON_W, TIMEING_COLON_H);
+        compo_picturebox_set_size(f_timeing->pic_colon, TIMEING_COLON_W, TIMEING_COLON_H);
+        compo_picturebox_set_visible(f_timeing->pic_colon, true);
+    }
 
-    func_timeing_load_digit(2, m10, f_timeing->pic_m10);
-    compo_picturebox_set_pos(f_timeing->pic_m10, min_layout.d10_x, min_layout.digit_y);
+    if (func_timeing_load_digit(2, m10, f_timeing->pic_m10)) {
+        func_timeing_clock_digit_pos_tr(f_timeing->pic_m10, m10,
+                                        TIMEING_CLOCK_TR_M10_X, TIMEING_CLOCK_TR_Y);
+    }
 
-    func_timeing_load_digit(3, m1, f_timeing->pic_m1);
-    compo_picturebox_set_pos(f_timeing->pic_m1, min_layout.d1_x, min_layout.digit_y);
+    if (func_timeing_load_digit(3, m1, f_timeing->pic_m1)) {
+        func_timeing_clock_digit_pos_tr(f_timeing->pic_m1, m1,
+                                        TIMEING_CLOCK_TR_M1_X, TIMEING_CLOCK_TR_Y);
+    }
 
-    func_timeing_suffix_set_pos(f_timeing->txt_h_suffix, hour_layout.suffix_left, hour_layout.suffix_top,
-                                TIMEING_SUFFIX_H_W, TIMEING_SUFFIX_H,
-                                hour_layout.digit_y, hour_layout.digit_h);
-    func_timeing_suffix_set_pos(f_timeing->txt_min_suffix, min_layout.suffix_left, min_layout.suffix_top,
-                                TIMEING_SUFFIX_MIN_W, TIMEING_SUFFIX_H,
-                                min_layout.digit_y, min_layout.digit_h);
+    func_timeing_suffix_apply(f_timeing);
 
     func_timeing_ampm_apply(f_timeing);
 }
@@ -1081,8 +984,6 @@ compo_form_t *func_timeing_form_create(void)
 
     pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
     compo_setid(pic, COMPO_ID_PIC_COLON);
-    compo_picturebox_set_pos(pic, TIMEING_COLON_X, TIMEING_BOX_Y);
-    compo_picturebox_set_size(pic, TIMEING_COLON_W, TIMEING_COLON_H);
     compo_picturebox_set_visible(pic, false);
 
     pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
@@ -1117,13 +1018,13 @@ compo_form_t *func_timeing_form_create(void)
                               TIMEING_PM_Y - TIMEING_AMPM_BTN_DY,
                               TIMEING_AMPM_BTN_W, TIMEING_AMPM_BTN_H);
 
-    txt = compo_textbox_create(frm, 2);
-    compo_setid(txt, COMPO_ID_TXT_H_SUFFIX);
-    func_timeing_config_suffix_label(txt, "H", 0, 0, TIMEING_SUFFIX_H_W, TIMEING_SUFFIX_H);
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_H_SUFFIX);
+    compo_picturebox_set_visible(pic, false);
 
-    txt = compo_textbox_create(frm, 4);
-    compo_setid(txt, COMPO_ID_TXT_MIN_SUFFIX);
-    func_timeing_config_suffix_label(txt, "Min", 0, 0, TIMEING_SUFFIX_MIN_W, TIMEING_SUFFIX_H);
+    pic = compo_picturebox_create(frm, UI_TIMEING_PLACEHOLDER);
+    compo_setid(pic, COMPO_ID_PIC_MIN_SUFFIX);
+    compo_picturebox_set_visible(pic, false);
 
     func_timeing_shape_create(frm, COMPO_ID_SHAPE_NO_BG, TIMEING_BTN_NO_X, TIMEING_BTN_BOTTOM_Y,
                               TIMEING_BTN_W, TIMEING_BTN_H, TIMEING_COLOR_ROW_BG, TIMEING_BTN_RADIUS);
@@ -1240,8 +1141,8 @@ void func_timeing_enter(void)
     f_timeing->pic_m1 = compo_getobj_byid(COMPO_ID_PIC_M1);
     f_timeing->pic_am = compo_getobj_byid(COMPO_ID_PIC_AM);
     f_timeing->pic_pm = compo_getobj_byid(COMPO_ID_PIC_PM);
-    f_timeing->txt_h_suffix = compo_getobj_byid(COMPO_ID_TXT_H_SUFFIX);
-    f_timeing->txt_min_suffix = compo_getobj_byid(COMPO_ID_TXT_MIN_SUFFIX);
+    f_timeing->pic_h_suffix = compo_getobj_byid(COMPO_ID_PIC_H_SUFFIX);
+    f_timeing->pic_min_suffix = compo_getobj_byid(COMPO_ID_PIC_MIN_SUFFIX);
 
     func_timeing_parse_rtc(&f_timeing->disp_h, &f_timeing->min, &f_timeing->is_pm);
 

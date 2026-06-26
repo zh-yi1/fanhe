@@ -279,8 +279,8 @@ static u16 func_heat_setup_total_min(const f_heat_t *f_heat)
 
 static void func_heat_setup_apply_total_min(f_heat_t *f_heat, u16 total_min)
 {
-    if (total_min > (u16)99 * 60 + 59) {
-        total_min = (u16)99 * 60 + 59;
+    if (total_min > LB_HEAT_DURATION_MAX_MIN) {
+        total_min = LB_HEAT_DURATION_MAX_MIN;
     }
     f_heat->set_hour = (u8)(total_min / 60);
     f_heat->set_min = (u8)(total_min % 60);
@@ -708,8 +708,10 @@ static void func_heat_start_heating(f_heat_t *f_heat)
                           : tbl_heat_temp_preset[0];
         u32 duration_min = f_heat->heat_total_sec / 60;
 
-        if (duration_min == 0) {
-            duration_min = 1;
+        if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
+            duration_min = LB_HEAT_DURATION_MIN_MIN;
+        } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
+            duration_min = LB_HEAT_DURATION_MAX_MIN;
         }
         printf("lb: heat_start -> UART\n");
         printf("target_temp_f: %d, duration_min: %d, proto_mode: %d\n",
@@ -799,15 +801,24 @@ static void func_heat_value_inc(f_heat_t *f_heat)
 
     switch (f_heat->focus) {
     case HEAT_FOCUS_HOUR:
-        if (f_heat->set_hour < 99) {
-            f_heat->set_hour++;
+        {
+            u16 total = func_heat_setup_total_min(f_heat);
+
+            if (total + 60 <= LB_HEAT_DURATION_MAX_MIN) {
+                func_heat_setup_apply_total_min(f_heat, total + 60);
+            }
         }
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
 
     case HEAT_FOCUS_MIN:
-        func_heat_setup_apply_total_min(f_heat,
-                                        func_heat_setup_total_min(f_heat) + HEAT_MIN_STEP);
+        {
+            u16 total = func_heat_setup_total_min(f_heat);
+
+            if (total + HEAT_MIN_STEP <= LB_HEAT_DURATION_MAX_MIN) {
+                func_heat_setup_apply_total_min(f_heat, total + HEAT_MIN_STEP);
+            }
+        }
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
 
@@ -1035,6 +1046,7 @@ void func_heat_enter(void)
             f_heat->proto_mode = 1;
         }
     }
+    func_heat_setup_apply_total_min(f_heat, func_heat_setup_total_min(f_heat));
 
     f_heat->display_temp_f = 0;
     f_heat->heat_live_remain_min = 0;
@@ -1143,6 +1155,10 @@ void func_heat_key_poll(void)
     }
 
     if (func_key_lock_is_active()) {
+        tch = pt8028_get_press_tch();
+        if (tch != PT8028_KEY_NONE && tch != PT8028_KEY_TCH5) {
+            func_key_lock_notify_blocked();
+        }
         heat_key_lp_tch = PT8028_KEY_NONE;
         return;
     }

@@ -26,8 +26,15 @@ void func_languageing_lock_icon_apply(f_languageing_t *f_lang);
 void func_verinfo_lock_icon_apply(f_verinfo_t *f_verinfo);
 void func_res_lock_icon_apply(f_reservation_t *f_res);
 
+typedef enum {
+    KEY_LOCK_HINT_NONE = 0,
+    KEY_LOCK_HINT_LOCK,
+    KEY_LOCK_HINT_UNLOCK,
+} key_lock_hint_mode_t;
+
 static bool key_lock_active;
 static bool key_lock_hint_on;
+static key_lock_hint_mode_t key_lock_hint_mode;
 static u32 key_lock_hint_start;
 static u8 key_lock_lp_tch;
 static u32 key_lock_lp_tick;
@@ -81,8 +88,9 @@ static void func_key_lock_refresh_ui(void)
 #endif
 }
 
-static void func_key_lock_hint_pulse(void)
+static void func_key_lock_hint_show(key_lock_hint_mode_t mode)
 {
+    key_lock_hint_mode = mode;
     key_lock_hint_on = true;
     key_lock_hint_start = tick_get();
     func_key_lock_refresh_ui();
@@ -94,7 +102,24 @@ static void func_key_lock_hint_hide(void)
         return;
     }
     key_lock_hint_on = false;
+    key_lock_hint_mode = KEY_LOCK_HINT_NONE;
     func_key_lock_refresh_ui();
+}
+
+static u32 func_key_lock_hint_duration_ms(void)
+{
+    if (key_lock_hint_mode == KEY_LOCK_HINT_UNLOCK) {
+        return KEY_UNLOCK_HINT_MS;
+    }
+    return KEY_LOCK_HINT_MS;
+}
+
+void func_key_lock_notify_blocked(void)
+{
+    if (!key_lock_active) {
+        return;
+    }
+    func_key_lock_hint_show(KEY_LOCK_HINT_LOCK);
 }
 
 static void func_key_lock_set(bool locked)
@@ -104,9 +129,9 @@ static void func_key_lock_set(bool locked)
     panel_led_set_lock_latched(locked);
 #endif
     if (locked) {
-        func_key_lock_hint_pulse();
+        func_key_lock_hint_show(KEY_LOCK_HINT_LOCK);
     } else {
-        func_key_lock_hint_hide();
+        func_key_lock_hint_show(KEY_LOCK_HINT_UNLOCK);
     }
 }
 
@@ -126,7 +151,7 @@ bool func_key_lock_filter_tch(u8 tch)
         return false;
     }
     if (tch <= PT8028_KEY_TCH7) {
-        func_key_lock_hint_pulse();
+        func_key_lock_notify_blocked();
     }
     return true;
 }
@@ -139,14 +164,14 @@ bool func_key_lock_ku_blocked(u16 msg)
         return false;
     }
     if (msg == MSG_CTP_CLICK) {
-        func_key_lock_hint_pulse();
+        func_key_lock_notify_blocked();
         return true;
     }
     usage = (u8)(msg & KEY_USAGE_MASK);
     if (usage == KEY_RIGHT) {
         return false;
     }
-    func_key_lock_hint_pulse();
+    func_key_lock_notify_blocked();
     return true;
 }
 
@@ -155,7 +180,7 @@ void func_key_lock_poll(void)
     u8 tch;
 
     if (key_lock_hint_on &&
-        tick_check_expire(key_lock_hint_start, KEY_LOCK_HINT_MS)) {
+        tick_check_expire(key_lock_hint_start, func_key_lock_hint_duration_ms())) {
         func_key_lock_hint_hide();
     }
 

@@ -1218,7 +1218,11 @@ static void func_home_pt8028_keys_process(f_home_t *f_home)
     func_home_drain_stale_key_msgs();
 
     if (act == PT8028_HOME_ACT_CONFIRM) {
-        func_home_pt8028_do_confirm(f_home);
+        if (func_key_lock_is_active()) {
+            func_key_lock_notify_blocked();
+        } else {
+            func_home_pt8028_do_confirm(f_home);
+        }
     }
 
     if (press_tch <= PT8028_KEY_TCH6 &&
@@ -1370,6 +1374,7 @@ void func_home_process(void)
             func_home_res_marquee_refresh(f_home);
             f_home->display_stage = 0;
             func_home_gui_mark_dirty();
+            tft_bglight_force_on();
             break;
         }
         default:
@@ -1379,10 +1384,6 @@ void func_home_process(void)
         func_process();
         if (func_home_gui_need_refresh()) {
             func_home_tab_labels_refresh_all(f_home);
-        }
-        /* 冷启动：Tab 首帧绘制完成后再开背光，避免上电花屏 */
-        if (func_cb.last == 0 && f_home->display_stage == 2) {
-            tft_bglight_force_on();
         }
         return;
     }
@@ -1532,7 +1533,7 @@ void func_home_enter(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.last == 0) {
-        /* 冷启动分 3 帧：Tab → 顶栏/状态 → 倒计时，enter 内不 draw_force */
+        /* 冷启动分 3 帧加载 UI，完成后亮屏 */
         f_home->display_stage = 1;
         func_home_gui_mark_dirty();
     } else {

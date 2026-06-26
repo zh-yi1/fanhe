@@ -128,8 +128,14 @@ void func_elunchbox_res_key_poll(void)
     if (sys_cb.flag_swithing) {
         return;
     }
-    if (pt8028_take_res_key_pending() && func_elunchbox_res_key_page_ok()) {
-        func_elunchbox_switch_to_reservation();
+    if (pt8028_take_res_key_pending()) {
+        if (func_key_lock_is_active()) {
+            func_key_lock_notify_blocked();
+            return;
+        }
+        if (func_elunchbox_res_key_page_ok()) {
+            func_elunchbox_switch_to_reservation();
+        }
     }
 #endif
 }
@@ -143,8 +149,11 @@ bool elunchbox_pwr_gui_off_is_on(void)
     return elunchbox_pwr_gui_off;
 }
 
-static void elunchbox_pwr_gui_off_enter(void)
+void elunchbox_pwr_gui_off_activate(void)
 {
+    if (elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) {
+        return;
+    }
 #if USER_PANEL_LED
     panel_led_all_off();
 #endif
@@ -168,10 +177,8 @@ static void func_elunchbox_pwr_long_poll(void)
         return;
     }
 #if ELUNCHBOX_PANEL_EN
-    if (elunchbox_pwr_gui_off) {
+    if (elunchbox_pwr_gui_off || sys_cb.gui_sleep_sta) {
         elunchbox_pwr_gui_off_exit();
-    } else {
-        elunchbox_pwr_gui_off_enter();
     }
 #else
     func_cb.sta = FUNC_PWROFF;
@@ -273,6 +280,10 @@ void func_process(void)
 
         func_reservation_poll();
 
+    } else {
+#if ELUNCHBOX_PANEL_EN
+        func_key_lock_poll();
+#endif
     }
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN

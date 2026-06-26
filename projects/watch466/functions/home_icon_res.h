@@ -153,11 +153,11 @@
 #define HOME_TOP_TIME_AMPM_RAM_MAX_SIZE     388
 
 /* Time setting page H/Min suffix (same visual size as AMm/PMm) */
-#define HOME_TIMEING_HM_W                 7
-#define HOME_TIMEING_HM_H                 10
-#define HOME_TIMEING_MINM_W               19
-#define HOME_TIMEING_MINM_H               10
-#define HOME_TIMEING_SUFFIX_RAM_MAX_SIZE  388
+#define HOME_TIMEING_HM_W                 6
+#define HOME_TIMEING_HM_H                 8
+#define HOME_TIMEING_MINM_W               15
+#define HOME_TIMEING_MINM_H               8
+#define HOME_TIMEING_SUFFIX_RAM_MAX_SIZE  248
 
 /* Mode tab icons/lines (tools/gen_mode_icons.py) */
 #define MODE_TAB_PASTA_W                 38

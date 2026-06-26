@@ -53,6 +53,9 @@ enum {
     LB_DPID_KEY_NOTIFY      = 12,       // 模组按键通知: enum, 0-9, MCU→加热模块通知按键按下
 };
 
+#define LB_HEAT_DURATION_MIN_MIN          30      // 加热时长下限(分钟)
+#define LB_HEAT_DURATION_MAX_MIN          120     // UI 加热时长上限(分钟)，产品上限 2 小时
+
 // DataPoint 数据类型
 #define LB_DP_TYPE_BOOL     0x01
 #define LB_DP_TYPE_VALUE    0x02
