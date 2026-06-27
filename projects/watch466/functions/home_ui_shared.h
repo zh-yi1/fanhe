@@ -23,6 +23,19 @@ void home_ui_shared_status_lock_preload(void);
 void home_ui_shared_status_init(void);
 void home_ui_shared_dash_init(void);
 
+/** 解析 DP3/DP4 并刷新电量图标 RAM；当前页已通过 attach 绑定时自动重绘 */
+void home_ui_shared_battery_feed_dp(u8 *data, u16 len);
+
+/** 页面 enter 时绑定 pic_bat，exit 时 detach */
+void home_ui_shared_battery_attach_pic(compo_picturebox_t *pic);
+void home_ui_shared_battery_detach_pic(void);
+
+/** 将共享 bat_ram 绑定到右上角电量 picturebox（按当前电量/充电状态选 dl1~dl4/dl） */
+void home_ui_shared_status_bind_bat(compo_picturebox_t *pic);
+
+/** 当前电量图标 Flash 地址（供 reservation 等 flash 直绘路径） */
+u32 home_ui_shared_battery_flash_addr(void);
+
 /* Heat / Mode 中部倒计时共享 RAM（互斥使用，不增加 BSS 总量） */
 extern u8 home_ui_shared_timer_colon_ram[HEAT_WBX_RAM_SIZE];
 extern u8 home_ui_shared_timer_digit_ram[4][HEAT_B_DIGIT_RAM_MAX_SIZE];

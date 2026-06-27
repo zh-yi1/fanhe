@@ -47,9 +47,9 @@
  *   RAM：home_ui_digit_ram[4]、home_ui_colon_ram -> func_home_clock_update()
  *
  * 右上角状态栏（蓝牙 / 锁 / 电量）：
- *   PNG 源：Output/bin/ui/home/bluetooth.png、lock.png、battery_level.png
- *   Flash：UI_BUF_HOME_BLUETOOTH_BIN、UI_BUF_HOME_LOCK_BIN、UI_BUF_HOME_BATTERY_LEVEL_BIN
- *   RAM：home_ui_shared_status_*_ram -> home_ui_shared_status_init() + func_home_status_icons_apply()
+ *   PNG 源：Output/bin/ui/home/bluetooth.png、lock.png、dl1~dl4.png、dl.png
+ *   Flash：UI_BUF_HOME_BLUETOOTH_BIN、UI_BUF_HOME_LOCK_BIN、UI_BUF_HOME_DL*_BIN
+ *   RAM：home_ui_shared_status_*_ram -> home_ui_shared_status_bind_bat()
  *
  * 底部导航 Tab（HEAT / MODE / SETUP）：320×240 横屏按 UI 效果图排版。
  *   选中：蓝底 + 白框 + 白底线 + 白图标（*_sel.bin）
@@ -78,8 +78,8 @@
 #error "Missing lock.bin: add ui/home/lock.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
-#error "Missing battery_level.bin: add ui/home/battery_level.png and run gen_home_icons.py + prebuild.bat"
+#ifndef UI_BUF_HOME_DL4_BIN
+#error "Missing dl4.bin: add res/home/dl1~dl4.png, dl.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
 #ifndef UI_BUF_HOME_HEAT_BIN
@@ -520,10 +520,7 @@ static void func_home_status_icons_apply(f_home_t *f_home)
         compo_picturebox_set_ram(f_home->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_home->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
     }
-    if (f_home->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
-        compo_picturebox_set_ram(f_home->pic_bat, home_ui_shared_status_bat_ram);
-        compo_picturebox_set_size(f_home->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
-    }
+    home_ui_shared_status_bind_bat(f_home->pic_bat);
 
     func_home_lock_icon_apply(f_home);
 }
@@ -1527,6 +1524,9 @@ void func_home_enter(void)
     func_home_tab_bind(f_home, HOME_TAB_MODE, COMPO_ID_TAB1_SEL_BG);
     func_home_tab_bind(f_home, HOME_TAB_SETUP, COMPO_ID_TAB2_SEL_BG);
     func_home_bind_objects(f_home);
+#if ELUNCHBOX_PANEL_EN
+    home_ui_shared_battery_attach_pic(f_home->pic_bat);
+#endif
 
 #if ELUNCHBOX_PANEL_EN
     /* 尽早预载 lock.bin 并绑定 pic_lock，避免冷启动分帧期间首按锁键读 Flash */
@@ -1595,6 +1595,9 @@ void func_home_enter(void)
 
 void func_home_exit(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    home_ui_shared_battery_detach_pic();
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_set_home_msg_block(0);
     pt8028_release_clear();

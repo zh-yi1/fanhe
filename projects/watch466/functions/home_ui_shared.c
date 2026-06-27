@@ -1,5 +1,8 @@
 #include "include.h"
 #include "home_ui_shared.h"
+#if FUNC_LUNCHBOX_UART_EN
+#include "func_lunchbox_uart.h"
+#endif
 
 /* 保留在 sram BSS（勿放 .disp.home_ram，disp 仅 96KB 已满）；Home/Mode 互斥共用 icon 槽 */
 u8 home_ui_shared_icon_runtime[HOME_UI_SHARED_TAB_CNT][HOME_ICON_RAM_SIZE];
@@ -18,6 +21,231 @@ bool home_ui_shared_dash_inited;
 /* Heat/Mode 中部倒计时 wbx + w0x 共享缓冲（BSS，不增加总量） */
 u8 home_ui_shared_timer_colon_ram[HEAT_WBX_RAM_SIZE];
 u8 home_ui_shared_timer_digit_ram[4][HEAT_B_DIGIT_RAM_MAX_SIZE];
+
+#if ELUNCHBOX_PANEL_EN
+static u8 home_bat_level = 4;
+static u8 home_bat_charge = 0;
+static u8 home_bat_icon_idx = 0xFF;
+static compo_picturebox_t *home_bat_pic;
+
+static void home_ui_shared_battery_refresh_attached(void);
+
+enum {
+    HOME_BAT_ICON_DL1 = 1,
+    HOME_BAT_ICON_DL2 = 2,
+    HOME_BAT_ICON_DL3 = 3,
+    HOME_BAT_ICON_DL4 = 4,
+    HOME_BAT_ICON_CHG = 5,
+};
+
+static u8 home_bat_pick_icon(void)
+{
+    if (home_bat_charge == 1) {
+        return HOME_BAT_ICON_CHG;
+    }
+    if (home_bat_charge == 2) {
+        return HOME_BAT_ICON_DL4;
+    }
+    if (home_bat_level >= 1 && home_bat_level <= 4) {
+        return home_bat_level;
+    }
+    return HOME_BAT_ICON_DL4;
+}
+
+static bool home_bat_icon_flash(u8 icon, u32 *addr, u32 *len)
+{
+#ifndef UI_BUF_HOME_DL4_BIN
+    (void)icon;
+    (void)addr;
+    (void)len;
+    return false;
+#else
+    switch (icon) {
+    case HOME_BAT_ICON_CHG:
+        *addr = UI_BUF_HOME_DL_BIN;
+        *len = UI_LEN_HOME_DL_BIN;
+        return true;
+    case HOME_BAT_ICON_DL1:
+        *addr = UI_BUF_HOME_DL1_BIN;
+        *len = UI_LEN_HOME_DL1_BIN;
+        return true;
+    case HOME_BAT_ICON_DL2:
+        *addr = UI_BUF_HOME_DL2_BIN;
+        *len = UI_LEN_HOME_DL2_BIN;
+        return true;
+    case HOME_BAT_ICON_DL3:
+        *addr = UI_BUF_HOME_DL3_BIN;
+        *len = UI_LEN_HOME_DL3_BIN;
+        return true;
+    case HOME_BAT_ICON_DL4:
+    default:
+        *addr = UI_BUF_HOME_DL4_BIN;
+        *len = UI_LEN_HOME_DL4_BIN;
+        return true;
+    }
+#endif
+}
+
+static void home_ui_shared_battery_refresh_attached(void)
+{
+    if (home_bat_pic == NULL) {
+        return;
+    }
+    if (gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
+        compo_picturebox_set_ram(home_bat_pic, home_ui_shared_status_bat_ram);
+        compo_picturebox_set_size(home_bat_pic, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+        compo_picturebox_set_visible(home_bat_pic, true);
+    }
+}
+
+static void home_ui_shared_battery_reload(void)
+{
+    u8 icon;
+    u32 addr;
+    u32 len;
+
+    icon = home_bat_pick_icon();
+    if (!home_bat_icon_flash(icon, &addr, &len)) {
+        return;
+    }
+    if (icon == home_bat_icon_idx && home_ui_shared_status_inited) {
+        return;
+    }
+
+    home_gpu_wait_idle();
+    os_spiflash_read(home_ui_shared_status_bat_ram, addr, len);
+    home_bat_icon_idx = icon;
+
+    if (home_bat_pic != NULL) {
+        home_ui_shared_battery_refresh_attached();
+    }
+}
+
+void home_ui_shared_battery_attach_pic(compo_picturebox_t *pic)
+{
+    home_bat_pic = pic;
+    home_ui_shared_status_bind_bat(pic);
+}
+
+void home_ui_shared_battery_detach_pic(void)
+{
+    home_bat_pic = NULL;
+}
+
+void home_ui_shared_battery_feed_dp(u8 *data, u16 len)
+{
+    u16 off = 0;
+    bool got_bat = false;
+    bool got_chg = false;
+    u8 bat = home_bat_level;
+    u8 chg = home_bat_charge;
+
+    if (data == NULL || len < 4) {
+        return;
+    }
+
+    while (off + 4 <= len) {
+        u8  dpid    = data[off];
+        u16 val_len = ((u16)data[off + 2] << 8) | data[off + 3];
+
+        if (off + 4 + val_len > len) {
+            break;
+        }
+        u8 *val = data + off + 4;
+
+#if FUNC_LUNCHBOX_UART_EN
+        switch (dpid) {
+        case LB_DPID_BATTERY:
+            if (val_len >= 1) {
+                bat = val[0];
+                got_bat = true;
+            }
+            break;
+        case LB_DPID_CHARGE_STATUS:
+            if (val_len >= 1) {
+                chg = val[0];
+                got_chg = true;
+            }
+            break;
+        default:
+            break;
+        }
+#endif
+        off += 4 + val_len;
+    }
+
+    if (!got_bat && !got_chg) {
+        return;
+    }
+    if (bat < 1 || bat > 4) {
+        bat = (bat == 0) ? 1 : 4;
+    }
+    if (chg > 2) {
+        chg = 0;
+    }
+    if (bat == home_bat_level && chg == home_bat_charge) {
+        return;
+    }
+
+    home_bat_level = bat;
+    home_bat_charge = chg;
+    home_ui_shared_battery_reload();
+}
+
+u32 home_ui_shared_battery_flash_addr(void)
+{
+    u32 addr = 0;
+    u32 len = 0;
+
+    if (!home_bat_icon_flash(home_bat_pick_icon(), &addr, &len)) {
+#ifndef UI_BUF_HOME_DL4_BIN
+        return 0;
+#else
+        return UI_BUF_HOME_DL4_BIN;
+#endif
+    }
+    return addr;
+}
+
+void home_ui_shared_status_bind_bat(compo_picturebox_t *pic)
+{
+    if (pic == NULL) {
+        return;
+    }
+    home_ui_shared_status_init();
+    home_ui_shared_battery_reload();
+    if (gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
+        compo_picturebox_set_ram(pic, home_ui_shared_status_bat_ram);
+        compo_picturebox_set_size(pic, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+        compo_picturebox_set_visible(pic, true);
+    }
+}
+#else
+void home_ui_shared_battery_attach_pic(compo_picturebox_t *pic)
+{
+    (void)pic;
+}
+
+void home_ui_shared_battery_detach_pic(void)
+{
+}
+
+void home_ui_shared_battery_feed_dp(u8 *data, u16 len)
+{
+    (void)data;
+    (void)len;
+}
+
+u32 home_ui_shared_battery_flash_addr(void)
+{
+    return 0;
+}
+
+void home_ui_shared_status_bind_bat(compo_picturebox_t *pic)
+{
+    (void)pic;
+}
+#endif
 
 void home_ui_shared_status_lock_preload(void)
 {
@@ -38,7 +266,15 @@ void home_ui_shared_status_init(void)
         os_spiflash_read(home_ui_shared_status_lock_ram, UI_BUF_HOME_LOCK_BIN, UI_LEN_HOME_LOCK_BIN);
     }
     home_ui_shared_status_lock_preloaded = true;
+#if ELUNCHBOX_PANEL_EN
+    home_ui_shared_battery_reload();
+#else
+#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
+    os_spiflash_read(home_ui_shared_status_bat_ram, UI_BUF_HOME_DL4_BIN, UI_LEN_HOME_DL4_BIN);
+#else
     os_spiflash_read(home_ui_shared_status_bat_ram, UI_BUF_HOME_BATTERY_LEVEL_BIN, UI_LEN_HOME_BATTERY_LEVEL_BIN);
+#endif
+#endif
     home_ui_shared_status_inited = true;
 }
 

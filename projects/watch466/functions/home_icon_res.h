@@ -50,8 +50,8 @@
 #define HOME_STATUS_BT_H                16
 #define HOME_STATUS_LOCK_W              13
 #define HOME_STATUS_LOCK_H              16
-#define HOME_STATUS_BAT_W               38
-#define HOME_STATUS_BAT_H               16
+#define HOME_STATUS_BAT_W               31
+#define HOME_STATUS_BAT_H               18
 #define HOME_STATUS_BT_RAM_SIZE         (8 + HOME_STATUS_BT_W * HOME_STATUS_BT_H * 2)
 #define HOME_STATUS_LOCK_RAM_SIZE       (8 + HOME_STATUS_LOCK_W * HOME_STATUS_LOCK_H * 2)
 #define HOME_STATUS_BAT_RAM_SIZE        (8 + HOME_STATUS_BAT_W * HOME_STATUS_BAT_H * 2)
@@ -152,7 +152,7 @@
 #define HOME_TOP_TIME_PMM_H                 10
 #define HOME_TOP_TIME_AMPM_RAM_MAX_SIZE     388
 
-/* Time setting page H/Min suffix (same visual size as AMm/PMm) */
+/* Time setting page H/Min suffix bitmap (8px height, Hm.bin / Minm.bin) */
 #define HOME_TIMEING_HM_W                 6
 #define HOME_TIMEING_HM_H                 8
 #define HOME_TIMEING_MINM_W               15

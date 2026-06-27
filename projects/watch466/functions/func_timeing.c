@@ -35,8 +35,8 @@
 #error "Missing lock.bin: run tools/gen_home_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
-#error "Missing battery_level.bin: run tools/gen_home_icons.py + prebuild.bat"
+#ifndef UI_BUF_HOME_DL4_BIN
+#error "Missing dl4.bin: run tools/gen_home_icons.py + prebuild.bat"
 #endif
 
 #ifndef UI_BUF_HOME_UP_BIN
@@ -607,11 +607,7 @@ static void func_timeing_status_icons_apply(f_timeing_t *f_timeing)
         compo_picturebox_set_ram(f_timeing->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_timeing->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
     }
-    if (f_timeing->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
-        compo_picturebox_set_ram(f_timeing->pic_bat, home_ui_shared_status_bat_ram);
-        compo_picturebox_set_size(f_timeing->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
-        compo_picturebox_set_visible(f_timeing->pic_bat, true);
-    }
+    home_ui_shared_status_bind_bat(f_timeing->pic_bat);
 
     func_timeing_lock_icon_apply(f_timeing);
 }
@@ -1130,6 +1126,7 @@ void func_timeing_enter(void)
     f_timeing->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
     f_timeing->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
     f_timeing->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
+    home_ui_shared_battery_attach_pic(f_timeing->pic_bat);
     f_timeing->pic_hour_up = compo_getobj_byid(COMPO_ID_PIC_HOUR_UP);
     f_timeing->pic_hour_down = compo_getobj_byid(COMPO_ID_PIC_HOUR_DOWN);
     f_timeing->pic_min_up = compo_getobj_byid(COMPO_ID_PIC_MIN_UP);
@@ -1172,6 +1169,7 @@ void func_timeing_enter(void)
 
 void func_timeing_exit(void)
 {
+    home_ui_shared_battery_detach_pic();
     func_cb.last = FUNC_TIMEING;
 }
 

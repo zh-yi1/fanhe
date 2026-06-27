@@ -71,8 +71,8 @@
 #error "Missing lock.bin: add res/home/lock.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
-#error "Missing battery_level.bin: add res/home/battery_level.png and run gen_home_icons.py + prebuild.bat"
+#ifndef UI_BUF_HOME_DL4_BIN
+#error "Missing dl4.bin: add res/home/dl1~dl4.png, dl.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
 /* 466×466 参考布局；320×240 横屏按设计图固定坐标，图标 bin 保持原始尺寸 */
@@ -568,13 +568,7 @@ static void func_mode_status_icons_apply(f_mode_t *f_mode)
     } else if (f_mode->pic_bt != NULL) {
         compo_picturebox_set_visible(f_mode->pic_bt, false);
     }
-    if (f_mode->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
-        compo_picturebox_set_ram(f_mode->pic_bat, home_ui_shared_status_bat_ram);
-        compo_picturebox_set_size(f_mode->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
-        compo_picturebox_set_visible(f_mode->pic_bat, true);
-    } else if (f_mode->pic_bat != NULL) {
-        compo_picturebox_set_visible(f_mode->pic_bat, false);
-    }
+    home_ui_shared_status_bind_bat(f_mode->pic_bat);
     func_mode_lock_icon_apply(f_mode);
 }
 
@@ -1565,6 +1559,7 @@ void func_mode_enter(void)
     func_cb.frm_main = func_mode_form_create();
     WDT_CLR();
     func_mode_form_bind_core(f_mode);
+    home_ui_shared_battery_attach_pic(f_mode->pic_bat);
     func_mode_form_bind_tabs(f_mode);
     WDT_CLR();
 
@@ -1601,6 +1596,7 @@ void func_mode_enter(void)
 
 void func_mode_exit(void)
 {
+    home_ui_shared_battery_detach_pic();
     heat_display_unregister();
     func_mode_countdown_stop();
     mode_in_keep_warm_ui = false;

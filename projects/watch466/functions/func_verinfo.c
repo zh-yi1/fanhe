@@ -32,8 +32,8 @@
 #error "Missing lock.bin: run tools/gen_home_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
-#error "Missing battery_level.bin: run tools/gen_home_icons.py + prebuild.bat"
+#ifndef UI_BUF_HOME_DL4_BIN
+#error "Missing dl4.bin: run tools/gen_home_icons.py + prebuild.bat"
 #endif
 
 #define VERINFO_COLOR_DIVIDER             make_color(60, 60, 60)
@@ -261,11 +261,7 @@ static void func_verinfo_status_icons_apply(f_verinfo_t *f_verinfo)
         compo_picturebox_set_ram(f_verinfo->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_verinfo->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
     }
-    if (f_verinfo->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
-        compo_picturebox_set_ram(f_verinfo->pic_bat, home_ui_shared_status_bat_ram);
-        compo_picturebox_set_size(f_verinfo->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
-        compo_picturebox_set_visible(f_verinfo->pic_bat, true);
-    }
+    home_ui_shared_status_bind_bat(f_verinfo->pic_bat);
 
     func_verinfo_lock_icon_apply(f_verinfo);
 }
@@ -398,6 +394,7 @@ void func_verinfo_enter(void)
     f_verinfo->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
     f_verinfo->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
     f_verinfo->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
+    home_ui_shared_battery_attach_pic(f_verinfo->pic_bat);
     f_verinfo->txt_version = compo_getobj_byid(COMPO_ID_VERSION);
 
     func_verinfo_gpu_flash_to_ram(verinfo_left_ram, VERINFO_LEFT_RAM_SIZE,
@@ -408,6 +405,7 @@ void func_verinfo_enter(void)
 
 void func_verinfo_exit(void)
 {
+    home_ui_shared_battery_detach_pic();
     func_cb.last = FUNC_VERINFO;
 }
 

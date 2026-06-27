@@ -38,8 +38,8 @@
 #error "Missing lock.bin: run tools/gen_home_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
-#error "Missing battery_level.bin: run tools/gen_home_icons.py + prebuild.bat"
+#ifndef UI_BUF_HOME_DL4_BIN
+#error "Missing dl4.bin: run tools/gen_home_icons.py + prebuild.bat"
 #endif
 
 #define LANG_COLOR_ROW_BG                 make_color(29, 29, 29)
@@ -379,11 +379,7 @@ static void func_languageing_status_icons_apply(f_languageing_t *f_lang)
         compo_picturebox_set_ram(f_lang->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_lang->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
     }
-    if (f_lang->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
-        compo_picturebox_set_ram(f_lang->pic_bat, home_ui_shared_status_bat_ram);
-        compo_picturebox_set_size(f_lang->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
-        compo_picturebox_set_visible(f_lang->pic_bat, true);
-    }
+    home_ui_shared_status_bind_bat(f_lang->pic_bat);
 
     func_languageing_lock_icon_apply(f_lang);
 }
@@ -650,6 +646,7 @@ void func_languageing_enter(void)
     f_lang->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
     f_lang->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
     f_lang->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
+    home_ui_shared_battery_attach_pic(f_lang->pic_bat);
 
     func_languageing_gpu_flash_to_ram(lang_left_ram, LANG_LEFT_RAM_SIZE,
                                       UI_BUF_HOME_LEFT_BIN, UI_LEN_HOME_LEFT_BIN,
@@ -665,6 +662,7 @@ void func_languageing_enter(void)
 
 void func_languageing_exit(void)
 {
+    home_ui_shared_battery_detach_pic();
     func_cb.last = FUNC_LANGUAGEING;
 }
 

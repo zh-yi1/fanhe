@@ -87,8 +87,8 @@
 #error "Missing lock.bin: add ui/home/lock.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
-#error "Missing battery_level.bin: add ui/home/battery_level.png and run gen_home_icons.py + prebuild.bat"
+#ifndef UI_BUF_HOME_DL4_BIN
+#error "Missing dl4.bin: add res/home/dl1~dl4.png, dl.png and run gen_home_icons.py + prebuild.bat"
 #endif
 
 /* 466×466 参考布局；320×240 横屏按设计图固定坐标，图标 bin 保持原始尺寸 */
@@ -349,11 +349,7 @@ static void func_heat_status_icons_apply(f_heat_t *f_heat)
         compo_picturebox_set_size(f_heat->pic_bt, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
         compo_picturebox_set_visible(f_heat->pic_bt, true);
     }
-    if (f_heat->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
-        compo_picturebox_set_ram(f_heat->pic_bat, home_ui_shared_status_bat_ram);
-        compo_picturebox_set_size(f_heat->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
-        compo_picturebox_set_visible(f_heat->pic_bat, true);
-    }
+    home_ui_shared_status_bind_bat(f_heat->pic_bat);
 }
 
 void func_heat_lock_icon_apply(f_heat_t *f_heat)
@@ -1082,6 +1078,7 @@ void func_heat_enter(void)
     f_heat->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
     f_heat->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
 
+    home_ui_shared_battery_attach_pic(f_heat->pic_bat);
     func_heat_status_icons_apply(f_heat);
     func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
     func_heat_countdown_stop();
@@ -1101,6 +1098,7 @@ void func_heat_exit(void)
 {
     f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
 
+    home_ui_shared_battery_detach_pic();
     heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
     if (f_heat != NULL && f_heat->ui_state == HEAT_UI_HEATING) {

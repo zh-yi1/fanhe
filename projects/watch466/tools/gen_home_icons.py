@@ -38,7 +38,11 @@ NAV_ICON_ITEMS = [
 STATUS_ITEMS = [
     ("bluetooth.png", "bluetooth"),
     ("lock.png", "lock"),
-    ("battery_level.png", "battery_level"),
+    ("dl1.png", "dl1"),
+    ("dl2.png", "dl2"),
+    ("dl3.png", "dl3"),
+    ("dl4.png", "dl4"),
+    ("dl.png", "dl"),
 ]
 
 NATIVE_DIGIT_ITEMS = [
@@ -250,6 +254,7 @@ OBSOLETE_BINS = (
     "warm_nor.bin",
     "dash_sel.bin",
     "dash_nor.bin",
+    "battery_level.bin",
 )
 
 
@@ -436,7 +441,7 @@ def main() -> None:
 
     bt_w, bt_h, _ = status_sizes["bluetooth"]
     lock_w, lock_h, _ = status_sizes["lock"]
-    bat_w, bat_h, _ = status_sizes["battery_level"]
+    bat_w, bat_h, _ = status_sizes["dl4"]
     heat_w, heat_h, _ = nav_sizes["heat"]
     mode_w, mode_h, _ = nav_sizes["mode"]
     setup_w, setup_h, _ = nav_sizes["setup"]

@@ -49,8 +49,8 @@
 #error "Missing lock.bin: run tools/gen_home_icons.py + prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_BATTERY_LEVEL_BIN
-#error "Missing battery_level.bin: run tools/gen_home_icons.py + prebuild.bat"
+#ifndef UI_BUF_HOME_DL4_BIN
+#error "Missing dl4.bin: run tools/gen_home_icons.py + prebuild.bat"
 #endif
 
 #define SETUP_COLOR_ROW_BG                make_color(29, 29, 29)
@@ -415,11 +415,7 @@ static void func_setup_status_icons_apply(f_setup_t *f_setup)
         compo_picturebox_set_ram(f_setup->pic_lock, home_ui_shared_status_lock_ram);
         compo_picturebox_set_size(f_setup->pic_lock, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
     }
-    if (f_setup->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
-        compo_picturebox_set_ram(f_setup->pic_bat, home_ui_shared_status_bat_ram);
-        compo_picturebox_set_size(f_setup->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
-        compo_picturebox_set_visible(f_setup->pic_bat, true);
-    }
+    home_ui_shared_status_bind_bat(f_setup->pic_bat);
 
     func_setup_lock_icon_apply(f_setup);
 }
@@ -721,6 +717,7 @@ void func_setup_enter(void)
     f_setup->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
     f_setup->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
 
+    home_ui_shared_battery_attach_pic(f_setup->pic_bat);
     func_setup_gpu_flash_to_ram(setup_left_ram, SETUP_LEFT_RAM_SIZE,
                                 UI_BUF_HOME_LEFT_BIN, UI_LEN_HOME_LEFT_BIN,
                                 f_setup->pic_back);
@@ -736,6 +733,7 @@ void func_setup_enter(void)
 
 void func_setup_exit(void)
 {
+    home_ui_shared_battery_detach_pic();
     func_cb.last = FUNC_SETUP;
 }
 

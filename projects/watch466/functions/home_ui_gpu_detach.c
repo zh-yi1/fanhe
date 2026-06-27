@@ -91,7 +91,7 @@ void home_ui_status_apply_flash(compo_picturebox_t *pic_bt, compo_picturebox_t *
                                 compo_picturebox_t *pic_bat, bool show_lock)
 {
     home_ui_pic_set_flash(pic_bt, UI_BUF_HOME_BLUETOOTH_BIN, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
-    home_ui_pic_set_flash(pic_bat, UI_BUF_HOME_BATTERY_LEVEL_BIN, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+    home_ui_pic_set_flash(pic_bat, home_ui_shared_battery_flash_addr(), HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
     if (show_lock) {
         home_ui_pic_set_flash(pic_lock, UI_BUF_HOME_LOCK_BIN, HOME_STATUS_LOCK_W, HOME_STATUS_LOCK_H);
     } else if (pic_lock != NULL) {

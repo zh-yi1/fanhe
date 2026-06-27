@@ -552,10 +552,8 @@ static void func_res_status_icons_apply(f_reservation_t *f_res)
         compo_picturebox_set_visible(f_res->pic_bt, true);
         compo_picturebox_set_pos(f_res->pic_bt, RES_STATUS_BT_X, RES_STATUS_Y);
     }
-    if (f_res->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
-        compo_picturebox_set_ram(f_res->pic_bat, home_ui_shared_status_bat_ram);
-        compo_picturebox_set_size(f_res->pic_bat, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
-        compo_picturebox_set_visible(f_res->pic_bat, true);
+    home_ui_shared_status_bind_bat(f_res->pic_bat);
+    if (f_res->pic_bat != NULL) {
         compo_picturebox_set_pos(f_res->pic_bat, RES_STATUS_BAT_X, RES_STATUS_Y);
     }
 #else
@@ -1887,6 +1885,7 @@ void func_reservation_enter(void)
     f_res->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
     f_res->pic_lock = compo_getobj_byid(COMPO_ID_PIC_LOCK);
     f_res->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
+    home_ui_shared_battery_attach_pic(f_res->pic_bat);
     f_res->txt_info = compo_getobj_byid(COMPO_ID_TXT_INFO);
 
     f_res->last_top_min = 0xff;
@@ -1969,12 +1968,10 @@ void func_reservation_enter(void)
 
 void func_reservation_exit(void)
 {
+    home_ui_shared_battery_detach_pic();
     heat_display_unregister();
     f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
     u8 i;
-
-    /* 注销加热显示回调（避免切换到其他页面后仍收到推送） */
-    heat_display_unregister();
 
     if (f_res != NULL) {
         /* GPU exit：彻底释放 reservation 持有的所有 GPU 资源（top_time / 预约/加热计时器 / 温度 / 状态图标）。

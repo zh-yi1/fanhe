@@ -11,6 +11,9 @@
 #include "include.h"
 #include "func_lunchbox_uart.h"
 #include "heat_display_reg.h"
+#if ELUNCHBOX_PANEL_EN
+#include "home_ui_shared.h"
+#endif
 #include "bsp_vbat.h"
 
 #if FUNC_LUNCHBOX_UART_EN
@@ -194,6 +197,7 @@ static bool lb_frame_parse(void)
         if (!lb_data_is_key_notify(rx.data, rx.data_len)) {
             //printf("Trigger==>heat_display_feed_dp:%d\n",__LINE__);
             heat_display_feed_dp(rx.data, rx.data_len);
+            home_ui_shared_battery_feed_dp(rx.data, rx.data_len);
         }
     }
 #endif
@@ -1189,6 +1193,9 @@ static u8 lb_handler_control(lb_rx_frame_t *rx)
     // 同步推送 LCD 显示 (加热页/预约页可实时看到模式/温度/时长变化)
     if (rx->data && rx->data_len > 0) {
         heat_display_feed_dp(rx->data, rx->data_len);
+#if ELUNCHBOX_PANEL_EN
+        home_ui_shared_battery_feed_dp(rx->data, rx->data_len);
+#endif
     }
     return LB_ERR_SUCCESS;
 }
@@ -1640,6 +1647,9 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
 
             // BLE 控制指令携带 DataPoints 时，同步推送 LCD 显示
             heat_display_feed_dp(rx->data, rx->data_len);
+#if ELUNCHBOX_PANEL_EN
+        home_ui_shared_battery_feed_dp(rx->data, rx->data_len);
+#endif
             return true;
         }
         return false;
@@ -2059,6 +2069,9 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
         // BLE 控制/状态类命令携带 DataPoints 时，同步推送 LCD 显示
         if (frame.cmd == LB_CMD_CONTROL && frame.data && frame.data_len > 0) {
             heat_display_feed_dp(frame.data, frame.data_len);
+#if ELUNCHBOX_PANEL_EN
+            home_ui_shared_battery_feed_dp(frame.data, frame.data_len);
+#endif
         }
     }
 #else
