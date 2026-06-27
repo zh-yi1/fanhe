@@ -1627,6 +1627,7 @@ void pt8028_set_home_msg_block(u8 en)
 #if ELUNCHBOX_PANEL_EN
 bool func_key_lock_ku_blocked(u16 msg);
 bool elunchbox_pwr_gui_off_is_on(void);
+void elunchbox_user_activity_reset(void);
 #endif
 
 AT(.text.bsp.pt8028)
@@ -1668,7 +1669,11 @@ void pt8028_key_scan(void)
         sys_cb.gui_need_wakeup = 1;
     }
     msg_enqueue(key);
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_user_activity_reset();
+#else
     reset_sleep_delay_all();
+#endif
 }
 #endif
 

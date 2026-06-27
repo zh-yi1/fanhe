@@ -23,6 +23,9 @@ void home_ui_shared_status_lock_preload(void);
 void home_ui_shared_status_init(void);
 void home_ui_shared_dash_init(void);
 
+/** 上电预载 dl4 到 bat_ram（不依赖 UART DP） */
+void home_ui_shared_battery_boot_init(void);
+
 /** 解析 DP3/DP4 并刷新电量图标 RAM；当前页已通过 attach 绑定时自动重绘 */
 void home_ui_shared_battery_feed_dp(u8 *data, u16 len);
 

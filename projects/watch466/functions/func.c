@@ -148,6 +148,7 @@ static bool elunchbox_pwr_manual_off;   /* true=长按3s手动关机(发 UART OF
 static bool elunchbox_boot_power_sent;
 static s32 elunchbox_guioff_sleep_delay = -1L;
 static u8 elunchbox_guioff_sleep_mode;
+static u32 elunchbox_idle_tmr;          /* 100ms 单位，独立于 sys_cb.guioff_delay */
 
 void elunchbox_guioff_sleep_delay_reset(void)
 {
@@ -227,6 +228,7 @@ void elunchbox_pwr_gui_off_activate(void)
     elunchbox_pwr_manual_off = false;
     sys_cb.gui_need_wakeup = 0;
     elunchbox_guioff_sleep_delay_reset();
+    printf("elunchbox: guioff idle %ds\n", ELUNCHBOX_GUIOFF_TIME_SEC);
 }
 
 static void elunchbox_pwr_manual_shutdown(void)
@@ -263,6 +265,32 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
     }
 }
 
+void elunchbox_user_activity_reset(void)
+{
+    if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
+        return;
+    }
+    elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
+}
+
+void elunchbox_guioff_idle_tick(void)
+{
+    if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
+        return;
+    }
+    if (elunchbox_idle_tmr > 0) {
+        elunchbox_idle_tmr--;
+    }
+}
+
+bool elunchbox_guioff_idle_expired(void)
+{
+    if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
+        return false;
+    }
+    return elunchbox_idle_tmr == 0;
+}
+
 void elunchbox_pwr_gui_wake(void)
 {
     if (!elunchbox_pwr_gui_off && !sys_cb.gui_sleep_sta) {
@@ -273,6 +301,8 @@ void elunchbox_pwr_gui_wake(void)
 
 static void elunchbox_screen_wake(void)
 {
+    bool was_manual = elunchbox_pwr_manual_off;
+
     elunchbox_pwr_gui_off = false;
     elunchbox_pwr_manual_off = false;
     elunchbox_guioff_sleep_delay_reset();
@@ -280,7 +310,13 @@ static void elunchbox_screen_wake(void)
         gui_wakeup();
     }
     tft_bglight_force_on();
-    reset_sleep_delay_all();
+    elunchbox_user_activity_reset();
+#if FUNC_LUNCHBOX_UART_EN
+    if (was_manual) {
+        lunchbox_power_on();
+        elunchbox_boot_power_sent = true;
+    }
+#endif
 #if USER_PANEL_LED
     panel_led_scan();
 #endif
@@ -323,7 +359,7 @@ static void func_elunchbox_guioff_wake_poll(void)
 {
     static u32 hold_start;
 
-    if (!elunchbox_is_guioff() || elunchbox_pwr_manual_off) {
+    if (!elunchbox_is_guioff()) {
         hold_start = 0;
         return;
     }
@@ -436,8 +472,14 @@ void func_process(void)
 #if USER_PT8028_KEY
         /* Home 在 func_home_process 内扫键；子页（加热/模式/设置/预约等）须在此扫键 */
         if (func_cb.sta != FUNC_HOME) {
+            u8 press_tch;
+
             pt8028_gpio_ensure_periodic();
             pt8028_key_scan();
+            press_tch = pt8028_take_press_tch();
+            if (press_tch <= PT8028_KEY_TCH6) {
+                elunchbox_user_activity_reset();
+            }
         }
 #if FUNC_LUNCHBOX_UART_EN
         func_elunchbox_key_notify_poll();
@@ -504,6 +546,9 @@ void func_process(void)
     if (sleep_process(bt_is_allow_sleep)) {
         bt_cb.disp_status = 0xff;
     }
+#if ELUNCHBOX_KEEP_AWAKE && ELUNCHBOX_PANEL_EN
+    sys_cb.sleep_en = 0;
+#endif
 
 #if VBAT_DETECT_EN
     bsp_vbat_lpwr_process();
@@ -1519,7 +1564,11 @@ void func_enter(void)
 
 //    gui_box_clear();
     param_sync();
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_user_activity_reset();
+#else
     reset_sleep_delay_all();
+#endif
     reset_pwroff_delay();
     func_cb.mp3_res_play = mp3_res_play;
     func_cb.set_vol_callback = NULL;
@@ -1594,6 +1643,10 @@ void func_run(void)
 #endif
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
+#if ELUNCHBOX_PANEL_EN
+    home_ui_shared_battery_boot_init();
+    elunchbox_user_activity_reset();
+#endif
     // func.c
     
     for (;;) {

@@ -40,6 +40,9 @@ void lowpwr_tout_ticks(void)
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     elunchbox_guioff_sleep_delay_tick();
 #endif
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_guioff_idle_tick();
+#endif
     if(sys_cb.pwroff_delay != -1L && sys_cb.pwroff_delay > 0) {
         sys_cb.pwroff_delay--;
     }
@@ -699,15 +702,31 @@ bool sleep_process(is_sleep_func is_sleep)
         return false;
     }
 #endif
+#if ELUNCHBOX_PANEL_EN
+    /* 饭盒：独立 idle 计时到 0 即息屏（不依赖 guioff_delay / sleep_en） */
+    if (elunchbox_guioff_idle_expired()) {
+        elunchbox_pwr_gui_off_activate();
+        return false;
+    }
+#endif
     if ((*is_sleep)() && (sleep_is_only_gui_off() == false)
 #if VIDEO_RECODE_TAKE_PHOTO_EN
         && (bsp_video_recode_is_start() == false)
 #endif // VIDEO_RECODE_TAKE_PHOTO_EN
         ) {
+#if ELUNCHBOX_PANEL_EN
+        if (!sys_cb.sleep_en) {
+            /* KEEP_AWAKE：不进深度休眠；息屏由 elunchbox_idle_tmr 统一处理 */
+            reset_sleep_delay();
+            reset_pwroff_delay();
+            return false;
+        }
+#else
         if (!sys_cb.sleep_en) {
             reset_sleep_delay_all();
             return false;
         }
+#endif
         if (sys_cb.sleep_delay == 0) {
             gui_sleep_psram_check();
             sfunc_sleep();              //熄屏且进入休眠
@@ -716,13 +735,11 @@ bool sleep_process(is_sleep_func is_sleep)
             return true;
         }
     } else {
+#if !ELUNCHBOX_PANEL_EN
         if (sys_cb.guioff_delay == 0 && !sys_cb.gui_sleep_sta) {
-#if ELUNCHBOX_PANEL_EN
-            elunchbox_pwr_gui_off_activate();   //5 分钟无操作息屏
-#else
             gui_sleep(false);                //仅熄屏
-#endif
         }
+#endif
         reset_sleep_delay();
         reset_pwroff_delay();
     }

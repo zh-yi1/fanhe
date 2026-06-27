@@ -121,6 +121,14 @@ static void home_ui_shared_battery_reload(void)
     }
 }
 
+void home_ui_shared_battery_boot_init(void)
+{
+    home_bat_level = 4;
+    home_bat_charge = 0;
+    home_bat_icon_idx = 0xFF;
+    home_ui_shared_battery_reload();
+}
+
 void home_ui_shared_battery_attach_pic(compo_picturebox_t *pic)
 {
     home_bat_pic = pic;
@@ -221,6 +229,10 @@ void home_ui_shared_status_bind_bat(compo_picturebox_t *pic)
     }
 }
 #else
+void home_ui_shared_battery_boot_init(void)
+{
+}
+
 void home_ui_shared_battery_attach_pic(compo_picturebox_t *pic)
 {
     (void)pic;

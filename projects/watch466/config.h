@@ -199,7 +199,7 @@
 #undef  SOFT_POWER_VDDIO_EN
 #define SOFT_POWER_VDDIO_EN             1           /* 硬关机保持 VDDIO，PT8028/PE1 可唤醒开机 */
 #define ELUNCHBOX_KEEP_AWAKE            1           /* 禁止深度休眠；允许 guioff 定时息屏 */
-#define ELUNCHBOX_GUIOFF_TIME_SEC       300         /* 5 分钟无操作自动息屏 */
+#define ELUNCHBOX_GUIOFF_TIME_SEC       300          /* 无按键自动息屏(秒)，正式版可改 300 */
 #define ELUNCHBOX_GUIOFF_SLEEP_EN       1           /* 息屏后再进 BT 浅睡降功耗 */
 #define ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC 30          /* 息屏后延迟多少秒进浅睡 */
 #define FUNC_RESERVATION_UI_EN          1           /* 1=预约键(TCH7)可进预约页 */
@@ -582,7 +582,11 @@
 /*****************************************************************************
  * Module    : User按键配置 (可以同时选择多组按键)
  *****************************************************************************/
+#if ELUNCHBOX_PANEL_EN
+#define USER_PWRKEY                     0           /* 饭盒用 PT8028 TCH5，勿扫 PWRKEY 以免误重置息屏计时 */
+#else
 #define USER_PWRKEY                     1           //PWRKEY的使用，0为不使用
+#endif
 #define USER_ADKEY                      0           //ADKEY的使用， 0为不使用
 #define USER_IOKEY                      0           //IOKEY的使用， 0为不使用
 #define USER_PT8028_KEY                 1           //PT8028S 触摸键 BCD 接口
@@ -615,9 +619,9 @@
 #define PT8028_PRESS_SETTLE_SCANS       2           //OUT_FLAG 变 0 后约 10ms 再采 BCD
 #endif
 #define PT8028_RES_LONG_MS              2000        //预约键长按(ms)；短按/误读 BCD7 当模式键
-#define PT8028_PWR_LONG_MS              3000        //开关键(TCH5)长按(ms)手动关/开
+#define PT8028_PWR_LONG_MS              3000        //开关键(TCH5)长按(ms)手动关机
 #if ELUNCHBOX_PANEL_EN
-#define PT8028_PWR_WAKE_MS              1500        //5分钟息屏后长按开关键唤醒(ms)
+#define PT8028_PWR_WAKE_MS              3000        //息屏/休眠后长按开关键亮屏(ms)
 #endif
 #define PT8028_LOCK_LONG_MS             3000        //锁键(TCH0)长按(ms)全局按键锁
 #define PT8028_HEAT_LONG_MS             3000        //加热键(TCH1)长按(ms)进入加热页

@@ -247,6 +247,12 @@ void elunchbox_guioff_sleep_service(void);
 bool elunchbox_guioff_in_sleep_mode(void);
 void elunchbox_guioff_sleep_mode_enter(void);
 void elunchbox_guioff_sleep_post_wake(bool key_wake);
+/** 任意按键操作：重置无操作息屏计时（亮屏状态下） */
+void elunchbox_user_activity_reset(void);
+/** 100ms tick：独立息屏倒计时（不受 bsp_key reset_sleep_delay_all 干扰） */
+void elunchbox_guioff_idle_tick(void);
+/** 独立倒计时是否已到 0（应息屏） */
+bool elunchbox_guioff_idle_expired(void);
 void func_home_switch_to_reservation(void);
 void func_home_drain_stale_key_msgs(void);
 void func_mode_idle_preload_reset(void);

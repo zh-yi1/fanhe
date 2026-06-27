@@ -329,7 +329,9 @@ uint bsp_bt_disp_status(void)
             sys_cb.sleep_en = BT_PAIR_SLEEP_EN;
         } else {
             dis_auto_pwroff();
+#if !ELUNCHBOX_KEEP_AWAKE
             sys_cb.sleep_en = 1;
+#endif
         }
 
         if(bt_cb.disp_status >= BT_STA_CONNECTED) {

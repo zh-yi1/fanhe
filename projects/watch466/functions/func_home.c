@@ -1224,6 +1224,7 @@ static void func_home_pt8028_keys_process(f_home_t *f_home)
 
     if (press_tch <= PT8028_KEY_TCH6 &&
         press_tch != PT8028_KEY_TCH4) {
+        elunchbox_user_activity_reset();
         u16 kd = (u16)(tbl_pt8028_bcd_to_key[press_tch] | KEY_SHORT);
 
         msg_queue_detach(kd, 0);
