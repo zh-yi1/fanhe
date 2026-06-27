@@ -1,7 +1,7 @@
 /**
  * @file    func_lunchbox_uart.c
  * @brief   智能盒饭 - BLE+UART双协议实现 (大端, 同步/异步双模式)
- * @note    BLE侧: 蓝牙通讯协议1.0.6.md (APP ↔ MCU)
+ * @note    BLE侧: 蓝牙通讯协议1.0.7.md (APP ↔ MCU)
  *          UART侧: MCU通信协议.md v1.0.8 (MCU ↔ 加热模块)
  *          引脚: TX=PB8(UT1TXMAP_G2_PB8), RX=PB9(UT1RXMAP_G2_PB9)
  *          接收用 bsp_uart1_get_char() 轮询，不走 ISR 回调链
@@ -44,7 +44,7 @@ static u32  lb_last_ble_ts = 0;              // 最近一次从 BLE 收到的时
 static bool lb_has_ble_ts = false;           // 是否已收到过 BLE 时间戳
 
 //-----------------------------------------------------------------------------
-// OTA 升级状态机 (蓝牙通讯协议1.0.6.md §5)
+// OTA 升级状态机 (蓝牙通讯协议1.0.7.md §5)
 // 管理主单片机 (target=0x01) 的固件升级流程，对接 ota_pack_* 底层 FOTA 引擎
 //-----------------------------------------------------------------------------
 typedef enum {
@@ -432,7 +432,7 @@ static void lb_dp_dump_hex(const u8 *data, u16 data_len)
             break;
         }
         case LB_DPID_BATTERY: {      // 3: enum
-            static const char *bats[] = {"?","Low","Mid","High","Full"};
+            static const char *bats[] = {"Dead","Low","Mid","High","Full"};
             printf(" Battery=%s(%d)", val[0] <= 4 ? bats[val[0]] : "?", val[0]);
             break;
         }
@@ -478,6 +478,12 @@ static void lb_dp_dump_hex(const u8 *data, u16 data_len)
         case LB_DPID_KEY_NOTIFY:      // 12: enum
             printf(" Key=%d", val[0]);
             break;
+        case LB_DPID_MCU_VERSION: {   // 13: value(4B)
+            u32 v = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                  | ((u32)val[2] << 8)  |  (u32)val[3];
+            printf(" MCUVersion=0x%08lX", (unsigned long)v);
+            break;
+        }
         default:
             printf(" DPID%d=?", dpid);
             break;
@@ -512,6 +518,7 @@ static u8  lb_attr_heat_temp     = 0;    // 加热温度: 默认40°C
 static u8  lb_attr_language      = 0;    // 语言: 默认中文
 static u8  lb_attr_fault         = 0;    // 故障: 默认正常
 static u8  lb_attr_heat_enable   = 0;    // 是否加热: 默认停止 (v1.0.5 新增 ID=10)
+static u32 lb_attr_mcu_version   = 0x76303031; // MCU固件版本号: 默认v001 (v1.0.7 新增 ID=13)
 
 //-----------------------------------------------------------------------------
 // 属性管理
@@ -531,6 +538,7 @@ static u8 lb_attr_read(u8 dpid, u8 *type, u32 *val)
     case LB_DPID_LANGUAGE:      *type = LB_DP_TYPE_ENUM;  *val = lb_attr_language;      break;
     case LB_DPID_FAULT:         *type = LB_DP_TYPE_ENUM;  *val = lb_attr_fault;         break;
     case LB_DPID_HEAT_ENABLE:   *type = LB_DP_TYPE_BOOL;  *val = lb_attr_heat_enable;   break;
+    case LB_DPID_MCU_VERSION:   *type = LB_DP_TYPE_VALUE; *val = lb_attr_mcu_version;   break;  // v1.0.7 新增
     default: return 0;
     }
     return 1;
@@ -555,6 +563,7 @@ static u8 lb_attr_write(u8 *data, u16 len)
         case LB_DPID_HEAT_TEMP:     if (val_len >= 1) lb_attr_heat_temp     = val[0]; break;
         case LB_DPID_LANGUAGE:      if (val_len >= 1) lb_attr_language      = val[0]; break;
         case LB_DPID_HEAT_ENABLE:   if (val_len >= 1) lb_attr_heat_enable   = val[0]; break;  // v1.0.5 新增
+        case LB_DPID_MCU_VERSION:   if (val_len >= 4) lb_attr_mcu_version   = ((u32)val[0]<<24)|((u32)val[1]<<16)|((u32)val[2]<<8)|val[3]; break;  // v1.0.7 新增
         default: break; // 只读属性 (3,4,6,9) 不允许 APP 写入
         }
         off += 4 + val_len;
@@ -870,6 +879,7 @@ static void lb_attr_write_single(u8 dpid, u8 type, u8 *val, u16 val_len)
     case LB_DPID_LANGUAGE:      if (val_len>=1) lb_attr_language      = val[0]; break;
     case LB_DPID_FAULT:         if (val_len>=1) lb_attr_fault         = val[0]; break;
     case LB_DPID_HEAT_ENABLE:   if (val_len>=1) lb_attr_heat_enable   = val[0]; break;  // v1.0.5 新增
+    case LB_DPID_MCU_VERSION:   if (val_len>=4) lb_attr_mcu_version   = ((u32)val[0]<<24)|((u32)val[1]<<16)|((u32)val[2]<<8)|val[3]; break;  // v1.0.7 新增
     default: break;
     }
 }
@@ -947,6 +957,11 @@ static u16 lb_encode_all_attrs(u8 *buf)
         }
         }
     }
+    // ID=13 MCU版本号 (v1.0.7 新增)
+    if (lb_attr_read(LB_DPID_MCU_VERSION, &type, &val)) {
+        u8 v[4] = { (u8)(val>>24), (u8)(val>>16), (u8)(val>>8), (u8)val };
+        off += lb_dp_encode(buf + off, LB_DPID_MCU_VERSION, type, v, 4);
+    }
     return off;
 }
 
@@ -994,12 +1009,13 @@ void lunchbox_report_attr(u8 dpid)
  * @brief 0x01 — 查询产品信息（桥模式/本地模式均可用）
  *
  * APP 发送: [timestamp:4B]（v1.0.5: data_len=4, 大端unix时间戳）
- * MCU 返回: 73 字节设备信息
+ * MCU 返回: 81 字节设备信息
  *   布局: bt_name(16B) + version(8B) + model(10B) + MAC(6B) + SN(32B) + color(1B)
+ *         + main_mcu_version(4B) + heat_module_version(4B)  (v1.0.7 新增)
  */
 static u8 lb_handler_product_info(lb_rx_frame_t *rx)
 {
-    u8 buf[73]; // 16+8+10+6+32+1 = 73
+    u8 buf[81]; // 16+8+10+6+32+1+4+4 = 81
     u16 off = 0;
 
     // 保存 APP 发来的 Unix 时间戳 (大端 4B)
@@ -1021,6 +1037,16 @@ static u8 lb_handler_product_info(lb_rx_frame_t *rx)
     memcpy(buf + off, lb_dev_info.sn, 32); off += 32;
     // 颜色 1B
     buf[off++] = lb_dev_info.color;
+    // 主MCU固件版本 4B (v1.0.7 新增, 大端)
+    buf[off++] = (u8)(lb_dev_info.main_mcu_version >> 24);
+    buf[off++] = (u8)(lb_dev_info.main_mcu_version >> 16);
+    buf[off++] = (u8)(lb_dev_info.main_mcu_version >> 8);
+    buf[off++] = (u8)(lb_dev_info.main_mcu_version & 0xFF);
+    // 加热模块固件版本 4B (v1.0.7 新增, 大端)
+    buf[off++] = (u8)(lb_dev_info.heat_module_version >> 24);
+    buf[off++] = (u8)(lb_dev_info.heat_module_version >> 16);
+    buf[off++] = (u8)(lb_dev_info.heat_module_version >> 8);
+    buf[off++] = (u8)(lb_dev_info.heat_module_version & 0xFF);
 
     lunchbox_uart_send_response(LB_CMD_PRODUCT_INFO, rx->msg_flag, LB_ERR_SUCCESS, buf, off);
     return LB_ERR_SUCCESS;
@@ -1030,26 +1056,23 @@ static u8 lb_handler_product_info(lb_rx_frame_t *rx)
 
 #if LB_BRIDGE_MODE
 /**
- * @brief 从 OTA 命令帧中提取目标设备标识 (v1.0.6)
+ * @brief 从 OTA 命令帧中提取目标设备标识 (v1.0.7)
  *
  * 仅桥模式使用: 根据 target 字段决定 OTA 命令是本地处理还是转发 UART。
  * 本地模式下 APP 直接与 MCU 通信, target 恒为 0x01, 无需提取。
  *
  * 各 OTA 命令 data 区首字节均为 target:
- *   0x0b 升级查询: data[0] 或 无数据(查询全部)
  *   0x0c 升级启动: data[0]=target, data[1..4]=fw_size
  *   0x0d 升级包传输: data[0]=target, data[1..4]=offset, data[5..]=upgrade_data
  *   0x0e 升级结束: data[0]=target
  *
- * @return LB_OTA_TARGET_MAIN_MCU(0x01) / LB_OTA_TARGET_HEAT_MODULE(0x02) / 0x00(查询全部/未知)
+ * @return LB_OTA_TARGET_MAIN_MCU(0x01) / LB_OTA_TARGET_HEAT_MODULE(0x02) / 0x00(未知)
  */
 static u8 lb_ota_get_target(lb_rx_frame_t *rx)
 {
-    if (!rx->data || rx->data_len == 0) return 0x00;  // 无数据 → 查询全部
+    if (!rx->data || rx->data_len == 0) return 0x00;
 
     switch (rx->cmd) {
-    case LB_CMD_OTA_QUERY:   // data_len=1: [target]
-        return rx->data[0];
     case LB_CMD_OTA_START:   // data_len=5: [target][fw_size:4B]
         return (rx->data_len >= 5) ? rx->data[0] : 0x00;
     case LB_CMD_OTA_DATA:    // data_len≥5: [target][offset:4B][data]
@@ -1124,7 +1147,7 @@ static u8 lb_handler_mode_modify(lb_rx_frame_t *rx)
 /**
  * @brief 注册所有协议命令的业务处理器
  *
- * 蓝牙通讯协议1.0.6.md 命令字 → 处理函数映射:
+ * 蓝牙通讯协议1.0.7.md 命令字 → 处理函数映射:
  *   0x01 → lb_handler_product_info   (查询产品信息)    [桥/本地]
  *   0x02 → lb_handler_dynamic_attr   (查询动态属性)    [仅本地]
  *   0x04 → lb_handler_control        (控制指令)        [仅本地]
@@ -1134,7 +1157,6 @@ static u8 lb_handler_mode_modify(lb_rx_frame_t *rx)
  *   0x08 → lb_handler_schedule_delete(删除预约)        [仅本地]
  *   0x09 → lb_handler_mode_query     (获取模式信息)    [桥/本地]
  *   0x0a → lb_handler_mode_modify    (修改模式信息)    [桥/本地]
- *   0x0b → lb_handler_ota_query      (升级查询)        [桥/本地]
  *   0x0c → lb_handler_ota_start      (升级启动)        [桥/本地]
  *   0x0d → lb_handler_ota_data       (升级包传输)      [桥/本地]
  *   0x0e → lb_handler_ota_end        (升级结束)        [桥/本地]
@@ -1142,7 +1164,6 @@ static u8 lb_handler_mode_modify(lb_rx_frame_t *rx)
 
 // 前向声明 (函数定义在 lunchbox_uart_init_handlers 之后)
 // OTA handler: 桥模式和本地模式均需 (target=0x01 主单片机升级)
-static u8 lb_handler_ota_query(lb_rx_frame_t *rx);
 static u8 lb_handler_ota_start(lb_rx_frame_t *rx);
 static u8 lb_handler_ota_data(lb_rx_frame_t *rx);
 static u8 lb_handler_ota_end(lb_rx_frame_t *rx);
@@ -1161,8 +1182,7 @@ void lunchbox_uart_init_handlers(void)
     lunchbox_uart_reg_handler(LB_CMD_PRODUCT_INFO,    lb_handler_product_info);
     lunchbox_uart_reg_handler(LB_CMD_MODE_QUERY,      lb_handler_mode_query);
     lunchbox_uart_reg_handler(LB_CMD_MODE_MODIFY,     lb_handler_mode_modify);
-    // OTA 命令 (v1.0.6 §5): 主单片机(target=0x01)升级在桥模式/本地模式均需处理
-    lunchbox_uart_reg_handler(LB_CMD_OTA_QUERY,       lb_handler_ota_query);
+    // OTA 命令 (v1.0.7 §5): 主单片机(target=0x01)升级在桥模式/本地模式均需处理
     lunchbox_uart_reg_handler(LB_CMD_OTA_START,       lb_handler_ota_start);
     lunchbox_uart_reg_handler(LB_CMD_OTA_DATA,        lb_handler_ota_data);
     lunchbox_uart_reg_handler(LB_CMD_OTA_END,         lb_handler_ota_end);
@@ -1334,42 +1354,7 @@ static u8 lb_handler_schedule_delete(lb_rx_frame_t *rx)
 #endif // !LB_BRIDGE_MODE
 
 /**
- * @brief 0x0b — 升级查询 (v1.0.6: 支持按 target 查询指定设备)
- *
- * APP 发送:
- *   - data_len=0: 查询全部设备 → 此 handler 仅返回主单片机状态
- *   - data_len=1: [target:1B] 查询指定设备
- *
- * 路由规则 (桥模式):
- *   - target=0x01(主单片机) 或 无target → 本 handler 处理, BLE 直接应答
- *   - target=0x02(加热模块) → lb_translate_ble_to_uart() 转发 UART,
- *     加热模块通过 UART→BLE 翻译应答
- *
- * MCU 返回: 每设备 2 字节 [target(1B)][status(1B)]
- * status: 0x00=不支持MCU升级, 0x01=MCU未就绪, 0x02=支持升级
- */
-static u8 lb_handler_ota_query(lb_rx_frame_t *rx)
-{
-    u8 buf[4];  // 最多 2 设备 × 2 字节 = 4
-    u16 off = 0;
-
-    // 主单片机已对接 FOTA 引擎 (ota_pack_*)，支持 MCU 升级
-    if (rx->data_len == 1 && rx->data) {
-        u8 target = rx->data[0];
-        buf[off++] = target;
-        buf[off++] = LB_OTA_STATUS_SUPPORTED;
-    } else {
-        // 查询全部 → 仅返回主单片机状态
-        buf[off++] = LB_OTA_TARGET_MAIN_MCU;
-        buf[off++] = LB_OTA_STATUS_SUPPORTED;
-    }
-
-    lunchbox_uart_send_response(LB_CMD_OTA_QUERY, rx->msg_flag, LB_ERR_SUCCESS, buf, off);
-    return LB_ERR_SUCCESS;
-}
-
-/**
- * @brief 0x0c — 升级启动 (v1.0.6: 新增 target 字段指定目标设备)
+ * @brief 0x0c — 升级启动 (v1.0.7)
  *
  * APP 发送: 5 字节 [target(1B)][firmware_size(4B, 大端)]
  * MCU 返回: 2 字节 [target(1B)][status(1B)]
@@ -1405,7 +1390,7 @@ static u8 lb_handler_ota_start(lb_rx_frame_t *rx)
 }
 
 /**
- * @brief 0x0d — 升级包传输 (v1.0.6: 新增 target 字段区分设备)
+ * @brief 0x0d — 升级包传输 (v1.0.7)
  *
  * APP 发送: 5+N 字节 [target(1B)][offset(4B, 大端)][upgrade_data(N bytes)]
  *   数据长度 = N + 5, 每包数据长度必须可被 16 整除，不足补 0
@@ -1432,7 +1417,7 @@ static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
     u16 data_size = rx->data_len - 5;
     (void)target;  // target 字段已在路由层校验（本地模式恒为 0x01）
 
-    // 校验 16 字节对齐 (蓝牙通讯协议1.0.6 §5.3: 每包数据长度必须可被 16 整除)
+    // 校验 16 字节对齐 (蓝牙通讯协议1.0.7 §5.2: 每包数据长度必须可被 16 整除)
     if (data_size & 0x0F) {
         printf("OTA data err: size=%u not 16B aligned\n", data_size);
         lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
@@ -1480,7 +1465,7 @@ static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
 }
 
 /**
- * @brief 0x0e — 升级结束 (v1.0.6: 新增 target 字段，返回 target+结果)
+ * @brief 0x0e — 升级结束 (v1.0.7)
  *
  * APP 发送: 1 字节 [target(1B)] 指定结束哪个设备的升级
  * MCU 返回: 2 字节 [target(1B)][result(1B)]
@@ -1572,8 +1557,8 @@ void lb_ota_process(void)
 /**
  * @brief BLE 命令字 → UART 命令字映射
  *
- * 蓝牙通讯协议1.0.6.md → MCU通信协议.md v1.0.8:
- *   0x01 → 0x00 (不转发, MCU本地处理)
+ * 蓝牙通讯协议1.0.7.md → MCU通信协议.md v1.0.8:
+ *   0x01 → 0x01 (查询产品信息, v1.0.7: 透传加热模块)
  *   0x02 → 0x01 (查询动态属性)
  *   0x03 → 0x00 (不转发, MCU主动上报, APP不会发)
  *   0x04 → 0x01 (控制指令 → UART查询动态属性/状态上报通道)
@@ -1583,7 +1568,6 @@ void lb_ota_process(void)
  *   0x08 → 0x03 (删除预约)
  *   0x09 → 0x02 (获取指定模式信息 → 查询预约列表)
  *   0x0a → 0x03 (修改指定模式信息 → 新增/修改/删除预约)
- *   0x0b → 0x04 (OTA)
  *   0x0c → 0x04 (OTA)
  *   0x0d → 0x04 (OTA)
  *   0x0e → 0x04 (OTA)
@@ -1593,13 +1577,13 @@ void lb_ota_process(void)
 u8 lb_ble_cmd_to_uart_cmd(u8 ble_cmd)
 {
     switch (ble_cmd) {
+    case LB_CMD_PRODUCT_INFO:    return LB_UART_CMD_DYNAMIC;     // 0x01 → 0x01 (v1.0.7: 透传加热模块)
     case LB_CMD_DYNAMIC_ATTR:    return LB_UART_CMD_DYNAMIC;     // 0x02 → 0x01
     case LB_CMD_CONTROL:         return LB_UART_CMD_DYNAMIC;     // 0x04 → 0x01 (控制指令走动态属性通道)
     case LB_CMD_SCHEDULE_LIST:   return LB_UART_CMD_SCHEDULE;    // 0x05 → 0x02
     case LB_CMD_SCHEDULE_ADD:    return LB_UART_CMD_SCHEDULE_OP; // 0x06 → 0x03
     case LB_CMD_SCHEDULE_MODIFY: return LB_UART_CMD_SCHEDULE_OP; // 0x07 → 0x03
     case LB_CMD_SCHEDULE_DELETE: return LB_UART_CMD_SCHEDULE_OP; // 0x08 → 0x03
-    case LB_CMD_OTA_QUERY:       return LB_UART_CMD_OTA;         // 0x0b → 0x04
     case LB_CMD_OTA_START:       return LB_UART_CMD_OTA;         // 0x0c → 0x04
     case LB_CMD_OTA_DATA:        return LB_UART_CMD_OTA;         // 0x0d → 0x04
     case LB_CMD_OTA_END:         return LB_UART_CMD_OTA;         // 0x0e → 0x04
@@ -1612,7 +1596,7 @@ u8 lb_ble_cmd_to_uart_cmd(u8 ble_cmd)
 /**
  * @brief UART 命令字 → BLE 命令字映射
  *
- * MCU通信协议.md v1.0.8 → 蓝牙通讯协议1.0.6.md:
+ * MCU通信协议.md v1.0.8 → 蓝牙通讯协议1.0.7.md:
  *   0x01(同步应答) → 0x02 (动态属性应答)
  *   0x01(异步上报) → 0x03 (状态上报)
  *   0x02 → 0x05 (预约列表条目)
@@ -1656,6 +1640,20 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
     *out_len = 0;
 
     switch (rx->cmd) {
+    // ─── 0x01 查询产品信息 → UART 0x01: DataPoint格式 (v1.0.7 新增透传) ───
+    case LB_CMD_PRODUCT_INFO: {
+        // v1.0.7: 透传时间戳+使能信号给加热模块
+        u32 ts = lb_last_ble_ts;
+        if (!lb_has_ble_ts) {
+            ts = RTCCNT + LB_RTC_UNIX_OFFSET;
+        }
+        u8 *p = out_data;
+        p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
+        p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+        *out_len = p - out_data;
+        return true;
+    }
+
     // ─── 0x02 查询动态属性 → UART 0x01: DataPoint格式 (v1.0.8) ───
     case LB_CMD_DYNAMIC_ATTR: {
         // v1.0.8: 数据域为 DataPoint 数组 (固定13字节)
@@ -1752,10 +1750,6 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
 
     // ─── OTA 命令 → UART 0x04 (剥离 target 字节, 格式转换) ───
     // BLE 协议含 target 字段区分升级目标, MCU UART 协议不含此字段
-    case LB_CMD_OTA_QUERY:
-        // MCU UART 协议无独立 OTA 查询命令, 不转发
-        return false;
-
     case LB_CMD_OTA_START: {
         // BLE: [target:1B][fw_size:4B BE]
         // UART: [offset=0x00000000:4B]  (offset=0 表示升级开始)
@@ -1864,6 +1858,19 @@ static bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out
     // 调用者决定是同步还是异步
     case LB_UART_CMD_DYNAMIC: {
         if (rx->data && rx->data_len > 0) {
+            // v1.0.7: 从 DataPoints 中提取加热模块版本号 (dpid=13)
+            u16 off = 0;
+            while (off + 4 <= rx->data_len) {
+                u8  dpid    = rx->data[off];
+                u16 val_len = ((u16)rx->data[off + 2] << 8) | rx->data[off + 3];
+                if (off + 4 + val_len > rx->data_len) break;
+                if (dpid == LB_DPID_MCU_VERSION && val_len >= 4) {
+                    u8 *v = rx->data + off + 4;
+                    lb_dev_info.heat_module_version = ((u32)v[0] << 24) | ((u32)v[1] << 16)
+                                                    | ((u32)v[2] << 8)  | v[3];
+                }
+                off += 4 + val_len;
+            }
             memcpy(out_data, rx->data, rx->data_len);
             *out_len = rx->data_len;
             return true;
@@ -1915,7 +1922,7 @@ static bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out
         return true;
     }
 
-    // ─── UART 0x04(OTA应答, v1.0.6: 含 target 字段) → 对应 BLE OTA 应答 ───
+    // ─── UART 0x04(OTA应答, v1.0.7) → 对应 BLE OTA 应答 ───
     case LB_UART_CMD_OTA: {
         if (rx->data && rx->data_len > 0) {
             memcpy(out_data, rx->data, rx->data_len);
@@ -2049,11 +2056,11 @@ static bool lb_ble_frame_parse(u8 *raw, u16 raw_len, lb_rx_frame_t *frame)
  *   → ble_app_blue_fit_rx_callback() → 本函数
  *
  * 桥模式(LB_BRIDGE_MODE=1):
- *   - 0x01 产品信息 → MCU 本地回复
+ *   - 0x01 产品信息 → MCU 本地回复 + 透传加热模块 (v1.0.7)
  *   - 0x03 状态上报 → APP不会发, 忽略
- *   - 0x0b~0x0e OTA命令(v1.0.6) → 按 target 分流:
- *       target=0x01(主单片机) 或 查询全部(无target) → 本地处理, BLE直接应答
- *       target=0x02(加热模块)                      → 翻译为 UART 协议, 串口发往加热模块
+ *   - 0x0c~0x0e OTA命令(v1.0.7) → 按 target 分流:
+ *       target=0x01(主单片机) → 本地处理, BLE直接应答
+ *       target=0x02(加热模块) → 翻译为 UART 协议, 串口发往加热模块
  *   - 其他命令(含0x09/0x0a) → 翻译为 UART 协议 → 串口发往加热模块
  *
  * 本地模式(LB_BRIDGE_MODE=0):
@@ -2077,11 +2084,19 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 #if LB_BRIDGE_MODE
     // ──── 桥模式：翻译转发 ────
 
-    // 0x01 产品信息 → MCU 本地回复，不转发加热模块
+    // 0x01 产品信息 → MCU 本地回复 + 透传加热模块 (v1.0.7)
     if (frame.cmd == LB_CMD_PRODUCT_INFO) {
-        lb_ble_tx_fn_t saved = lb_ble_tx_fn;
-        // 强制应答走 BLE（不做 UART 屏蔽）
+        // ① 本地回复 APP（含 MCU 版本 + 加热模块版本）
         lb_handler_product_info(&frame);
+        // ② 同时透传给加热模块
+        u8 uart_buf[LB_TXBUF_SIZE];
+        u16 uart_len = 0;
+        if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
+            printf("BLE->UART==>TX[%d]: ", uart_len);
+            for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
+            printf("\n");
+            uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
+        }
         return;
     }
 
@@ -2091,10 +2106,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
         return;
     }
 
-    // OTA 命令 (0x0b-0x0e, v1.0.6): 根据 target 字段决定路由
-    //   target=0x01(主单片机) 或 查询全部(无target) → 本地处理, 不转发 UART
-    //   target=0x02(加热模块)                      → 转发 UART, 本地不处理
-    if (frame.cmd >= LB_CMD_OTA_QUERY && frame.cmd <= LB_CMD_OTA_END) {
+    // OTA 命令 (0x0c-0x0e, v1.0.7): 根据 target 字段决定路由
+    //   target=0x01(主单片机) → 本地处理, 不转发 UART
+    //   target=0x02(加热模块) → 转发 UART, 本地不处理
+    if (frame.cmd >= LB_CMD_OTA_START && frame.cmd <= LB_CMD_OTA_END) {
         u8 target = lb_ota_get_target(&frame);
         bool to_main = (target == 0x00 || target == LB_OTA_TARGET_MAIN_MCU);
         bool to_heat = (target == LB_OTA_TARGET_HEAT_MODULE);
@@ -2186,6 +2201,8 @@ void lunchbox_uart_init(u32 baud)
     memcpy(lb_dev_info.version, "01.00.00", 8);
     memcpy(lb_dev_info.model,  "SF101\0\0\0\0\0", 10);
     memcpy(lb_dev_info.mac, ble_addr, 6);
+    lb_dev_info.main_mcu_version   = 0x76303031;  // "v001" 默认主MCU固件版本 (v1.0.7)
+    lb_dev_info.heat_module_version = 0x00000000;  // 加热模块版本待查询 (v1.0.7)
 
     uart_t uart1;
     memset(&uart1, 0, sizeof(uart1));

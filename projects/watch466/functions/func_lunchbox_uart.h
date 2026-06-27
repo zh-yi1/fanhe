@@ -1,6 +1,6 @@
 /*
     智能盒饭 - UART串口协议 (MCU通信协议.md v1.0.8)
-    智能盒饭 - BLE蓝牙协议 (蓝牙通讯协议1.0.6.md v1.0.6)
+    智能盒饭 - BLE蓝牙协议 (蓝牙通讯协议1.0.7.md v1.0.7)
 
     引脚: TX=PB8=UT1TXMAP_G2_PB8
           RX=PB9=UT1RXMAP_G2_PB9
@@ -49,6 +49,7 @@ enum {
     LB_DPID_LANGUAGE        = 8,        // 语言: enum, 0=中文 1=英文...
     LB_DPID_FAULT           = 9,        // 故障: enum, 0=正常 1=高温告警
     LB_DPID_HEAT_ENABLE     = 10,       // 是否加热: bool, 0=停止 1=加热 (v1.0.5 新增)
+    LB_DPID_MCU_VERSION     = 13,       // MCU版本号: value(4B), 固件版本号 (v1.0.7 新增)
     LB_DPID_TIME_SYNC       = 11,       // app同步时间戳: value(4B) unix时间 (仅MCU UART协议)
     LB_DPID_KEY_NOTIFY      = 12,       // 模组按键通知: enum, 0-9, MCU→加热模块通知按键按下
 };
@@ -116,6 +117,8 @@ typedef struct {
     u8   mac[6];                        // MAC 地址
     char sn[32];                        // 序列号
     u8   color;                         // 颜色枚举: 0=白 1=黑 2=红 3=蓝 4=绿 5=金
+    u32  main_mcu_version;              // 主MCU固件版本号 (v1.0.7 新增)
+    u32  heat_module_version;           // 加热模块固件版本号 (v1.0.7 新增)
 } lb_device_info_t;
 
 //-----------------------------------------------------------------------------
@@ -137,7 +140,7 @@ typedef struct {
 //-----------------------------------------------------------------------------
 enum {
     // --- 同步命令：APP 请求 → MCU 应答 ---
-    LB_CMD_PRODUCT_INFO     = 0x01,     // [同步] 查询产品信息 (仅APP↔MCU, 不转发)
+    LB_CMD_PRODUCT_INFO     = 0x01,     // [同步] 查询产品信息 (v1.0.7: 同时透传加热模块)
     LB_CMD_DYNAMIC_ATTR     = 0x02,     // [同步] 查询设备动态属性
     LB_CMD_CONTROL          = 0x04,     // [同步] 控制指令 (DataPoints修改属性, v1.0.5新增)
     LB_CMD_SCHEDULE_LIST    = 0x05,     // [同步] 查询预约列表
@@ -146,7 +149,7 @@ enum {
     LB_CMD_SCHEDULE_DELETE  = 0x08,     // [同步] 删除预约
     LB_CMD_MODE_QUERY       = 0x09,     // [同步] 获取指定模式信息
     LB_CMD_MODE_MODIFY      = 0x0a,     // [同步] 修改指定模式信息
-    LB_CMD_OTA_QUERY        = 0x0b,     // [同步] 升级查询
+    // 0x0b 升级查询已删除 (v1.0.7)
     LB_CMD_OTA_START        = 0x0c,     // [同步] 升级启动
     LB_CMD_OTA_DATA         = 0x0d,     // [同步] 升级包传输
     LB_CMD_OTA_END          = 0x0e,     // [同步] 升级结束
@@ -156,23 +159,23 @@ enum {
 };
 
 //-----------------------------------------------------------------------------
-// OTA 目标设备标识 (蓝牙通讯协议1.0.6.md §5)
+// OTA 目标设备标识 (蓝牙通讯协议1.0.7.md §5)
 // APP 通过 target 字段区分升级目标设备
 //-----------------------------------------------------------------------------
 #define LB_OTA_TARGET_MAIN_MCU      0x01    // 主单片机（模组）
 #define LB_OTA_TARGET_HEAT_MODULE   0x02    // 加热模块
 
-// OTA 升级状态 (蓝牙通讯协议1.0.6.md §5.1)
+// OTA 升级状态 (已删除升级查询 §5.1, v1.0.7)
 #define LB_OTA_STATUS_UNSUPPORTED   0x00    // 不支持 MCU 升级
 #define LB_OTA_STATUS_NOT_READY     0x01    // MCU 未就绪
 #define LB_OTA_STATUS_SUPPORTED     0x02    // 支持升级
 
-// OTA 升级启动状态 (蓝牙通讯协议1.0.6.md §5.2)
+// OTA 升级启动状态 (蓝牙通讯协议1.0.7.md §5.1)
 #define LB_OTA_START_RECEIVED       0x00    // 收到升级指令
 #define LB_OTA_START_ERASING        0x01    // MCU 擦除 flash 中
 #define LB_OTA_START_ERASE_DONE     0x02    // 擦除完成，可以传输升级包
 
-// OTA 升级结果 (蓝牙通讯协议1.0.6.md §5.4)
+// OTA 升级结果 (蓝牙通讯协议1.0.7.md §5.3)
 #define LB_OTA_RESULT_FAIL          0x00    // 升级失败
 #define LB_OTA_RESULT_SUCCESS       0x01    // 升级成功
 
@@ -407,7 +410,7 @@ u8 lunchbox_get_heat_mode(void);
 u8 lunchbox_get_heat_enable(void);
 
 //-----------------------------------------------------------------------------
-// OTA 升级流程 (蓝牙通讯协议1.0.6.md §5)
+// OTA 升级流程 (蓝牙通讯协议1.0.7.md §5)
 //-----------------------------------------------------------------------------
 
 /**
