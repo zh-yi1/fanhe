@@ -43,7 +43,7 @@ enum {
     LB_DPID_HEAT_MODE       = 2,        // 加热模式: enum, 0=关 1=自定义 2=鸡腿 3=意面 4=预约 5=保温
     LB_DPID_BATTERY         = 3,        // 电量: enum, 1=低 2=中 3=高 4=满
     LB_DPID_CHARGE_STATUS   = 4,        // 充电状态: enum, 0=未充电 1=充电中 2=已充满
-    LB_DPID_HEAT_DURATION   = 5,        // 加热时长: value(4B), 30~210 分钟
+    LB_DPID_HEAT_DURATION   = 5,        // 加热时长: value(4B), 60~210 分钟
     LB_DPID_REMAIN_TIME     = 6,        // 剩余加热时间: value(4B), 分钟
     LB_DPID_HEAT_TEMP       = 7,        // 加热温度: enum, 0=40°C ~ 5=90°C
     LB_DPID_LANGUAGE        = 8,        // 语言: enum, 0=中文 1=英文...
@@ -54,7 +54,7 @@ enum {
     LB_DPID_KEY_NOTIFY      = 12,       // 模组按键通知: enum, 0-9, MCU→加热模块通知按键按下
 };
 
-#define LB_HEAT_DURATION_MIN_MIN          30      // 加热时长下限(分钟)
+#define LB_HEAT_DURATION_MIN_MIN          60      // 加热时长下限(分钟)，UI 最低 1 小时
 #define LB_HEAT_DURATION_MAX_MIN          120     // UI 加热时长上限(分钟)，产品上限 2 小时
 
 // DataPoint 数据类型

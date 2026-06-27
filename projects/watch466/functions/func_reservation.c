@@ -702,6 +702,9 @@ static u16 func_res_heat_setup_total_min(const f_reservation_t *f_res)
 
 static void func_res_heat_setup_apply_total_min(f_reservation_t *f_res, u16 total_min)
 {
+    if (total_min < LB_HEAT_DURATION_MIN_MIN) {
+        total_min = LB_HEAT_DURATION_MIN_MIN;
+    }
     if (total_min > LB_HEAT_DURATION_MAX_MIN) {
         total_min = LB_HEAT_DURATION_MAX_MIN;
     }
@@ -1453,8 +1456,14 @@ static void func_res_value_dec(f_reservation_t *f_res)
             break;
 
         case RES_FOCUS_HEAT_HOUR:
-            if (f_res->heat_hour > 0) {
-                f_res->heat_hour--;
+            {
+                u16 total = func_res_heat_setup_total_min(f_res);
+
+                if (total >= LB_HEAT_DURATION_MIN_MIN + 60) {
+                    func_res_heat_setup_apply_total_min(f_res, total - 60);
+                } else {
+                    func_res_heat_setup_apply_total_min(f_res, LB_HEAT_DURATION_MIN_MIN);
+                }
             }
             f_res->last_heat_timer_key = 0xffff;
             break;
@@ -1463,12 +1472,11 @@ static void func_res_value_dec(f_reservation_t *f_res)
             {
                 u16 total = func_res_heat_setup_total_min(f_res);
 
-                if (total >= RES_MIN_STEP) {
-                    total -= RES_MIN_STEP;
+                if (total >= LB_HEAT_DURATION_MIN_MIN + RES_MIN_STEP) {
+                    func_res_heat_setup_apply_total_min(f_res, total - RES_MIN_STEP);
                 } else {
-                    total = 0;
+                    func_res_heat_setup_apply_total_min(f_res, LB_HEAT_DURATION_MIN_MIN);
                 }
-                func_res_heat_setup_apply_total_min(f_res, total);
             }
             f_res->last_heat_timer_key = 0xffff;
             break;

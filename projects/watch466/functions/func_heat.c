@@ -279,6 +279,9 @@ static u16 func_heat_setup_total_min(const f_heat_t *f_heat)
 
 static void func_heat_setup_apply_total_min(f_heat_t *f_heat, u16 total_min)
 {
+    if (total_min < LB_HEAT_DURATION_MIN_MIN) {
+        total_min = LB_HEAT_DURATION_MIN_MIN;
+    }
     if (total_min > LB_HEAT_DURATION_MAX_MIN) {
         total_min = LB_HEAT_DURATION_MAX_MIN;
     }
@@ -839,8 +842,14 @@ static void func_heat_value_dec(f_heat_t *f_heat)
 
     switch (f_heat->focus) {
     case HEAT_FOCUS_HOUR:
-        if (f_heat->set_hour > 0) {
-            f_heat->set_hour--;
+        {
+            u16 total = func_heat_setup_total_min(f_heat);
+
+            if (total >= LB_HEAT_DURATION_MIN_MIN + 60) {
+                func_heat_setup_apply_total_min(f_heat, total - 60);
+            } else {
+                func_heat_setup_apply_total_min(f_heat, LB_HEAT_DURATION_MIN_MIN);
+            }
         }
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
@@ -849,12 +858,11 @@ static void func_heat_value_dec(f_heat_t *f_heat)
         {
             u16 total = func_heat_setup_total_min(f_heat);
 
-            if (total >= HEAT_MIN_STEP) {
-                total -= HEAT_MIN_STEP;
+            if (total >= LB_HEAT_DURATION_MIN_MIN + HEAT_MIN_STEP) {
+                func_heat_setup_apply_total_min(f_heat, total - HEAT_MIN_STEP);
             } else {
-                total = 0;
+                func_heat_setup_apply_total_min(f_heat, LB_HEAT_DURATION_MIN_MIN);
             }
-            func_heat_setup_apply_total_min(f_heat, total);
         }
         func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
         break;
