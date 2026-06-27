@@ -1224,6 +1224,9 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
         } else if (duration > LB_HEAT_DURATION_MAX_MIN) {
             duration = LB_HEAT_DURATION_MAX_MIN;
         }
+        printf("reservation: %d, %d, %d, %d, %d, %d, %d, %d\n", 1, 0, NULL, unix_time,
+                                  lunchbox_temp_f_to_idx(temp_f),
+                                  duration, 1, 0xff);
         lunchbox_reservation_send(1, 0, NULL, unix_time,
                                   lunchbox_temp_f_to_idx(temp_f),
                                   duration, 1, 0xff);
