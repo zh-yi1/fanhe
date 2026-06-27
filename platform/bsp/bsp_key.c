@@ -258,8 +258,9 @@ void power_on_check(void)
     }
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    u16 pt8028_pwron_hold_ms = 0;
     bool pt8028_pwron_boot_delay = true;
+
+    pt8028_pwr_boot_scan_begin();
 #endif
 
     while (1) {
@@ -271,6 +272,11 @@ void power_on_check(void)
         if (pt8028_pwron_boot_delay) {
             pt8028_pwron_boot_delay = false;
             delay_ms(50);                           //PT8028 上电稳定后再判 TCH5
+        }
+        get_pt8028_key();
+        if (pt8028_pwr_key_long_ready()) {
+            sys_cb.poweron_flag = 1;
+            pt8028_pwr_long_consume();
         }
 #endif
 
@@ -308,21 +314,6 @@ void power_on_check(void)
 #else
      pwrkey_pressed_flag = 1;
 #endif // USER_PWRKEY
-
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-        if (pt8028_boot_tch5_down()) {
-            if (pt8028_pwron_hold_ms < 0xffff) {
-                pt8028_pwron_hold_ms++;
-            }
-            if (pt8028_pwron_hold_ms >= PT8028_PWR_LONG_MS) {
-                sys_cb.poweron_flag = 1;
-                pt8028_pwron_hold_ms = 0;
-                pt8028_pwr_long_consume();
-            }
-        } else {
-            pt8028_pwron_hold_ms = 0;
-        }
-#endif
 
 #if CHARGE_EN
         if (xcfg_cb.charge_en) {
@@ -371,7 +362,7 @@ __pwron:
         } else {
             //PWKKEY松开，立刻关机
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-            if (!pt8028_boot_tch5_down()) {
+            if (pt8028_out_flag_is_idle()) {
 #else
             if (!pwrkey_pressed_flag) {
 #endif

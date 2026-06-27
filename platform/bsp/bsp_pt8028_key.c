@@ -811,13 +811,7 @@ static void pt8028_emit_press(u8 tch)
         pt8028_queue_edge(0, tch, 0);
         pt8028_queue_key(tch, key, (u16)(key | KEY_SHORT), tch, 0);
     }
-#if ELUNCHBOX_PANEL_EN
-    /* 开关键(TCH5)仅长按 3s 调 lunchbox_power_on/off，不走 key_notify */
-    if (tch != PT8028_KEY_TCH5)
-#endif
-    {
-        pt8028_queue_key_notify(tch);
-    }
+    pt8028_queue_key_notify(tch);
 }
 
 AT(.com_text.bsp.pt8028)
@@ -1546,6 +1540,23 @@ bool pt8028_boot_tch5_down(void)
     pt8028_gpio_bcd_ensure();
     ln = pt8028_read_lines();
     return (ln.out_flag == 0 && ln.bcd == PT8028_KEY_TCH5);
+}
+
+AT(.com_text.bsp.pt8028)
+bool pt8028_out_flag_is_idle(void)
+{
+    pt8028_gpio_bcd_ensure();
+    return pt8028_read_out_flag() != 0;
+}
+
+AT(.text.pwroff.pwrdwn)
+void pt8028_wait_out_flag_release(void)
+{
+    pt8028_gpio_bcd_ensure();
+    while (pt8028_read_out_flag() == 0) {
+        WDT_CLR();
+        delay_5ms(1);
+    }
 }
 
 AT(.com_text.bsp.pt8028)

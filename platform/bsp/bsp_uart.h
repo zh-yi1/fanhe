@@ -53,6 +53,9 @@ void bsp_uart1_putchar(char ch);
  */
 u8 bsp_uart1_get_char(u8 *ch);
 
+/** @brief 清空 UART1 环形缓冲读写指针 */
+void bsp_uart1_rxclr(void);
+
 /**
  * @brief 设置 UART1 波特率
  * @param[in] baud  波特率，如 9600、115200

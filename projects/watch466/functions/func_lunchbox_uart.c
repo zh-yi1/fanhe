@@ -72,6 +72,7 @@ typedef struct {
 
 static lb_ota_ctx_t lb_ota_ctx;
 static u32 lb_ota_reset_tick = 0;           // 升级完成后延时复位的 tick
+static bool lb_uart_suspended;              // 手动关机时 UART1 已关闭
 
 // 桥模式: 转发加热模块 OTA 时累积 CRC32 (MCU通信协议.md §5.1)
 static u32  lb_ota_uart_crc32 = 0;
@@ -2275,6 +2276,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
  */
 void lunchbox_uart_init(u32 baud)
 {
+    lb_uart_suspended = false;
     memset(lb_rx_buf, 0, sizeof(lb_rx_buf));
     lb_rx_idx = 0;
     memset(cmd_handler, 0, sizeof(cmd_handler));
@@ -2309,6 +2311,26 @@ void lunchbox_uart_init(u32 baud)
     printf("lb_uart: init ok TX=PB8 RX=PB9 baud=%d\n", baud);
 }
 
+void lunchbox_uart_suspend(void)
+{
+    if (lb_uart_suspended) {
+        return;
+    }
+    UART1CON = 0;
+    bsp_uart1_rxclr();
+    lb_rx_idx = 0;
+    lb_uart_suspended = true;
+}
+
+void lunchbox_uart_resume(void)
+{
+    if (!lb_uart_suspended) {
+        return;
+    }
+    lunchbox_uart_init(LB_BAUD);
+    lb_uart_suspended = false;
+}
+
 /**
  * @brief 主循环中周期调用的接收处理函数
  *
@@ -2319,6 +2341,9 @@ void lunchbox_uart_init(u32 baud)
  */
 void lunchbox_uart_process(void)
 {
+    if (lb_uart_suspended) {
+        return;
+    }
     u8 ch;
 
     while (bsp_uart1_get_char(&ch)) {

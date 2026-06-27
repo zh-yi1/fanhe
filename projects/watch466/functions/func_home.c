@@ -688,6 +688,8 @@ static void func_home_clock_restore(f_home_t *f_home)
 
 static void func_home_clock_update(f_home_t *f_home, u8 hour, u8 min)
 {
+    if (hour > 99) hour = 0;
+    if (min  > 59) min  = 0;
     u8 digits[HOME_CLOCK_IDX_CNT] = { hour / 10, hour % 10, min / 10, min % 10 };
     u8 i;
 
@@ -1067,6 +1069,71 @@ static void func_home_status_refresh(f_home_t *f_home)
         }
     }
 }
+
+#if ELUNCHBOX_PANEL_EN
+/* guioff 唤醒后调用：强制重新加载缓存并重新绑定 Home 页面用到的所有共享 RAM 资源。
+ * 解决 GPU 掉电/恢复后 picturebox 与共享 buffer 绑定失效导致的 C241/C245。
+ * 特别针对 manual off (gui_sleep(true)) 唤醒路径。
+ */
+void func_home_force_ui_refresh_after_wake(void)
+{
+    if (func_cb.sta != FUNC_HOME || func_cb.f_cb == NULL) {
+        return;
+    }
+    f_home_t *fh = (f_home_t *)func_cb.f_cb;
+
+    /* After gui_wakeup + gpu_init + compos_init (from full GPU off),
+     * old component pointers in f_home are invalid. Re-acquire them by ID.
+     * Tabs are bound at form create; re-bind them too for deep wake.
+     */
+    func_home_tab_bind(fh, HOME_TAB_HEAT, COMPO_ID_TAB0_SEL_BG);
+    func_home_tab_bind(fh, HOME_TAB_MODE, COMPO_ID_TAB1_SEL_BG);
+    func_home_tab_bind(fh, HOME_TAB_SETUP, COMPO_ID_TAB2_SEL_BG);
+    func_home_bind_objects(fh);
+
+    home_tab_icon_cached = false;
+    func_home_tab_icons_cache_load();
+    func_home_tab_refresh(fh);
+
+    home_ui_shared_status_inited = false;
+    home_ui_shared_status_lock_preloaded = false;
+    func_home_status_icons_apply(fh);
+
+    {
+        tm_t tm = rtc_clock_get();
+        fh->last_top_min = tm.min;
+        fh->last_top_sec = tm.sec;
+        fh->top_time.last_key = 0xffff;   /* force refresh even if time value same as pre-sleep */
+        home_top_time_refresh(&fh->top_time, &tm);
+    }
+
+    /* Invalidate clock digit/colon caches so we re-read from flash and re-bind RAM.
+     * Get current display value and sanitize to avoid feeding garbage (e.g. uninit
+     * countdown state after deep sleep) into clock_update which can lead to C245.
+     */
+    func_home_clock_cache_invalidate();
+
+    u8 cd_hour, cd_min;
+    func_home_countdown_get_display(&cd_hour, &cd_min);
+    if (cd_hour > 99) cd_hour = 0;
+    if (cd_min  > 59) cd_min  = 0;
+
+    fh->last_cd_total_min = 0xffff;
+    func_home_clock_update(fh, cd_hour, cd_min);   /* force at least one safe bind */
+    fh->last_cd_total_min = (u16)cd_hour * 60 + cd_min;
+
+    func_home_status_refresh(fh);   /* will refresh top time / marquee as needed */
+    func_home_res_marquee_refresh(fh);
+
+    func_home_gui_mark_dirty();
+    home_gpu_wait_idle();
+
+#if ELUNCHBOX_PANEL_EN
+    /* ensure we are out of staged cold-boot load after manual-off wake */
+    fh->display_stage = 0;
+#endif
+}
+#endif
 
 static void func_home_button_click(f_home_t *f_home)
 {
