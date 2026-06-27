@@ -258,19 +258,16 @@ static void elunchbox_pwr_manual_shutdown(void)
     lunchbox_power_off();
 #endif
     elunchbox_boot_power_sent = false;
-    /* gui_sleep(true) powers down GPU for deeper low power.
-     * Wake path (elunchbox_screen_wake) must re-bind all UI objects + invalidate caches
-     * to avoid C24x after compos_init + keep_ram restore.
-     * Low power entry is forced in sleep_process when manual_off is set.
+    /* 软关机低电：GPU 掉电 + 强制 BT 浅睡（本板 PT8028 硬关机 sfunc_pwrdown 无法可靠唤醒）。
+     * 唤醒：再次长按 TCH5 3s -> elunchbox_screen_wake + UI 重绑。
      */
     gui_sleep(true);
     elunchbox_pwr_gui_off = true;
     elunchbox_pwr_manual_off = true;
     sys_cb.gui_need_wakeup = 0;
-    elunchbox_guioff_sleep_delay = 0;     /* 立即允许进 sfunc_sleep 进一步降功耗 */
+    elunchbox_guioff_sleep_delay = 0;
 
 #if LE_EN
-    /* 手动关机进一步降功耗：关闭BLE广播（唤醒时恢复） */
     ble_adv_dis();
 #endif
 #if BT_BACKSTAGE_EN
@@ -282,7 +279,12 @@ static void elunchbox_pwr_manual_shutdown(void)
     lunchbox_uart_suspend();
 #endif
 
-    printf("elunchbox: TCH5 long -> manual off (low power)\n");
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_pwr_long_consume();
+    pt8028_release_clear();
+#endif
+
+    printf("elunchbox: TCH5 long -> manual off (low power sleep)\n");
 }
 
 void elunchbox_guioff_sleep_post_wake(bool key_wake)
@@ -454,11 +456,10 @@ static void func_elunchbox_pwr_long_poll(void)
     }
     pt8028_pwr_long_consume();
     if (elunchbox_is_guioff()) {
-        if (!elunchbox_pwr_manual_off) {
-            return;
+        if (elunchbox_pwr_is_manual_off()) {
+            printf("elunchbox: TCH5 long -> wake from manual off\n");
+            elunchbox_pwr_gui_wake();
         }
-        printf("elunchbox: TCH5 long -> wake from manual off\n");
-        elunchbox_pwr_gui_wake();
         return;
     }
     elunchbox_pwr_manual_shutdown();
