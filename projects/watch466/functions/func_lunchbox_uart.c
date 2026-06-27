@@ -185,6 +185,8 @@ static void lb_rx_reset(void) { lb_rx_idx = 0; lb_rx_ticks = 0; }
  * @return true  解析成功，已回调 cmd_handler 或转发到 BLE，lb_rx_idx 已重置
  * @return false 数据不够/校验失败/帧太大，调用者需继续收或丢弃
  */
+static void lb_heating_sync_from_dp(u8 *data, u16 len);
+
 static bool lb_frame_parse(void)
 {
     // ──── 检查 1：帧缓冲区数据至少够一个完整帧头 + 1 字节 checksum ────
@@ -238,6 +240,7 @@ static bool lb_frame_parse(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.data && rx.data_len > 0) {
+        lb_heating_sync_from_dp(rx.data, rx.data_len);
         //printf("Trigger==>heat_display_feed_dp:%d\n",__LINE__);
         heat_display_feed_dp(rx.data, rx.data_len);
         home_ui_shared_battery_feed_dp(rx.data, rx.data_len);
@@ -607,6 +610,72 @@ static u8 lb_mode_duration[6] = { 0, 30, 45, 20, 30, 0 }; // 默认: 自定义30
 #define LB_KEEP_WARM_TEMP_F     140
 
 static bool lb_keep_warm_active = false;
+static bool lb_heat_task_active;    /* 桥/本地：加热模块正在加热（含 UART 异步上报） */
+
+/** @brief 从 UART DataPoint 同步加热任务状态 */
+static void lb_heating_sync_from_dp(u8 *data, u16 len)
+{
+    u16 off = 0;
+    bool got_enable = false;
+    bool heating = false;
+    u32 remain = 0;
+    bool got_remain = false;
+
+    if (data == NULL || len == 0) {
+        return;
+    }
+    while (off + 4 <= len) {
+        u8  dpid    = data[off];
+        u16 val_len = ((u16)data[off + 2] << 8) | data[off + 3];
+        if (off + 4 + val_len > len) {
+            break;
+        }
+        u8 *val = data + off + 4;
+
+        switch (dpid) {
+        case LB_DPID_HEAT_ENABLE:
+            if (val_len >= 1) {
+                heating = (val[0] != 0);
+                got_enable = true;
+            }
+            break;
+        case LB_DPID_REMAIN_TIME:
+            if (val_len >= 4) {
+                remain = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                       | ((u32)val[2] << 8) | val[3];
+                got_remain = true;
+            }
+            break;
+        default:
+            break;
+        }
+        off += 4 + val_len;
+    }
+    if (got_enable) {
+        lb_heat_task_active = heating;
+        if (!heating) {
+            lb_keep_warm_active = false;
+        }
+    } else if (got_remain && remain > 0) {
+        lb_heat_task_active = true;
+    }
+}
+
+bool lunchbox_heating_task_active(void)
+{
+    if (lb_keep_warm_active || lb_heat_task_active) {
+        return true;
+    }
+#if !LB_BRIDGE_MODE
+    if (lb_attr_heat_enable) {
+        return true;
+    }
+    if (lb_attr_heat_mode != 0 && lb_attr_remain_time > 0) {
+        return true;
+    }
+#endif
+    return false;
+}
 
 void lunchbox_set_device_info(lb_device_info_t *info) { if (info) memcpy(&lb_dev_info, info, sizeof(lb_device_info_t)); }
 
@@ -696,6 +765,7 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
     lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
+    lb_heat_task_active = true;
     u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
     u8 data[64];
     u8 *p = data;
@@ -731,6 +801,7 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 void lunchbox_heat_stop(void)
 {
     lb_keep_warm_active = false;
+    lb_heat_task_active = false;
     u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
     u8 data[32];
     u8 *p = data;

@@ -579,6 +579,11 @@ u32 func_home_countdown_remain_sec(void)
     return home_countdown_remain_sec;
 }
 
+bool func_home_heating_countdown_active(void)
+{
+    return home_countdown_running && home_countdown_remain_sec > 0;
+}
+
 static void func_home_countdown_get_display(u8 *hour, u8 *min)
 {
     u32 sec = home_countdown_remain_sec;

@@ -258,6 +258,7 @@ bool elunchbox_guioff_idle_expired(void);
 void func_home_force_ui_refresh_after_wake(void);
 void func_home_switch_to_reservation(void);
 void func_home_drain_stale_key_msgs(void);
+bool func_home_heating_countdown_active(void);
 void func_mode_idle_preload_reset(void);
 void func_mode_idle_preload_step(void);
 #include "func_key_lock.h"
