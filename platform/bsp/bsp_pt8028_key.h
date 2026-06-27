@@ -98,6 +98,10 @@ void pt8028_pwr_boot_scan_begin(void);
 bool pt8028_pwr_boot_short_rel(void);
 /* power_on_check：TCH5(OUT_FLAG=0 且 BCD=5) 是否按下 */
 bool pt8028_boot_tch5_down(void);
+/* OUT_FLAG=1 空闲（已释放），仅看 PE1 不看 BCD */
+bool pt8028_out_flag_is_idle(void);
+/* func_pwroff：等 OUT_FLAG 回到 1 再进 sfunc_pwrdown */
+void pt8028_wait_out_flag_release(void);
 /* power_on_check：是否有键按下（含 TCH5 长按开机） */
 bool pt8028_is_press_active(void);
 bool pt8028_is_power_key_held(void);

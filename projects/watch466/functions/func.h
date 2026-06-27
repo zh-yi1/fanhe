@@ -235,6 +235,7 @@ void func_elunchbox_res_key_poll(void);
 void func_elunchbox_switch_to_heat(void);
 void func_heat_key_poll(void);
 bool elunchbox_pwr_gui_off_is_on(void);
+bool elunchbox_pwr_is_manual_off(void);
 void elunchbox_pwr_gui_off_activate(void);
 bool elunchbox_is_device_powered(void);
 void elunchbox_pwr_gui_wake(void);
@@ -253,6 +254,8 @@ void elunchbox_user_activity_reset(void);
 void elunchbox_guioff_idle_tick(void);
 /** 独立倒计时是否已到 0（应息屏） */
 bool elunchbox_guioff_idle_expired(void);
+/** guioff 唤醒后强制刷新 Home 的 tab/status/共享图标等绑定，避免 C24x */
+void func_home_force_ui_refresh_after_wake(void);
 void func_home_switch_to_reservation(void);
 void func_home_drain_stale_key_msgs(void);
 void func_mode_idle_preload_reset(void);

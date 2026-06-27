@@ -1,6 +1,6 @@
 #include "include.h"
 
-#define GUI_BACKUP_SIZE     (30*1024)
+#define GUI_BACKUP_SIZE     (32*1024)  /* increased to cover ~31k disp restore for elunchbox */
 
 typedef struct {
     u32 start;

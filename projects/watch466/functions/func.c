@@ -144,7 +144,7 @@ void func_elunchbox_res_key_poll(void)
 #if USER_PT8028_KEY && SOFT_POWER_ON_OFF
 #if ELUNCHBOX_PANEL_EN
 static bool elunchbox_pwr_gui_off;
-static bool elunchbox_pwr_manual_off;   /* true=长按3s手动关机(发 UART OFF) */
+static bool elunchbox_pwr_manual_off;   /* 长按3s手动关机：浅睡态，长按再开 */
 static bool elunchbox_boot_power_sent;
 static s32 elunchbox_guioff_sleep_delay = -1L;
 static u8 elunchbox_guioff_sleep_mode;
@@ -208,6 +208,15 @@ bool elunchbox_pwr_gui_off_is_on(void)
     return elunchbox_pwr_gui_off;
 }
 
+bool elunchbox_pwr_is_manual_off(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    return elunchbox_pwr_manual_off;
+#else
+    return false;
+#endif
+}
+
 bool elunchbox_is_device_powered(void)
 {
     return true;
@@ -240,16 +249,22 @@ static void elunchbox_pwr_manual_shutdown(void)
     panel_led_all_off();
     panel_led_set_switch_latched(false);
 #endif
-    gui_sleep(false);
-    elunchbox_pwr_gui_off = true;
-    elunchbox_pwr_manual_off = true;
-    sys_cb.gui_need_wakeup = 0;
-    elunchbox_guioff_sleep_delay_reset();
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_keep_warm_stop();
     lunchbox_power_off();
 #endif
     elunchbox_boot_power_sent = false;
+    /* gui_sleep(true) powers down GPU for deeper low power.
+     * Wake path (elunchbox_screen_wake) must re-bind all UI objects + invalidate caches
+     * to avoid C24x after compos_init + keep_ram restore.
+     * Low power entry is forced in sleep_process when manual_off is set.
+     */
+    gui_sleep(true);
+    elunchbox_pwr_gui_off = true;
+    elunchbox_pwr_manual_off = true;
+    sys_cb.gui_need_wakeup = 0;
+    elunchbox_guioff_sleep_delay = 0;     /* 立即允许进 sfunc_sleep 进一步降功耗 */
+    printf("elunchbox: TCH5 long -> manual off (low power)\n");
 }
 
 void elunchbox_guioff_sleep_post_wake(bool key_wake)
@@ -311,11 +326,30 @@ static void elunchbox_screen_wake(void)
     }
     tft_bglight_force_on();
     elunchbox_user_activity_reset();
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    /* 唤醒后清理 PT8028 按键状态，避免长按残留导致立刻再次关机或误触发 */
+    pt8028_port_gpio_init();
+    pt8028_key_scan();
+    pt8028_pwr_long_consume();
+    pt8028_release_clear();
+#endif
 #if FUNC_LUNCHBOX_UART_EN
     if (was_manual) {
         lunchbox_power_on();
         elunchbox_boot_power_sent = true;
     }
+#endif
+#if ELUNCHBOX_PANEL_EN
+    /* 唤醒后强制重载共享资源（电量/状态图标等），并清理可能的陈旧绑定 */
+    home_ui_shared_status_inited = false;
+    home_ui_shared_status_lock_preloaded = false;
+    home_ui_shared_battery_boot_init();
+    func_home_gui_mark_dirty();
+
+    /* 强制 Home UI 完整刷新绑定（tab 图标、status、倒计时、时间等）。
+     * 在 guioff 唤醒后调用，可显著降低因 GPU/组件状态与共享 RAM 不一致导致的 C24x halt。
+     */
+    func_home_force_ui_refresh_after_wake();
 #endif
 #if USER_PANEL_LED
     panel_led_scan();
@@ -386,16 +420,11 @@ static void func_elunchbox_pwr_long_poll(void)
         if (!elunchbox_pwr_manual_off) {
             return;
         }
-        printf("elunchbox: TCH5 long -> wake from shutdown\n");
+        printf("elunchbox: TCH5 long -> wake from manual off\n");
         elunchbox_pwr_gui_wake();
-#if FUNC_LUNCHBOX_UART_EN
-        lunchbox_power_on();
-        elunchbox_boot_power_sent = true;
-#endif
-    } else {
-        printf("elunchbox: TCH5 long -> manual shutdown\n");
-        elunchbox_pwr_manual_shutdown();
+        return;
     }
+    elunchbox_pwr_manual_shutdown();
 }
 #endif /* ELUNCHBOX_PANEL_EN */
 

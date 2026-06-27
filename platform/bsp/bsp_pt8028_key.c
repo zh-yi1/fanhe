@@ -1549,6 +1549,23 @@ bool pt8028_boot_tch5_down(void)
 }
 
 AT(.com_text.bsp.pt8028)
+bool pt8028_out_flag_is_idle(void)
+{
+    pt8028_gpio_bcd_ensure();
+    return pt8028_read_out_flag() != 0;
+}
+
+AT(.text.pwroff.pwrdwn)
+void pt8028_wait_out_flag_release(void)
+{
+    pt8028_gpio_bcd_ensure();
+    while (pt8028_read_out_flag() == 0) {
+        WDT_CLR();
+        delay_5ms(1);
+    }
+}
+
+AT(.com_text.bsp.pt8028)
 void pt8028_pwr_long_consume(void)
 {
     pt8028_cb.pwr_long_fired = 0;

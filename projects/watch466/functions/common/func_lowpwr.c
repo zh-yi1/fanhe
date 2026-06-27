@@ -652,7 +652,12 @@ bool sleep_process(is_sleep_func is_sleep)
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
         sys_cb.gui_need_wakeup = 0;
-        if (elunchbox_guioff_sleep_ready() && (*is_sleep)()) {
+        /* 手动长按关机时，强制进入低功耗浅睡（sfunc_sleep），
+         * 即使 bt_is_allow_sleep() 当前返回 false（避免因蓝牙状态卡住不降功耗）。
+         * 自动息屏仍尊重 ready + allow_sleep。
+         */
+        bool force_lowpwr = elunchbox_pwr_is_manual_off();
+        if ((elunchbox_guioff_sleep_ready() && (*is_sleep)()) || force_lowpwr) {
             sfunc_sleep();
             reset_sleep_delay_all();
             reset_pwroff_delay();
@@ -967,11 +972,9 @@ void func_pwroff(int pwroff_tone_en)
 
     if (SOFT_POWER_ON_OFF) {
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-        printf("elunchbox: wait TCH5 release\n");
-        while (pt8028_boot_tch5_down()) {
-            WDT_CLR();
-            delay_5ms(1);
-        }
+        printf("elunchbox: wait OUT_FLAG release\n");
+        pt8028_wait_out_flag_release();
+        printf("elunchbox: enter sfunc_pwrdown\n");
 #elif !PWRKEY_2_HW_PWRON
         while (IS_PWRKEY_PRESS()) {     //等待PWRKWY松开
             delay_5ms(1);
