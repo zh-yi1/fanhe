@@ -58,12 +58,16 @@ typedef enum {
 
 typedef struct {
     lb_ota_state_t state;   // 当前状态
-    u32 fw_size;            // 固件总大小（字节，从 0x0c 获取）
+    u32 fw_size;            // 固件总大小（字节，从 0x0c 获取，含 256B 包头）
     u32 next_offset;        // 期望的下一个数据偏移量（用于连续性校验）
-    u32 recv_size;          // 已接收的数据总大小
+    u32 recv_size;          // 已接收的数据总大小（含包头）
     u8  buf[512];           // 512 字节写入缓冲（ota_pack_write 要求 512 对齐）
     u16 buf_pos;            // 缓冲区已使用字节数
     u8  need_reset;         // 升级完成标志，主循环检测后延时复位
+    // 256 字节 bin 包头解析 (MCU通信协议.md §5.1 备注2)
+    u8   header_buf[256];   // 包头累积缓冲区
+    u16  header_pos;        // 已收集包头字节数
+    bool header_done;       // 包头已收齐并解析
 } lb_ota_ctx_t;
 
 static lb_ota_ctx_t lb_ota_ctx;
@@ -1456,7 +1460,64 @@ static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
 
     lb_ota_ctx.state = LB_OTA_RECEIVING;
 
-    // 缓冲写入: 将数据填入 512 字节缓冲，满一块写一块
+    // 保存原始数据长度 (用于 offset/recv_size 追踪，含包头)
+    u16 orig_data_size = data_size;
+
+    // 剥离 .bin 文件 256 字节包头 (MCU通信协议.md §5.1 备注2)
+    // 包头不写入 flash，但 offset/recv_size 按完整 .bin 文件追踪
+    if (!lb_ota_ctx.header_done && offset < 256) {
+        u16 hdr_bytes = (u16)(256 - offset);
+        if (hdr_bytes > data_size) hdr_bytes = data_size;
+
+        memcpy(lb_ota_ctx.header_buf + offset, data, hdr_bytes);
+        lb_ota_ctx.header_pos += hdr_bytes;
+
+        // 包头收齐 (256 字节)，解析字段
+        if (lb_ota_ctx.header_pos >= 256) {
+            u32 magic = ((u32)lb_ota_ctx.header_buf[0] << 24)
+                      | ((u32)lb_ota_ctx.header_buf[1] << 16)
+                      | ((u32)lb_ota_ctx.header_buf[2] << 8)
+                      | lb_ota_ctx.header_buf[3];
+            u32 fw_ver = ((u32)lb_ota_ctx.header_buf[4] << 24)
+                       | ((u32)lb_ota_ctx.header_buf[5] << 16)
+                       | ((u32)lb_ota_ctx.header_buf[6] << 8)
+                       | lb_ota_ctx.header_buf[7];
+            u32 fw_len = ((u32)lb_ota_ctx.header_buf[8] << 24)
+                       | ((u32)lb_ota_ctx.header_buf[9] << 16)
+                       | ((u32)lb_ota_ctx.header_buf[10] << 8)
+                       | lb_ota_ctx.header_buf[11];
+            u32 fw_crc = ((u32)lb_ota_ctx.header_buf[12] << 24)
+                       | ((u32)lb_ota_ctx.header_buf[13] << 16)
+                       | ((u32)lb_ota_ctx.header_buf[14] << 8)
+                       | lb_ota_ctx.header_buf[15];
+
+            if (magic == 0x11223344) {
+                printf("OTA bin hdr: ver=0x%08lX len=%lu crc=0x%08lX\n",
+                       fw_ver, fw_len, fw_crc);
+                if (fw_len != lb_ota_ctx.fw_size) {
+                    printf("OTA warn: hdr_len=%lu != fw_size=%lu\n",
+                           fw_len, lb_ota_ctx.fw_size);
+                }
+            } else {
+                printf("OTA warn: bad magic 0x%08lX, expect 0x11223344\n", magic);
+            }
+            lb_ota_ctx.header_done = true;
+        }
+
+        // 跳过包头字节，只把固件数据传入缓冲写入
+        data += hdr_bytes;
+        data_size -= hdr_bytes;
+
+        if (data_size == 0) {
+            // 整包都是包头，无固件数据
+            lb_ota_ctx.next_offset = offset + orig_data_size;
+            lb_ota_ctx.recv_size += orig_data_size;
+            lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
+            return LB_ERR_SUCCESS;
+        }
+    }
+
+    // 缓冲写入: 将固件数据填入 512 字节缓冲，满一块写一块
     u16 remaining = data_size;
     u8 *src = data;
 
@@ -1480,8 +1541,8 @@ static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
         }
     }
 
-    lb_ota_ctx.next_offset = offset + data_size;
-    lb_ota_ctx.recv_size += data_size;
+    lb_ota_ctx.next_offset = offset + orig_data_size;
+    lb_ota_ctx.recv_size += orig_data_size;
 
     lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
     return LB_ERR_SUCCESS;
