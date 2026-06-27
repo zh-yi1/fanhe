@@ -254,6 +254,8 @@ void elunchbox_user_activity_reset(void);
 void elunchbox_guioff_idle_tick(void);
 /** 独立倒计时是否已到 0（应息屏） */
 bool elunchbox_guioff_idle_expired(void);
+/** 加热/保温/倒计时进行中：禁止自动息屏 */
+bool elunchbox_heating_blocks_idle(void);
 /** guioff 唤醒后强制刷新 Home 的 tab/status/共享图标等绑定，避免 C24x */
 void func_home_force_ui_refresh_after_wake(void);
 void func_home_switch_to_reservation(void);

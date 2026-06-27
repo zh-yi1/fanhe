@@ -205,6 +205,19 @@ void elunchbox_guioff_sleep_mode_enter(void)
     elunchbox_guioff_sleep_mode = 1;
 }
 
+bool elunchbox_heating_blocks_idle(void)
+{
+#if FUNC_LUNCHBOX_UART_EN
+    if (lunchbox_heating_task_active()) {
+        return true;
+    }
+#endif
+    if (func_home_heating_countdown_active()) {
+        return true;
+    }
+    return false;
+}
+
 static void elunchbox_pwr_gui_off_exit(void);
 
 bool elunchbox_pwr_gui_off_is_on(void)
@@ -229,6 +242,10 @@ bool elunchbox_is_device_powered(void)
 void elunchbox_pwr_gui_off_activate(void)
 {
     if (elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) {
+        return;
+    }
+    if (elunchbox_heating_blocks_idle()) {
+        elunchbox_user_activity_reset();
         return;
     }
 #if USER_PANEL_LED
@@ -317,6 +334,10 @@ void elunchbox_guioff_idle_tick(void)
     if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
         return;
     }
+    if (elunchbox_heating_blocks_idle()) {
+        elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
+        return;
+    }
     if (elunchbox_idle_tmr > 0) {
         elunchbox_idle_tmr--;
     }
@@ -325,6 +346,9 @@ void elunchbox_guioff_idle_tick(void)
 bool elunchbox_guioff_idle_expired(void)
 {
     if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
+        return false;
+    }
+    if (elunchbox_heating_blocks_idle()) {
         return false;
     }
     return elunchbox_idle_tmr == 0;

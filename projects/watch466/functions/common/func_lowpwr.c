@@ -683,6 +683,11 @@ bool sleep_process(is_sleep_func is_sleep)
 //    printf("%s->%d,%d\n", __func__, sys_cb.gui_need_wakeup, sys_cb.gui_sleep_sta);
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
+        if (elunchbox_heating_blocks_idle()) {
+            elunchbox_pwr_gui_wake();
+            reset_sleep_delay_all();
+            return false;
+        }
         sys_cb.gui_need_wakeup = 0;
         /* 手动长按关机时，强制进入低功耗浅睡（sfunc_sleep），
          * 即使 bt_is_allow_sleep() 当前返回 false（避免因蓝牙状态卡住不降功耗）。
@@ -747,6 +752,12 @@ bool sleep_process(is_sleep_func is_sleep)
     /* 饭盒：独立 idle 计时到 0 即息屏（不依赖 guioff_delay / sleep_en） */
     if (elunchbox_guioff_idle_expired()) {
         elunchbox_pwr_gui_off_activate();
+        return false;
+    }
+    /* 已息屏但加热仍进行：自动亮回，不进浅睡 */
+    if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta && elunchbox_heating_blocks_idle()) {
+        elunchbox_pwr_gui_wake();
+        reset_sleep_delay_all();
         return false;
     }
 #endif
