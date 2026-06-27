@@ -946,19 +946,21 @@ void func_pwroff(int pwroff_tone_en)
     }
 #endif // WARNING_POWER_OFF
 
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    gui_sleep(!elunchbox_is_key_pwroff_pending());  /* 饭盒 idle 关机仅熄屏，保留 GPU 供 func_exit 安全销毁窗体 */
-#else
     gui_sleep(true);
-#endif
 
     if (SOFT_POWER_ON_OFF) {
-        if (!PWRKEY_2_HW_PWRON) {
-            while (IS_PWRKEY_PRESS()) {     //等待PWRKWY松开
-                delay_5ms(1);
-                WDT_CLR();
-            }
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        printf("elunchbox: wait TCH5 release\n");
+        while (pt8028_boot_tch5_down()) {
+            WDT_CLR();
+            delay_5ms(1);
         }
+#elif !PWRKEY_2_HW_PWRON
+        while (IS_PWRKEY_PRESS()) {     //等待PWRKWY松开
+            delay_5ms(1);
+            WDT_CLR();
+        }
+#endif
         u8 dac_status = dac_get_power_status();
         if (dac_status) {
             dac_power_off();                    //dac power down
@@ -968,16 +970,6 @@ void func_pwroff(int pwroff_tone_en)
                 return;
             }
         }
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-        while (pt8028_boot_tch5_down()) {
-            WDT_CLR();
-            delay_5ms(1);
-        }
-        if (elunchbox_take_key_pwroff()) {
-            elunchbox_pwroff_idle_loop();
-            return;
-        }
-#endif
         bsp_saradc_exit();                  //close saradc及相关通路模拟
         if ((PWRKEY_2_HW_PWRON) && (sys_cb.poweron_flag)) {
             RTCCON1 |= BIT(6);              //WK PIN High level wakeup

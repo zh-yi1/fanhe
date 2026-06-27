@@ -1627,7 +1627,6 @@ void pt8028_set_home_msg_block(u8 en)
 #if ELUNCHBOX_PANEL_EN
 bool func_key_lock_ku_blocked(u16 msg);
 bool elunchbox_pwr_gui_off_is_on(void);
-void elunchbox_pwr_gui_wake(void);
 #endif
 
 AT(.text.bsp.pt8028)
@@ -1661,10 +1660,7 @@ void pt8028_key_scan(void)
 #endif
 #if ELUNCHBOX_PANEL_EN
     if (sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off_is_on()) {
-        /* 硬关机后由 power_on_check 长按 3s 开机；开机息屏：短按开关键仅亮屏 */
-        if ((key & KEY_USAGE_MASK) == KEY_RIGHT) {
-            elunchbox_pwr_gui_wake();
-        }
+        /* 关机态仅 TCH5 长按 3s 由 func_elunchbox_pwr_long_poll 亮屏 */
         return;
     }
 #endif

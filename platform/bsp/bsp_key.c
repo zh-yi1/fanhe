@@ -60,23 +60,6 @@ u8 bsp_pwrkey_get_usage_id(void)
 #endif
 }
 
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-static void bsp_elunchbox_pwrdown_again(void)
-{
-    bsp_saradc_exit();
-#if !LP_XOSC_CLOCK_EN
-    if (cm_read8(PARAM_RTC_CAL_VALID) == 1) {
-        sniff_rc_init();
-        rtc_calibration_read(PARAM_RTC_CAL_ADDR);
-        rtc_sleep_process();
-        rtc_printf();
-    }
-    sys_clk_set(SYS_24M);
-#endif
-    sfunc_pwrdown(1);
-}
-#endif
-
 bool power_off_check(void)
 {
 #if CHARGE_EN
@@ -337,11 +320,6 @@ void power_on_check(void)
                 pt8028_pwr_long_consume();
             }
         } else {
-            if (pt8028_pwron_hold_ms > 0 && pt8028_pwron_hold_ms < PT8028_PWR_LONG_MS) {
-                if (!CHARGE_DC_IN()) {
-                    bsp_elunchbox_pwrdown_again();
-                }
-            }
             pt8028_pwron_hold_ms = 0;
         }
 #endif
