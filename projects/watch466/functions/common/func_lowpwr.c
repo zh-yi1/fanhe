@@ -218,7 +218,7 @@ uint32_t sleep_timer(void)
 	sleep_ble_param_check();
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    if (elunchbox_guioff_in_sleep_mode()) {
+    if (elunchbox_guioff_in_sleep_mode() && !elunchbox_pwr_is_manual_off()) {
         elunchbox_guioff_sleep_service();
     }
 #endif
@@ -294,6 +294,9 @@ bool sfunc_sleep_proc(void)
         wko_wkup_flag = port_wko_is_wakeup();
 
         port_int_sleep_process(&wkpnd);
+#if ELUNCHBOX_PANEL_EN
+        if (!elunchbox_pwr_is_manual_off())
+#endif
         bsp_sensor_step_lowpwr_pro();
 
         if (wkpnd) {
@@ -341,8 +344,10 @@ static void sfunc_sleep(void)
     bool gui_need_wkp = false;
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     bool elunchbox_guioff_slp = elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta;
+    bool elunchbox_manual_off_slp = elunchbox_guioff_slp && elunchbox_pwr_is_manual_off();
 #else
     bool elunchbox_guioff_slp = false;
+    bool elunchbox_manual_off_slp = false;
 #endif
 #if LE_EN
     u16 interval = 0;
@@ -382,13 +387,22 @@ static void sfunc_sleep(void)
     while(btstack_audio_is_busy());
 #if LE_EN
     adv_interval = ble_get_adv_interval();
-    ble_set_adv_interval(1600);                  //interval: 500 * 0.625ms = 500ms
-    if (ble_is_connect()) {                     //ble已连接
-        interval = ble_get_conn_interval();
-        latency = ble_get_conn_latency();
-        tout = ble_get_conn_timeout();
-        ble_update_conn_param(410, 0, 500);     //interval: 410*1.25ms = 512.5ms
+    if (elunchbox_manual_off_slp) {
+        ble_adv_dis();
+    } else {
+        ble_set_adv_interval(1600);                  //interval: 500 * 0.625ms = 500ms
+        if (ble_is_connect()) {                     //ble已连接
+            interval = ble_get_conn_interval();
+            latency = ble_get_conn_latency();
+            tout = ble_get_conn_timeout();
+            ble_update_conn_param(410, 0, 500);     //interval: 410*1.25ms = 512.5ms
+        }
     }
+#endif
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_manual_off_slp && !bt_is_connected()) {
+        bt_scan_disable();
+    } else
 #endif
 #if BT_SINGLE_SLEEP_LPW_EN
     if (!bt_is_connected()){                    //蓝牙未连接
@@ -483,7 +497,11 @@ static void sfunc_sleep(void)
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_guioff_slp) {
-        GPIOBDE = BIT(3) | BIT(8) | BIT(9);     //PB3 日志 / PB8 PB9 UART1
+        if (elunchbox_manual_off_slp) {
+            GPIOBDE = BIT(3);                   /* 仅日志口，UART1(PB8/PB9)掉电 */
+        } else {
+            GPIOBDE = BIT(3) | BIT(8) | BIT(9); /* PB3 日志 / PB8 PB9 UART1 */
+        }
         GPIOEDE = (BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4)); //PT8028 PE0~PE4
         GPIOFDE = 0;
     } else
@@ -538,10 +556,20 @@ static void sfunc_sleep(void)
     USBCON0 = usbcon0;
     USBCON1 = usbcon1;
 
-    bt_update_bt_scan_param_default();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_manual_off_slp || gui_need_wkp)
+#endif
+    {
+        bt_update_bt_scan_param_default();
 #if BT_SINGLE_SLEEP_LPW_EN
-    if(!bt_is_connected() && bt_get_scan()){    //单模
-        bt_scan_enable();
+        if(!bt_is_connected() && bt_get_scan()){    //单模
+            bt_scan_enable();
+        }
+#endif
+    }
+#if ELUNCHBOX_PANEL_EN
+    else if (!bt_is_connected()) {
+        bt_scan_disable();
     }
 #endif
 #if SD_SUPPORT_EN
@@ -609,9 +637,13 @@ static void sfunc_sleep(void)
     }
 
 #if LE_EN
-    ble_set_adv_interval(adv_interval);
-    if (interval | latency | tout) {
-        ble_update_conn_param(interval, latency, tout); //还原连接参数
+    if (elunchbox_manual_off_slp && !gui_need_wkp) {
+        ble_adv_dis();
+    } else {
+        ble_set_adv_interval(adv_interval);
+        if (interval | latency | tout) {
+            ble_update_conn_param(interval, latency, tout); //还原连接参数
+        }
     }
 #endif
 

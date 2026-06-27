@@ -273,6 +273,14 @@ static void elunchbox_pwr_manual_shutdown(void)
     /* 手动关机进一步降功耗：关闭BLE广播（唤醒时恢复） */
     ble_adv_dis();
 #endif
+#if BT_BACKSTAGE_EN
+    if (!bt_is_connected()) {
+        bt_scan_disable();
+    }
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_uart_suspend();
+#endif
 
     printf("elunchbox: TCH5 long -> manual off (low power)\n");
 }
@@ -282,9 +290,13 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
     elunchbox_guioff_sleep_mode = 0;
     pt8028_port_gpio_init();
     pt8028_key_scan();
-    elunchbox_guioff_sleep_service();
+    if (!elunchbox_pwr_is_manual_off()) {
+        elunchbox_guioff_sleep_service();
+    }
     if (key_wake) {
         elunchbox_guioff_sleep_delay_reset();
+    } else if (elunchbox_pwr_is_manual_off()) {
+        elunchbox_guioff_sleep_delay = 0;   /* 手动关机：浅睡返回后立即再入睡 */
     } else {
         elunchbox_guioff_sleep_delay_rearm();
     }
@@ -345,6 +357,7 @@ static void elunchbox_screen_wake(void)
 #endif
 #if FUNC_LUNCHBOX_UART_EN
     if (was_manual) {
+        lunchbox_uart_resume();
         lunchbox_power_on();
         elunchbox_boot_power_sent = true;
     }
@@ -365,6 +378,9 @@ static void elunchbox_screen_wake(void)
 #if LE_EN
     /* 从手动关机唤醒时恢复BLE广播 */
     ble_adv_en();
+#endif
+#if BT_BACKSTAGE_EN
+    bt_update_bt_scan_param_default();
 #endif
 
 #if USER_PANEL_LED
@@ -485,6 +501,27 @@ void func_process(void)
     bool guioff = elunchbox_is_guioff();
 #else
     bool guioff = sys_cb.gui_sleep_sta;
+#endif
+
+#if ELUNCHBOX_PANEL_EN
+    /* 手动关机：仅保留按键唤醒检测并尽快回到 sfunc_sleep，跳过其余主循环 */
+    if (guioff && elunchbox_pwr_is_manual_off()) {
+        WDT_CLR();
+        {
+            static u32 last_manual_scan;
+            if (tick_check_expire(last_manual_scan, 200)) {
+                last_manual_scan = tick_get();
+                pt8028_gpio_ensure_periodic();
+                pt8028_key_scan();
+                func_elunchbox_guioff_wake_poll();
+            }
+        }
+#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
+        func_elunchbox_pwr_long_poll();
+#endif
+        sleep_process(bt_is_allow_sleep);
+        return;
+    }
 #endif
 
     if (gui_get_auto_power_en() && !guioff) {

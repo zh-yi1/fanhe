@@ -261,6 +261,12 @@ typedef u8 (*lb_cmd_handler_t)(lb_rx_frame_t *rx);
  */
 void lunchbox_uart_init(u32 baud);
 
+/** @brief 手动关机时关闭 UART1 硬件以降低功耗；唤醒后调用 lunchbox_uart_resume() */
+void lunchbox_uart_suspend(void);
+
+/** @brief 从手动关机唤醒后恢复 UART1 */
+void lunchbox_uart_resume(void);
+
 /**
  * @brief 主循环处理（需在 func_process 或主循环中轮询调用）
  *
