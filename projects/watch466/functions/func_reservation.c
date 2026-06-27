@@ -1037,20 +1037,18 @@ static void func_res_display_refresh(f_reservation_t *f_res)
         m_white = (f_res->focus == RES_FOCUS_HEAT_MIN);
         t_white = (f_res->focus == RES_FOCUS_HEAT_TEMP);
     } else {
+        temp = func_res_get_target_temp_f(f_res->temp_idx);
 #if FUNC_LUNCHBOX_UART_EN
         if (f_res->live_heat_ready) {
             hour = (u8)(f_res->live_remain_min / 60);
             min = (u8)(f_res->live_remain_min % 60);
-            temp = f_res->live_temp_f;
         } else {
             hour = (u8)(f_res->heat_remain_sec / 3600);
             min = (u8)((f_res->heat_remain_sec % 3600) / 60);
-            temp = f_res->display_temp_f;
         }
 #else
         hour = (u8)(f_res->heat_remain_sec / 3600);
         min = (u8)((f_res->heat_remain_sec % 3600) / 60);
-        temp = f_res->display_temp_f;
 #endif
         h_white = true;
         m_white = true;
@@ -1530,13 +1528,7 @@ static void func_res_heating_tick(f_reservation_t *f_res)
     }
 
     target = func_res_get_target_temp_f(f_res->temp_idx);
-    if (f_res->heat_total_sec > 0) {
-        u32 elapsed = f_res->heat_total_sec - f_res->heat_remain_sec;
-
-        f_res->display_temp_f = (u16)((u32)target * elapsed / f_res->heat_total_sec);
-    } else {
-        f_res->display_temp_f = target;
-    }
+    f_res->display_temp_f = target;
 
     if (f_res->heat_remain_sec == 0) {
         f_res->live_heat_ready = true;

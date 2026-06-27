@@ -651,14 +651,13 @@ static void func_heat_display_refresh(f_heat_t *f_heat)
         m_white = (f_heat->focus == HEAT_FOCUS_MIN);
         t_white = (f_heat->focus == HEAT_FOCUS_TEMP);
     } else if (f_heat->ui_state == HEAT_UI_HEATING) {
+        temp = func_heat_get_target_temp_f(f_heat);
         if (f_heat->heat_live_ready) {
             hour = (u8)(f_heat->heat_live_remain_min / 60);
             min = (u8)(f_heat->heat_live_remain_min % 60);
-            temp = f_heat->heat_live_temp_f;
         } else {
             hour = f_heat->set_hour;
             min = f_heat->set_min;
-            temp = func_heat_get_target_temp_f(f_heat);
         }
         h_white = true;
         m_white = true;

@@ -893,22 +893,20 @@ static void func_mode_display_refresh(f_mode_t *f_mode)
     }
 
     if (f_mode->ui_state == MODE_UI_HEATING) {
+        const mode_tab_preset_t *preset = &tbl_mode_tab_preset[f_mode->tab];
+
+        temp_f = preset->temp_f;
 #if FUNC_LUNCHBOX_UART_EN
         if (f_mode->heat_live_ready) {
             hour = (u8)(f_mode->heat_live_remain_min / 60);
             min = (u8)(f_mode->heat_live_remain_min % 60);
-            temp_f = f_mode->heat_live_temp_f;
         } else {
-            const mode_tab_preset_t *preset = &tbl_mode_tab_preset[f_mode->tab];
-
             hour = preset->hour;
             min = preset->min;
-            temp_f = preset->temp_f;
         }
 #else
         hour = (u8)(mode_countdown_remain_sec / 3600);
         min = (u8)((mode_countdown_remain_sec % 3600) / 60);
-        temp_f = tbl_mode_tab_preset[f_mode->tab].temp_f;
 #endif
         if (hour > 99) {
             hour = 99;
