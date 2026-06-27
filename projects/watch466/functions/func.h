@@ -164,6 +164,7 @@ enum {
 
 /** @brief 加热自然结束后：UART 开启保温(140°F)并进入模式页 Insulation 界面 */
 void func_mode_keep_warm_enter(void);
+bool func_mode_ui_is_heating(void);
 
 //task control block
 typedef struct {
@@ -234,6 +235,7 @@ void func_elunchbox_switch_to_reservation(void);
 void func_elunchbox_res_key_poll(void);
 void func_elunchbox_switch_to_heat(void);
 void func_heat_key_poll(void);
+bool func_heat_ui_is_heating(void);
 bool elunchbox_pwr_gui_off_is_on(void);
 bool elunchbox_pwr_is_manual_off(void);
 void elunchbox_pwr_gui_off_activate(void);

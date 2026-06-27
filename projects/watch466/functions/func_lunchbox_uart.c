@@ -13,6 +13,7 @@
 #include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
+#include "func.h"
 #endif
 #include "bsp_vbat.h"
 
@@ -611,6 +612,7 @@ static u8 lb_mode_duration[6] = { 0, 30, 45, 20, 30, 0 }; // 默认: 自定义30
 
 static bool lb_keep_warm_active = false;
 static bool lb_heat_task_active;    /* 桥/本地：加热模块正在加热（含 UART 异步上报） */
+static bool lb_heat_lcd_active;     /* LCD 已下发加热/保温，至 stop 或 MCU 确认结束 */
 
 /** @brief 从 UART DataPoint 同步加热任务状态 */
 static void lb_heating_sync_from_dp(u8 *data, u16 len)
@@ -651,19 +653,25 @@ static void lb_heating_sync_from_dp(u8 *data, u16 len)
         }
         off += 4 + val_len;
     }
-    if (got_enable) {
-        lb_heat_task_active = heating;
-        if (!heating) {
+    if (got_enable && heating) {
+        lb_heat_task_active = true;
+    } else if (got_remain) {
+        lb_heat_task_active = (remain > 0);
+        if (remain == 0) {
+            lb_heat_lcd_active = false;
             lb_keep_warm_active = false;
         }
-    } else if (got_remain && remain > 0) {
-        lb_heat_task_active = true;
+    } else if (got_enable && !heating && got_remain && remain == 0) {
+        lb_heat_task_active = false;
+        lb_heat_lcd_active = false;
+        lb_keep_warm_active = false;
     }
+    /* 仅 enable=0 且无 remain 的局部 DP 不覆盖本地加热态，避免误触息屏 */
 }
 
 bool lunchbox_heating_task_active(void)
 {
-    if (lb_keep_warm_active || lb_heat_task_active) {
+    if (lb_heat_lcd_active || lb_keep_warm_active || lb_heat_task_active) {
         return true;
     }
 #if !LB_BRIDGE_MODE
@@ -765,6 +773,7 @@ static void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
     lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
+    lb_heat_lcd_active = true;
     lb_heat_task_active = true;
     u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
     u8 data[64];
@@ -782,6 +791,13 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 
     u16 data_len = (u16)(p - data);
     lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
+
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
+        elunchbox_pwr_gui_wake();
+    }
+    elunchbox_user_activity_reset();
+#endif
 
     // 更新本地属性 (本地模式) 或仅通知 APP
 #if !LB_BRIDGE_MODE
@@ -801,6 +817,7 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 void lunchbox_heat_stop(void)
 {
     lb_keep_warm_active = false;
+    lb_heat_lcd_active = false;
     lb_heat_task_active = false;
     u32 ts = RTCCNT + LB_RTC_UNIX_OFFSET;
     u8 data[32];

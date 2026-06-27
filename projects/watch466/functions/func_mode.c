@@ -1609,6 +1609,17 @@ void func_mode_exit(void)
     func_cb.last = FUNC_MODE;
 }
 
+bool func_mode_ui_is_heating(void)
+{
+    f_mode_t *f_mode;
+
+    if (func_cb.sta != FUNC_MODE || func_cb.f_cb == NULL) {
+        return false;
+    }
+    f_mode = (f_mode_t *)func_cb.f_cb;
+    return f_mode->ui_state == MODE_UI_HEATING || mode_in_keep_warm_ui;
+}
+
 #if ELUNCHBOX_PANEL_EN
 static u8 mode_idle_preload_step;
 

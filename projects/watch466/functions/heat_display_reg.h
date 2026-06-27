@@ -43,6 +43,9 @@ void heat_display_show_all(u32 schedule_min, u32 remain_min, u16 temp_f);
 /** 读取最近一次推送的数据 */
 bool heat_display_get_last(heat_display_info_t *out);
 
+/** 最近一次推送显示加热剩余时间 > 0（UART 已确认在加热） */
+bool heat_display_heating_active(void);
+
 /**
  * @brief 从 DataPoint 数组提取剩余时间/温度/加热使能，推送给已注册的显示回调
  *

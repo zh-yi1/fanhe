@@ -466,6 +466,11 @@ bool func_reservation_is_active(void)
            (g_res.phase == RES_PHASE_WAITING || g_res.phase == RES_PHASE_HEATING);
 }
 
+bool func_reservation_is_heating(void)
+{
+    return g_res.setup_done && (g_res.phase == RES_PHASE_HEATING);
+}
+
 #if USER_PANEL_LED
 static void func_reservation_led_sync(void)
 {

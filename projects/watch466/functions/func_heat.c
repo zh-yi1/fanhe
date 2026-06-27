@@ -1118,6 +1118,17 @@ void func_heat_exit(void)
     func_cb.last = FUNC_HEAT;
 }
 
+bool func_heat_ui_is_heating(void)
+{
+    f_heat_t *f_heat;
+
+    if (func_cb.sta != FUNC_HEAT || func_cb.f_cb == NULL) {
+        return false;
+    }
+    f_heat = (f_heat_t *)func_cb.f_cb;
+    return f_heat->ui_state == HEAT_UI_HEATING;
+}
+
 #if ELUNCHBOX_PANEL_EN
 static bool func_heat_key_page_ok(void)
 {

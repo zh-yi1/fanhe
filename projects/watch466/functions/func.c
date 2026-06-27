@@ -3,6 +3,7 @@
 #include "func_tbl.h"
 #include "func.h"
 #include "func_reservation.h"
+#include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 /* ELUNCHBOX 模式：TE block 标志声明 */
@@ -212,7 +213,16 @@ bool elunchbox_heating_blocks_idle(void)
         return true;
     }
 #endif
-    if (func_home_heating_countdown_active()) {
+    if (heat_display_heating_active()) {
+        return true;
+    }
+    if (func_reservation_is_heating()) {
+        return true;
+    }
+    if (func_cb.sta == FUNC_HEAT && func_heat_ui_is_heating()) {
+        return true;
+    }
+    if (func_cb.sta == FUNC_MODE && func_mode_ui_is_heating()) {
         return true;
     }
     return false;

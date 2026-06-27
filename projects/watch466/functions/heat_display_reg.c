@@ -34,6 +34,11 @@ bool heat_display_get_last(heat_display_info_t *out)
     return true;
 }
 
+bool heat_display_heating_active(void)
+{
+    return heat_display_has_last && heat_display_last.remain_min > 0;
+}
+
 void heat_display_show_schedule(u32 schedule_min)
 {
     if (schedule_min > 5999) {
