@@ -225,6 +225,11 @@ void elunchbox_pwr_gui_off_activate(void)
     elunchbox_pwr_gui_off = true;
     sys_cb.gui_need_wakeup = 0;
     elunchbox_guioff_sleep_delay_reset();
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_keep_warm_stop();
+    lunchbox_power_off();
+#endif
+    elunchbox_boot_power_sent = false;
 }
 
 void elunchbox_guioff_sleep_post_wake(bool key_wake)
@@ -304,6 +309,10 @@ static void func_elunchbox_pwr_long_poll(void)
     if (elunchbox_is_guioff()) {
         printf("elunchbox: TCH5 long -> wake\n");
         elunchbox_pwr_gui_wake();
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_power_on();
+        elunchbox_boot_power_sent = true;
+#endif
     } else {
         printf("elunchbox: TCH5 long -> guioff\n");
         elunchbox_pwr_gui_off_activate();
