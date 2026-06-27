@@ -112,9 +112,9 @@
 #define HEAT_STATUS_BT_X                  (HEAT_STATUS_LOCK_X - HOME_STATUS_LOCK_W / 2 - HEAT_STATUS_GAP - HOME_STATUS_BT_W / 2)
 
 #define HEAT_LOCK_MS                      30000
-#define HEAT_TEMP_PRESET_CNT              5
+#define HEAT_TEMP_PRESET_CNT              7
 #define HEAT_MIN_STEP                     5
-#define HEAT_DEFAULT_TEMP_IDX             3       /* 194°F */
+#define HEAT_DEFAULT_TEMP_IDX             5       /* 194°F (90°C) */
 #define HEAT_MSG_OK                       KU_BACK
 #define HEAT_MSG_PLUS                     KU_VOL_UP
 #define HEAT_MSG_MINUS                    KU_VOL_DOWN
@@ -202,7 +202,7 @@ typedef struct f_heat_t_ {
 } f_heat_t;
 
 static const u16 tbl_heat_temp_preset[HEAT_TEMP_PRESET_CNT] = {
-    140, 158, 176, 194, 212,
+    104, 122, 140, 158, 176, 194, 212,
 };
 
 static u8 heat_temp_digit_ram[HEAT_TEMP_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
@@ -1044,7 +1044,7 @@ void func_heat_enter(void)
             f_heat->ui_state   = HEAT_UI_SETUP;
             f_heat->set_hour   = 1;
             f_heat->set_min    = 0;
-            f_heat->temp_idx   = 2;
+            f_heat->temp_idx   = 4;    // 176°F (80°C)
             f_heat->proto_mode = 1;
         }
     }

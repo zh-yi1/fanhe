@@ -537,7 +537,7 @@ void ble_app_watch_process(void)
     u16 handle = ble_cmd_cb.cmd[rptr].handle;          //取出特征值 handle —— 数据是从哪个 GATT Characteristic 写入的。
 
     if (handle == gatts_rx_base.handle) {              //判断通道
-        ble_app_blue_fit_rx_callback(ptr, len);
+        ble_app_blue_fit_rx_callback(ptr, len);        // → 饭盒协议帧 0x55AA
     }
 #if SECURITY_PAY_EN
     if (handle == alipay_gatts_tx_base.handle) {

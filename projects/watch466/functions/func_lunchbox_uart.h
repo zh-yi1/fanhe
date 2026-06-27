@@ -45,7 +45,7 @@ enum {
     LB_DPID_CHARGE_STATUS   = 4,        // 充电状态: enum, 0=未充电 1=充电中 2=已充满
     LB_DPID_HEAT_DURATION   = 5,        // 加热时长: value(4B), 60~210 分钟
     LB_DPID_REMAIN_TIME     = 6,        // 剩余加热时间: value(4B), 分钟
-    LB_DPID_HEAT_TEMP       = 7,        // 加热温度: enum, 0=40°C ~ 5=90°C
+    LB_DPID_HEAT_TEMP       = 7,        // 加热温度: enum, 0=40°C ~ 6=100°C
     LB_DPID_LANGUAGE        = 8,        // 语言: enum, 0=中文 1=英文...
     LB_DPID_FAULT           = 9,        // 故障: enum, 0=正常 1=高温告警
     LB_DPID_HEAT_ENABLE     = 10,       // 是否加热: bool, 0=停止 1=加热 (v1.0.5 新增)
@@ -349,7 +349,7 @@ void lunchbox_report_attr(u8 dpid);
 
 /** @brief LCD 启动加热 — 构造 UART 0x03 帧发给加热模块
  *  @param mode     加热模式: 1=自定义, 2=鸡腿, 3=意面, 4=预约, 5=保温
- *  @param temp     温度档位: 0=40°C ~ 5=90°C
+ *  @param temp     温度档位: 0=40°C ~ 6=100°C
  *  @param duration 加热时长(分钟) */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration);
 
@@ -400,7 +400,7 @@ u8 lunchbox_mode_get_temp(u8 mode);
 /** @brief 获取指定模式的预设加热时长(分钟) */
 u8 lunchbox_mode_get_duration(u8 mode);
 
-/** @brief 华氏度转温度档位 (0=40°C ~ 5=90°C) */
+/** @brief 华氏度转温度档位 (0=40°C ~ 6=100°C, 取最近档位) */
 u8 lunchbox_temp_f_to_idx(u16 temp_f);
 
 /** @brief 获取当前加热模式 (无本地缓存时返回0) */

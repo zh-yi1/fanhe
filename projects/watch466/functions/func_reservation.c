@@ -153,7 +153,7 @@
 #define RES_HEAT_TIMER_TR_M1_X            ((s16)((s32)283 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 
 #define RES_HEAT_LOCK_MS                  30000
-#define RES_TEMP_PRESET_CNT               5
+#define RES_TEMP_PRESET_CNT               7
 #define RES_MIN_STEP                      5
 #define RES_APPT_MIN_TOTAL_MIN            (1 * 60 + 0)
 #define RES_MSG_OK                        KU_BACK
@@ -299,7 +299,7 @@ static u16 func_res_gpu_pic_h(const u8 *ram)
 }
 
 static const u16 tbl_res_temp_preset[RES_TEMP_PRESET_CNT] = {
-    140, 158, 176, 194, 212,
+    104, 122, 140, 158, 176, 194, 212,
 };
 
 static const u32 tbl_res_w_digit_addr[10] = {
@@ -1942,7 +1942,7 @@ void func_reservation_enter(void)
         f_res->appt_min = 0;
         f_res->heat_hour = 1;
         f_res->heat_min = 0;
-        f_res->temp_idx = 3;
+        f_res->temp_idx = 5;    // 194°F (90°C)
     }
 
     /* 确保预约时间范围：默认1小时，最高23小时（进入时夹紧，防止旧数据或外部设置导致越界） */
