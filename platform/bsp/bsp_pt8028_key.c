@@ -1660,7 +1660,7 @@ void pt8028_key_scan(void)
 #endif
 #if ELUNCHBOX_PANEL_EN
     if (sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off_is_on()) {
-        /* 关机态仅 TCH5 长按 3s 由 func_elunchbox_pwr_long_poll 亮屏 */
+        /* 息屏：1.5s 唤醒(自动息屏) / 3s 唤醒(手动关机) 见 func.c */
         return;
     }
 #endif
