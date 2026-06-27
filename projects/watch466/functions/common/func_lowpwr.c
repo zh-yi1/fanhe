@@ -659,6 +659,10 @@ bool sleep_process(is_sleep_func is_sleep)
         bool force_lowpwr = elunchbox_pwr_is_manual_off();
         if ((elunchbox_guioff_sleep_ready() && (*is_sleep)()) || force_lowpwr) {
             sfunc_sleep();
+#if LE_EN
+            /* 确保在手动关机浅睡的每次唤醒后都关闭广播，避免BT栈在sleep_exit时重新打开导致功耗升高 */
+            ble_adv_dis();
+#endif
             reset_sleep_delay_all();
             reset_pwroff_delay();
             return false;

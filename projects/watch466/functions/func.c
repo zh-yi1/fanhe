@@ -190,10 +190,14 @@ bool elunchbox_guioff_in_sleep_mode(void)
 void elunchbox_guioff_sleep_service(void)
 {
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_uart_process();
-    lunchbox_keep_warm_poll();
+    if (!elunchbox_pwr_is_manual_off()) {
+        lunchbox_uart_process();
+        lunchbox_keep_warm_poll();
+    }
 #endif
-    func_reservation_poll();
+    if (!elunchbox_pwr_is_manual_off()) {
+        func_reservation_poll();
+    }
 }
 
 void elunchbox_guioff_sleep_mode_enter(void)
@@ -264,6 +268,12 @@ static void elunchbox_pwr_manual_shutdown(void)
     elunchbox_pwr_manual_off = true;
     sys_cb.gui_need_wakeup = 0;
     elunchbox_guioff_sleep_delay = 0;     /* 立即允许进 sfunc_sleep 进一步降功耗 */
+
+#if LE_EN
+    /* 手动关机进一步降功耗：关闭BLE广播（唤醒时恢复） */
+    ble_adv_dis();
+#endif
+
     printf("elunchbox: TCH5 long -> manual off (low power)\n");
 }
 
@@ -351,6 +361,12 @@ static void elunchbox_screen_wake(void)
      */
     func_home_force_ui_refresh_after_wake();
 #endif
+
+#if LE_EN
+    /* 从手动关机唤醒时恢复BLE广播 */
+    ble_adv_en();
+#endif
+
 #if USER_PANEL_LED
     panel_led_scan();
 #endif
@@ -383,10 +399,15 @@ static bool elunchbox_is_guioff(void)
 static void elunchbox_guioff_idle_process(void)
 {
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_uart_process();
-    lunchbox_keep_warm_poll();
+    /* 手动关机状态彻底停止与加热模块的UART交互，进一步降低功耗 */
+    if (!elunchbox_pwr_is_manual_off()) {
+        lunchbox_uart_process();
+        lunchbox_keep_warm_poll();
+    }
 #endif
-    func_reservation_poll();
+    if (!elunchbox_pwr_is_manual_off()) {
+        func_reservation_poll();
+    }
 }
 
 static void func_elunchbox_guioff_wake_poll(void)
@@ -549,8 +570,18 @@ void func_process(void)
 #if ELUNCHBOX_PANEL_EN
         elunchbox_guioff_idle_process();
         pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        func_elunchbox_guioff_wake_poll();
+        /* 手动关机时降低按键扫描频率以进一步降功耗；唤醒检测仍保证3s长按 */
+        if (elunchbox_pwr_is_manual_off()) {
+            static u32 last_manual_scan;
+            if (tick_check_expire(last_manual_scan, 80)) {   /* ~80ms 采样，足够检测3s长按 */
+                last_manual_scan = tick_get();
+                pt8028_key_scan();
+                func_elunchbox_guioff_wake_poll();
+            }
+        } else {
+            pt8028_key_scan();
+            func_elunchbox_guioff_wake_poll();
+        }
 #endif
     }
 
@@ -565,11 +596,13 @@ void func_process(void)
 //    }
 //#endif//OPUS_ENC_EN
 
-    co_timer_pro(false);
-    bsp_sensor_step_pro_isr();
+    if (!elunchbox_pwr_is_manual_off()) {
+        co_timer_pro(false);
+        bsp_sensor_step_pro_isr();
 
-    if (sys_cb.mp3_res_playing) {
-        mp3_res_process();                                 //提示音后台处理
+        if (sys_cb.mp3_res_playing) {
+            mp3_res_process();                                 //提示音后台处理
+        }
     }
 
     if (sleep_process(bt_is_allow_sleep)) {
@@ -580,7 +613,9 @@ void func_process(void)
 #endif
 
 #if VBAT_DETECT_EN
-    bsp_vbat_lpwr_process();
+    if (!elunchbox_pwr_is_manual_off()) {
+        bsp_vbat_lpwr_process();
+    }
 #endif
 
 #if BT_BACKSTAGE_EN
@@ -602,7 +637,7 @@ void func_process(void)
     }
 #endif // CHARGE_EN
 
-    if(bt_cb.bt_is_inited) {
+    if(bt_cb.bt_is_inited && !elunchbox_pwr_is_manual_off()) {
         bt_thread_check_trigger(); //经典蓝牙线程
 #if LE_EN
         ble_app_process();
@@ -620,22 +655,30 @@ void func_process(void)
 //#endif
 
 #if ASR_SELECT
-    bsp_asr_process();
+    if (!elunchbox_pwr_is_manual_off()) {
+        bsp_asr_process();
+    }
 #endif
 
 #if SENSOR_HUB_EN
-    bsp_sensorhub_process();
+    if (!elunchbox_pwr_is_manual_off()) {
+        bsp_sensorhub_process();
+    }
 #endif
 
 #if VBAT_ADC_EN
-    static u32 ticks = 0;
-    u32 vadc_process(void);
-    if (tick_check_expire(ticks, 500)) {
-        ticks = tick_get();
-        /*u32 val = */vadc_process();
-//        printf("vadc:%d uv, vbat:%d mv\n", val, sys_cb.vbat);
-//        void vadc_test(void);
-//        vadc_test();
+    {
+        static u32 ticks = 0;
+        if (!elunchbox_pwr_is_manual_off()) {
+            u32 vadc_process(void);
+            if (tick_check_expire(ticks, 500)) {
+                ticks = tick_get();
+                /*u32 val = */vadc_process();
+        //        printf("vadc:%d uv, vbat:%d mv\n", val, sys_cb.vbat);
+        //        void vadc_test(void);
+        //        vadc_test();
+            }
+        }
     }
 #endif
 
