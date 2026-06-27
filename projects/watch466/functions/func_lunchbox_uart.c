@@ -229,11 +229,9 @@ static bool lb_frame_parse(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.data && rx.data_len > 0) {
-        if (!lb_data_is_key_notify(rx.data, rx.data_len)) {
-            //printf("Trigger==>heat_display_feed_dp:%d\n",__LINE__);
-            heat_display_feed_dp(rx.data, rx.data_len);
-            home_ui_shared_battery_feed_dp(rx.data, rx.data_len);
-        }
+        //printf("Trigger==>heat_display_feed_dp:%d\n",__LINE__);
+        heat_display_feed_dp(rx.data, rx.data_len);
+        home_ui_shared_battery_feed_dp(rx.data, rx.data_len);
     }
 #endif
 
@@ -599,14 +597,19 @@ void lunchbox_set_device_info(lb_device_info_t *info) { if (info) memcpy(&lb_dev
 // 直接构造 UART 帧发往加热模块，不依赖 BLE→UART 翻译路径
 //-----------------------------------------------------------------------------
 
-/** @brief 华氏度 → 温度档位 (0=40°C ~ 5=90°C) */
+/** @brief 华氏度 → 温度档位 (协议: 0=40°C ~ 6=100°C, 取最近档位) */
 u8 lunchbox_temp_f_to_idx(u16 temp_f)
 {
-    if (temp_f == 140) return 1;      // 140°F:  档位1 (60°C)
-    if (temp_f == 158) return 2;      // 158°F:  档位2 (70°C)
-    if (temp_f == 176) return 3;      // 176°F:  档位3 (80°C)
-    if (temp_f == 194) return 4;      // 194°F:  档位4 (90°C)
-    if (temp_f == 212) return 5;      // 212°F:  档位5 (100°C)
+    // 40°C=104°F, 50°C=122°F, 60°C=140°F, 70°C=158°F,
+    // 80°C=176°F, 90°C=194°F, 100°C=212°F
+    // 按相邻档位中点取最近匹配
+    if (temp_f <= 113) return 0;      // ~40°C
+    if (temp_f <= 131) return 1;      // ~50°C
+    if (temp_f <= 149) return 2;      // ~60°C
+    if (temp_f <= 167) return 3;      // ~70°C
+    if (temp_f <= 185) return 4;      // ~80°C
+    if (temp_f <= 203) return 5;      // ~90°C
+    return 6;                         // 100°C
 }
 
 u8 lunchbox_mode_get_temp(u8 mode) {
@@ -1762,16 +1765,16 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
     // BLE 协议含 target 字段区分升级目标, MCU UART 协议不含此字段
     case LB_CMD_OTA_START: {
         // BLE: [target:1B][fw_size:4B BE]
-        // UART: [offset=0x00000000:4B]  (offset=0 表示升级开始)
+        // UART: [offset=0xFFFFFFFF:4B]  (app模式下发此命令让MCU复位进入boot模式)
+        // 备注: offset=0 表示升级开始(第一条数据指令), 由首个 OTA_DATA 携带
         if (!rx->data || rx->data_len < 5) return false;
 
-        memset(out_data, 0, 4);
+        memset(out_data, 0xFF, 4);
         *out_len = 4;
 
-        // 初始化 CRC32 累加器 (起始值 0xffffffff)
+        // 初始化 CRC32 累加器 (起始值 0xffffffff, 仅对固件数据计算, 不含offset)
         lb_ota_uart_crc32 = 0xffffffff;
         lb_ota_uart_crc_active = true;
-        lb_ota_uart_crc32 = lb_crc32(out_data, 4, lb_ota_uart_crc32);
         return true;
     }
     case LB_CMD_OTA_DATA: {
@@ -1783,9 +1786,9 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
         memcpy(out_data, rx->data + 1, copy_len);  // 跳过 target
         *out_len = copy_len;
 
-        // CRC32 累加: offset + 数据
+        // CRC32 累加: 仅对固件数据计算, 不含offset字段(前4字节)
         if (lb_ota_uart_crc_active) {
-            lb_ota_uart_crc32 = lb_crc32(out_data, copy_len, lb_ota_uart_crc32);
+            lb_ota_uart_crc32 = lb_crc32(out_data + 4, copy_len - 4, lb_ota_uart_crc32);
         }
         return true;
     }

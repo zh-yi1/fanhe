@@ -102,13 +102,13 @@ void heat_display_show_all(u32 schedule_min, u32 remain_min, u16 temp_f)
     heat_display_notify();
 }
 
-/** @brief 温度档位 → 华氏度 (0=40°C ~ 5=90°C) */
+/** @brief 温度档位 → 华氏度 (协议: 0=40°C ~ 6=100°C) */
 static u16 heat_display_temp_idx_to_f(u8 idx)
 {
     u16 temp_c;
 
-    if (idx > 5) {
-        idx = 5;
+    if (idx > 6) {
+        idx = 6;
     }
     temp_c = 40 + (u16)idx * 10;
     return (u16)(temp_c * 9 / 5 + 32);
