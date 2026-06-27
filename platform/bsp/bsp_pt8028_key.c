@@ -811,13 +811,7 @@ static void pt8028_emit_press(u8 tch)
         pt8028_queue_edge(0, tch, 0);
         pt8028_queue_key(tch, key, (u16)(key | KEY_SHORT), tch, 0);
     }
-#if ELUNCHBOX_PANEL_EN
-    /* 开关键(TCH5)仅长按 3s 调 lunchbox_power_on/off，不走 key_notify */
-    if (tch != PT8028_KEY_TCH5)
-#endif
-    {
-        pt8028_queue_key_notify(tch);
-    }
+    pt8028_queue_key_notify(tch);
 }
 
 AT(.com_text.bsp.pt8028)

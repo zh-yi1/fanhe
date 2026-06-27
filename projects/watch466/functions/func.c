@@ -484,7 +484,7 @@ static void func_elunchbox_key_notify_poll(void)
     u8 key_val;
 
     tch = pt8028_take_key_notify_tch();
-    if (tch > PT8028_KEY_TCH7 || tch == PT8028_KEY_TCH5) {
+    if (tch > PT8028_KEY_TCH7) {
         return;
     }
     key_val = pt8028_tch_to_lunchbox_key(tch);
