@@ -169,6 +169,37 @@ static void elunchbox_pwr_gui_off_exit(void)
     tft_bglight_force_on();
     reset_sleep_delay_all();
 }
+
+static void func_elunchbox_pwr_long_poll(void);
+
+static bool elunchbox_is_guioff(void)
+{
+    return sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off;
+}
+
+static void elunchbox_guioff_key_scan(void)
+{
+    static u32 last_scan_ms;
+
+    if (!tick_check_expire(last_scan_ms, 100)) {
+        return;
+    }
+    last_scan_ms = tick_get();
+    pt8028_gpio_ensure_periodic();
+    get_pt8028_key();
+}
+
+static void elunchbox_guioff_idle_process(void)
+{
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_uart_process();
+    lunchbox_keep_warm_poll();
+#endif
+    func_reservation_poll();
+#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
+    func_elunchbox_pwr_long_poll();
+#endif
+}
 #endif
 
 static void func_elunchbox_pwr_long_poll(void)
@@ -207,10 +238,15 @@ static void func_elunchbox_key_notify_poll(void)
 AT(.text.func.process)
 void func_process(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    bool guioff = elunchbox_is_guioff();
+#else
+    bool guioff = sys_cb.gui_sleep_sta;
+#endif
 
-   if (gui_get_auto_power_en()) {
+    if (gui_get_auto_power_en() && !guioff) {
         sys_clk_req(INDEX_GUI, SYS_192M);
-   }
+    }
 
     WDT_CLR();
 
@@ -223,15 +259,15 @@ void func_process(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-    if (!elunchbox_pwr_gui_off_is_on() || !sys_cb.gui_sleep_sta)
+    if (!guioff || !sys_cb.gui_sleep_sta)
 #endif
     tft_bglight_frist_set_check();
 
     // gui 没有休眠才更新
 	#if FOTA_UI_EN
-    if ((!sys_cb.gui_sleep_sta) && (func_cb.sta != FUNC_OTA_UI_MODE) && !sys_cb.flag_halt) {
+    if ((!guioff) && (func_cb.sta != FUNC_OTA_UI_MODE) && !sys_cb.flag_halt) {
 	#else
-	if (!sys_cb.gui_sleep_sta && !sys_cb.flag_halt) {
+	if (!guioff && !sys_cb.flag_halt) {
 	#endif
 
 #if ELUNCHBOX_PANEL_EN
@@ -266,36 +302,27 @@ void func_process(void)
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         func_heat_key_poll();
 #endif
-#if ELUNCHBOX_PANEL_EN
         func_key_lock_poll();
-#endif
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_keep_warm_poll();
 #endif
+        func_reservation_poll();
 #else
         compo_update();                                     //更新组件
 
         gui_process();                                      //刷新UI
-#endif
-
         func_reservation_poll();
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_keep_warm_poll();
+#endif
+#endif
 
-    } else {
+    } else if (guioff) {
 #if ELUNCHBOX_PANEL_EN
-        func_key_lock_poll();
+        elunchbox_guioff_idle_process();
+        elunchbox_guioff_key_scan();
 #endif
     }
-
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    /* 息屏态非 Home 页仍须扫键，否则长按开关键无法亮屏 */
-    if (sys_cb.gui_sleep_sta && func_cb.sta != FUNC_HOME) {
-        pt8028_gpio_ensure_periodic();
-        get_pt8028_key();
-    }
-#endif
-#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
-    func_elunchbox_pwr_long_poll();
-#endif
 
 //#if OPUS_ENC_EN
 //    if (bsp_opus_is_encode()) {
@@ -379,12 +406,14 @@ void func_process(void)
     }
 #endif
 
-   if (gui_get_auto_power_en()) {
+   if (gui_get_auto_power_en() && !guioff) {
         sys_clk_free(INDEX_GUI);
    }
 
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_uart_process();
+    if (!guioff) {
+        lunchbox_uart_process();
+    }
 #endif
 }
 

@@ -328,8 +328,9 @@ static void func_heat_display_on_info(const heat_display_info_t *info)
 
     if (info->remain_min == 0) {
         func_heat_heating_finish_check(f_heat);
+        return;
     }
-    if (f_heat->ui_state != HEAT_UI_FINISHED) {
+    if (f_heat->ui_state == HEAT_UI_HEATING) {
         func_heat_display_refresh(f_heat);
     }
 }
@@ -542,10 +543,8 @@ static void func_heat_heating_finish_check(f_heat_t *f_heat)
     f_heat->display_temp_f = func_heat_get_target_temp_f(f_heat);
     f_heat->screen_locked = false;
     func_heat_lock_icon_apply(f_heat);
-#if FUNC_LUNCHBOX_UART_EN
-    lunchbox_keep_warm_start();
-#endif
     func_heat_led_sync(false);
+    func_mode_keep_warm_enter();
 }
 
 static void func_heat_status_refresh(f_heat_t *f_heat)
