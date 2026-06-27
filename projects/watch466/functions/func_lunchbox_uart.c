@@ -151,8 +151,12 @@ static bool lb_data_is_key_notify(u8 *data, u16 len)
     while (off + 4 <= len) {
         u8  dpid    = data[off];
         u16 val_len = ((u16)data[off + 2] << 8) | data[off + 3];
-        if (off + 4 + val_len > len) break;
+
+        // 先检查 dpid, 避免 val_len 异常(大小端/字段错位)导致漏判
         if (dpid == LB_DPID_KEY_NOTIFY) return true;
+
+        // val_len 合法性兜底: 单 DataPoint 值不超过 256 字节
+        if (val_len > 256 || off + 4 + val_len > len) break;
         off += 4 + val_len;
     }
     return false;
@@ -237,7 +241,8 @@ static bool lb_frame_parse(void)
 
 #if LB_BRIDGE_MODE
     // ──── 桥模式：翻译为 BLE 协议 → 通过 BLE 发给 APP ────
-    {
+    // 按键通知 (dpid=12) 仅 MCU ↔ 加热模块内部使用，不转发给 APP
+    if (!lb_data_is_key_notify(rx.data, rx.data_len)) {
         u8 ble_buf[LB_TXBUF_SIZE];
         u16 ble_len = 0;
         if (lb_translate_uart_to_ble(&rx, ble_buf, &ble_len)) {
@@ -306,10 +311,13 @@ static void lb_send_frame(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
     }
     lb_tx_buf[off] = lb_checksum(lb_tx_buf, off); off++;
 
-    // 打印 TX 日志
-    // printf("TX[%d]: ", off);
-    // for (u16 i = 0; i < off; i++) printf("%02X ", lb_tx_buf[i]);
-    // printf("\n");
+    // 打印 BLE TX 日志
+    if (lb_ble_tx_fn) {
+        printf("BLE==>TX [%d]: ", off);
+        for (u16 i = 0; i < off; i++) printf("%02X ", lb_tx_buf[i]);
+        printf("\n");
+        if (data && len) lb_dp_dump_hex(data, len);
+    }
 
     if (lb_ble_tx_fn) {
         lb_ble_tx_fn(lb_tx_buf, off);           // 走 BLE Notify
@@ -455,9 +463,14 @@ static void lb_dp_dump_hex(const u8 *data, u16 data_len)
             printf(" Remain=%lumin", (unsigned long)v);
             break;
         }
-        case LB_DPID_HEAT_TEMP: {     // 7: enum
-            static const char *temps[] = {"40C","50C","60C","70C","80C","90C"};
-            printf(" HeatTemp=%s(%d)", val[0] < 6 ? temps[val[0]] : "?", val[0]);
+        case LB_DPID_HEAT_TEMP: {     // 7: enum 0=40°C(104°F) ~ 6=100°C(212°F)
+            static const u16 temp_f[] = {104, 122, 140, 158, 176, 194, 212};
+            if (val[0] <= 6) {
+                u16 c = 40 + (u16)val[0] * 10;
+                printf(" HeatTemp=%uC/%uF(%d)", c, temp_f[val[0]], val[0]);
+            } else {
+                printf(" HeatTemp=?(%d)", val[0]);
+            }
             break;
         }
         case LB_DPID_LANGUAGE:        // 8: enum
@@ -1852,10 +1865,6 @@ bool lb_translate_ble_to_uart(lb_rx_frame_t *rx, u8 *out_buf, u16 *out_len)
     // 记录原始 BLE 命令字，UART 应答时用于确定正确的 BLE 响应 cmd
     lb_pending_ble_cmd[rx->msg_flag] = rx->cmd;
 
-    printf("BLE->UART[%d]: ", *out_len);
-    for (u16 i = 0; i < *out_len; i++) printf("%02X ", out_buf[i]);
-    printf("\n");
-
     return true;
 }
 
@@ -2085,6 +2094,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
     printf("BLE==>RX [%d]: ", len);
     for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
     printf("\n");
+    {
+        u16 dl = ((u16)data[6] << 8) | data[7];
+        if (dl && len >= 9 + dl) lb_dp_dump_hex(data + 8, dl);
+    }
 
     lb_rx_frame_t frame;
     memset(&frame, 0, sizeof(frame));
