@@ -105,6 +105,7 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out)
 //-----------------------------------------------------------------------------
 
 static void lb_dp_dump_hex(const u8 *data, u16 data_len);
+static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx);
 
 /**
  * @brief CRC32 校验码计算 (兼容 zlib/uzlib 算法, 与 MCU通信协议.md §5.1 一致)
@@ -316,16 +317,10 @@ static void lb_send_frame(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
     }
     lb_tx_buf[off] = lb_checksum(lb_tx_buf, off); off++;
 
-    // 打印 BLE TX 日志
     if (lb_ble_tx_fn) {
-        printf("BLE==>TX [%d]: ", off);
-        for (u16 i = 0; i < off; i++) printf("%02X ", lb_tx_buf[i]);
-        printf("\n");
-        if (data && len) lb_dp_dump_hex(data, len);
-    }
-
-    if (lb_ble_tx_fn) {
-        lb_ble_tx_fn(lb_tx_buf, off);           // 走 BLE Notify
+        lb_ble_tx_fn(lb_tx_buf, off);           // 走 BLE Notify (含 BLE==>TX hex 打印)
+        // 打印 BLE TX 协议分析 (蓝牙通讯协议1.0.7.md §3)
+        lb_ble_dump_frame(cmd, data, len, false);
     } else {
         uart_bufs_tx(UART_TYPE_1, lb_tx_buf, off); // 走 UART
     }
@@ -517,6 +512,204 @@ static void lb_dp_dump_hex(const u8 *data, u16 data_len)
     if (!head) {
         printf("-------------------------------------------------------\n");
     }
+}
+
+//-----------------------------------------------------------------------------
+// BLE 帧数据分析 (蓝牙通讯协议1.0.7.md §3)
+// 按命令字解析数据字段，输出协议级可读描述
+//   is_rx=true  → APP→MCU 方向
+//   is_rx=false → MCU→APP 方向
+//-----------------------------------------------------------------------------
+static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
+{
+    // --- 无数据时只打印命令名称 ---
+    if (!data || !len) {
+        printf("-------------------------------------------------------\n");
+        switch (cmd) {
+        case LB_CMD_PRODUCT_INFO:    printf("  %s\n", is_rx ? "查询产品信息" : "产品信息"); break;
+        case LB_CMD_DYNAMIC_ATTR:    printf("  %s\n", is_rx ? "查询动态属性" : "动态属性"); break;
+        case LB_CMD_STATUS_REPORT:   printf("  状态上报\n"); break;
+        case LB_CMD_CONTROL:         printf("  %s\n", is_rx ? "控制指令" : "控制应答"); break;
+        case LB_CMD_SCHEDULE_LIST:   printf("  %s\n", is_rx ? "查询预约列表" : "预约列表"); break;
+        case LB_CMD_SCHEDULE_ADD:    printf("  %s\n", is_rx ? "新增预约" : "新增预约"); break;
+        case LB_CMD_SCHEDULE_MODIFY: printf("  %s\n", is_rx ? "修改预约" : "修改预约"); break;
+        case LB_CMD_SCHEDULE_DELETE: printf("  %s\n", is_rx ? "删除预约" : "删除预约"); break;
+        case LB_CMD_MODE_QUERY:      printf("  %s\n", is_rx ? "查询模式信息" : "模式信息"); break;
+        case LB_CMD_MODE_MODIFY:     printf("  %s\n", is_rx ? "修改模式信息" : "修改模式信息"); break;
+        case LB_CMD_OTA_START:       printf("  %s\n", is_rx ? "OTA启动" : "OTA启动"); break;
+        case LB_CMD_OTA_DATA:        printf("  %s\n", is_rx ? "OTA数据" : "OTA数据"); break;
+        case LB_CMD_OTA_END:         printf("  %s\n", is_rx ? "OTA结束" : "OTA结束"); break;
+        default: break;
+        }
+        printf("-------------------------------------------------------\n");
+        return;
+    }
+
+    printf("-------------------------------------------------------\n");
+    switch (cmd) {
+
+    //=== 0x01: 查询产品信息 ===========================================
+    case LB_CMD_PRODUCT_INFO:
+        if (is_rx) {
+            // APP→MCU: timestamp(4B, 大端)
+            if (len >= 4) {
+                u32 ts = ((u32)data[0] << 24) | ((u32)data[1] << 16)
+                       | ((u32)data[2] << 8)  |  (u32)data[3];
+                printf("  时间戳=%lu\n", (unsigned long)ts);
+            }
+        } else {
+            // MCU→APP: 产品信息结构体 (>=81 bytes)
+            printf("  产品信息(%uB)", len);
+            if (len >= 16) printf(" BTName=%.16s", data);
+            if (len >= 77) {
+                u32 main_ver = ((u32)data[73] << 24) | ((u32)data[74] << 16)
+                             | ((u32)data[75] << 8)  |  (u32)data[76];
+                u32 heat_ver = ((u32)data[77] << 24) | ((u32)data[78] << 16)
+                             | ((u32)data[79] << 8)  |  (u32)data[80];
+                printf(" MCUver=0x%08lX HeatVer=0x%08lX", (unsigned long)main_ver, (unsigned long)heat_ver);
+            }
+            printf("\n");
+        }
+        break;
+
+    //=== 0x02/0x03: DataPoints =======================================
+    case LB_CMD_DYNAMIC_ATTR:
+    case LB_CMD_STATUS_REPORT:
+        lb_dp_dump_hex(data, len);
+        break;
+
+    //=== 0x04: 控制指令 ===============================================
+    case LB_CMD_CONTROL:
+        if (is_rx) {
+            // APP→MCU: DataPoints
+            lb_dp_dump_hex(data, len);
+        } else {
+            // MCU→APP: ack (无数据)
+            printf("  控制应答: err=0x%02X\n", 0); // err 由上层设置
+        }
+        break;
+
+    //=== 0x05: 查询预约列表 ===========================================
+    case LB_CMD_SCHEDULE_LIST:
+        if (!is_rx && len >= 43) {
+            // MCU→APP: 单条预约信息 (43 bytes)
+            u8  total  = data[0];
+            u8  seq    = data[1];
+            u8  id     = data[2];
+            u32 time_s = ((u32)data[35] << 24) | ((u32)data[36] << 16)
+                       | ((u32)data[37] << 8)  |  (u32)data[38];
+            u8  temp   = data[39];
+            u8  dur    = data[40];
+            u8  en     = data[41];
+            u8  repeat = data[42];
+            printf("  预约[%u/%u] ID=%u name=%.32s time=%lu temp=%u dur=%umin en=%u rep=0x%02X\n",
+                   seq, total, id, data + 3, (unsigned long)time_s, temp, dur, en, repeat);
+        }
+        break;
+
+    //=== 0x06: 新增预约 ===============================================
+    case LB_CMD_SCHEDULE_ADD:
+        if (is_rx && len >= 41) {
+            // APP→MCU: 41 bytes schedule data
+            u32 time_s = ((u32)data[33] << 24) | ((u32)data[34] << 16)
+                       | ((u32)data[35] << 8)  |  (u32)data[36];
+            printf("  新增预约: name=%.32s time=%lu temp=%u dur=%umin en=%u rep=0x%02X\n",
+                   data + 1, (unsigned long)time_s, data[37], data[38], data[39], data[40]);
+        } else if (!is_rx && len >= 1) {
+            // MCU→APP: assigned ID(1B)
+            printf("  分配ID=%u\n", data[0]);
+        }
+        break;
+
+    //=== 0x07: 修改预约 ===============================================
+    case LB_CMD_SCHEDULE_MODIFY:
+        if (is_rx && len >= 41) {
+            u32 time_s = ((u32)data[33] << 24) | ((u32)data[34] << 16)
+                       | ((u32)data[35] << 8)  |  (u32)data[36];
+            printf("  修改预约: ID=%u name=%.32s time=%lu temp=%u dur=%umin en=%u rep=0x%02X\n",
+                   data[0], data + 1, (unsigned long)time_s, data[37], data[38], data[39], data[40]);
+        }
+        break;
+
+    //=== 0x08: 删除预约 ===============================================
+    case LB_CMD_SCHEDULE_DELETE:
+        if (is_rx && len >= 1) {
+            printf("  删除预约 ID=%u\n", data[0]);
+        }
+        break;
+
+    //=== 0x09: 获取模式信息 ===========================================
+    case LB_CMD_MODE_QUERY:
+        if (is_rx && len >= 1) {
+            static const char *mode_names[] = {"?","Custom","Chicken","Pasta"};
+            printf("  查询模式: %s(%u)\n", data[0] <= 3 ? mode_names[data[0]] : "?", data[0]);
+        } else if (!is_rx && len >= 3) {
+            // MCU→APP: 每条 3 bytes (mode+temp+dur), 可能有多个
+            static const char *mn[] = {"?","Custom","Chicken","Pasta"};
+            u16 off = 0;
+            while (off + 3 <= len) {
+                u8 m = data[off], t = data[off + 1], d = data[off + 2];
+                printf("  %s: temp=%u dur=%umin\n", m <= 3 ? mn[m] : "?", t, d);
+                off += 3;
+            }
+        }
+        break;
+
+    //=== 0x0a: 修改模式信息 ===========================================
+    case LB_CMD_MODE_MODIFY:
+        if (is_rx && len >= 3) {
+            static const char *mn[] = {"?","Custom","Chicken","Pasta"};
+            printf("  修改模式: %s temp=%u dur=%umin\n",
+                   data[0] <= 3 ? mn[data[0]] : "?", data[1], data[2]);
+        }
+        break;
+
+    //=== 0x0c: OTA 升级启动 ===========================================
+    case LB_CMD_OTA_START:
+        if (is_rx) {
+            // APP→MCU: target(1B) + firmware_size(4B, 大端)
+            if (len >= 5) {
+                u32 fw_size = ((u32)data[1] << 24) | ((u32)data[2] << 16)
+                            | ((u32)data[3] << 8)  |  (u32)data[4];
+                printf("target=0x%02X fw_size=%lu\n", data[0], (unsigned long)fw_size);
+            }
+        } else {
+            // MCU→APP: target(1B) + status(1B)
+            if (len >= 2) {
+                static const char *sts[] = {"RECV","ERASING","ERASE_DONE"};
+                printf("target=0x%02X status=%s(%u)\n", data[0],
+                       data[1] <= 2 ? sts[data[1]] : "?", data[1]);
+            }
+        }
+        break;
+
+    //=== 0x0d: OTA 升级包传输 =========================================
+    case LB_CMD_OTA_DATA:
+        if (is_rx && len >= 5) {
+            // APP→MCU: target(1B) + offset(4B, 大端) + upgrade_data
+            u32 offset = ((u32)data[1] << 24) | ((u32)data[2] << 16)
+                       | ((u32)data[3] << 8)  |  (u32)data[4];
+            printf("target=0x%02X offset=%lu data_len=%u\n", data[0], (unsigned long)offset, len - 5);
+        }
+        // MCU→APP: ack (no data) — skip
+        break;
+
+    //=== 0x0e: OTA 升级结束 ===========================================
+    case LB_CMD_OTA_END:
+        if (is_rx) {
+            // APP→MCU: target(1B)
+            printf("target=0x%02X\n", data[0]);
+        } else if (len >= 2) {
+            // MCU→APP: target(1B) + result(1B)
+            printf("target=0x%02X result=%s(%u)\n", data[0],
+                   data[1] ? "SUCCESS" : "FAIL", data[1]);
+        }
+        break;
+
+    default:
+        break;
+    }
+    printf("-------------------------------------------------------\n");
 }
 
 //-----------------------------------------------------------------------------
@@ -2156,9 +2349,12 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
     printf("BLE==>RX [%d]: ", len);
     for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
     printf("\n");
-    {
-        u16 dl = ((u16)data[6] << 8) | data[7];
-        if (dl && len >= 9 + dl) lb_dp_dump_hex(data + 8, dl);
+    // 按协议命令字解析数据 (蓝牙通讯协议1.0.7.md §3)
+    if (len >= 9) {
+        u8  cmd = data[4];
+        u16 dl  = ((u16)data[6] << 8) | data[7];
+        if (dl && len >= 9 + dl) lb_ble_dump_frame(cmd, data + 8, dl, true);
+        else if (dl == 0)        lb_ble_dump_frame(cmd, NULL, 0, true);
     }
 
     lb_rx_frame_t frame;
