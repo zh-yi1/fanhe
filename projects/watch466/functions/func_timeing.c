@@ -1,5 +1,6 @@
 #include "include.h"
 #include "func.h"
+#include "func_lunchbox_uart.h"
 #include "home_icon_res.h"
 #include "home_ui_shared.h"
 #include "ui_layout_anchor.h"
@@ -683,6 +684,11 @@ static void func_timeing_save_rtc(f_timeing_t *f_timeing)
     tm_set.hour = func_timeing_to_hour24(f_timeing->disp_h, f_timeing->is_pm);
     tm_set.min = f_timeing->min;
     rtc_clock_set(tm_set);
+
+#if FUNC_LUNCHBOX_UART_EN
+    /* 同步时间给加热模块 */
+    lunchbox_time_sync(RTCCNT + LB_RTC_UNIX_OFFSET);
+#endif
 }
 
 static void func_timeing_ok_key(f_timeing_t *f_timeing)
