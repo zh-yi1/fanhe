@@ -46,6 +46,9 @@ static lb_ble_tx_fn_t     lb_ble_tx_fn;      // BLE 发送回调（非 NULL 时�
 static bool lb_uart_sync_pending = false;    // 是否有同步UART请求待应答(用于区分同步/异步0x01)
 static u32  lb_last_ble_ts = 0;              // 最近一次从 BLE 收到的时间戳 (unix秒)
 static bool lb_has_ble_ts = false;           // 是否已收到过 BLE 时间戳
+static bool lb_product_info_pending = false; // v1.0.7: 0x01 查询等待加热模块UART应答
+static u8   lb_product_info_msg_flag = 0;    // 待完成 0x01 查询的 BLE msg_flag
+static u32  lb_product_info_pend_tick = 0;   // 0x01 查询开始等待的时刻(tick), 超时用
 
 //-----------------------------------------------------------------------------
 // OTA 升级状态机 (蓝牙通讯协议1.0.7.md §5)
@@ -254,6 +257,43 @@ static bool lb_frame_parse(void)
     // 蓝牙未连接时跳过转发，节省协议翻译+BLE TX 尝试的功耗
     // 按键通知 (dpid=12) 仅 MCU ↔ 加热模块内部使用，不转发给 APP
     if (ble_is_connected() && !lb_data_is_key_notify(rx.data, rx.data_len)) {
+        // v1.0.7: 检查是否是 0x01 产品信息查询的加热模块应答
+        // 此时应先完成 BLE 0x01 回复 (含加热模块版本号)，再将 DataPoints 异步上报
+        bool handled_0x01 = false;
+        if (lb_product_info_pending && rx.cmd == LB_UART_CMD_DYNAMIC) {
+            // 从 DataPoints 中提取加热模块固件版本号 (dpid=13)
+            if (rx.data && rx.data_len > 0) {
+                u16 off = 0;
+                while (off + 4 <= rx.data_len) {
+                    u8  dpid    = rx.data[off];
+                    u16 val_len = ((u16)rx.data[off + 2] << 8) | rx.data[off + 3];
+                    if (off + 4 + val_len > rx.data_len) break;
+                    if (dpid == LB_DPID_MCU_VERSION && val_len >= 4) {
+                        u8 *v = rx.data + off + 4;
+                        lb_dev_info.heat_module_version = ((u32)v[0] << 24) | ((u32)v[1] << 16)
+                                                        | ((u32)v[2] << 8)  | v[3];
+                    }
+                    off += 4 + val_len;
+                }
+            }
+            // 清除同步等待标志，使 lb_translate_uart_to_ble 将此帧视为异步上报 (0x03)
+            lb_uart_sync_pending = false;
+            lb_pending_ble_cmd[rx.msg_flag] = 0;
+            // 用保存的 BLE msg_flag 构造合成帧，完成 BLE 0x01 应答
+            {
+                lb_rx_frame_t synth;
+                memset(&synth, 0, sizeof(synth));
+                synth.msg_flag = lb_product_info_msg_flag;
+                synth.cmd      = LB_CMD_PRODUCT_INFO;
+                synth.valid    = true;
+                lb_handler_product_info(&synth);
+            }
+            lb_product_info_pending = false;
+            handled_0x01 = true;
+            // 继续走下面的 lb_translate_uart_to_ble —
+            // 此时 pending 已清除, DataPoints 会作为 BLE 0x03 异步上报
+        }
+
         u8 ble_buf[LB_TXBUF_SIZE];
         u16 ble_len = 0;
         if (lb_translate_uart_to_ble(&rx, ble_buf, &ble_len)) {
@@ -2008,9 +2048,9 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
     *out_len = 0;
 
     switch (rx->cmd) {
-    // ─── 0x01 查询产品信息 → UART 0x01: DataPoint格式 (v1.0.7 新增透传) ───
+    // ─── 0x01 查询产品信息 → UART 0x01: 透传时间戳+使能信号+MCU版本号查询 (v1.0.7) ───
+    // MCU通信协议.md §4: dpid=13(MCU版本号) APP下发√ 设备上报√
     case LB_CMD_PRODUCT_INFO: {
-        // v1.0.7: 透传时间戳+使能信号给加热模块
         u32 ts = lb_last_ble_ts;
         if (!lb_has_ble_ts) {
             ts = RTCCNT + LB_RTC_UNIX_OFFSET;
@@ -2018,6 +2058,7 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
         u8 *p = out_data;
         p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
         p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+        p += lb_dp_encode_value(p, LB_DPID_MCU_VERSION, 0);  // 查询加热模块固件版本
         *out_len = p - out_data;
         return true;
     }
@@ -2460,11 +2501,19 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 #if LB_BRIDGE_MODE
     // ──── 桥模式：翻译转发 ────
 
-    // 0x01 产品信息 → MCU 本地回复 + 透传加热模块 (v1.0.7)
+    // 0x01 产品信息 → 先透传加热模块, 等UART应答后再回复APP (v1.0.7)
     if (frame.cmd == LB_CMD_PRODUCT_INFO) {
-        // ① 本地回复 APP（含 MCU 版本 + 加热模块版本）
-        lb_handler_product_info(&frame);
-        // ② 同时透传给加热模块
+        // ① 先保存 APP 发来的时间戳 (lb_translate_ble_data_to_uart 会用到)
+        if (frame.data && frame.data_len >= 4) {
+            lb_last_ble_ts = ((u32)frame.data[0] << 24) | ((u32)frame.data[1] << 16)
+                           | ((u32)frame.data[2] << 8)  | frame.data[3];
+            lb_has_ble_ts = true;
+        }
+        // ② 标记待处理: 等 UART 应答返回加热模块版本号后再回复 APP
+        lb_product_info_pending   = true;
+        lb_product_info_msg_flag  = frame.msg_flag;
+        lb_product_info_pend_tick = tick_get();
+        // ③ 透传给加热模块 (lb_translate_ble_to_uart 会设置 lb_uart_sync_pending)
         u8 uart_buf[LB_TXBUF_SIZE];
         u16 uart_len = 0;
         if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
@@ -2472,6 +2521,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
             printf("\n");
             uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
+        } else {
+            // 翻译失败 → 直接回复 (使用当前已有的 heat_module_version)
+            lb_product_info_pending = false;
+            lb_handler_product_info(&frame);
         }
         return;
     }
@@ -2632,6 +2685,23 @@ void lunchbox_uart_process(void)
     if (lb_uart_suspended) {
         return;
     }
+
+    // v1.0.7: 0x01 查询超时保护 — 加热模块无应答时用缓存值直接回复 APP
+    if (lb_product_info_pending
+        && tick_check_expire(lb_product_info_pend_tick, 1000)) {
+        lb_uart_sync_pending = false;
+        lb_pending_ble_cmd[lb_product_info_msg_flag] = 0;
+        {
+            lb_rx_frame_t synth;
+            memset(&synth, 0, sizeof(synth));
+            synth.msg_flag = lb_product_info_msg_flag;
+            synth.cmd      = LB_CMD_PRODUCT_INFO;
+            synth.valid    = true;
+            lb_handler_product_info(&synth);
+        }
+        lb_product_info_pending = false;
+    }
+
     u8 ch;
 
     while (bsp_uart1_get_char(&ch)) {
