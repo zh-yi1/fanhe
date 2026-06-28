@@ -1094,6 +1094,27 @@ void lunchbox_power_on(void)
 }
 
 /**
+ * @brief LCD 时间同步 — 发送 UART 0x01 帧同步时间到加热模块
+ *
+ * 供屏幕端调用，将 Unix 时间戳同步给加热模块，使双方时间保持一致。
+ * MCU协议 §3.1 cmd=0x01: 携带时间戳 DataPoint + MCU使能开机标志
+ * @param unix_time Unix 时间戳（秒）
+ */
+void lunchbox_time_sync(u32 unix_time)
+{
+    u8 data[16];
+    u8 *p = data;
+
+    // dpid=11: 时间戳 (4B unix时间)
+    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, unix_time);
+    // MCU使能开机
+    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+
+    u16 data_len = (u16)(p - data);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
+}
+
+/**
  * @brief LCD 发送预约 — 构造 UART 0x03 帧发往加热模块
  *
  * UART 0x03 帧格式(42B): action(1)+id(1)+name(32)+time(4)+temp(1)+duration(1)+enabled(1)+repeat(1)

@@ -371,6 +371,9 @@ void lunchbox_power_off(void);
  *  蓝牙已连接时附带时间戳(DPID=11)，未连接时仅发送开机字段 (长按开关键3秒) */
 void lunchbox_power_on(void);
 
+/** @brief LCD 时间同步 — 发送 UART 0x01 帧同步 Unix 时间戳到加热模块 */
+void lunchbox_time_sync(u32 unix_time);
+
 /** @brief 加热自然结束后自动开启保温 (模式5, 140°F, 至低电关机) */
 void lunchbox_keep_warm_start(void);
 
