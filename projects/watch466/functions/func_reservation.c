@@ -155,7 +155,6 @@
 #define RES_HEAT_LOCK_MS                  30000
 #define RES_TEMP_PRESET_CNT               7
 #define RES_MIN_STEP                      5
-#define RES_APPT_MIN_TOTAL_MIN            (1 * 60 + 0)
 #define RES_MSG_OK                        KU_BACK
 #define RES_MSG_PLUS                      KU_VOL_UP
 #define RES_MSG_MINUS                     KU_VOL_DOWN
@@ -270,6 +269,7 @@ typedef struct reservation_global_t_ {
     u8 heat_hour;
     u8 heat_min;
     u8 temp_idx;
+    u32 appt_unix;              /* 预约触发 Unix 秒（实际日期+预约时:分经 tm_to_time 转换） */
     bool appt_triggered_today;
     u8 last_poll_min;
 } reservation_global_t;
@@ -486,16 +486,45 @@ static u16 func_res_get_target_temp_f(u8 temp_idx)
     return tbl_res_temp_preset[temp_idx];
 }
 
+/** RTC 日历 tm → Unix 秒（tm_to_time 为 2020 纪元，+LB_RTC_UNIX_OFFSET 转 Unix） */
+static u32 func_res_tm_to_unix(tm_t tm)
+{
+    return tm_to_time(tm) + LB_RTC_UNIX_OFFSET;
+}
+
+/** 当前 RTC 实际年月日时分秒 → Unix 秒 */
+static u32 func_res_now_unix(void)
+{
+    return func_res_tm_to_unix(rtc_clock_get());
+}
+
+/** 当前实际日期 + 预约时:分:00 → Unix 秒；若今天该时刻已过则取明天 */
+static u32 func_res_appt_unix_from_setting(u8 appt_hour, u8 appt_min)
+{
+    tm_t appt = rtc_clock_get();
+    u32 now_rtc;
+    u32 appt_rtc;
+
+    appt.hour = appt_hour;
+    appt.min = appt_min;
+    appt.sec = 0;
+
+    now_rtc = tm_to_time(rtc_clock_get());
+    appt_rtc = tm_to_time(appt);
+    if (appt_rtc <= now_rtc) {
+        appt_rtc = tm_to_time(time_to_tm(appt_rtc + 86400));
+    }
+    return appt_rtc + LB_RTC_UNIX_OFFSET;
+}
+
 static u32 func_res_seconds_until_appt(void)
 {
-    tm_t tm = rtc_clock_get();
-    u32 now = (u32)tm.hour * 3600 + (u32)tm.min * 60 + (u32)tm.sec;
-    u32 appt = (u32)g_res.appt_hour * 3600 + (u32)g_res.appt_min * 60;
+    u32 now = func_res_now_unix();
 
-    if (appt <= now) {
-        appt += 24 * 3600;
+    if (g_res.setup_done && g_res.appt_unix > now) {
+        return g_res.appt_unix - now;
     }
-    return appt - now;
+    return (u32)g_res.appt_hour * 3600 + (u32)g_res.appt_min * 60;
 }
 
 void func_reservation_marquee_text(char *buf, u16 buf_len)
@@ -509,7 +538,7 @@ void func_reservation_marquee_text(char *buf, u16 buf_len)
         return;
     }
 
-    /* 显示预约界面设置的预约时间（小时+分钟），默认1小时，最高23小时 */
+    /* 显示预约界面设置的预约时间（小时） */
     snprintf(buf, buf_len, "Start in %02u H", g_res.appt_hour);
 }
 
@@ -690,12 +719,6 @@ static u16 func_res_appt_total_min(const f_reservation_t *f_res)
 
 static void func_res_appt_apply_total_min(f_reservation_t *f_res, u16 total_min)
 {
-    if (total_min < RES_APPT_MIN_TOTAL_MIN) {
-        total_min = RES_APPT_MIN_TOTAL_MIN;
-    }
-    if (total_min > (u16)23 * 60 + 59) {
-        total_min = (u16)23 * 60 + 59;
-    }
     f_res->appt_hour = (u8)(total_min / 60);
     f_res->appt_min = (u8)(total_min % 60);
 }
@@ -1205,28 +1228,23 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
     func_reservation_led_sync();
 #endif
 
+    g_res.appt_unix = func_res_appt_unix_from_setting(f_res->appt_hour, f_res->appt_min);
+
 #if FUNC_LUNCHBOX_UART_EN
     {
-        u32 now = RTCCNT + LB_RTC_UNIX_OFFSET;  // RTCCNT 从2020起算, +offset 转Unix时间戳
-        u32 today_midnight = now - (now % 86400);
-        u32 target_sec = (u32)f_res->appt_hour * 3600 + (u32)f_res->appt_min * 60;
-        u32 unix_time = today_midnight + target_sec;
+        u32 unix_time = g_res.appt_unix;
         u16 temp_f = (f_res->temp_idx < RES_TEMP_PRESET_CNT)
                    ? tbl_res_temp_preset[f_res->temp_idx]
                    : tbl_res_temp_preset[0];
         u8 duration = (u8)((u32)f_res->heat_hour * 60 + (u32)f_res->heat_min);
 
-        if (target_sec <= (now % 86400)) {
-            unix_time += 86400;
-        }
         if (duration < LB_HEAT_DURATION_MIN_MIN) {
             duration = LB_HEAT_DURATION_MIN_MIN;
         } else if (duration > LB_HEAT_DURATION_MAX_MIN) {
             duration = LB_HEAT_DURATION_MAX_MIN;
         }
-        printf("reservation: %d, %d, %d, %d, %d, %d, %d, %d\n", 1, 0, NULL, unix_time,
-                                  lunchbox_temp_f_to_idx(temp_f),
-                                  duration, 1, 0xff);
+        printf("reservation send: unix_time=%u now=%u duration=%u\n",
+               unix_time, func_res_now_unix(), duration);
         lunchbox_reservation_send(1, 0, NULL, unix_time,
                                   lunchbox_temp_f_to_idx(temp_f),
                                   duration, 1, 0xff);
@@ -1385,9 +1403,7 @@ static void func_res_value_inc(f_reservation_t *f_res)
     if (f_res->ui == RES_UI_APPT_TIME || f_res->ui == RES_UI_HEAT_SETUP) {
         switch (f_res->focus) {
         case RES_FOCUS_APPT_HOUR:
-            if (f_res->appt_hour < 23) {
-                f_res->appt_hour++;
-            }
+            f_res->appt_hour++;
             f_res->last_appt_key = 0xffff;
             break;
 
@@ -1443,7 +1459,7 @@ static void func_res_value_dec(f_reservation_t *f_res)
     if (f_res->ui == RES_UI_APPT_TIME || f_res->ui == RES_UI_HEAT_SETUP) {
         switch (f_res->focus) {
         case RES_FOCUS_APPT_HOUR:
-            if (f_res->appt_hour > 1) {
+            if (f_res->appt_hour > 0) {
                 f_res->appt_hour--;
             }
             f_res->last_appt_key = 0xffff;
@@ -1453,10 +1469,10 @@ static void func_res_value_dec(f_reservation_t *f_res)
             {
                 u16 total = func_res_appt_total_min(f_res);
 
-                if (total >= RES_APPT_MIN_TOTAL_MIN + RES_MIN_STEP) {
+                if (total >= RES_MIN_STEP) {
                     total -= RES_MIN_STEP;
                 } else {
-                    total = RES_APPT_MIN_TOTAL_MIN;
+                    total = 0;
                 }
                 func_res_appt_apply_total_min(f_res, total);
             }
@@ -1648,42 +1664,46 @@ void func_reservation_poll(void)
     }
     g_res.last_poll_min = tm.min;
 
-    if (tm.hour == g_res.appt_hour && tm.min == g_res.appt_min) {
-        g_res.phase = RES_PHASE_HEATING;
+    {
+        u32 now = func_res_now_unix();
+
+        if (g_res.appt_unix > 0 && now >= g_res.appt_unix) {
+            g_res.phase = RES_PHASE_HEATING;
 #if USER_PANEL_LED
-        func_reservation_led_sync();
+            func_reservation_led_sync();
 #endif
 #if FUNC_RESERVATION_UI_EN
 #if ELUNCHBOX_PANEL_EN
-        if (func_cb.sta == FUNC_RESERVATION) {
-            f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
+            if (func_cb.sta == FUNC_RESERVATION) {
+                f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
 
-            if (f_res != NULL) {
-                f_res->heat_hour = g_res.heat_hour;
-                f_res->heat_min = g_res.heat_min;
-                f_res->temp_idx = g_res.temp_idx;
-                func_res_start_heating(f_res);
-            }
-        } else {
+                if (f_res != NULL) {
+                    f_res->heat_hour = g_res.heat_hour;
+                    f_res->heat_min = g_res.heat_min;
+                    f_res->temp_idx = g_res.temp_idx;
+                    func_res_start_heating(f_res);
+                }
+            } else {
 #if FUNC_LUNCHBOX_UART_EN
-            func_res_trigger_heating_uart_from_global();
+                func_res_trigger_heating_uart_from_global();
 #endif
-        }
-#else
-        if (func_cb.sta != FUNC_RESERVATION) {
-            func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-        } else {
-            f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
-
-            if (f_res != NULL) {
-                f_res->heat_hour = g_res.heat_hour;
-                f_res->heat_min = g_res.heat_min;
-                f_res->temp_idx = g_res.temp_idx;
-                func_res_start_heating(f_res);
             }
+#else
+            if (func_cb.sta != FUNC_RESERVATION) {
+                func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            } else {
+                f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
+
+                if (f_res != NULL) {
+                    f_res->heat_hour = g_res.heat_hour;
+                    f_res->heat_min = g_res.heat_min;
+                    f_res->temp_idx = g_res.temp_idx;
+                    func_res_start_heating(f_res);
+                }
+            }
+#endif
+#endif
         }
-#endif
-#endif
     }
 }
 
@@ -1953,9 +1973,6 @@ void func_reservation_enter(void)
         f_res->temp_idx = 5;    // 194°F (90°C)
     }
 
-    /* 确保预约时间范围：默认1小时，最高23小时（进入时夹紧，防止旧数据或外部设置导致越界） */
-    if (f_res->appt_hour < 1) f_res->appt_hour = 1;
-    if (f_res->appt_hour > 23) f_res->appt_hour = 23;
     func_res_heat_setup_apply_total_min(f_res, func_res_heat_setup_total_min(f_res));
 
     tm = rtc_clock_get();
