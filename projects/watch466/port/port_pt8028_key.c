@@ -343,10 +343,8 @@ void pt8028_port_pwrdown_wake_prep(void)
 {
     bsp_gpio_de_en(PT8028_GPIO_OUT_FLAG);
     bsp_gpio_pu_en(PT8028_GPIO_OUT_FLAG, GPIOxPU200K);
-    bsp_gpio_de_en(PT8028_GPIO_D0);
-    bsp_gpio_de_en(PT8028_GPIO_D1);
-    bsp_gpio_de_en(PT8028_GPIO_D2);
     bsp_gpio_de_en(IO_PE0);
+    // D0/D1/D2 (PE2/PE3/PE4) NOT enabled here — only OUT_FLAG is the wake source
 }
 
 

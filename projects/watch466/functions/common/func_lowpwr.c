@@ -254,6 +254,9 @@ bool sfunc_sleep_proc(void)
     bool gui_need_wkp = false;
     u32 vddio_vddcore_level = PWRCON0 & 0x1ff;   // 包含vddio levle
     u8 vddio_level = vddio_sleep_level;
+#if ELUNCHBOX_PANEL_EN
+    bool manual_off = elunchbox_pwr_is_manual_off();
+#endif
 
 //    return gui_need_wkp;        //test
     cache_backup = sys_backup_buf;//(u8 *)ab_malloc(32 * 1024);  //用于sleep过程中备份cache ram
@@ -284,10 +287,22 @@ bool sfunc_sleep_proc(void)
         if(status == 1) {
             ret = sleep_timer();
             if(ret) {
-                if (ret == 1) {
-                    func_cb.sta = FUNC_PWROFF;
+#if ELUNCHBOX_PANEL_EN
+                /* 手动关机时不允许转入 hard power-down；仅允许 port/wko 硬件唤醒 */
+                if (manual_off) {
+                    if (ret == 2) {
+                        /* 低电仍需退出浅睡，交由上层处理 */
+                        break;
+                    }
+                    /* ret==1 (pwroff_delay 到期或 PWRKEY 松开)：忽略，继续浅睡等待 TCH5 */
+                } else
+#endif
+                {
+                    if (ret == 1) {
+                        func_cb.sta = FUNC_PWROFF;
+                    }
+                    break;
                 }
-                break;
             }
         }
         wkpnd = port_wakeup_get_status();
@@ -295,7 +310,7 @@ bool sfunc_sleep_proc(void)
 
         port_int_sleep_process(&wkpnd);
 #if ELUNCHBOX_PANEL_EN
-        if (!elunchbox_pwr_is_manual_off())
+        if (!manual_off)
 #endif
         bsp_sensor_step_lowpwr_pro();
 
@@ -311,21 +326,42 @@ bool sfunc_sleep_proc(void)
         }
 #if LE_EN
         if (ble_app_need_wakeup()) {
-            printf(app_wakeup_str);
-            gui_need_wkp = true;
-            break;
+#if ELUNCHBOX_PANEL_EN
+            if (manual_off) {
+                /* 手动关机：BLE 事件不唤醒，继续等待 TCH5 长按 */
+            } else
+#endif
+            {
+                printf(app_wakeup_str);
+                gui_need_wkp = true;
+                break;
+            }
         }
 #endif
 
         if (co_timer_pro(true)) {
-            printf(co_timer_wakeup_str);
-			break;
-		}
+#if ELUNCHBOX_PANEL_EN
+            if (manual_off) {
+                /* 手动关机：co_timer 不唤醒，继续等待 TCH5 长按 */
+            } else
+#endif
+            {
+                printf(co_timer_wakeup_str);
+                break;
+            }
+        }
 
 		if (bt_cb.call_type) {
-			printf(call_wakeup_str);
-			gui_need_wkp = true;
-            break;
+#if ELUNCHBOX_PANEL_EN
+            if (manual_off) {
+                /* 手动关机：来电不唤醒，继续等待 TCH5 长按 */
+            } else
+#endif
+            {
+                printf(call_wakeup_str);
+                gui_need_wkp = true;
+                break;
+            }
 		}
     }
     PWRCON0 = (PWRCON0 & ~0x1ff) | vddio_vddcore_level;
@@ -502,7 +538,7 @@ static void sfunc_sleep(void)
         } else {
             GPIOBDE = BIT(3) | BIT(8) | BIT(9); /* PB3 日志 / PB8 PB9 UART1 */
         }
-        GPIOEDE = (BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4)); //PT8028 PE0~PE4
+        GPIOEDE = (BIT(0) | BIT(1)); //PT8028 PE0+OUT_FLAG only, D0/D1/D2 off to prevent spurious wakeup
         GPIOFDE = 0;
     } else
 #endif
@@ -934,7 +970,7 @@ void sfunc_pwrdown_do(u8 vusb_wakeup_en)
     rtccon3 |= BIT(10);                         //WK pin wake up enable
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     rtccon3 |= BIT(7);                          //VDDIO AON：PT8028 与 PE 口在硬关机态仍需供电
-    GPIOEDE |= (BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4)); //PE0~PE4 PT8028
+    GPIOEDE |= (BIT(0) | BIT(1)); //PE0+OUT_FLAG only, D0/D1/D2 off to prevent spurious wakeup
     pt8028_port_pwrdown_wake_prep();            //恢复 OUT_FLAG 上拉与数字使能
     port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
     rtccon3 |= BIT(17);                         //port io wakeup enable

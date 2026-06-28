@@ -178,9 +178,13 @@ void heat_display_feed_dp(u8 *data, u16 len)
         off += 4 + val_len;
     }
 
-    /* 加热已停止：不推送（让加热页自行处理停止状态） */
+    /* 加热已停止：清零 remain，让 heat_display_heating_active() 返回 false，避免阻止息屏/误唤醒 */
     if (got_enable && !heating) {
-        printf("[LCD_REG] feed_dp: heating stopped, skip push\n");
+        printf("[LCD_REG] feed_dp: heating stopped, clear remain\n");
+        if (heat_display_has_last && heat_display_last.remain_min > 0) {
+            heat_display_last.remain_min = 0;
+            heat_display_notify();
+        }
         return;
     }
     if (got_remain && got_temp) {

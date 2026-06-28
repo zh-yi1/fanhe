@@ -821,6 +821,11 @@ static void lb_heating_sync_from_dp(u8 *data, u16 len)
         }
         off += 4 + val_len;
     }
+#if !LB_BRIDGE_MODE
+    if (got_enable) {
+        lb_attr_heat_enable = heating ? 1 : 0;
+    }
+#endif
     if (got_enable && heating) {
         lb_heat_task_active = true;
     } else if (got_remain) {
@@ -834,7 +839,8 @@ static void lb_heating_sync_from_dp(u8 *data, u16 len)
         lb_heat_lcd_active = false;
         lb_keep_warm_active = false;
     }
-    /* 仅 enable=0 且无 remain 的局部 DP 不覆盖本地加热态，避免误触息屏 */
+    /* UART 上报的 HEAT_ENABLE 同步到本地属性，避免 lunchbox_heating_task_active()
+     * 因 lb_attr_heat_enable 过期而导致关机后 elunchbox_heating_blocks_idle 误唤醒 */
 }
 
 bool lunchbox_heating_task_active(void)
