@@ -1688,6 +1688,15 @@ void func_reservation_poll(void)
 #if FUNC_LUNCHBOX_UART_EN
                 func_res_trigger_heating_uart_from_global();
 #endif
+                /* 息屏唤醒并跳转到预约加热界面 */
+                if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
+                    elunchbox_pwr_gui_wake();
+                }
+                if (func_cb.sta != FUNC_RESERVATION) {
+                    func_res_allow_switch = 1;
+                    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+                    func_res_allow_switch = 0;
+                }
             }
 #else
             if (func_cb.sta != FUNC_RESERVATION) {
