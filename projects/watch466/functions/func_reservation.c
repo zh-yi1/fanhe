@@ -1324,16 +1324,13 @@ static void func_res_power_key(f_reservation_t *f_res)
     }
 
     if (f_res->ui == RES_UI_HEATING) {
-        if (f_res->screen_locked) {
-            f_res->heating_paused = !f_res->heating_paused;
-            func_res_display_refresh(f_res);
-        } else {
 #if FUNC_LUNCHBOX_UART_EN
-            lunchbox_heat_stop();
+        lunchbox_heat_stop();
 #endif
-            if (func_res_switch_home()) {
-                return;
-            }
+        g_res.phase = RES_PHASE_NONE;
+        g_res.setup_done = false;
+        if (func_res_switch_home()) {
+            return;
         }
         return;
     }
