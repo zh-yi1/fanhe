@@ -310,8 +310,6 @@ def parse_reservation(data: bytes, is_uart: bool):
         name_str = name_raw.rstrip(b'\x00').decode('ascii', errors='replace')
         if name_str:
             print(f"║  名称      : \"{name_str}\"")
-        else:
-            print(f"║  名称      : (空)")
         print(f"║  触发时间  : 0x{time_val:08X} ({time_val})" + (f" → {_fmt_unix(time_val)}" if 1500000000 < time_val < 2000000000 else ""))
     else:
         # BLE: id(1) + name(32) + time(4) + temp(1) + duration(1) + enabled(1) + repeat(1) = 41B
@@ -330,8 +328,6 @@ def parse_reservation(data: bytes, is_uart: bool):
         name_str = name_raw.rstrip(b'\x00').decode('ascii', errors='replace')
         if name_str:
             print(f"║  名称      : \"{name_str}\"")
-        else:
-            print(f"║  名称      : (空)")
         print(f"║  触发时间  : 0x{time_val:08X} ({time_val})" + (f" → {_fmt_unix(time_val)}" if 1500000000 < time_val < 2000000000 else ""))
 
     # 公共字段
