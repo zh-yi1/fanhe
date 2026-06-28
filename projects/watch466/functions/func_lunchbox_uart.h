@@ -50,7 +50,7 @@ enum {
     LB_DPID_HEAT_TEMP       = 7,        // 加热温度: enum, 0=40°C ~ 6=100°C
     LB_DPID_LANGUAGE        = 8,        // 语言: enum, 0=中文 1=英文...
     LB_DPID_FAULT           = 9,        // 故障: enum, 0=正常 1=高温告警
-             = 10,       // 是否加热: bool, 0=停止 1=加热 (v1.0.5 新增)
+    LB_DPID_HEAT_ENABLE     = 10,       // 是否加热: bool, 0=停止 1=加热 (v1.0.5 新增)
     LB_DPID_MCU_VERSION     = 13,       // MCU版本号: value(4B), 固件版本号 (v1.0.7 新增)
     LB_DPID_TIME_SYNC       = 11,       // app同步时间戳: value(4B) unix时间 (仅MCU UART协议)
     LB_DPID_KEY_NOTIFY      = 12,       // 模组按键通知: enum, 0-9, MCU→加热模块通知按键按下
