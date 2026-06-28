@@ -251,8 +251,9 @@ static bool lb_frame_parse(void)
 
 #if LB_BRIDGE_MODE
     // ──── 桥模式：翻译为 BLE 协议 → 通过 BLE 发给 APP ────
+    // 蓝牙未连接时跳过转发，节省协议翻译+BLE TX 尝试的功耗
     // 按键通知 (dpid=12) 仅 MCU ↔ 加热模块内部使用，不转发给 APP
-    if (!lb_data_is_key_notify(rx.data, rx.data_len)) {
+    if (ble_is_connected() && !lb_data_is_key_notify(rx.data, rx.data_len)) {
         u8 ble_buf[LB_TXBUF_SIZE];
         u16 ble_len = 0;
         if (lb_translate_uart_to_ble(&rx, ble_buf, &ble_len)) {
@@ -563,11 +564,8 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
 
     //=== 0x04: Control =================================================
     case LB_CMD_CONTROL:
-        if (is_rx) {
-            // APP→MCU: DataPoints
-            lb_dp_dump_hex(data, len);
-        }
-        // MCU→APP: ack (no data payload) — skip
+        // APP→MCU 和 MCU→APP 两个方向都可能携带 DataPoints
+        lb_dp_dump_hex(data, len);
         break;
 
     //=== 0x05: ScheduleList ============================================
@@ -2341,6 +2339,8 @@ bool lb_translate_uart_to_ble(lb_rx_frame_t *rx, u8 *out_buf, u16 *out_len)
     printf("UART->BLE[%d]: ", *out_len);
     for (u16 i = 0; i < *out_len; i++) printf("%02X ", out_buf[i]);
     printf("\n");
+    // 打印 DataPoint 解析 (与 BLE->UART 路径保持一致)
+    if (data_len > 0) lb_dp_dump_hex(data_buf, data_len);
 
     return true;
 }
