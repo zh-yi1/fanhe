@@ -502,6 +502,7 @@ static u32 func_res_now_unix(void)
 static u32 func_res_appt_unix_from_setting(u8 appt_hour, u8 appt_min)
 {
     tm_t appt = rtc_clock_get();
+    printf("appt: %d %d %d\n", appt.year, appt.mon, appt.day);
     u32 now_rtc;
     u32 appt_rtc;
 
@@ -511,9 +512,9 @@ static u32 func_res_appt_unix_from_setting(u8 appt_hour, u8 appt_min)
 
     now_rtc = tm_to_time(rtc_clock_get());
     appt_rtc = tm_to_time(appt);
-    if (appt_rtc <= now_rtc) {
-        appt_rtc = tm_to_time(time_to_tm(appt_rtc + 86400));
-    }
+    // if (appt_rtc <= now_rtc) {
+    //     appt_rtc = tm_to_time(time_to_tm(appt_rtc + 86400));
+    // }
     return appt_rtc + LB_RTC_UNIX_OFFSET;
 }
 
