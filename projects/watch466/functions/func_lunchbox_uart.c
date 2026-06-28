@@ -50,6 +50,11 @@ static bool lb_product_info_pending = false; // v1.0.7: 0x01 查询等待加热�
 static u8   lb_product_info_msg_flag = 0;    // 待完成 0x01 查询的 BLE msg_flag
 static u32  lb_product_info_pend_tick = 0;   // 0x01 查询开始等待的时刻(tick), 超时用
 
+// v1.0.7: 前向声明 — lb_frame_parse() 引用了这些定义在后面的符号
+static lb_device_info_t lb_dev_info;
+static u8  lb_pending_ble_cmd[256];
+static u8  lb_handler_product_info(lb_rx_frame_t *rx);
+
 //-----------------------------------------------------------------------------
 // OTA 升级状态机 (蓝牙通讯协议1.0.7.md §5)
 // 管理主单片机 (target=0x01) 的固件升级流程，对接 ota_pack_* 底层 FOTA 引擎
@@ -240,7 +245,8 @@ static bool lb_frame_parse(void)
         printf("UART==>RX[%d]: ", total);
         for (u16 i = 0; i < total; i++) printf("%02X ", lb_rx_buf[i]);
         printf("\n");
-        lb_dp_dump_hex(rx.data, rx.data_len);
+        // 仅 0x01 动态属性帧的数据为 DataPoint 格式
+        if (rx.cmd == LB_UART_CMD_DYNAMIC) lb_dp_dump_hex(rx.data, rx.data_len);
     }
 
 #if FUNC_LUNCHBOX_UART_EN
@@ -259,7 +265,6 @@ static bool lb_frame_parse(void)
     if (ble_is_connected() && !lb_data_is_key_notify(rx.data, rx.data_len)) {
         // v1.0.7: 检查是否是 0x01 产品信息查询的加热模块应答
         // 此时应先完成 BLE 0x01 回复 (含加热模块版本号)，再将 DataPoints 异步上报
-        bool handled_0x01 = false;
         if (lb_product_info_pending && rx.cmd == LB_UART_CMD_DYNAMIC) {
             // 从 DataPoints 中提取加热模块固件版本号 (dpid=13)
             if (rx.data && rx.data_len > 0) {
@@ -289,7 +294,6 @@ static bool lb_frame_parse(void)
                 lb_handler_product_info(&synth);
             }
             lb_product_info_pending = false;
-            handled_0x01 = true;
             // 继续走下面的 lb_translate_uart_to_ble —
             // 此时 pending 已清除, DataPoints 会作为 BLE 0x03 异步上报
         }
@@ -299,6 +303,10 @@ static bool lb_frame_parse(void)
         if (lb_translate_uart_to_ble(&rx, ble_buf, &ble_len)) {
             if (lb_ble_tx_fn) {
                 lb_ble_tx_fn(ble_buf, ble_len);
+                // 打印 BLE TX 协议分析 (与 lb_send_frame 保持一致)
+                u8  tx_cmd = ble_buf[4];
+                u16 tx_dl  = ((u16)ble_buf[6] << 8) | ble_buf[7];
+                lb_ble_dump_frame(tx_cmd, tx_dl ? ble_buf + 8 : NULL, tx_dl, false);
             }
         }
     }
@@ -580,18 +588,27 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             if (len >= 4) {
                 u32 ts = ((u32)data[0] << 24) | ((u32)data[1] << 16)
                        | ((u32)data[2] << 8)  |  (u32)data[3];
-                printf("  Timestamp=%lu\n", (unsigned long)ts);
+                printf("Timestamp=%lu\n", (unsigned long)ts);
             }
         } else {
-            // MCU→APP: product info struct (>=81 bytes)
-            if (len >= 16) printf("  BTName=%.16s\n", data);
+            // MCU→APP: product info struct (81 bytes)
+            // 字段顺序: BLEname(16)+version(8)+modeltype(10)+MAC(6)+SN(32)+color(1)+masterMCU(4)+heatMCU(4)
+            if (len >= 16) printf("BLEname=%.16s\n", data);
+            if (len >= 24) printf("version=%.8s\n",  data + 16);
+            if (len >= 34) printf("modeltype=%.10s\n", data + 24);
+            if (len >= 40) printf("MAC=%02X:%02X:%02X:%02X:%02X:%02X\n",
+                                  data[34], data[35], data[36], data[37], data[38], data[39]);
+            if (len >= 72) printf("SN=%.32s\n", data + 40);
+            if (len >= 73) printf("color=%u\n", data[72]);
             if (len >= 77) {
                 u32 main_ver = ((u32)data[73] << 24) | ((u32)data[74] << 16)
                              | ((u32)data[75] << 8)  |  (u32)data[76];
+                printf("main_ver=0x%08lX\n", (unsigned long)main_ver);
+            }
+            if (len >= 81) {
                 u32 heat_ver = ((u32)data[77] << 24) | ((u32)data[78] << 16)
                              | ((u32)data[79] << 8)  |  (u32)data[80];
-                printf("  MCUver=0x%08lX\n  HeatVer=0x%08lX\n",
-                       (unsigned long)main_ver, (unsigned long)heat_ver);
+                printf("heat_ver=0x%08lX\n", (unsigned long)heat_ver);
             }
         }
         break;
@@ -610,8 +627,8 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
 
     //=== 0x05: ScheduleList ============================================
     case LB_CMD_SCHEDULE_LIST:
-        if (!is_rx && len >= 43) {
-            // MCU→APP: single schedule entry (43 bytes)
+        if (!is_rx && len >= 43 && data[0] > 0) {
+            // MCU→APP: single schedule entry (43 bytes), 总条数为 0 时不打印
             u8  total  = data[0];
             u8  seq    = data[1];
             u8  id     = data[2];
@@ -621,7 +638,7 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             u8  dur    = data[40];
             u8  en     = data[41];
             u8  repeat = data[42];
-            printf("  Schedule[%u/%u] ID=%u name=%.32s time=%lu temp=%u dur=%umin en=%u rep=0x%02X\n",
+            printf("Schedule[%u/%u] ID=%u name=%.32s time=%lu temp=%u dur=%umin en=%u rep=0x%02X\n",
                    seq, total, id, data + 3, (unsigned long)time_s, temp, dur, en, repeat);
         }
         break;
@@ -629,14 +646,14 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
     //=== 0x06: ScheduleAdd =============================================
     case LB_CMD_SCHEDULE_ADD:
         if (is_rx && len >= 41) {
-            // APP→MCU: 41 bytes schedule data
+            // APP→MCU: 41 bytes schedule data (蓝牙通讯协议1.0.6.md §3.6)
             u32 time_s = ((u32)data[33] << 24) | ((u32)data[34] << 16)
                        | ((u32)data[35] << 8)  |  (u32)data[36];
-            printf("  name=%.32s time=%lu temp=%u dur=%umin en=%u rep=0x%02X\n",
+            printf("name=%.32s\ntrig_time=%lu\ntemp=%u\ntime=%umin\nstatus=%u\nrep=0x%02X\n",
                    data + 1, (unsigned long)time_s, data[37], data[38], data[39], data[40]);
         } else if (!is_rx && len >= 1) {
             // MCU→APP: assigned ID(1B)
-            printf("  AssignedID=%u\n", data[0]);
+            printf("AssignedID=%u\n", data[0]);
         }
         break;
 
@@ -645,7 +662,7 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
         if (is_rx && len >= 41) {
             u32 time_s = ((u32)data[33] << 24) | ((u32)data[34] << 16)
                        | ((u32)data[35] << 8)  |  (u32)data[36];
-            printf("  ID=%u name=%.32s time=%lu temp=%u dur=%umin en=%u rep=0x%02X\n",
+            printf("ID=%u\nname=%.32s\ntrig_time=%lu\ntemp=%u\ntime=%umin\nstatus=%u\nrep=0x%02X\n",
                    data[0], data + 1, (unsigned long)time_s, data[37], data[38], data[39], data[40]);
         }
         break;
@@ -653,7 +670,7 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
     //=== 0x08: ScheduleDelete ==========================================
     case LB_CMD_SCHEDULE_DELETE:
         if (is_rx && len >= 1) {
-            printf("  ID=%u\n", data[0]);
+            printf("ID=%u\n", data[0]);
         }
         break;
 
@@ -661,14 +678,14 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
     case LB_CMD_MODE_QUERY:
         if (is_rx && len >= 1) {
             static const char *mode_names[] = {"?","Custom","Chicken","Pasta"};
-            printf("  Mode=%s(%u)\n", data[0] <= 3 ? mode_names[data[0]] : "?", data[0]);
+            printf("Mode=%s(%u)\n", data[0] <= 3 ? mode_names[data[0]] : "?", data[0]);
         } else if (!is_rx && len >= 3) {
             // MCU→APP: each 3 bytes (mode+temp+dur), may be multiple
             static const char *mn[] = {"?","Custom","Chicken","Pasta"};
             u16 off = 0;
             while (off + 3 <= len) {
                 u8 m = data[off], t = data[off + 1], d = data[off + 2];
-                printf("  %s: temp=%u dur=%umin\n", m <= 3 ? mn[m] : "?", t, d);
+                printf("%s: temp=%u dur=%umin\n", m <= 3 ? mn[m] : "?", t, d);
                 off += 3;
             }
         }
@@ -678,7 +695,7 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
     case LB_CMD_MODE_MODIFY:
         if (is_rx && len >= 3) {
             static const char *mn[] = {"?","Custom","Chicken","Pasta"};
-            printf("  %s temp=%u dur=%umin\n",
+            printf("%s temp=%u dur=%umin\n",
                    data[0] <= 3 ? mn[data[0]] : "?", data[1], data[2]);
         }
         break;
@@ -690,13 +707,13 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             if (len >= 5) {
                 u32 fw_size = ((u32)data[1] << 24) | ((u32)data[2] << 16)
                             | ((u32)data[3] << 8)  |  (u32)data[4];
-                printf("  target=0x%02X fw_size=%lu\n", data[0], (unsigned long)fw_size);
+                printf("target=0x%02X fw_size=%lu\n", data[0], (unsigned long)fw_size);
             }
         } else {
             // MCU→APP: target(1B) + status(1B)
             if (len >= 2) {
                 static const char *sts[] = {"RECV","ERASING","ERASE_DONE"};
-                printf("  target=0x%02X status=%s(%u)\n", data[0],
+                printf("target=0x%02X status=%s(%u)\n", data[0],
                        data[1] <= 2 ? sts[data[1]] : "?", data[1]);
             }
         }
@@ -708,7 +725,7 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             // APP→MCU: target(1B) + offset(4B, BE) + upgrade_data
             u32 offset = ((u32)data[1] << 24) | ((u32)data[2] << 16)
                        | ((u32)data[3] << 8)  |  (u32)data[4];
-            printf("  target=0x%02X offset=%lu data_len=%u\n", data[0], (unsigned long)offset, len - 5);
+            printf("target=0x%02X offset=%lu data_len=%u\n", data[0], (unsigned long)offset, len - 5);
         }
         // MCU→APP: ack (no data) — skip
         break;
@@ -717,10 +734,10 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
     case LB_CMD_OTA_END:
         if (is_rx) {
             // APP→MCU: target(1B)
-            printf("  target=0x%02X\n", data[0]);
+            printf("target=0x%02X\n", data[0]);
         } else if (len >= 2) {
             // MCU→APP: target(1B) + result(1B)
-            printf("  target=0x%02X result=%s(%u)\n", data[0],
+            printf("target=0x%02X result=%s(%u)\n", data[0],
                    data[1] ? "SUCCESS" : "FAIL", data[1]);
         }
         break;
@@ -2407,8 +2424,7 @@ bool lb_translate_uart_to_ble(lb_rx_frame_t *rx, u8 *out_buf, u16 *out_len)
     printf("UART->BLE[%d]: ", *out_len);
     for (u16 i = 0; i < *out_len; i++) printf("%02X ", out_buf[i]);
     printf("\n");
-    // 打印 DataPoint 解析 (与 BLE->UART 路径保持一致)
-    if (data_len > 0) lb_dp_dump_hex(data_buf, data_len);
+    // DataPoint 解析移至 lb_frame_parse(), 跟在 BLE==>TX 之后统一输出
 
     return true;
 }
@@ -2520,6 +2536,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             printf("BLE->UART==>TX[%d]: ", uart_len);
             for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
             printf("\n");
+            {
+                u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
+                if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
+            }
             uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
         } else {
             // 翻译失败 → 直接回复 (使用当前已有的 heat_module_version)
@@ -2580,7 +2600,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             printf("\n");
             {
                 u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
-                if (dl) lb_dp_dump_hex(uart_buf + 8, dl);
+                if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
             }
             uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
         }
