@@ -1644,12 +1644,31 @@ static void func_res_trigger_heating_uart_from_global(void)
 }
 #endif
 
+void func_reservation_on_manual_shutdown(void)
+{
+    if (!g_res.setup_done) {
+        return;
+    }
+    if (g_res.phase == RES_PHASE_HEATING || g_res.phase == RES_PHASE_FINISHED) {
+        g_res.phase = RES_PHASE_WAITING;
+    }
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+}
+
 void func_reservation_poll(void)
 {
     tm_t tm;
 
 #if USER_PANEL_LED
     func_reservation_led_sync();
+#endif
+
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_is_manual_off()) {
+        return;
+    }
 #endif
 
     if (!g_res.setup_done || g_res.phase != RES_PHASE_WAITING) {
@@ -1685,8 +1704,9 @@ void func_reservation_poll(void)
 #if FUNC_LUNCHBOX_UART_EN
                 func_res_trigger_heating_uart_from_global();
 #endif
-                /* 息屏唤醒并跳转到预约加热界面 */
-                if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
+                /* 自动息屏(非手动关机)：唤醒并跳转到预约加热界面 */
+                if (!elunchbox_pwr_is_manual_off()
+                    && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
                     elunchbox_pwr_gui_wake();
                 }
                 if (func_cb.sta != FUNC_RESERVATION) {

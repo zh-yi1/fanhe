@@ -150,6 +150,12 @@ static bool elunchbox_boot_power_sent;
 static s32 elunchbox_guioff_sleep_delay = -1L;
 static u8 elunchbox_guioff_sleep_mode;
 static u32 elunchbox_idle_tmr;          /* 100ms 单位，独立于 sys_cb.guioff_delay */
+#if USER_PT8028_KEY
+static void func_elunchbox_guioff_wake_poll(void);
+#endif
+#if SOFT_POWER_ON_OFF
+static void func_elunchbox_pwr_long_poll(void);
+#endif
 
 void elunchbox_guioff_sleep_delay_reset(void)
 {
@@ -208,6 +214,12 @@ void elunchbox_guioff_sleep_mode_enter(void)
 
 bool elunchbox_heating_blocks_idle(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    /* 手动关机(长按3s)：除用户再次长按开机外，不因残留加热/预约状态自动唤醒 */
+    if (elunchbox_pwr_is_manual_off()) {
+        return false;
+    }
+#endif
 #if FUNC_LUNCHBOX_UART_EN
     if (lunchbox_heating_task_active()) {
         return true;
@@ -282,7 +294,11 @@ static void elunchbox_pwr_manual_shutdown(void)
 #endif
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_keep_warm_stop();
+    lunchbox_heat_stop();
     lunchbox_power_off();
+#endif
+#if FUNC_RESERVATION_UI_EN
+    func_reservation_on_manual_shutdown();
 #endif
     elunchbox_boot_power_sent = false;
     /* 软关机低电：GPU 掉电 + 强制 BT 浅睡（本板 PT8028 硬关机 sfunc_pwrdown 无法可靠唤醒）。
@@ -319,6 +335,14 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
     elunchbox_guioff_sleep_mode = 0;
     pt8028_port_gpio_init();
     pt8028_key_scan();
+#if USER_PT8028_KEY
+    if (elunchbox_pwr_is_manual_off() && key_wake) {
+        func_elunchbox_guioff_wake_poll();
+#if SOFT_POWER_ON_OFF
+        func_elunchbox_pwr_long_poll();
+#endif
+    }
+#endif
     if (!elunchbox_pwr_is_manual_off()) {
         elunchbox_guioff_sleep_service();
     }
@@ -539,22 +563,22 @@ void func_process(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-    /* 手动关机：仅保留按键唤醒检测并尽快回到 sfunc_sleep，跳过其余主循环 */
+    /* 手动关机：按键唤醒检测；按住开关键期间不进浅睡以便累计 3s 长按 */
     if (guioff && elunchbox_pwr_is_manual_off()) {
         WDT_CLR();
-        {
-            static u32 last_manual_scan;
-            if (tick_check_expire(last_manual_scan, 200)) {
-                last_manual_scan = tick_get();
-                pt8028_gpio_ensure_periodic();
-                pt8028_key_scan();
-                func_elunchbox_guioff_wake_poll();
-            }
-        }
-#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
+#if USER_PT8028_KEY
+        pt8028_gpio_ensure_periodic();
+        pt8028_key_scan();
+        func_elunchbox_guioff_wake_poll();
+#if SOFT_POWER_ON_OFF
         func_elunchbox_pwr_long_poll();
 #endif
+        if (!pt8028_is_power_key_held() && !pt8028_boot_tch5_down()) {
+            sleep_process(bt_is_allow_sleep);
+        }
+#else
         sleep_process(bt_is_allow_sleep);
+#endif
         return;
     }
 #endif
@@ -642,18 +666,8 @@ void func_process(void)
 #if ELUNCHBOX_PANEL_EN
         elunchbox_guioff_idle_process();
         pt8028_gpio_ensure_periodic();
-        /* 手动关机时降低按键扫描频率以进一步降功耗；唤醒检测仍保证3s长按 */
-        if (elunchbox_pwr_is_manual_off()) {
-            static u32 last_manual_scan;
-            if (tick_check_expire(last_manual_scan, 80)) {   /* ~80ms 采样，足够检测3s长按 */
-                last_manual_scan = tick_get();
-                pt8028_key_scan();
-                func_elunchbox_guioff_wake_poll();
-            }
-        } else {
-            pt8028_key_scan();
-            func_elunchbox_guioff_wake_poll();
-        }
+        pt8028_key_scan();
+        func_elunchbox_guioff_wake_poll();
 #endif
     }
 

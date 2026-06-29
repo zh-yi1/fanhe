@@ -19,5 +19,6 @@ bool func_reservation_is_active(void);
 bool func_reservation_is_heating(void);
 void func_reservation_marquee_text(char *buf, u16 buf_len);
 void func_reservation_force_heating_enter(void);
+void func_reservation_on_manual_shutdown(void);
 
 #endif

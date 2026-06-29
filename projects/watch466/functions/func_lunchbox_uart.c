@@ -967,10 +967,14 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
     lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
 
 #if ELUNCHBOX_PANEL_EN
-    if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
+    /* 手动关机后仅允许长按开关键唤醒，不因加热任务自动亮屏/发开机 */
+    if (!elunchbox_pwr_is_manual_off()
+        && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
         elunchbox_pwr_gui_wake();
     }
-    elunchbox_user_activity_reset();
+    if (!elunchbox_pwr_is_manual_off()) {
+        elunchbox_user_activity_reset();
+    }
 #endif
 
     // 更新本地属性 (本地模式) 或仅通知 APP
