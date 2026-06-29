@@ -36,7 +36,7 @@ void rtc_clock_init(void)
     tm_t tm;
     tm.year = 2026;
     tm.mon  = 6;
-    tm.day = 28;
+    tm.day = 29;
     tm.hour = 12;
     tm.min  = 0;
     tm.sec  = 0;

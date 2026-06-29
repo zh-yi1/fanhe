@@ -729,6 +729,14 @@ bool sleep_process(is_sleep_func is_sleep)
          * 即使 bt_is_allow_sleep() 当前返回 false（避免因蓝牙状态卡住不降功耗）。
          * 自动息屏仍尊重 ready + allow_sleep。
          */
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        /* 自动息屏：正在按 TCH5 时不进浅睡，让主循环累计 3 秒长按唤醒 */
+        if (!elunchbox_pwr_is_manual_off() && pt8028_is_power_key_held()) {
+            reset_sleep_delay();
+            reset_pwroff_delay();
+            return false;
+        }
+#endif
         bool force_lowpwr = elunchbox_pwr_is_manual_off();
         if ((elunchbox_guioff_sleep_ready() && (*is_sleep)()) || force_lowpwr) {
             sfunc_sleep();

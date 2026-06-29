@@ -272,8 +272,6 @@ void elunchbox_pwr_gui_off_activate(void)
     }
 #if USER_PANEL_LED
     panel_led_all_off();
-    panel_led_set_switch_latched(true);
-    panel_led_set(PANEL_LED_ID_SWITCH, true);
 #endif
     gui_sleep(false);
     elunchbox_pwr_gui_off = true;
@@ -336,12 +334,10 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
     pt8028_port_gpio_init();
     pt8028_key_scan();
 #if USER_PT8028_KEY
-    if (elunchbox_pwr_is_manual_off() && key_wake) {
-        func_elunchbox_guioff_wake_poll();
+    func_elunchbox_guioff_wake_poll();
 #if SOFT_POWER_ON_OFF
-        func_elunchbox_pwr_long_poll();
+    func_elunchbox_pwr_long_poll();
 #endif
-    }
 #endif
     if (!elunchbox_pwr_is_manual_off()) {
         elunchbox_guioff_sleep_service();
@@ -459,9 +455,6 @@ void elunchbox_panel_boot_power_on(void)
         return;
     }
     elunchbox_boot_power_sent = true;
-#if USER_PANEL_LED
-    panel_led_set_switch_latched(true);
-#endif
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_power_on();
 #endif
