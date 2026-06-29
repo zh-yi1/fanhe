@@ -26,6 +26,11 @@
 #define LB_TRACE(...)
 #endif
 
+// 心跳包数据定义 (MCU通信协议.md v1.0.8 §6.1)
+// 加热模块每1分钟发一次请求，无回应则3秒重试，连续3次失败报警5声
+#define LB_HEARTBEAT_REQUEST    0x00    // 请求响应 (加热模块→MCU)
+#define LB_HEARTBEAT_RESPONSE   0x01    // 回复应答 (MCU→加热模块)
+
 //-----------------------------------------------------------------------------
 // 空 ISR（uart_init 要求 rx_isr 非 NULL，实际数据走 bsp_uart1 环形缓冲）
 //-----------------------------------------------------------------------------
@@ -275,6 +280,22 @@ static bool lb_frame_parse(void)
     }
 #endif
 
+    // ──── 心跳包 (0x05): MCU↔加热模块内部通信，不转发BLE ────
+    // 加热模块每1分钟发一次请求(0x00)，MCU须回应(0x01)
+    // 加热模块: 无回应则3秒重试，连续3次失败报警5声 (MCU协议 §6.1)
+    if (rx.cmd == LB_UART_CMD_HEARTBEAT && rx.data && rx.data_len >= 1
+        && rx.data[0] == LB_HEARTBEAT_REQUEST) {
+        u8 rsp = LB_HEARTBEAT_RESPONSE;
+        lb_ble_tx_fn_t saved_ble = lb_ble_tx_fn;
+        lb_ble_tx_fn = NULL;  // 强制走UART，不能走BLE
+        lunchbox_uart_send_response(LB_UART_CMD_HEARTBEAT, rx.msg_flag,
+                                    LB_ERR_SUCCESS, &rsp, 1);
+        lb_ble_tx_fn = saved_ble;
+        printf("UART==>TX[heartbeat]: 55 AA 00 %02X 05 00 00 01 01 %02X\n",
+               rx.msg_flag, (u8)(0x55+0xAA+0x00+rx.msg_flag+0x05+0x00+0x00+0x01+0x01) % 256);
+        goto lb_frame_cleanup;  // 心跳不进入BLE翻译/本地分发，直接清理缓冲区
+    }
+
 #if LB_BRIDGE_MODE
     // ──── 桥模式：翻译为 BLE 协议 → 通过 BLE 发给 APP ────
     // 蓝牙未连接时跳过转发，节省协议翻译+BLE TX 尝试的功耗
@@ -339,6 +360,7 @@ static bool lb_frame_parse(void)
     }
 #endif
 
+lb_frame_cleanup:
     // 解析成功: 将缓冲区中剩余字节前移 (支持单次 BLE 写入含多帧的场景)
     {
         u16 remaining = lb_rx_idx - total;

@@ -189,6 +189,7 @@ enum {
     LB_UART_CMD_SCHEDULE    = 0x02,     // 查询预约列表
     LB_UART_CMD_SCHEDULE_OP = 0x03,     // 新增/修改/删除预约(合并)
     LB_UART_CMD_OTA         = 0x04,     // OTA(合并start/transfer/end)
+    LB_UART_CMD_HEARTBEAT   = 0x05,     // 心跳包: MCU↔加热模块, 验证双方在线 (MCU协议 v1.0.8 §6.1)
 };
 
 /*
