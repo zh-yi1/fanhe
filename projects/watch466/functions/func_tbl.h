@@ -92,6 +92,9 @@ compo_form_t *func_debug_info_form_create(void);
 compo_form_t *func_home_form_create(void);
 compo_form_t *func_heat_form_create(void);
 compo_form_t *func_mode_form_create(void);
+compo_form_t *func_new_heat_form_create(void);
+compo_form_t *func_new_mode_form_create(void);
+compo_form_t *func_new_setup_form_create(void);
 compo_form_t *func_reservation_form_create(void);
 compo_form_t *func_setup_form_create(void);
 compo_form_t *func_timeing_form_create(void);
@@ -222,6 +225,9 @@ const func_t tbl_func_create[] = {
     {FUNC_HEAT,                         func_heat_form_create},
     {FUNC_HOME,                         func_home_form_create},
     {FUNC_MODE,                         func_mode_form_create},
+    {FUNC_NEW_HEAT,                     func_new_heat_form_create},
+    {FUNC_NEW_MODE,                     func_new_mode_form_create},
+    {FUNC_NEW_SETUP,                    func_new_setup_form_create},
     {FUNC_RESERVATION,                  func_reservation_form_create},
     {FUNC_SETUP,                        func_setup_form_create},
     {FUNC_TIMEING,                      func_timeing_form_create},
@@ -400,12 +406,16 @@ extern void func_heat(void);
 extern void func_mode(void);
 extern void func_reservation(void);
 extern void func_setup(void);
+extern void func_new_heat(void);
+extern void func_new_mode(void);
+extern void func_new_setup(void);
 extern void func_timeing(void);
 extern void func_languageing(void);
 extern void func_verinfo(void);
 void func_home_process(void);
 void func_home_message(size_msg_t msg);
 void func_home_mode_key(void);
+void func_home_confirm_key(void);
 
 extern void func_music(void);
 extern void func_music_src(void);
@@ -535,6 +545,9 @@ const func_t tbl_func_entry[] = {
     {FUNC_HEAT,                         func_heat},                     //加热页
     {FUNC_HOME,                         func_home},                     //默认主页
     {FUNC_MODE,                         func_mode},                     //模式页
+    {FUNC_NEW_HEAT,                     func_new_heat},                 //新主页→加热页
+    {FUNC_NEW_MODE,                     func_new_mode},                 //新主页→模式页
+    {FUNC_NEW_SETUP,                    func_new_setup},                //新主页→设置页
     {FUNC_RESERVATION,                  func_reservation},              //预约页
     {FUNC_SETUP,                        func_setup},                    //设置页
     {FUNC_TIMEING,                      func_timeing},                  //定时页
@@ -811,6 +824,12 @@ void func_mode_enter(void);
 void func_mode_exit(void);
 void func_reservation_enter(void);
 void func_reservation_exit(void);
+void func_new_heat_enter(void);
+void func_new_heat_exit(void);
+void func_new_mode_enter(void);
+void func_new_mode_exit(void);
+void func_new_setup_enter(void);
+void func_new_setup_exit(void);
 void func_setup_enter(void);
 void func_setup_exit(void);
 void func_timeing_enter(void);
@@ -910,6 +929,9 @@ const func_t tbl_func_enter[] = {
     {FUNC_HEAT,                         func_heat_enter},                //加热页
     {FUNC_HOME,                         func_home_enter},               //默认主页
     {FUNC_MODE,                         func_mode_enter},               //模式页
+    {FUNC_NEW_HEAT,                     func_new_heat_enter},           //新主页→加热页
+    {FUNC_NEW_MODE,                     func_new_mode_enter},           //新主页→模式页
+    {FUNC_NEW_SETUP,                    func_new_setup_enter},          //新主页→设置页
     {FUNC_RESERVATION,                  func_reservation_enter},        //预约页
     {FUNC_SETUP,                        func_setup_enter},              //设置页
     {FUNC_TIMEING,                      func_timeing_enter},            //定时页
@@ -1229,6 +1251,9 @@ const func_t tbl_func_exit[] = {
     {FUNC_HEAT,                         func_heat_exit},                    //加热页
     {FUNC_HOME,                         func_home_exit},                    //默认主页
     {FUNC_MODE,                         func_mode_exit},                    //模式页
+    {FUNC_NEW_HEAT,                     func_new_heat_exit},                //新主页→加热页
+    {FUNC_NEW_MODE,                     func_new_mode_exit},                //新主页→模式页
+    {FUNC_NEW_SETUP,                    func_new_setup_exit},               //新主页→设置页
     {FUNC_RESERVATION,                  func_reservation_exit},             //预约页
     {FUNC_SETUP,                        func_setup_exit},                   //设置页
     {FUNC_TIMEING,                      func_timeing_exit},                 //定时页

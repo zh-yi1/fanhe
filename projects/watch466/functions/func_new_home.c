@@ -464,6 +464,42 @@ void func_home_mode_key(void)
     func_home_gui_mark_dirty();
 #endif
 }
+
+void func_home_confirm_key(void)
+{
+    f_new_home_t *f;
+    u8 target;
+
+    if (func_cb.sta != FUNC_HOME) {
+        return;
+    }
+    f = (f_new_home_t *)func_cb.f_cb;
+    if (f == NULL) {
+        return;
+    }
+    if (f->screen_locked) {
+        return;
+    }
+#if ELUNCHBOX_PANEL_EN
+    if (f->display_stage != 0) {
+        return;
+    }
+#endif
+    switch (f->cur_tab) {
+    case NEW_HOME_TAB_HEAT:
+        target = FUNC_NEW_HEAT;
+        break;
+    case NEW_HOME_TAB_MODE:
+        target = FUNC_NEW_MODE;
+        break;
+    case NEW_HOME_TAB_SETUP:
+        target = FUNC_NEW_SETUP;
+        break;
+    default:
+        return;
+    }
+    func_switch_to(target, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
 #endif /* USER_PT8028_KEY && ELUNCHBOX_PANEL_EN */
 
 void new_home_pt8028_keys_process(f_new_home_t *f)
@@ -483,6 +519,8 @@ void new_home_pt8028_keys_process(f_new_home_t *f)
     }
     if (press_tch == PT8028_KEY_TCH3) {
         func_home_mode_key();
+    } else if (press_tch == PT8028_KEY_TCH4) {
+        func_home_confirm_key();
     }
 }
 
@@ -549,6 +587,9 @@ void func_home_message(size_msg_t msg)
         func_home_mode_key();
         break;
 #endif
+    case KU_BACK:
+        func_home_confirm_key();
+        break;
     default:
         break;
     }
