@@ -426,12 +426,14 @@ static int gatt_callback_app(uint16_t con_handle, uint16_t handle, uint32_t flag
  */
 static void ble_app_blue_fit_rx_callback(u8 *ptr, u16 len)
 {
-    printf("BLE rx len=%d: %02x %02x %02x\n", len, ptr[0], ptr[1], ptr[2]);
+    //printf("BLE rx len=%d: %02x %02x %02x\n", len, ptr[0], ptr[1], ptr[2]);
 //    print_r(ptr, len);
 
 #if FUNC_LUNCHBOX_UART_EN
-    // 饭盒协议帧：0x55AA 帧头 → 走饭盒 BLE 通道
-    if (len >= 2 && ptr[0] == 0x55 && ptr[1] == 0xAA) {
+    // 饭盒协议帧：0x55AA 帧头，或缓冲区有待处理数据时继续路由
+    // (文件发送时 BLE 栈按 MTU 分包，后续包不以 55 AA 开头，需依赖 pending 状态)
+    if ((len >= 2 && ptr[0] == 0x55 && ptr[1] == 0xAA)
+        || lunchbox_ble_rx_pending()) {
         lunchbox_ble_rx_handle(ptr, len);
         return;
     }

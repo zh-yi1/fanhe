@@ -515,6 +515,7 @@ void lunchbox_ble_set_tx_fn(lb_ble_tx_fn_t fn);
 
 /** @brief 处理 BLE 接收到的饭盒协议帧，自动校验+分发给命令处理器/翻译转发 */
 void lunchbox_ble_rx_handle(u8 *data, u16 len);
+bool lunchbox_ble_rx_pending(void);     // 累积缓冲区是否有待处理数据
 
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_UART_H

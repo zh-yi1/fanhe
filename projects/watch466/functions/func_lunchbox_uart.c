@@ -39,6 +39,10 @@ static u8  lb_rx_buf[LB_RXBUF_SIZE];     // 帧解析缓冲区
 static u16 lb_rx_idx;                    // 当前已写入帧缓冲的字节数 / 状态机位置
 static u32 lb_rx_ticks;                  // 最近一次收到字节的时间戳（超时丢弃用）
 
+static u8  ble_rx_buf[512];              // BLE 接收累积缓冲区 (支持跨notification帧拼接)
+static u16 ble_rx_idx;                   // BLE 缓冲区当前字节数
+static u32 ble_rx_ticks;                 // BLE 缓冲区最近收包时间戳 (超时重置用)
+
 static u8  lb_ring_buf[LB_RXBUF_SIZE];   // bsp_uart1 环形缓冲区
 static u8  lb_tx_buf[LB_TXBUF_SIZE];     // 组帧发送缓冲区
 static lb_cmd_handler_t   cmd_handler[16];   // 命令字 → 回调，仅 0x01~0x0E 有效
@@ -73,6 +77,7 @@ typedef struct {
     u8  buf[512];           // 512 字节写入缓冲（ota_pack_write 要求 512 对齐）
     u16 buf_pos;            // 缓冲区已使用字节数
     u8  need_reset;         // 升级完成标志，主循环检测后延时复位
+    u32 block_count;        // [BLE验证] 已写入的 512B 块计数
     // 256 字节 bin 包头解析 (MCU通信协议.md §5.1 备注2)
     u8   header_buf[256];   // 包头累积缓冲区
     u16  header_pos;        // 已收集包头字节数
@@ -215,7 +220,13 @@ static bool lb_frame_parse(void)
     u16 data_len = ((u16)h->data_len << 8) | (h->data_len >> 8);
     u16 total = sizeof(lb_frame_head_t) + data_len + 1;
     if (total > LB_RXBUF_SIZE) {
-        lb_rx_reset();
+        // 数据长度异常: 跳过帧头首字节 0x55, 前移剩余数据继续搜索
+        if (lb_rx_idx > 1) {
+            memmove(lb_rx_buf, lb_rx_buf + 1, lb_rx_idx - 1);
+            lb_rx_idx -= 1;
+        } else {
+            lb_rx_idx = 0;
+        }
         return false;
     }
     if (lb_rx_idx < total) {
@@ -225,7 +236,13 @@ static bool lb_frame_parse(void)
     // ──── 检查 4：校验和验证 ────
     if (lb_checksum(lb_rx_buf, total - 1) != lb_rx_buf[total - 1]) {
         LB_TRACE("lb: chk fail\n");
-        lb_rx_reset();
+        // 校验失败: 跳过帧头首字节 0x55, 前移剩余数据继续搜索
+        if (lb_rx_idx > 1) {
+            memmove(lb_rx_buf, lb_rx_buf + 1, lb_rx_idx - 1);
+            lb_rx_idx -= 1;
+        } else {
+            lb_rx_idx = 0;
+        }
         return false;
     }
 
@@ -322,7 +339,17 @@ static bool lb_frame_parse(void)
     }
 #endif
 
-    lb_rx_reset();
+    // 解析成功: 将缓冲区中剩余字节前移 (支持单次 BLE 写入含多帧的场景)
+    {
+        u16 remaining = lb_rx_idx - total;
+        if (remaining > 0) {
+            memmove(lb_rx_buf, lb_rx_buf + total, remaining);
+            lb_rx_idx = remaining;
+        } else {
+            lb_rx_idx = 0;
+            lb_rx_ticks = 0;
+        }
+    }
     return true;
 }
 
@@ -712,7 +739,7 @@ static void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
         } else {
             // MCU→APP: target(1B) + status(1B)
             if (len >= 2) {
-                static const char *sts[] = {"RECV","ERASING","ERASE_DONE"};
+                static const char *sts[] = {"RECV","ERASING","ERASE_OK"};
                 printf("target=0x%02X status=%s(%u)\n", data[0],
                        data[1] <= 2 ? sts[data[1]] : "?", data[1]);
             }
@@ -1875,14 +1902,27 @@ static u8 lb_handler_ota_data(lb_rx_frame_t *rx)
         remaining -= copy;
 
         if (lb_ota_ctx.buf_pos >= 512) {
-            // 检查 FOTA 引擎是否有错误
+            lb_ota_ctx.block_count++;
+            printf("OTA BLK[%lu] off=0x%06lX\n",
+                   lb_ota_ctx.block_count - 1,
+                   (lb_ota_ctx.block_count - 1) * 512);
+            lb_ota_ctx.buf_pos = 0;
+
+            // [DEBUG] dump 前 64 字节验证数据完整性
+            if (lb_ota_ctx.block_count == 1) {
+                printf("OTA first 64B: ");
+                for (int _i = 0; _i < 64; _i++) printf("%02X ", lb_ota_ctx.buf[_i]);
+                printf("\n");
+                printf("OTA total_size=%lu cur_addr=0x%lx\n",
+                       ota_pack_get_total_size(), ota_pack_get_curaddr());
+            }
+
+            ota_pack_write(lb_ota_ctx.buf);
             if (ota_pack_get_err() != FOT_ERR_OK) {
                 printf("OTA write err: 0x%x\n", ota_pack_get_err());
                 lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
                 return LB_ERR_EXEC_FAIL;
             }
-            ota_pack_write(lb_ota_ctx.buf);
-            lb_ota_ctx.buf_pos = 0;
         }
     }
 
@@ -1914,30 +1954,47 @@ static u8 lb_handler_ota_end(lb_rx_frame_t *rx)
            target, lb_ota_ctx.recv_size, lb_ota_ctx.fw_size);
 
     if (lb_ota_ctx.state >= LB_OTA_READY) {
-        // 刷出缓冲区中剩余数据 (不足 512 字节的部分补 0)
+        // 刷出最后一块 (不足 512 字节的部分补 0)
         if (lb_ota_ctx.buf_pos > 0) {
+            u16 pad_start = lb_ota_ctx.buf_pos;
             memset(lb_ota_ctx.buf + lb_ota_ctx.buf_pos, 0, 512 - lb_ota_ctx.buf_pos);
+            lb_ota_ctx.block_count++;
+            printf("OTA BLK[%lu] off=0x%06lX (last, pad from %d)\n",
+                   lb_ota_ctx.block_count - 1,
+                   (lb_ota_ctx.block_count - 1) * 512,
+                   pad_start);
+
             ota_pack_write(lb_ota_ctx.buf);
+            if (ota_pack_get_err() != FOT_ERR_OK) {
+                printf("OTA write err on final block: 0x%x\n", ota_pack_get_err());
+                result = LB_OTA_RESULT_FAIL;
+            }
             lb_ota_ctx.buf_pos = 0;
         }
 
-        // 校验写入完整性
-        if (ota_pack_is_write_done()) {
-            ota_pack_verify();
-            u8 err = ota_pack_get_err();
-            printf("OTA verify: err=%d\n", err);
-            if (err == FOT_ERR_OK) {
-                ota_pack_done();
-                printf("OTA success, will reset in 3s...\n");
-                result = LB_OTA_RESULT_SUCCESS;
-                lb_ota_ctx.need_reset = 1;
-                lb_ota_reset_tick = tick_get();
+        // FOTA 校验 & 完成
+        if (result != LB_OTA_RESULT_FAIL) {
+            printf("\n========================================\n");
+            printf("OTA FOTA VERIFICATION\n");
+            printf("========================================\n");
+            printf("  接收字节: %lu / %lu\n", lb_ota_ctx.recv_size, lb_ota_ctx.fw_size);
+            printf("  总块数:   %lu\n", lb_ota_ctx.block_count);
+
+            if (ota_pack_is_write_done()) {
+                if (ota_pack_verify()) {
+                    ota_pack_done();
+                    printf("  VERIFY: 校验通过\n");
+                    printf("  DONE: 升级完成, 3秒后复位\n");
+                    result = LB_OTA_RESULT_SUCCESS;
+                    lb_ota_ctx.need_reset = true;
+                    lb_ota_reset_tick = tick_get();
+                } else {
+                    printf("  VERIFY: 校验失败 (err=0x%x)\n", ota_pack_get_err());
+                }
             } else {
-                printf("OTA verify failed: 0x%x\n", err);
+                printf("  WRITE: 数据未完整写入 (err=0x%x)\n", ota_pack_get_err());
             }
-        } else {
-            printf("OTA write incomplete: recv=%lu expected=%lu\n",
-                   lb_ota_ctx.recv_size, lb_ota_ctx.fw_size);
+            printf("========================================\n\n");
         }
     }
 
@@ -2502,7 +2559,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
     printf("BLE==>RX [%d]: ", len);
     for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
     printf("\n");
-    // 按协议命令字解析数据 (蓝牙通讯协议1.0.7.md §3)
+    // 按协议命令字解析数据 (蓝牙通讯协议1.0.7.md §3) — 仅打印第一条帧的协议分析
     if (len >= 9) {
         u8  cmd = data[4];
         u16 dl  = ((u16)data[6] << 8) | data[7];
@@ -2510,74 +2567,79 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
         else if (dl == 0)        lb_ble_dump_frame(cmd, NULL, 0, true);
     }
 
-    lb_rx_frame_t frame;
-    memset(&frame, 0, sizeof(frame));
-
-    if (!lb_ble_frame_parse(data, len, &frame)) {
-        printf("BLE: frame parse fail\n");
-        return;
+    // ──── 追加到 BLE 累积缓冲区 (支持跨 notification 的帧拼接) ────
+    // 超时保护: 距离上次收包超过 3 秒则重置缓冲区 (防止残留数据误路由)
+    if (ble_rx_idx > 0 && tick_check_expire(ble_rx_ticks, 3000)) {
+        printf("BLE: rx buf timeout, reset\n");
+        ble_rx_idx = 0;
     }
 
+    if (ble_rx_idx + len > sizeof(ble_rx_buf)) {
+        printf("BLE: rx buf overflow, reset\n");
+        ble_rx_idx = 0;
+        return;
+    }
+    memcpy(ble_rx_buf + ble_rx_idx, data, len);
+    ble_rx_idx += len;
+    ble_rx_ticks = tick_get();
+
+    // ──── 循环解析所有完整帧 ────
+    while (ble_rx_idx >= 9) {
+        // 检查帧头
+        if (ble_rx_buf[0] != 0x55 || ble_rx_buf[1] != 0xAA) {
+            // 跳过首字节，继续搜索帧头
+            if (ble_rx_idx > 1) {
+                memmove(ble_rx_buf, ble_rx_buf + 1, ble_rx_idx - 1);
+                ble_rx_idx--;
+            } else {
+                ble_rx_idx = 0;
+            }
+            continue;
+        }
+
+        // 预读 data_len 判断是否已收齐完整帧 (避免 lb_ble_frame_parse 内打印误导性错误)
+        u16 data_len = ((u16)ble_rx_buf[6] << 8) | ble_rx_buf[7];
+        u16 frame_total = 9 + data_len;
+
+        if (frame_total > sizeof(ble_rx_buf)) {
+            // 帧声明长度超过缓冲区 → 损坏数据, 跳过帧头首字节
+            printf("BLE: frame too large dlen=%d, skip\n", data_len);
+            memmove(ble_rx_buf, ble_rx_buf + 1, ble_rx_idx - 1);
+            ble_rx_idx--;
+            continue;
+        }
+
+        if (ble_rx_idx < frame_total) {
+            // 帧不完整 → 等待下次 BLE notification 补全
+            break;
+        }
+
+        // 解析完整帧
+        lb_rx_frame_t frame;
+        memset(&frame, 0, sizeof(frame));
+        if (!lb_ble_frame_parse(ble_rx_buf, ble_rx_idx, &frame)) {
+            // 校验失败 → 跳过帧头首字节继续搜索
+            printf("BLE: frame parse fail\n");
+            memmove(ble_rx_buf, ble_rx_buf + 1, ble_rx_idx - 1);
+            ble_rx_idx--;
+            continue;
+        }
+
+        // ──── 派发帧 (与原逻辑相同, 但 return 改为 goto next_frame) ────
 #if LB_BRIDGE_MODE
-    // ──── 桥模式：翻译转发 ────
-
-    // 0x01 产品信息 → 先透传加热模块, 等UART应答后再回复APP (v1.0.7)
-    if (frame.cmd == LB_CMD_PRODUCT_INFO) {
-        // ① 先保存 APP 发来的时间戳 (lb_translate_ble_data_to_uart 会用到)
-        if (frame.data && frame.data_len >= 4) {
-            lb_last_ble_ts = ((u32)frame.data[0] << 24) | ((u32)frame.data[1] << 16)
-                           | ((u32)frame.data[2] << 8)  | frame.data[3];
-            lb_has_ble_ts = true;
-        }
-        // ② 标记待处理: 等 UART 应答返回加热模块版本号后再回复 APP
-        lb_product_info_pending   = true;
-        lb_product_info_msg_flag  = frame.msg_flag;
-        lb_product_info_pend_tick = tick_get();
-        // ③ 透传给加热模块 (lb_translate_ble_to_uart 会设置 lb_uart_sync_pending)
-        u8 uart_buf[LB_TXBUF_SIZE];
-        u16 uart_len = 0;
-        if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
-            printf("BLE->UART==>TX[%d]: ", uart_len);
-            for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
-            printf("\n");
-            {
-                u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
-                if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
+        // 0x01 产品信息 → 先透传加热模块, 等UART应答后再回复APP (v1.0.7)
+        if (frame.cmd == LB_CMD_PRODUCT_INFO) {
+            // ① 先保存 APP 发来的时间戳
+            if (frame.data && frame.data_len >= 4) {
+                lb_last_ble_ts = ((u32)frame.data[0] << 24) | ((u32)frame.data[1] << 16)
+                               | ((u32)frame.data[2] << 8)  | frame.data[3];
+                lb_has_ble_ts = true;
             }
-            uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
-        } else {
-            // 翻译失败 → 直接回复 (使用当前已有的 heat_module_version)
-            lb_product_info_pending = false;
-            lb_handler_product_info(&frame);
-        }
-        return;
-    }
-
-    // 0x03 状态上报 → APP 不会向 MCU 发此命令, 忽略
-    if (frame.cmd == LB_CMD_STATUS_REPORT) {
-        printf("BLE: unexpected 0x03 from APP, ignored\n");
-        return;
-    }
-
-    // OTA 命令 (0x0c-0x0e, v1.0.7): 根据 target 字段决定路由
-    //   target=0x01(主单片机) → 本地处理, 不转发 UART
-    //   target=0x02(加热模块) → 转发 UART, 本地不处理
-    if (frame.cmd >= LB_CMD_OTA_START && frame.cmd <= LB_CMD_OTA_END) {
-        u8 target = lb_ota_get_target(&frame);
-        bool to_main = (target == 0x00 || target == LB_OTA_TARGET_MAIN_MCU);
-        bool to_heat = (target == LB_OTA_TARGET_HEAT_MODULE);
-
-        if (to_main) {
-            // 主单片机: 本地处理，直接通过 BLE 应答 APP
-            printf("OTA: target=0x%02X -> local handler\n", target ? target : LB_OTA_TARGET_MAIN_MCU);
-            if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
-                cmd_handler[frame.cmd](&frame);
-            }
-        }
-
-        if (to_heat) {
-            // 加热模块: 翻译为 UART 协议 → 串口发往加热模块
-            printf("OTA: target=0x%02X -> forward to UART\n", target);
+            // ② 标记待处理
+            lb_product_info_pending   = true;
+            lb_product_info_msg_flag  = frame.msg_flag;
+            lb_product_info_pend_tick = tick_get();
+            // ③ 透传给加热模块
             u8 uart_buf[LB_TXBUF_SIZE];
             u16 uart_len = 0;
             if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
@@ -2586,54 +2648,117 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
                 printf("\n");
                 {
                     u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
-                    if (dl) lb_dp_dump_hex(uart_buf + 8, dl);
+                    if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
+                }
+                uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
+            } else {
+                // 翻译失败 → 直接回复
+                lb_product_info_pending = false;
+                lb_handler_product_info(&frame);
+            }
+            goto next_frame;
+        }
+
+        // 0x03 状态上报 → APP 不会向 MCU 发此命令, 忽略
+        if (frame.cmd == LB_CMD_STATUS_REPORT) {
+            printf("BLE: unexpected 0x03 from APP, ignored\n");
+            goto next_frame;
+        }
+
+        // OTA 命令 (0x0c-0x0e, v1.0.7): 根据 target 字段决定路由
+        if (frame.cmd >= LB_CMD_OTA_START && frame.cmd <= LB_CMD_OTA_END) {
+            u8 target = lb_ota_get_target(&frame);
+            bool to_main = (target == 0x00 || target == LB_OTA_TARGET_MAIN_MCU);
+            bool to_heat = (target == LB_OTA_TARGET_HEAT_MODULE);
+
+            if (to_main) {
+                printf("OTA: target=0x%02X -> local handler\n", target ? target : LB_OTA_TARGET_MAIN_MCU);
+                if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
+                    cmd_handler[frame.cmd](&frame);
+                }
+            }
+
+            if (to_heat) {
+                printf("OTA: target=0x%02X -> forward to UART\n", target);
+                u8 uart_buf[LB_TXBUF_SIZE];
+                u16 uart_len = 0;
+                if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
+                    printf("BLE->UART==>TX[%d]: ", uart_len);
+                    for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
+                    printf("\n");
+                    {
+                        u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
+                        if (dl) lb_dp_dump_hex(uart_buf + 8, dl);
+                    }
+                    uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
+                }
+            }
+            goto next_frame;
+        }
+
+        // 所有其他命令(含 0x09/0x0a) → 翻译为 UART 协议 → 通过串口发给加热模块
+        {
+            u8 uart_buf[LB_TXBUF_SIZE];
+            u16 uart_len = 0;
+            if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
+                printf("BLE->UART==>TX[%d]: ", uart_len);
+                for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
+                printf("\n");
+                {
+                    u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
+                    if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
                 }
                 uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
             }
-        }
-        return;
-    }
 
-    // 所有其他命令(含 0x09/0x0a) → 翻译为 UART 协议 → 通过串口发给加热模块
-    {
-        u8 uart_buf[LB_TXBUF_SIZE];
-        u16 uart_len = 0;
-        if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
-            printf("BLE->UART==>TX[%d]: ", uart_len);
-            for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
-            printf("\n");
-            {
-                u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
-                if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
-            }
-            uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
-        }
-
-        // BLE 控制/状态类命令携带 DataPoints 时，同步推送 LCD 显示
-        if (frame.cmd == LB_CMD_CONTROL && frame.data && frame.data_len > 0) {
-            heat_display_feed_dp(frame.data, frame.data_len);
+            // BLE 控制/状态类命令携带 DataPoints 时，同步推送 LCD 显示
+            if (frame.cmd == LB_CMD_CONTROL && frame.data && frame.data_len > 0) {
+                heat_display_feed_dp(frame.data, frame.data_len);
 #if ELUNCHBOX_PANEL_EN
-            home_ui_shared_battery_feed_dp(frame.data, frame.data_len);
+                home_ui_shared_battery_feed_dp(frame.data, frame.data_len);
 #endif
+            }
+        }
+#else
+        // ──── 本地模式：逐帧转发到串口 + 解析分发给 cmd_handler ────
+        printf("BLE->UART==>TX[%d]: ", frame_total);
+        for (u16 i = 0; i < frame_total; i++) printf("%02X ", ble_rx_buf[i]);
+        printf("\n");
+        {
+            if (frame.data_len) lb_dp_dump_hex(ble_rx_buf + 8, frame.data_len);
+        }
+        uart_bufs_tx(UART_TYPE_1, ble_rx_buf, frame_total);
+
+        LB_TRACE("lb_ble: rx cmd=0x%02x msg=%d len=%d\n", frame.cmd, frame.msg_flag, frame.data_len);
+
+        if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
+            cmd_handler[frame.cmd](&frame);
+        }
+#endif
+
+next_frame:
+        // ──── 从缓冲区移除已处理的帧 ────
+        {
+            u16 remaining = ble_rx_idx - frame_total;
+            if (remaining > 0) {
+                memmove(ble_rx_buf, ble_rx_buf + frame_total, remaining);
+                ble_rx_idx = remaining;
+            } else {
+                ble_rx_idx = 0;
+            }
         }
     }
-#else
-    // ──── 本地模式：原帧转发到串口 + 解析分发给 cmd_handler ────
-    printf("BLE->UART==>TX[%d]: ", len);
-    for (u16 i = 0; i < len; i++) printf("%02X ", data[i]);
-    printf("\n");
-    {
-        u16 dl = ((u16)data[6] << 8) | data[7];
-        if (dl) lb_dp_dump_hex(data + 8, dl);
-    }
-    uart_bufs_tx(UART_TYPE_1,data, len);
+}
 
-    LB_TRACE("lb_ble: rx cmd=0x%02x msg=%d len=%d\n", frame.cmd, frame.msg_flag, frame.data_len);
-
-    if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
-        cmd_handler[frame.cmd](&frame);
-    }
-#endif
+/**
+ * @brief 检查 BLE 累积缓冲区是否有待处理数据
+ *
+ * 用于上层路由判断：即使当前通知不以 55 AA 开头，
+ * 若缓冲区还有未完成的帧片段，仍需继续路由到 lunchbox_ble_rx_handle()。
+ */
+bool lunchbox_ble_rx_pending(void)
+{
+    return ble_rx_idx > 0;
 }
 
 /**
@@ -2644,6 +2769,9 @@ void lunchbox_uart_init(u32 baud)
     lb_uart_suspended = false;
     memset(lb_rx_buf, 0, sizeof(lb_rx_buf));
     lb_rx_idx = 0;
+    memset(ble_rx_buf, 0, sizeof(ble_rx_buf));
+    ble_rx_idx = 0;
+    ble_rx_ticks = 0;
     memset(cmd_handler, 0, sizeof(cmd_handler));
 #if !LB_BRIDGE_MODE
     memset(lb_schedules, 0, sizeof(lb_schedules));
