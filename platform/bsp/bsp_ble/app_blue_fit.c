@@ -723,7 +723,11 @@ void ble_app_watch_disconnect_callback(void)
  */
 void ble_app_watch_connect_callback(void)
 {
-
+#if FUNC_LUNCHBOX_UART_EN
+    // BLE 连接成功后主动上报时间戳给 APP (蓝牙通讯协议1.0.8 §3.3)
+    // 帧格式: 0x03 状态上报, DataPoint dpid=11(时间戳) value=4B Unix时间戳
+    lunchbox_ble_on_connected();
+#endif
 }
 
 /**

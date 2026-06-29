@@ -424,6 +424,27 @@ u8 lunchbox_get_heat_enable(void);
 /** @brief 是否有进行中的加热/保温任务（用于禁止自动息屏） */
 bool lunchbox_heating_task_active(void);
 
+/** @brief BLE 连接成功回调 — 主动上报时间戳(0x03, dpid=11)给 APP
+ *
+ * 触发时机: ble_app_watch_connect_callback() 中调用。
+ * MCU 向 APP 发送一条 0x03 状态上报帧，仅含时间戳 DataPoint(dpid=11)。
+ * 时间戳来源: RTCCNT + LB_RTC_UNIX_OFFSET (本地RTC转Unix时间戳)。
+ */
+void lunchbox_ble_on_connected(void);
+
+/** @brief BLE 连接后发送5个固定预约预设到加热模块 (UART 0x03)
+ *
+ * 触发时机: lunchbox_ble_on_connected() 中调用。
+ * MCU 向加热模块发送5条不可修改的固定预约(ID=1~5)，
+ * 命令字 0x03 (LB_UART_CMD_SCHEDULE_OP), 帧格式见 MCU通信协议.md §3.6。
+ *
+ * 预设列表:
+ *   ID=1: 早餐(8:00),   ID=2: 午餐(10:50), ID=3: 晚餐(16:30),
+ *   ID=4: 鸡腿模式,      ID=5: 意面模式
+ * 温度统一 149°F(60°C), enabled=0(停止加热), repeat=每天。
+ */
+void lunchbox_ble_send_presets(void);
+
 //-----------------------------------------------------------------------------
 // OTA 升级流程 (蓝牙通讯协议1.0.7.md §5)
 //-----------------------------------------------------------------------------

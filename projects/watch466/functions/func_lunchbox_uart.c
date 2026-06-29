@@ -1210,6 +1210,98 @@ void lunchbox_power_on(void)
 }
 
 /**
+ * @brief 计算下一个指定时分(北京时间)的Unix时间戳
+ *
+ * 根据当前 RTCCNT (自2020-01-01 00:00:00北京时间起算的秒数)
+ * 计算下一个 hour:min 对应的 Unix 时间戳。
+ * 若当天该时刻已过，则返回明天的该时刻。
+ *
+ * @param hour  小时 (0-23, 北京时间)
+ * @param min   分钟 (0-59)
+ * @return      下一个触发时刻的Unix时间戳
+ */
+static u32 lb_next_time_of_day(u8 hour, u8 min)
+{
+    u32 rtc = RTCCNT;
+    u32 today_midnight = rtc - (rtc % 86400);          // RTC at 00:00:00 Beijing
+    u32 target_rtc = today_midnight + (u32)hour * 3600 + (u32)min * 60;
+    if (target_rtc <= rtc) {
+        target_rtc += 86400;                            // 今天已过, 取明天
+    }
+    return target_rtc + LB_RTC_UNIX_OFFSET;
+}
+
+/**
+ * @brief BLE 连接后发送5个固定预约预设到加热模块 (UART 0x03)
+ *
+ * 蓝牙连上后，MCU 向加热模块发送5条不可修改的固定预约预设(ID=1~5)。
+ * 命令字 0x03 (LB_UART_CMD_SCHEDULE_OP), 帧格式见 MCU通信协议.md §3.6。
+ *
+ * 每个预设 enabled=0 (dpid=10=停止加热), repeat=0xff (每天重复),
+ * 温度统一为 149°F (temp_idx=2 → 60°C)。
+ *
+ * 预设列表:
+ *   ID=1: 早餐,     8:00 触发, 149°F, 60min,  自定义加热
+ *   ID=2: 午餐,    10:50 触发, 149°F, 70min,  自定义加热
+ *   ID=3: 晚餐,    16:30 触发, 149°F, 90min,  自定义加热
+ *   ID=4: 鸡腿模式,  立即触发, 149°F, 60min,  鸡腿模式
+ *   ID=5: 意面模式,  立即触发, 149°F, 60min,  意面模式
+ */
+void lunchbox_ble_send_presets(void)
+{
+    u8 temp_idx = lunchbox_temp_f_to_idx(149);  // 149°F → 60°C (idx=2)
+
+    // 预设1: 早餐 — 每天8:00触发
+    lunchbox_reservation_send(1, 1, "早餐",
+                              lb_next_time_of_day(8, 0), temp_idx, 60, 0, 0xff);
+
+    // 预设2: 午餐 — 每天10:50触发
+    lunchbox_reservation_send(1, 2, "午餐",
+                              lb_next_time_of_day(10, 50), temp_idx, 70, 0, 0xff);
+
+    // 预设3: 晚餐 — 每天16:30触发
+    lunchbox_reservation_send(1, 3, "晚餐",
+                              lb_next_time_of_day(16, 30), temp_idx, 90, 0, 0xff);
+
+    // 预设4: 鸡腿模式
+    lunchbox_reservation_send(2, 4, "鸡腿模式",
+                              RTCCNT + LB_RTC_UNIX_OFFSET, temp_idx, 60, 0, 0xff);
+
+    // 预设5: 意面模式
+    lunchbox_reservation_send(3, 5, "意面模式",
+                              RTCCNT + LB_RTC_UNIX_OFFSET, temp_idx, 60, 0, 0xff);
+
+    printf("BLE connected: 5 presets sent to heat module via UART 0x03\n");
+}
+
+/**
+ * @brief BLE 连接成功回调 — 主动上报时间戳(0x03, dpid=11)给 APP
+ *
+ * 蓝牙通讯协议1.0.8.md §3.3: BLE 连接成功后，MCU 向 APP 发送 0x03 状态上报帧，
+ * 仅携带时间戳 DataPoint(dpid=11)，让 APP 获取 MCU 当前时间参考值。
+ *
+ * 时间戳来源: RTCCNT + LB_RTC_UNIX_OFFSET (本地RTC计数器 + 偏移转Unix时间戳)。
+ * 若已通过 0x01 产品信息查询收到过 APP 时间戳(lb_has_ble_ts)，则优先使用该值。
+ */
+void lunchbox_ble_on_connected(void)
+{
+    u32 ts;
+#if LB_BRIDGE_MODE
+    // 桥模式: 优先使用 APP 已同步的时间戳，否则用本地 RTC
+    ts = lb_has_ble_ts ? lb_last_ble_ts : (RTCCNT + LB_RTC_UNIX_OFFSET);
+#else
+    ts = RTCCNT + LB_RTC_UNIX_OFFSET;
+#endif
+    u8 data[8];
+    u16 len = lb_dp_encode_value(data, LB_DPID_TIME_SYNC, ts);
+    lunchbox_uart_send_async(LB_CMD_STATUS_REPORT, data, len);
+    printf("BLE connected: report timestamp=%lu via 0x03\n", (unsigned long)ts);
+
+    // BLE 连接后发送5个固定预约预设到加热模块 (MCU通信协议.md §3.6)
+    lunchbox_ble_send_presets();
+}
+
+/**
  * @brief LCD 时间同步 — 发送 UART 0x01 帧同步时间到加热模块
  *
  * 供屏幕端调用，将 Unix 时间戳同步给加热模块，使双方时间保持一致。
