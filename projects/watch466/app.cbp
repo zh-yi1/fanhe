@@ -889,6 +889,12 @@
 		<Unit filename="functions/func_new_home.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_new_home.h" />
+		<Unit filename="functions/new_home_top_time.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/new_home_top_time.h" />
+		<Unit filename="functions/new_home_icon_res.h" />
 		<Unit filename="functions/func_new_heat.c">
 			<Option compilerVar="CC" />
 		</Unit>

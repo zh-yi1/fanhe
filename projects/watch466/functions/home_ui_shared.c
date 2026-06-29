@@ -4,8 +4,8 @@
 #include "func_lunchbox_uart.h"
 #endif
 
-/* 保留在 sram BSS（勿放 .disp.home_ram，disp 仅 96KB 已满）；Home/Mode 互斥共用 icon 槽 */
-u8 home_ui_shared_icon_runtime[HOME_UI_SHARED_TAB_CNT][HOME_ICON_RAM_SIZE];
+/* 保留在 sram BSS；新主页 Tab 79×88×3，Home/Heat/Mode 互斥共用 */
+u8 home_ui_shared_icon_runtime[HOME_UI_SHARED_TAB_CNT][NEW_HOME_TAB_RAM_SIZE];
 u8 home_ui_shared_status_bt_ram[HOME_STATUS_BT_RAM_SIZE];
 u8 home_ui_shared_status_lock_ram[HOME_STATUS_LOCK_RAM_SIZE];
 u8 home_ui_shared_status_bat_ram[HOME_STATUS_BAT_RAM_SIZE];
@@ -54,12 +54,31 @@ static u8 home_bat_pick_icon(void)
 
 static bool home_bat_icon_flash(u8 icon, u32 *addr, u32 *len)
 {
-#ifndef UI_BUF_HOME_DL4_BIN
-    (void)icon;
-    (void)addr;
-    (void)len;
-    return false;
-#else
+#ifdef UI_BUF_NEW_UI_NEW_DL4_BIN
+    switch (icon) {
+    case HOME_BAT_ICON_CHG:
+        *addr = UI_BUF_NEW_UI_NEW_DL_BIN;
+        *len = UI_LEN_NEW_UI_NEW_DL_BIN;
+        return true;
+    case HOME_BAT_ICON_DL1:
+        *addr = UI_BUF_NEW_UI_NEW_DL1_BIN;
+        *len = UI_LEN_NEW_UI_NEW_DL1_BIN;
+        return true;
+    case HOME_BAT_ICON_DL2:
+        *addr = UI_BUF_NEW_UI_NEW_DL2_BIN;
+        *len = UI_LEN_NEW_UI_NEW_DL2_BIN;
+        return true;
+    case HOME_BAT_ICON_DL3:
+        *addr = UI_BUF_NEW_UI_NEW_DL3_BIN;
+        *len = UI_LEN_NEW_UI_NEW_DL3_BIN;
+        return true;
+    case HOME_BAT_ICON_DL4:
+    default:
+        *addr = UI_BUF_NEW_UI_NEW_DL4_BIN;
+        *len = UI_LEN_NEW_UI_NEW_DL4_BIN;
+        return true;
+    }
+#elif defined(UI_BUF_HOME_DL4_BIN)
     switch (icon) {
     case HOME_BAT_ICON_CHG:
         *addr = UI_BUF_HOME_DL_BIN;
@@ -83,6 +102,11 @@ static bool home_bat_icon_flash(u8 icon, u32 *addr, u32 *len)
         *len = UI_LEN_HOME_DL4_BIN;
         return true;
     }
+#else
+    (void)icon;
+    (void)addr;
+    (void)len;
+    return false;
 #endif
 }
 
@@ -206,10 +230,12 @@ u32 home_ui_shared_battery_flash_addr(void)
     u32 len = 0;
 
     if (!home_bat_icon_flash(home_bat_pick_icon(), &addr, &len)) {
-#ifndef UI_BUF_HOME_DL4_BIN
-        return 0;
-#else
+#ifdef UI_BUF_NEW_UI_NEW_DL4_BIN
+        return UI_BUF_NEW_UI_NEW_DL4_BIN;
+#elif defined(UI_BUF_HOME_DL4_BIN)
         return UI_BUF_HOME_DL4_BIN;
+#else
+        return 0;
 #endif
     }
     return addr;
@@ -273,7 +299,12 @@ void home_ui_shared_status_init(void)
     if (home_ui_shared_status_inited) {
         return;
     }
+#ifdef UI_BUF_NEW_UI_NEW_BLUETOOTH_BIN
+    os_spiflash_read(home_ui_shared_status_bt_ram, UI_BUF_NEW_UI_NEW_BLUETOOTH_BIN,
+                     UI_LEN_NEW_UI_NEW_BLUETOOTH_BIN);
+#else
     os_spiflash_read(home_ui_shared_status_bt_ram, UI_BUF_HOME_BLUETOOTH_BIN, UI_LEN_HOME_BLUETOOTH_BIN);
+#endif
     if (!home_ui_shared_status_lock_preloaded) {
         os_spiflash_read(home_ui_shared_status_lock_ram, UI_BUF_HOME_LOCK_BIN, UI_LEN_HOME_LOCK_BIN);
     }
