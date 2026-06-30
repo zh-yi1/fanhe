@@ -8,6 +8,10 @@
 #include "func_lunchbox_uart.h"
 #include "func_key_lock.h"
 
+#if ELUNCHBOX_PANEL_EN
+extern volatile u8 elunchbox_te_block_flag;
+#endif
+
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #include "port_pt8028_key.h"
@@ -80,10 +84,6 @@ typedef struct {
     u8 temp_idx;
     u8 time_idx;
     bool display_pending;
-#if ELUNCHBOX_PANEL_EN
-    u8 build_stage;       /* 0=就绪；1=GPU预热；2=建窗；3..20=分帧建控件 */
-    u8 warmup_cnt;
-#endif
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_bat;
     compo_picturebox_t *pic_temp_track;
@@ -129,7 +129,11 @@ static compo_picturebox_t *new_heat_pic_create_hidden(compo_form_t *frm, u16 id)
 {
     compo_picturebox_t *pic = (compo_picturebox_t *)compo_create(frm, COMPO_TYPE_PICTUREBOX);
 
-    pic->img = (void *)widget_icon_create(frm->page_body, 0);
+    /* 必须用 widget_image_create 而非 widget_icon_create：
+     * - widget_icon_create(page, 0) 在 GPU 扫描时触发 C482
+     * - widget_image_create(page, 0) 能安全处理 addr=0（如 compo_rowbox 所用）
+     * - picturebox->img 的类型是 widget_image_t *，与 widget_icon_t 不兼容 */
+    pic->img = (void *)widget_image_create(frm->page_body, 0);
     pic->radix = 1;
     compo_setid(pic, id);
     compo_picturebox_set_visible(pic, false);
@@ -642,10 +646,13 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
         f->txt_time_val = t;
     }
     if (f->txt_temp_label != NULL) {
+        printf("txt_setfont_label\n");
         compo_textbox_set_font(f->txt_temp_label, UI_BUF_0FONT_FONT_ASC_BIN);
+        printf("txt_label_font_ok\n");
         compo_textbox_set_autosize(f->txt_temp_label, true);
         compo_textbox_set(f->txt_temp_label, "Heating Temp");
         compo_textbox_set_visible(f->txt_temp_label, true);
+        printf("txt_label_ok\n");
     }
     if (f->txt_time_label != NULL) {
         compo_textbox_set_font(f->txt_time_label, UI_BUF_0FONT_FONT_ASC_BIN);
@@ -761,9 +768,13 @@ static void new_heat_ui_refresh(f_new_heat_t *f)
 #if !ELUNCHBOX_PANEL_EN
     home_gpu_wait_idle();
 #endif
+    printf("tracks_start\n");
     new_heat_tracks_apply(f);
+    printf("tracks_done\n");
     new_heat_badges_apply(f);
+    printf("badges_done\n");
     new_heat_text_apply(f);
+    printf("text_done\n");
 }
 
 #define new_heat_sliders_apply(f)       new_heat_ui_refresh(f)
@@ -908,159 +919,8 @@ static compo_textbox_t *new_heat_txt_create(compo_form_t *frm, u16 id, u32 font_
     return txt;
 }
 
-#if ELUNCHBOX_PANEL_EN
-static bool new_heat_ui_ready(f_new_heat_t *f)
-{
-    return (f != NULL && f->build_stage == 0);
-}
-
-/* enter 不碰 GPU；switch_to 已 gpu_recycle，process 下帧建窗再逐控件创建 */
-static void new_heat_build_step(f_new_heat_t *f)
-{
-    compo_form_t *frm;
-    compo_picturebox_t *pic;
-    s16 bat_x;
-    s16 bt_x;
-
-    if (f == NULL || f->build_stage == 0) {
-        return;
-    }
-
-    if (f->build_stage == 1) {
-        if (f->warmup_cnt < NEW_HEAT_GPU_SETTLE_FRAMES) {
-            f->warmup_cnt++;
-            return;
-        }
-        f->build_stage = 2;
-        return;
-    }
-
-    if (f->build_stage == 2) {
-        WDT_CLR();
-        func_cb.frm_main = compo_form_create(true);
-        WDT_CLR();
-        f->build_stage = 3;
-        return;
-    }
-
-    frm = func_cb.frm_main;
-    if (frm == NULL) {
-        return;
-    }
-
-    bat_x = (s16)(GUI_SCREEN_WIDTH - NEW_HEAT_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
-    bt_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - NEW_HEAT_STATUS_GAP - NEW_HOME_BT_W / 2);
-
-    switch (f->build_stage) {
-    case 3:
-        new_heat_white_bg_create(frm);
-        f->build_stage = 4;
-        break;
-    case 4:
-        pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_BT);
-        compo_picturebox_set_pos(pic, bt_x, NEW_HEAT_STATUS_Y);
-        compo_picturebox_set_size(pic, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        f->build_stage = 5;
-        break;
-    case 5:
-        pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_BAT);
-        compo_picturebox_set_pos(pic, bat_x, NEW_HEAT_STATUS_Y);
-        compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
-        f->build_stage = 6;
-        break;
-    case 6:
-        pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_BADGE);
-        compo_picturebox_set_pos(pic, NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_LABEL_Y);
-        compo_picturebox_set_size(pic, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
-        f->build_stage = 7;
-        break;
-    case 7:
-        pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TIME_BADGE);
-        compo_picturebox_set_pos(pic, NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y);
-        compo_picturebox_set_size(pic, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
-        f->build_stage = 8;
-        break;
-    case 8:
-        pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_TRACK);
-        compo_picturebox_set_pos(pic, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SLIDER_Y);
-        compo_picturebox_set_size(pic, NEW_HEAT_SLIDER_W, NEW_HEAT_TRACK_H);
-        f->build_stage = 9;
-        break;
-    case 9:
-        pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TIME_TRACK);
-        compo_picturebox_set_pos(pic, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SLIDER_Y);
-        compo_picturebox_set_size(pic, NEW_HEAT_SLIDER_W, NEW_HEAT_TRACK_H);
-        f->build_stage = 10;
-        break;
-    case 10:
-        pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_POINT);
-        compo_picturebox_set_pos(pic, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SLIDER_Y);
-        compo_picturebox_set_size(pic, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H);
-        f->build_stage = 11;
-        break;
-    case 11:
-        pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TIME_POINT);
-        compo_picturebox_set_pos(pic, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SLIDER_Y);
-        compo_picturebox_set_size(pic, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H);
-        f->build_stage = 12;
-        break;
-    case 12:
-        new_heat_bind_objects(f);
-        new_heat_status_icons_apply(f);
-        f->build_stage = 13;
-        break;
-    case 13:
-        WDT_CLR();
-        new_heat_temp_track_apply(f);
-        f->build_stage = 14;
-        break;
-    case 14:
-        WDT_CLR();
-        new_heat_time_track_apply(f);
-        f->build_stage = 15;
-        break;
-    case 15:
-        WDT_CLR();
-        new_heat_temp_point_apply(f);
-        f->build_stage = 16;
-        break;
-    case 16:
-        WDT_CLR();
-        new_heat_temp_badge_apply(f);
-        f->build_stage = 17;
-        break;
-    case 17:
-        WDT_CLR();
-        new_heat_time_point_apply(f);
-        f->build_stage = 18;
-        break;
-    case 18:
-        WDT_CLR();
-        new_heat_time_badge_apply(f);
-        f->build_stage = 19;
-        break;
-    case 19:
-        WDT_CLR();
-        new_heat_text_apply_main(f);
-        f->build_stage = 20;
-        break;
-    case 20:
-        WDT_CLR();
-        new_heat_text_apply_scales(f);
-        f->build_stage = 0;
-        break;
-    default:
-        f->build_stage = 0;
-        break;
-    }
-}
-#endif
-
 compo_form_t *func_new_heat_form_create(void)
 {
-#if ELUNCHBOX_PANEL_EN
-    return compo_form_create(true);
-#else
     compo_form_t *frm = compo_form_create(true);
     compo_picturebox_t *pic;
     s16 bat_x;
@@ -1125,7 +985,6 @@ compo_form_t *func_new_heat_form_create(void)
     }
 
     return frm;
-#endif
 }
 
 static void func_new_heat_message(size_msg_t msg)
@@ -1138,23 +997,17 @@ static void func_new_heat_message(size_msg_t msg)
     if (func_key_lock_ku_blocked(msg)) {
         return;
     }
-#if ELUNCHBOX_PANEL_EN
-    if (!new_heat_ui_ready(f)) {
-        /* 吞掉 Home 确认键残留的 KU_BACK，否则会 func_back_to() 立刻退回 Home */
-        switch (msg) {
-        case KU_BACK:
-        case KU_MODE:
-        case KU_VOL_UP:
-        case KU_VOL_DOWN:
-        case KU_RIGHT:
-            return;
-        default:
-            func_message(msg);
-            break;
-        }
+    /* 吞掉 Home 确认键残留的 KU_BACK，否则会 func_back_to() 立刻退回 Home */
+    switch (msg) {
+    case KU_BACK:
+    case KU_MODE:
+    case KU_VOL_UP:
+    case KU_VOL_DOWN:
+    case KU_RIGHT:
         return;
+    default:
+        break;
     }
-#endif
 
     switch (msg) {
     case NEW_HEAT_MSG_OK:
@@ -1184,13 +1037,6 @@ static void func_new_heat_process(void)
         return;
     }
 
-#if ELUNCHBOX_PANEL_EN
-    if (f->build_stage != 0) {
-        new_heat_build_step(f);
-        func_process();
-        return;
-    }
-#endif
     new_heat_status_refresh(f);
     func_process();
 }
@@ -1200,44 +1046,91 @@ void func_new_heat_enter(void)
     f_new_heat_t *f;
 
     printf("func_new_heat_enter\n");
-
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    func_home_drain_stale_key_msgs();
-    pt8028_release_clear();
-#endif
-    msg_queue_detach(KU_BACK, 0);
-    msg_queue_detach(KU_VOL_UP, 0);
-    msg_queue_detach(KU_VOL_DOWN, 0);
-    msg_queue_detach(KU_RIGHT, 0);
-
-    func_cb.f_cb = func_zalloc(sizeof(f_new_heat_t));
-    WDT_CLR();
-
-    f = (f_new_heat_t *)func_cb.f_cb;
-    f->focus = NEW_HEAT_FOCUS_TEMP;
-    f->temp_idx = 0;
-    f->time_idx = 0;
-    f->display_pending = false;
-
-    home_ui_digit_pool_reset();
+    printf("eh_a\n");
 
 #if ELUNCHBOX_PANEL_EN
-    func_cb.frm_main = NULL;
-    f->build_stage = 1;
-    f->warmup_cnt = 0;
-    tft_bglight_force_on();
-#if USER_PT8028_KEY
-    func_home_drain_stale_key_msgs();
-    pt8028_release_clear();
-#endif
-#else
-    func_cb.frm_main = func_new_heat_form_create();
+    printf("eh_b\n");
+    home_gpu_wait_idle();
+    printf("eh_c\n");
     WDT_CLR();
-    new_heat_bind_objects(f);
-    home_ui_shared_battery_attach_pic(f->pic_bat);
-    new_heat_status_icons_apply(f);
-    new_heat_ui_refresh(f);
+    printf("eh_d\n");
 #endif
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    printf("eh_e\n");
+    func_home_drain_stale_key_msgs();
+    printf("eh_f\n");
+    pt8028_release_clear();
+    printf("eh_g\n");
+#endif
+    msg_queue_detach(KU_BACK, 0);
+    printf("eh_h\n");
+    msg_queue_detach(KU_VOL_UP, 0);
+    printf("eh_i\n");
+    msg_queue_detach(KU_VOL_DOWN, 0);
+    printf("eh_j\n");
+    msg_queue_detach(KU_RIGHT, 0);
+    printf("eh_k\n");
+
+    func_cb.f_cb = func_zalloc(sizeof(f_new_heat_t));
+    printf("eh_l\n");
+    WDT_CLR();
+    printf("eh_m\n");
+
+    f = (f_new_heat_t *)func_cb.f_cb;
+    printf("eh_n\n");
+    f->focus = NEW_HEAT_FOCUS_TEMP;
+    printf("eh_o\n");
+    f->temp_idx = 0;
+    printf("eh_p\n");
+    f->time_idx = 0;
+    printf("eh_q\n");
+    f->display_pending = false;
+    printf("eh_r\n");
+
+    func_cb.frm_main = func_new_heat_form_create();
+    printf("eh_s\n");
+    WDT_CLR();
+    printf("eh_t\n");
+    new_heat_bind_objects(f);
+    printf("eh_u\n");
+    WDT_CLR();
+
+    /* 预加载共享状态数据到 RAM */
+    home_ui_shared_status_init();
+    printf("eh_v3\n");
+
+    /* 强制排空 GPU 管道，之后读 Flash 不会触发 C281 */
+    os_gui_draw_force();
+    os_gui_draw_w4_done();
+    printf("eh_v4\n");
+    WDT_CLR();
+
+    /* 绑定 BT/电池图片，读 Flash 加载 icon 数据到 RAM */
+    new_heat_status_icons_apply(f);
+    printf("eh_y\n");
+    WDT_CLR();
+
+    /* 再次排空 */
+    os_gui_draw_force();
+    os_gui_draw_w4_done();
+    printf("eh_y2\n");
+    WDT_CLR();
+
+    /* 设字体、绑定 track/badge 等（读 Flash） */
+    new_heat_ui_refresh(f);
+    printf("eh_za\n");
+    WDT_CLR();
+
+    /* 全部就绪，恢复 TE 渲染 */
+    os_gui_draw_force();
+    os_gui_draw_w4_done();
+    printf("eh_zc\n");
+    WDT_CLR();
+    elunchbox_te_block_flag = 0;
+    printf("eh_ze te=0\n");
+    tft_bglight_force_on();
+    printf("eh_zf\n");
 }
 
 void func_new_heat_exit(void)

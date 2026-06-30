@@ -496,6 +496,9 @@ void func_home_mode_key(void)
 }
 
 #if ELUNCHBOX_PANEL_EN
+/* 声明在 tft.c */
+extern volatile u8 elunchbox_te_block_flag;
+
 static void func_home_pending_switch_exec(f_new_home_t *f)
 {
     u8 target;
@@ -509,12 +512,14 @@ static void func_home_pending_switch_exec(f_new_home_t *f)
 
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
-    func_home_gpu_detach_before_leave(f);
-    home_ui_digit_pool_reset();
     WDT_CLR();
+    /* 屏蔽 TE 中断，防止 func_exit(compos_init) → func_new_heat_enter(数据就绪)
+     * 期间 TE 触发 GPU 渲染已清零或未就绪的 compos/图片数据 → C482。
+     * 由子页 enter 末尾 elunchbox_te_block_flag = 0 解除。 */
+    elunchbox_te_block_flag = 1;
     sta_before = func_cb.sta;
-    func_switch_to(target, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-    printf("home confirm: switch sta %u -> %u\n", sta_before, func_cb.sta);
+    func_cb.sta = target;
+    printf("home confirm: switch sta %u -> %u (direct, te block)\n", sta_before, func_cb.sta);
 }
 #endif
 

@@ -129,10 +129,22 @@ static void elunchbox_subpage_gpu_recycle_after_leave(void)
 {
     WDT_CLR();
     if (func_cb.frm_main != NULL) {
+        home_gpu_wait_idle();
+        WDT_CLR();
+        /* 在销毁之前强制绘制并等待多帧，确保 GPU 管道完全排空，
+         * 后续 set_font 读 Flash 不会触发 C281 */
+        os_gui_draw_force();
+        os_gui_draw_w4_done();
+        os_gui_draw_force();
+        os_gui_draw_w4_done();
+        WDT_CLR();
         compo_form_destroy(func_cb.frm_main);
+        home_gpu_wait_idle();
+        WDT_CLR();
         func_cb.frm_main = NULL;
     }
     compos_init();
+    home_gpu_wait_idle();
     WDT_CLR();
 }
 
@@ -1738,6 +1750,7 @@ void func_enter(void)
     param_sync();
 #if ELUNCHBOX_PANEL_EN
     elunchbox_user_activity_reset();
+    printf("enter: sta=%d\n", func_cb.sta);
 #else
     reset_sleep_delay_all();
 #endif
@@ -1758,16 +1771,26 @@ void func_exit(void)
 #if ASR_SELECT
     bsp_asr_voice_wake_sta_clr();
 #endif
+#if ELUNCHBOX_PANEL_EN
+    printf("exit: frm_main=%p f_cb=%p last=%d sta=%d\n",
+           func_cb.frm_main, func_cb.f_cb, func_cb.last, func_cb.sta);
+#endif
     //销毁窗体
     if (func_cb.frm_main != NULL) {
 #if ELUNCHBOX_PANEL_EN
+        printf("exit: destroy form\n");
         home_gpu_wait_idle();
+        printf("exit: wait1 done\n");
 #endif
         compo_form_destroy(func_cb.frm_main);
 #if ELUNCHBOX_PANEL_EN
+        printf("exit: destroyed\n");
         home_gpu_wait_idle();
+        printf("exit: wait2 done\n");
         compos_init();
+        printf("exit: compos_init done\n");
         home_gpu_wait_idle();
+        printf("exit: wait3 done\n");
 #endif
     }
     //释放FUNC控制结构体
@@ -1825,9 +1848,15 @@ void func_run(void)
 #if !ELUNCHBOX_PANEL_EN
         printf("func_enter <<\n");
 #endif
+#if ELUNCHBOX_PANEL_EN
+        printf("run: enter sta=%d frm=%p f_cb=%p\n", func_cb.sta, func_cb.frm_main, func_cb.f_cb);
+#endif
         func_enter();
 #if !ELUNCHBOX_PANEL_EN
         printf("pwrkey usage_id: %d\n", bsp_pwrkey_get_usage_id());
+#endif
+#if ELUNCHBOX_PANEL_EN
+        printf("run: find_entry sta=%d\n", func_cb.sta);
 #endif
         for (int i = 0; i < FUNC_ENTRY_CNT; i++) {
             if (tbl_func_entry[i].func_idx == func_cb.sta) {
