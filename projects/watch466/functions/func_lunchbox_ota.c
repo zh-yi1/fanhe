@@ -33,7 +33,7 @@ typedef struct {
     u8  buf[512];           // 512 字节写入缓冲（ota_pack_write 要求 512 对齐）
     u16 buf_pos;            // 缓冲区已使用字节数
     u8  need_reset;         // 升级完成标志，主循环检测后延时复位
-    u32 block_count;        // [BLE验证] 已写入的 512B 块计数
+    u32 block_count;        // 已写入的 512B 块计数
     // 256 字节 bin 包头解析 (MCU通信协议.md §5.1 备注2)
     u8   header_buf[256];   // 包头累积缓冲区
     u16  header_pos;        // 已收集包头字节数
@@ -251,16 +251,8 @@ u8 lb_handler_ota_data(lb_rx_frame_t *rx)
                    (lb_ota_ctx.block_count - 1) * 512);
             lb_ota_ctx.buf_pos = 0;
 
-            // [DEBUG] dump 前 64 字节验证数据完整性
-            if (lb_ota_ctx.block_count == 1) {
-                printf("OTA first 64B: ");
-                for (int _i = 0; _i < 64; _i++) printf("%02X ", lb_ota_ctx.buf[_i]);
-                printf("\n");
-                printf("OTA total_size=%lu cur_addr=0x%lx\n",
-                       ota_pack_get_total_size(), ota_pack_get_curaddr());
-            }
-
             ota_pack_write(lb_ota_ctx.buf);
+
             if (ota_pack_get_err() != FOT_ERR_OK) {
                 printf("OTA write err: 0x%x\n", ota_pack_get_err());
                 lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
@@ -292,6 +284,7 @@ u8 lb_handler_ota_end(lb_rx_frame_t *rx)
 
     u8 target = rx->data[0];
     u8 result = LB_OTA_RESULT_FAIL;
+    bool write_ok = true;  // 追踪写入是否成功，决定是否进入校验
 
     printf("OTA end: target=0x%02X recv_size=%lu fw_size=%lu\n",
            target, lb_ota_ctx.recv_size, lb_ota_ctx.fw_size);
@@ -310,13 +303,13 @@ u8 lb_handler_ota_end(lb_rx_frame_t *rx)
             ota_pack_write(lb_ota_ctx.buf);
             if (ota_pack_get_err() != FOT_ERR_OK) {
                 printf("OTA write err on final block: 0x%x\n", ota_pack_get_err());
-                result = LB_OTA_RESULT_FAIL;
+                write_ok = false;
             }
             lb_ota_ctx.buf_pos = 0;
         }
 
         // FOTA 校验 & 完成
-        if (result != LB_OTA_RESULT_FAIL) {
+        if (write_ok) {
             printf("\n========================================\n");
             printf("OTA FOTA VERIFICATION\n");
             printf("========================================\n");
