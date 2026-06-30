@@ -646,22 +646,17 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
         f->txt_time_val = t;
     }
     if (f->txt_temp_label != NULL) {
-        printf("txt_setfont_label\n");
-        compo_textbox_set_font(f->txt_temp_label, UI_BUF_0FONT_FONT_ASC_BIN);
-        printf("txt_label_font_ok\n");
+        /* 用默认系统字体 → 不读 Flash，避免 C281 */
         compo_textbox_set_autosize(f->txt_temp_label, true);
         compo_textbox_set(f->txt_temp_label, "Heating Temp");
         compo_textbox_set_visible(f->txt_temp_label, true);
-        printf("txt_label_ok\n");
     }
     if (f->txt_time_label != NULL) {
-        compo_textbox_set_font(f->txt_time_label, UI_BUF_0FONT_FONT_ASC_BIN);
         compo_textbox_set_autosize(f->txt_time_label, true);
         compo_textbox_set(f->txt_time_label, "Heating Duration");
         compo_textbox_set_visible(f->txt_time_label, true);
     }
     if (f->txt_temp_val != NULL) {
-        compo_textbox_set_font(f->txt_temp_val, UI_BUF_0FONT_FONT_ASC_12_BIN);
         compo_textbox_set_autosize(f->txt_temp_val, true);
         compo_textbox_set_align_center(f->txt_temp_val, true);
         new_heat_format_temp(buf, tbl_new_heat_temp_f[f->temp_idx]);
@@ -671,7 +666,6 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
         compo_textbox_set_visible(f->txt_temp_val, true);
     }
     if (f->txt_time_val != NULL) {
-        compo_textbox_set_font(f->txt_time_val, UI_BUF_0FONT_FONT_ASC_12_BIN);
         compo_textbox_set_autosize(f->txt_time_val, true);
         compo_textbox_set_align_center(f->txt_time_val, true);
         new_heat_format_duration(buf, tbl_new_heat_time_min[f->time_idx]);
@@ -720,14 +714,12 @@ static void new_heat_text_apply_scales(f_new_heat_t *f)
     }
     for (i = 0; i < NEW_HEAT_TEMP_CNT; i++) {
         if (f->txt_temp_scale[i] != NULL) {
-            compo_textbox_set_font(f->txt_temp_scale[i], UI_BUF_0FONT_FONT_ASC_12_BIN);
             compo_textbox_set_autosize(f->txt_temp_scale[i], true);
             compo_textbox_set_align_center(f->txt_temp_scale[i], true);
         }
     }
     for (i = 0; i < 3; i++) {
         if (f->txt_time_scale[i] != NULL) {
-            compo_textbox_set_font(f->txt_time_scale[i], UI_BUF_0FONT_FONT_ASC_12_BIN);
             compo_textbox_set_autosize(f->txt_time_scale[i], true);
             compo_textbox_set_align_center(f->txt_time_scale[i], true);
         }
@@ -768,13 +760,9 @@ static void new_heat_ui_refresh(f_new_heat_t *f)
 #if !ELUNCHBOX_PANEL_EN
     home_gpu_wait_idle();
 #endif
-    printf("tracks_start\n");
     new_heat_tracks_apply(f);
-    printf("tracks_done\n");
     new_heat_badges_apply(f);
-    printf("badges_done\n");
     new_heat_text_apply(f);
-    printf("text_done\n");
 }
 
 #define new_heat_sliders_apply(f)       new_heat_ui_refresh(f)
@@ -921,7 +909,7 @@ static compo_textbox_t *new_heat_txt_create(compo_form_t *frm, u16 id, u32 font_
 
 compo_form_t *func_new_heat_form_create(void)
 {
-    compo_form_t *frm = compo_form_create(true);
+    compo_form_t *frm = compo_form_create(false);
     compo_picturebox_t *pic;
     s16 bat_x;
     s16 bt_x;
@@ -1088,6 +1076,7 @@ void func_new_heat_enter(void)
     f->display_pending = false;
     printf("eh_r\n");
 
+    /* flag_top=false → 新页面不设为顶层，GPU 看不到它 */
     func_cb.frm_main = func_new_heat_form_create();
     printf("eh_s\n");
     WDT_CLR();
@@ -1100,33 +1089,24 @@ void func_new_heat_enter(void)
     home_ui_shared_status_init();
     printf("eh_v3\n");
 
-    /* 强制排空 GPU 管道，之后读 Flash 不会触发 C281 */
-    os_gui_draw_force();
-    os_gui_draw_w4_done();
-    printf("eh_v4\n");
-    WDT_CLR();
-
-    /* 绑定 BT/电池图片，读 Flash 加载 icon 数据到 RAM */
+    /* 页面非顶层，读 Flash 设字体/绑定 RAM 图片 → 不会触发 C281/C482 */
     new_heat_status_icons_apply(f);
     printf("eh_y\n");
     WDT_CLR();
-
-    /* 再次排空 */
-    os_gui_draw_force();
-    os_gui_draw_w4_done();
-    printf("eh_y2\n");
-    WDT_CLR();
-
-    /* 设字体、绑定 track/badge 等（读 Flash） */
     new_heat_ui_refresh(f);
     printf("eh_za\n");
     WDT_CLR();
 
-    /* 全部就绪，恢复 TE 渲染 */
-    os_gui_draw_force();
-    os_gui_draw_w4_done();
+    /* 所有资源已就绪，现在才激活页面（GPU 第一眼看到的都是有有效数据的 widget）*/
+    home_gpu_wait_idle();
     printf("eh_zc\n");
     WDT_CLR();
+    compo_pool_set_top(func_cb.frm_main);
+    printf("eh_set_top\n");
+    home_gpu_wait_idle();
+    printf("eh_set_top2\n");
+
+    /* 全部就绪，恢复 TE 渲染 */
     elunchbox_te_block_flag = 0;
     printf("eh_ze te=0\n");
     tft_bglight_force_on();

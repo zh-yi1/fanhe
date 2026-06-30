@@ -131,13 +131,6 @@ static void elunchbox_subpage_gpu_recycle_after_leave(void)
     if (func_cb.frm_main != NULL) {
         home_gpu_wait_idle();
         WDT_CLR();
-        /* 在销毁之前强制绘制并等待多帧，确保 GPU 管道完全排空，
-         * 后续 set_font 读 Flash 不会触发 C281 */
-        os_gui_draw_force();
-        os_gui_draw_w4_done();
-        os_gui_draw_force();
-        os_gui_draw_w4_done();
-        WDT_CLR();
         compo_form_destroy(func_cb.frm_main);
         home_gpu_wait_idle();
         WDT_CLR();
