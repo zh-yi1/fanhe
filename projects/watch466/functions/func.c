@@ -311,12 +311,12 @@ static void elunchbox_pwr_manual_shutdown(void)
     elunchbox_guioff_sleep_delay = 0;
 
 #if LE_EN
+    ble_disconnect();   // 断开BLE连接 (连接保持则射频周期性活跃，功耗极高)
     ble_adv_dis();
 #endif
 #if BT_BACKSTAGE_EN
-    if (!bt_is_connected()) {
-        bt_scan_disable();
-    }
+    bt_disconnect(0);   // 断开经典蓝牙
+    bt_scan_disable();
 #endif
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_uart_suspend();

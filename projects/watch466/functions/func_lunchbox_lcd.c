@@ -228,10 +228,16 @@ void lunchbox_power_off(void)
     u8 data[8];
     u16 len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, 0);
     lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len);
+    led_pg_off();   // 关背光 (先于关屏，避免花屏)
+    lcd_pg_off();   // 关VDDLCD
+    hr_vdd_ldo_off(); // 关VDDHR 3.3V
 }
 
 void lunchbox_power_on(void)
 {
+    hr_vdd_ldo_on(); // 开VDDHR 3.3V
+    lcd_pg_on();    // 开VDDLCD (必须先于背光，否则花屏)
+
     u8 data[16];
     u8 *p = data;
 
@@ -243,6 +249,7 @@ void lunchbox_power_on(void)
 
     u16 len = (u16)(p - data);
     lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len);
+    led_pg_on();    // 开背光 (UART发包约1~2ms，给LCD供电留出稳定时间)
 }
 
 void lunchbox_time_sync(u32 unix_time)
