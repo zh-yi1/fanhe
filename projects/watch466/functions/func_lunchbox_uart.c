@@ -91,6 +91,21 @@ static bool lb_ota_uart_crc_active = false;
 // 模式界面 → 加热界面 预设参数传递
 //-----------------------------------------------------------------------------
 static lb_mode_to_heat_preset_t lb_mode_heat_preset;
+static bool lb_heat_autostart_pending;
+
+void lb_heat_autostart_set(bool en)
+{
+    lb_heat_autostart_pending = en;
+}
+
+bool lb_heat_autostart_consume(void)
+{
+    if (!lb_heat_autostart_pending) {
+        return false;
+    }
+    lb_heat_autostart_pending = false;
+    return true;
+}
 
 void lb_mode_to_heat_set(u8 proto_mode, u16 temp_f, u8 hour, u8 min)
 {

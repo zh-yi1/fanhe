@@ -58,6 +58,33 @@ void home_ui_gpu_pics_detach(compo_picturebox_t * const *pics, u8 cnt)
     home_gpu_wait_idle();
 }
 
+void home_ui_gpu_pics_detach_light_flush(compo_picturebox_t * const *pics, u8 cnt)
+{
+    u8 i;
+
+    if (pics == NULL || cnt == 0) {
+        return;
+    }
+#if ELUNCHBOX_PANEL_EN
+    u8 was_blocked = elunchbox_te_block_flag;
+    if (!was_blocked) {
+        elunchbox_te_block_flag = 1;
+    }
+#endif
+    home_gpu_wait_idle();
+    for (i = 0; i < cnt; i++) {
+        home_ui_gpu_pic_detach_light(pics[i]);
+    }
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+    home_gpu_wait_idle();
+#if ELUNCHBOX_PANEL_EN
+    if (!was_blocked) {
+        elunchbox_te_block_flag = 0;
+    }
+#endif
+}
+
 void home_ui_pic_set_flash(compo_picturebox_t *pic, u32 flash_addr, u16 w, u16 h)
 {
     if (pic == NULL || flash_addr == 0 || w == 0 || h == 0) {

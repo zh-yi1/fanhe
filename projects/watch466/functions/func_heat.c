@@ -1095,7 +1095,10 @@ void func_heat_enter(void)
     heat_display_register(func_heat_display_on_info);
 
     // 如果是从模式界面跳转过来的，自动开始加热
-    if (f_heat->proto_mode != 1) {
+    if (lb_heat_autostart_consume()) {
+        printf("auto-start heating from new_heat\n");
+        func_heat_start_heating(f_heat);
+    } else if (f_heat->proto_mode != 1) {
         printf("auto-start heating from mode, proto_mode=%d\n", f_heat->proto_mode);
         func_heat_start_heating(f_heat);
     }

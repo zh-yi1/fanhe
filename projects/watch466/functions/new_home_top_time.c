@@ -65,6 +65,7 @@ static bool new_top_time_flash_to_ram(u8 *ram, u16 buf_size, u32 flash_addr, u16
         }
         return false;
     }
+    home_gpu_wait_idle();
     os_spiflash_read(ram, flash_addr, flash_len);
     if (!gui_set_ram_check(ram, __func__)) {
         if (pic != NULL) {
@@ -80,8 +81,10 @@ static bool new_top_time_flash_to_ram(u8 *ram, u16 buf_size, u32 flash_addr, u16
         return false;
     }
     if (pic != NULL) {
+        home_gpu_wait_idle();
         compo_picturebox_set_ram(pic, ram);
         compo_picturebox_set_visible(pic, true);
+        home_gpu_wait_idle();
     }
     return true;
 }
@@ -252,4 +255,9 @@ bool new_home_top_time_refresh(home_top_time_ui_t *ui, tm_t *tm)
     }
     new_top_time_layout(ui, hour12, min, is_pm);
     return true;
+}
+
+void new_home_top_time_gpu_detach(home_top_time_ui_t *ui)
+{
+    home_top_time_gpu_detach(ui);
 }

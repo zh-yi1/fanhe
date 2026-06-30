@@ -6,6 +6,7 @@
 #include "new_home_tab_res.h"
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
+#include "home_ui_ram.h"
 #include "func_reservation.h"
 #include "func_key_lock.h"
 
@@ -414,6 +415,35 @@ compo_form_t *func_home_form_create(void)
 
 #if ELUNCHBOX_PANEL_EN
 u8 func_res_allow_switch;
+
+void func_home_gpu_detach_before_leave(f_new_home_t *f)
+{
+    compo_picturebox_t *pics[7];
+    u8 n = 0;
+    u8 i;
+
+    if (f == NULL) {
+        return;
+    }
+
+    /* 仅 light detach：勿 wait_idle / draw_force，gui thread miss 时会 WDT */
+    WDT_CLR();
+    home_top_time_gpu_detach_light(&f->top_time);
+
+    if (f->pic_bt) pics[n++] = f->pic_bt;
+    if (f->pic_lock) pics[n++] = f->pic_lock;
+    if (f->pic_bat) pics[n++] = f->pic_bat;
+    if (f->pic_tab_heat) pics[n++] = f->pic_tab_heat;
+    if (f->pic_tab_mode) pics[n++] = f->pic_tab_mode;
+    if (f->pic_tab_setup) pics[n++] = f->pic_tab_setup;
+    if (f->pic_logo) pics[n++] = f->pic_logo;
+
+    for (i = 0; i < n; i++) {
+        home_ui_gpu_pic_detach_light(pics[i]);
+    }
+    home_ui_shared_battery_detach_pic();
+    WDT_CLR();
+}
 #endif
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -465,23 +495,53 @@ void func_home_mode_key(void)
 #endif
 }
 
+#if ELUNCHBOX_PANEL_EN
+static void func_home_pending_switch_exec(f_new_home_t *f)
+{
+    u8 target;
+    u8 sta_before;
+
+    if (f == NULL || f->pending_switch_sta == 0) {
+        return;
+    }
+    target = f->pending_switch_sta;
+    f->pending_switch_sta = 0;
+
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+    func_home_gpu_detach_before_leave(f);
+    home_ui_digit_pool_reset();
+    WDT_CLR();
+    sta_before = func_cb.sta;
+    func_switch_to(target, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    printf("home confirm: switch sta %u -> %u\n", sta_before, func_cb.sta);
+}
+#endif
+
 void func_home_confirm_key(void)
 {
     f_new_home_t *f;
     u8 target;
 
     if (func_cb.sta != FUNC_HOME) {
+        printf("home confirm: skip sta=%u\n", func_cb.sta);
         return;
     }
     f = (f_new_home_t *)func_cb.f_cb;
     if (f == NULL) {
+        printf("home confirm: f_cb null\n");
         return;
     }
     if (f->screen_locked) {
+        printf("home confirm: locked\n");
         return;
     }
 #if ELUNCHBOX_PANEL_EN
     if (f->display_stage != 0) {
+        printf("home confirm: display_stage=%u\n", f->display_stage);
+        return;
+    }
+    if (f->pending_switch_sta != 0) {
         return;
     }
 #endif
@@ -496,9 +556,13 @@ void func_home_confirm_key(void)
         target = FUNC_NEW_SETUP;
         break;
     default:
+        printf("home confirm: bad tab=%u\n", f->cur_tab);
         return;
     }
-    func_switch_to(target, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    printf("home confirm: tab=%u target=%u (defer)\n", f->cur_tab, target);
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+    f->pending_switch_sta = target;
 }
 #endif /* USER_PT8028_KEY && ELUNCHBOX_PANEL_EN */
 
@@ -520,6 +584,7 @@ void new_home_pt8028_keys_process(f_new_home_t *f)
     if (press_tch == PT8028_KEY_TCH3) {
         func_home_mode_key();
     } else if (press_tch == PT8028_KEY_TCH4) {
+        printf("home key TCH4 confirm press\n");
         func_home_confirm_key();
     }
 }
@@ -535,16 +600,8 @@ void func_home_process(void)
     }
 #endif
 
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
-    new_home_pt8028_keys_process(f);
-#if USER_PANEL_LED
-    panel_led_scan();
-#endif
-#endif
-
 #if ELUNCHBOX_PANEL_EN
+    /* 首帧 UI 就绪后再扫键，避免 display_stage!=0 时确认键被静默丢弃 */
     if (f != NULL && f->display_stage != 0) {
         WDT_CLR();
         if (f->display_stage == 1) {
@@ -561,9 +618,20 @@ void func_home_process(void)
             func_home_gui_mark_dirty();
             tft_bglight_force_on();
         }
-        func_process();
-        return;
+        if (f->display_stage != 0) {
+            func_process();
+            return;
+        }
     }
+#endif
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_gpio_ensure_periodic();
+    pt8028_key_scan();
+    new_home_pt8028_keys_process(f);
+#if USER_PANEL_LED
+    panel_led_scan();
+#endif
 #endif
 
     if (func_cb.sta != FUNC_HOME || f == NULL) {
@@ -571,6 +639,9 @@ void func_home_process(void)
     }
     new_home_status_refresh(f);
     func_process();
+#if ELUNCHBOX_PANEL_EN
+    func_home_pending_switch_exec(f);
+#endif
 }
 
 void func_home_message(size_msg_t msg)
@@ -588,6 +659,7 @@ void func_home_message(size_msg_t msg)
         break;
 #endif
     case KU_BACK:
+        printf("home msg KU_BACK confirm\n");
         func_home_confirm_key();
         break;
     default:
@@ -624,6 +696,7 @@ void func_home_enter(void)
 
 #if ELUNCHBOX_PANEL_EN
     f->display_stage = 1;
+    f->pending_switch_sta = 0;
     func_home_gui_mark_dirty();
 #else
     new_home_status_icons_apply(f);
@@ -644,23 +717,15 @@ void func_home_enter(void)
 #if USER_PANEL_LED
     panel_led_all_off();
 #endif
-    func_cb.last = FUNC_HOME;
 }
 
 void func_home_exit(void)
 {
-    f_new_home_t *f = (f_new_home_t *)func_cb.f_cb;
+    (void)func_cb.f_cb;
 
 #if ELUNCHBOX_PANEL_EN
     home_ui_shared_battery_detach_pic();
 #endif
-    if (f != NULL) {
-        home_gpu_wait_idle();
-        home_ui_gpu_pic_detach(f->pic_tab_heat);
-        home_ui_gpu_pic_detach(f->pic_tab_mode);
-        home_ui_gpu_pic_detach(f->pic_tab_setup);
-        home_gpu_wait_idle();
-    }
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_set_home_msg_block(0);
     pt8028_release_clear();

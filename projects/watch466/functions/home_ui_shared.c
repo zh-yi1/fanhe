@@ -136,7 +136,8 @@ static void home_ui_shared_battery_reload(void)
         return;
     }
 
-    home_gpu_wait_idle();
+    /* 勿 wait_idle：Home 切子页后 gui thread miss 时会死等导致 WDT */
+    WDT_CLR();
     os_spiflash_read(home_ui_shared_status_bat_ram, addr, len);
     home_bat_icon_idx = icon;
 

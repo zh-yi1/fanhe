@@ -27,11 +27,16 @@ typedef struct f_new_home_t_ {
     compo_textbox_t *txt_res_marquee;
 #if ELUNCHBOX_PANEL_EN
     u8 display_stage;
+    u8 pending_switch_sta;   /* 0=无；确认键延后到 process 末再切页（勿在扫键路径 switch） */
 #endif
 } f_new_home_t;
 
 /* func_key_lock.c 使用与旧 Home 相同的锁图标接口 */
 typedef f_new_home_t f_home_t;
 void func_home_lock_icon_apply(f_home_t *f_home);
+
+#if ELUNCHBOX_PANEL_EN
+void func_home_gpu_detach_before_leave(f_new_home_t *f);
+#endif
 
 #endif /* _FUNC_NEW_HOME_H */

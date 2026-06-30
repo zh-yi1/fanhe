@@ -3,6 +3,7 @@
 #include "func_tbl.h"
 #include "func.h"
 #include "func_reservation.h"
+#include "func_new_home.h"
 #include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
@@ -122,6 +123,28 @@ void func_elunchbox_switch_to_heat(void)
     WDT_CLR();
     func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
+
+#if ELUNCHBOX_PANEL_EN
+static void elunchbox_subpage_gpu_recycle_after_leave(void)
+{
+    WDT_CLR();
+    if (func_cb.frm_main != NULL) {
+        compo_form_destroy(func_cb.frm_main);
+        func_cb.frm_main = NULL;
+    }
+    compos_init();
+    if (is_gpu_init()) {
+        gpu_exit();
+    }
+    gpu_init();
+    WDT_CLR();
+}
+
+static bool elunchbox_subpage_sta(u8 sta)
+{
+    return sta == FUNC_NEW_HEAT || sta == FUNC_NEW_MODE || sta == FUNC_NEW_SETUP;
+}
+#endif
 
 void func_elunchbox_res_key_poll(void)
 {
@@ -995,7 +1018,6 @@ void func_switch_to(u8 sta, u16 switch_mode)
     if (sys_cb.flag_swithing) {
         return;
     }
-    home_gpu_wait_idle();
     WDT_CLR();
 #endif
 #if VIDEO_PLAY_EN
@@ -1038,17 +1060,16 @@ void func_switch_to(u8 sta, u16 switch_mode)
     }
 
 #if ELUNCHBOX_PANEL_EN
-    /* ELUNCHBOX DIRECT/FADE_OUT：切页成功后销毁源 frm，compos_init 清 GPU 池 */
+    /* 子页：Home 控件多，destroy 后 gpu_exit/init 硬复位硬件槽位表 */
     if ((mode == FUNC_SWITCH_DIRECT || mode == FUNC_SWITCH_FADE_OUT) && func_cb.frm_main != NULL) {
-        home_gpu_wait_idle();
         WDT_CLR();
-        compo_form_destroy(func_cb.frm_main);
-        home_gpu_wait_idle();
-        WDT_CLR();
-        compos_init();
-        home_gpu_wait_idle();
-        WDT_CLR();
-        func_cb.frm_main = NULL;
+        if (elunchbox_subpage_sta(sta)) {
+            elunchbox_subpage_gpu_recycle_after_leave();
+        } else {
+            compo_form_destroy(func_cb.frm_main);
+            compos_init();
+            func_cb.frm_main = NULL;
+        }
         if (res) {
             func_cb.sta = sta;
         }
@@ -1561,6 +1582,10 @@ void func_message(size_msg_t msg)
     case KU_BACK:
 #if ELUNCHBOX_PANEL_EN
         if (func_cb.sta == FUNC_HOME) {
+            break;
+        }
+        if (func_cb.sta == FUNC_NEW_HEAT || func_cb.sta == FUNC_NEW_MODE
+            || func_cb.sta == FUNC_NEW_SETUP) {
             break;
         }
 #endif

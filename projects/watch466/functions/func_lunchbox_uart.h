@@ -454,6 +454,10 @@ void lb_mode_to_heat_set(u8 proto_mode, u16 temp_f, u8 hour, u8 min);
 /** @brief 获取并消费模式→加热预设参数 (由 func_heat 调用, 一次性) */
 bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out);
 
+/** @brief 新加热页设置完成后自动开始加热 (由 func_new_heat 设置, func_heat 消费) */
+void lb_heat_autostart_set(bool en);
+bool lb_heat_autostart_consume(void);
+
 //-----------------------------------------------------------------------------
 // 协议翻译层 (BLE ↔ UART)
 //-----------------------------------------------------------------------------
