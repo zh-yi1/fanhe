@@ -4,13 +4,21 @@
  *
  * BLE 数据入口: APP 通过 BLE GATT 写入饭盒协议帧。
  *
+ * 时间同步流程 (BLE 连接后):
+ *   1. MCU → APP: 0x03 异步上报本地时间戳 (dpid=11)
+ *   2. APP → MCU: 0x03 回传权威时间戳 (dpid=11) → lb_ble_handle_app_time_sync()
+ *      或 APP → MCU: 0x01 产品信息查询 (数据区带 4B 时间戳) → lb_handler_product_info()
+ *   3. MCU 收到 APP 时间后 → 下发 5 个固定预设 (ID 1~5) 到加热模块
+ *
  * 桥模式(LB_BRIDGE_MODE=1):
  *   - 翻译 BLE 帧为 UART 帧 → 转发加热模块
  *   - 0x01 产品信息 → MCU 本地回复 + 透传加热模块
+ *   - 0x03 时间同步 → MCU 本地处理 (不转发 UART)
  *   - OTA 命令按 target 字段分流
  *
  * 本地模式(LB_BRIDGE_MODE=0):
  *   - 原帧透传到 UART 串口 + 解析分发给 cmd_handler
+ *   - 0x03 时间同步 → MCU 本地处理 (不转发 UART)
  */
 #include "include.h"
 #include "func_lunchbox_uart.h"
@@ -70,6 +78,46 @@ static bool lb_ble_frame_parse(u8 *raw, u16 raw_len, lb_rx_frame_t *frame)
     frame->data     = data_len > 0 ? &raw[8] : NULL;
     frame->valid    = true;
     return true;
+}
+
+/**
+ * @brief 处理 APP 通过 0x03 回传的时间戳同步 (DataPoint dpid=11)
+ *
+ * 解析 0x03 帧中的 DataPoint 数据，提取 TIME_SYNC(11) 的 4B Unix 时间戳，
+ * 更新本地同步基准，并在等待标志置位时触发预设下发。
+ *
+ * @param rx  已解析的接收帧
+ * @return true=找到时间戳并已处理, false=未找到
+ */
+static bool lb_ble_handle_app_time_sync(lb_rx_frame_t *rx)
+{
+    if (!rx->data || rx->data_len < 8) return false;
+
+    u16 off = 0;
+    while (off + 4 <= rx->data_len) {
+        u8  dpid    = rx->data[off];
+        u8  type    = rx->data[off + 1];
+        u16 val_len = ((u16)rx->data[off + 2] << 8) | rx->data[off + 3];
+        if (off + 4 + val_len > rx->data_len) break;
+
+        if (dpid == LB_DPID_TIME_SYNC && type == LB_DP_TYPE_VALUE && val_len >= 4) {
+            u8 *val = rx->data + off + 4;
+            lb_synced_unix_ts = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                              | ((u32)val[2] << 8)  | val[3];
+            lb_synced_rtccnt  = RTCCNT;
+            lb_has_ble_ts     = true;
+            printf("BLE: APP time sync via 0x03, ts=%lu\n", (unsigned long)lb_synced_unix_ts);
+
+            // BLE 连接后首次收到 APP 时间戳应答 → 发送5个预设到加热模块
+            if (lb_ble_presets_pending) {
+                lb_ble_presets_pending = false;
+                lunchbox_ble_send_presets();
+            }
+            return true;
+        }
+        off += 4 + val_len;
+    }
+    return false;
 }
 
 /**
@@ -176,7 +224,8 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
         }
 
         if (frame.cmd == LB_CMD_STATUS_REPORT) {
-            printf("BLE: unexpected 0x03 from APP, ignored\n");
+            // APP 通过 0x03 回传时间戳 → 解析并同步, 触发预设下发
+            lb_ble_handle_app_time_sync(&frame);
             goto next_frame;
         }
 
@@ -234,6 +283,12 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             }
         }
 #else
+        // ──── 本地模式：0x03 时间同步 → 本地处理, 不转发到 UART ────
+        if (frame.cmd == LB_CMD_STATUS_REPORT) {
+            lb_ble_handle_app_time_sync(&frame);
+            goto next_frame;
+        }
+
         // ──── 本地模式：逐帧转发到串口 + 解析分发给 cmd_handler ────
         printf("BLE->UART==>TX[%d]: ", frame_total);
         for (u16 i = 0; i < frame_total; i++) printf("%02X ", ble_rx_buf[i]);

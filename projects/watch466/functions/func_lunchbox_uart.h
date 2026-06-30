@@ -436,6 +436,12 @@ bool lunchbox_heating_task_active(void);
  * 触发时机: ble_app_watch_connect_callback() 中调用。
  * MCU 向 APP 发送一条 0x03 状态上报帧，仅含时间戳 DataPoint(dpid=11)。
  * 时间戳来源: lb_get_unix_time() (已同步则用APP权威时间推算, 否则用本地RTC)。
+ *
+ * APP 可通过两条路径回传权威时间戳:
+ *   - 0x03 回传 dpid=11 → lb_ble_handle_app_time_sync() 处理 (桥模式/本地模式均支持)
+ *   - 0x01 产品信息查询 (数据区带 4B 时间戳) → lb_handler_product_info() 处理 (原有路径)
+ *
+ * MCU 收到 APP 时间戳后 → 下发 5 个固定预设 (ID 1~5) 到加热模块。
  */
 void lunchbox_ble_on_connected(void);
 

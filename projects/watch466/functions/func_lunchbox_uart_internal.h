@@ -41,7 +41,8 @@ extern u8   lb_product_info_msg_flag;
 extern u32  lb_product_info_pend_tick;
 
 // BLE 时间同步 (APP 同步用)
-// 当 APP 通过 0x01 下发权威时间戳时，同时记录当时的 RTCCNT，
+// 当 APP 通过 0x01(产品信息查询) 或 0x03(状态上报回传) 下发权威时间戳时，
+// 同时记录当时的 RTCCNT，
 // 后续通过 lb_get_unix_time() 推算当前时间 = synced_unix_ts + (RTCCNT - synced_rtccnt)
 extern u32  lb_synced_unix_ts;       // APP 同步的权威 Unix 时间戳
 extern u32  lb_synced_rtccnt;        // 同步时的 RTCCNT 值
