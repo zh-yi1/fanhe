@@ -971,29 +971,18 @@ static void func_new_heat_message(size_msg_t msg)
     if (func_key_lock_ku_blocked(msg)) {
         return;
     }
-    /* 吞掉 Home 确认键残留的 KU_BACK，否则会 func_back_to() 立刻退回 Home */
+    /* 进入时已通过 msg_queue_detach 清理干净，此处按功能直接分发 */
     switch (msg) {
-    case KU_BACK:
-    case KU_MODE:
-    case KU_VOL_UP:
-    case KU_VOL_DOWN:
-    case KU_RIGHT:
-        return;
-    default:
-        break;
-    }
-
-    switch (msg) {
-    case NEW_HEAT_MSG_OK:
+    case KU_BACK:       /* NEW_HEAT_MSG_OK = 确认键 */
         new_heat_ok_key(f);
         break;
-    case NEW_HEAT_MSG_PLUS:
+    case KU_VOL_UP:     /* NEW_HEAT_MSG_PLUS = 加键 */
         new_heat_value_inc(f);
         break;
-    case NEW_HEAT_MSG_MINUS:
+    case KU_VOL_DOWN:   /* NEW_HEAT_MSG_MINUS = 减键 */
         new_heat_value_dec(f);
         break;
-    case NEW_HEAT_MSG_POWER:
+    case KEY_RIGHT | KEY_SHORT_UP:  /* NEW_HEAT_MSG_POWER = 电源/返回键 */
         new_heat_power_key(f);
         break;
     default:
