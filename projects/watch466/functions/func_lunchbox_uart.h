@@ -375,6 +375,13 @@ void lunchbox_power_on(void);
 /** @brief LCD 时间同步 — 发送 UART 0x01 帧同步 Unix 时间戳到加热模块 */
 void lunchbox_time_sync(u32 unix_time);
 
+/** @brief 获取当前 Unix 时间戳
+ *
+ * 若已通过 APP 0x01 同步过权威时间，则用 synced_unix_ts + (RTCCNT - synced_rtccnt) 推算；
+ * 否则回退到 RTCCNT + LB_RTC_UNIX_OFFSET (本地RTC)。
+ */
+u32 lb_get_unix_time(void);
+
 /** @brief 加热自然结束后自动开启保温 (模式5, 140°F, 至低电关机) */
 void lunchbox_keep_warm_start(void);
 
@@ -428,7 +435,7 @@ bool lunchbox_heating_task_active(void);
  *
  * 触发时机: ble_app_watch_connect_callback() 中调用。
  * MCU 向 APP 发送一条 0x03 状态上报帧，仅含时间戳 DataPoint(dpid=11)。
- * 时间戳来源: RTCCNT + LB_RTC_UNIX_OFFSET (本地RTC转Unix时间戳)。
+ * 时间戳来源: lb_get_unix_time() (已同步则用APP权威时间推算, 否则用本地RTC)。
  */
 void lunchbox_ble_on_connected(void);
 
@@ -538,6 +545,12 @@ void lunchbox_ble_set_tx_fn(lb_ble_tx_fn_t fn);
 /** @brief 处理 BLE 接收到的饭盒协议帧，自动校验+分发给命令处理器/翻译转发 */
 void lunchbox_ble_rx_handle(u8 *data, u16 len);
 bool lunchbox_ble_rx_pending(void);     // 累积缓冲区是否有待处理数据
+
+// 子系统 API (拆分后的独立模块)
+#include "func_lunchbox_lcd.h"
+#include "func_lunchbox_ble.h"
+#include "func_lunchbox_bridge.h"
+#include "func_lunchbox_ota.h"
 
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_UART_H
