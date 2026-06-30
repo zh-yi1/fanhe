@@ -133,10 +133,6 @@ static void elunchbox_subpage_gpu_recycle_after_leave(void)
         func_cb.frm_main = NULL;
     }
     compos_init();
-    if (is_gpu_init()) {
-        gpu_exit();
-    }
-    gpu_init();
     WDT_CLR();
 }
 
@@ -1060,7 +1056,7 @@ void func_switch_to(u8 sta, u16 switch_mode)
     }
 
 #if ELUNCHBOX_PANEL_EN
-    /* 子页：Home 控件多，destroy 后 gpu_exit/init 硬复位硬件槽位表 */
+    /* 子页：Home 控件多，destroy + compos_init 清软件池；勿 gpu_exit（keep_ram 恢复过期状态 → WDT） */
     if ((mode == FUNC_SWITCH_DIRECT || mode == FUNC_SWITCH_FADE_OUT) && func_cb.frm_main != NULL) {
         WDT_CLR();
         if (elunchbox_subpage_sta(sta)) {

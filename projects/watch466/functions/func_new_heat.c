@@ -936,10 +936,9 @@ static void new_heat_build_step(f_new_heat_t *f)
     }
 
     if (f->build_stage == 2) {
-        if (func_cb.frm_main == NULL) {
-            func_cb.frm_main = compo_form_create(true);
-            WDT_CLR();
-        }
+        WDT_CLR();
+        func_cb.frm_main = compo_form_create(true);
+        WDT_CLR();
         f->build_stage = 3;
         return;
     }
@@ -1011,34 +1010,42 @@ static void new_heat_build_step(f_new_heat_t *f)
         f->build_stage = 13;
         break;
     case 13:
+        WDT_CLR();
         new_heat_temp_track_apply(f);
         f->build_stage = 14;
         break;
     case 14:
+        WDT_CLR();
         new_heat_time_track_apply(f);
         f->build_stage = 15;
         break;
     case 15:
+        WDT_CLR();
         new_heat_temp_point_apply(f);
         f->build_stage = 16;
         break;
     case 16:
+        WDT_CLR();
         new_heat_temp_badge_apply(f);
         f->build_stage = 17;
         break;
     case 17:
+        WDT_CLR();
         new_heat_time_point_apply(f);
         f->build_stage = 18;
         break;
     case 18:
+        WDT_CLR();
         new_heat_time_badge_apply(f);
         f->build_stage = 19;
         break;
     case 19:
+        WDT_CLR();
         new_heat_text_apply_main(f);
         f->build_stage = 20;
         break;
     case 20:
+        WDT_CLR();
         new_heat_text_apply_scales(f);
         f->build_stage = 0;
         break;
@@ -1179,10 +1186,6 @@ static void func_new_heat_process(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (f->build_stage != 0) {
-        if (func_cb.frm_main == NULL) {
-            gui_process();
-            WDT_CLR();
-        }
         new_heat_build_step(f);
         func_process();
         return;
