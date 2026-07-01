@@ -896,6 +896,7 @@ static compo_textbox_t *new_heat_txt_create(compo_form_t *frm, u16 id, u32 font_
 compo_form_t *func_new_heat_form_create(void)
 {
     compo_form_t *frm = compo_form_create(true);
+    compo_textbox_t *txt;
     compo_picturebox_t *pic;
     s16 bat_x;
     s16 bt_x;
@@ -913,10 +914,12 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_pos(pic, bat_x, NEW_HEAT_STATUS_Y);
     compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
 
-    new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_LABEL, UI_BUF_0FONT_FONT_ASC_BIN,
-                        NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
-    new_heat_txt_create(frm, COMPO_ID_TXT_TIME_LABEL, UI_BUF_0FONT_FONT_ASC_BIN,
-                        NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_LABEL, UI_BUF_0FONT_FONT_ASC_BIN,
+                              NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
+    compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, 300, 30);
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_LABEL, UI_BUF_0FONT_FONT_ASC_BIN,
+                              NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
+    compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y, 300, 30);
 
     pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_BADGE);
     compo_picturebox_set_pos(pic, NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_LABEL_Y);
@@ -926,10 +929,12 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_pos(pic, NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y);
     compo_picturebox_set_size(pic, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
 
-    new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
-                        NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_ON_BADGE, true);
-    new_heat_txt_create(frm, COMPO_ID_TXT_TIME_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
-                        NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_OFF_BADGE, true);
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
+                              NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_ON_BADGE, true);
+    compo_textbox_set_location(txt, NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
+                              NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_OFF_BADGE, true);
+    compo_textbox_set_location(txt, NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
 
     pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_TRACK);
     compo_picturebox_set_pos(pic, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SLIDER_Y);
@@ -948,14 +953,16 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_size(pic, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H);
 
     for (u8 i = 0; i < NEW_HEAT_TEMP_CNT; i++) {
-        new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_SCALE0 + i, UI_BUF_0FONT_FONT_ASC_12_BIN,
+        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_SCALE0 + i, UI_BUF_0FONT_FONT_ASC_12_BIN,
                             NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SCALE_Y,
                             NEW_HEAT_COLOR_SCALE, true);
+        compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SCALE_Y, 60, 16);
     }
     for (u8 j = 0; j < 3; j++) {
-        new_heat_txt_create(frm, COMPO_ID_TXT_TIME_SCALE0 + j, UI_BUF_0FONT_FONT_ASC_12_BIN,
+        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_SCALE0 + j, UI_BUF_0FONT_FONT_ASC_12_BIN,
                             NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SCALE_Y,
                             NEW_HEAT_COLOR_SCALE, true);
+        compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SCALE_Y, 70, 16);
     }
 
     return frm;
