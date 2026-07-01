@@ -10,6 +10,9 @@
 #if ELUNCHBOX_PANEL_EN
 #include "bsp_pt8028_key.h"
 #include "func_key_lock.h"
+#include "func_heat_panel.h"
+
+extern volatile u8 elunchbox_te_block_flag;
 #endif
 #if USER_PANEL_LED
 #include "port_panel_led.h"
@@ -548,6 +551,10 @@ static void func_heat_heating_finish_check(f_heat_t *f_heat)
 
 static void func_heat_status_refresh(f_heat_t *f_heat)
 {
+#if ELUNCHBOX_PANEL_EN
+    func_heat_lock_check(f_heat);
+    return;
+#endif
     tm_t tm = rtc_clock_get();
 
     if (f_heat->last_top_min != tm.min || f_heat->last_top_sec != tm.sec) {
@@ -639,6 +646,10 @@ static void func_heat_timer_update_ex(f_heat_t *f_heat, u8 hour, u8 min, bool h_
 
 static void func_heat_display_refresh(f_heat_t *f_heat)
 {
+#if ELUNCHBOX_PANEL_EN
+    func_heat_panel_mark_dirty(f_heat);
+    return;
+#else
     u8 hour;
     u8 min;
     u16 temp;
@@ -680,6 +691,7 @@ static void func_heat_display_refresh(f_heat_t *f_heat)
     func_heat_timer_update_ex(f_heat, hour, min, h_white, m_white);
     func_heat_temp_update_ex(f_heat, temp, t_white);
     func_heat_lock_icon_apply(f_heat);
+#endif
 }
 
 static void func_heat_start_heating(f_heat_t *f_heat)
@@ -719,6 +731,7 @@ static void func_heat_start_heating(f_heat_t *f_heat)
 
     func_heat_led_sync(true);
     func_heat_display_refresh(f_heat);
+    printf("start_heating: display_refresh done\n");
 }
 
 static void func_heat_ok_key(f_heat_t *f_heat)
@@ -884,6 +897,9 @@ static void func_heat_value_dec(f_heat_t *f_heat)
 
 compo_form_t *func_heat_form_create(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    return func_heat_panel_form_create();
+#else
     compo_form_t *frm = compo_form_create(true);
     compo_picturebox_t *pic;
 
@@ -960,6 +976,7 @@ compo_form_t *func_heat_form_create(void)
     compo_picturebox_set_visible(pic, false);
 
     return frm;
+#endif
 }
 
 static void func_heat_process(void)
@@ -967,6 +984,9 @@ static void func_heat_process(void)
     f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
 
     if (f_heat != NULL) {
+#if ELUNCHBOX_PANEL_EN
+        func_heat_panel_process(f_heat);
+#endif
         func_heat_status_refresh(f_heat);
     }
     func_process();
@@ -1023,6 +1043,11 @@ void func_heat_enter(void)
 {
     f_heat_t *f_heat;
 
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+    WDT_CLR();
+#endif
+
     func_cb.f_cb = func_zalloc(sizeof(f_heat_t));
     func_cb.frm_main = func_heat_form_create();
 
@@ -1065,6 +1090,42 @@ void func_heat_enter(void)
     f_heat->last_m_white = false;
     f_heat->last_t_white = false;
 
+#if ELUNCHBOX_PANEL_EN
+    printf("heat_enter: create form done, te_block=%d\n", elunchbox_te_block_flag);
+    home_gpu_wait_idle();
+    WDT_CLR();
+
+    func_heat_panel_bind(f_heat);
+    printf("heat_enter: panel bind done\n");
+    func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
+    func_heat_countdown_stop();
+    func_heat_panel_mark_dirty(f_heat);
+    heat_display_register(func_heat_display_on_info);
+    printf("heat_enter: reg done, check autostart\n");
+
+    if (lb_heat_autostart_consume()) {
+        printf("heat_enter: autostart -> start_heating\n");
+        func_heat_start_heating(f_heat);
+        printf("heat_enter: start_heating done\n");
+    } else if (f_heat->proto_mode != 1) {
+        printf("heat_enter: proto_mode=%d -> start_heating\n", f_heat->proto_mode);
+        func_heat_start_heating(f_heat);
+        printf("heat_enter: start_heating done\n");
+    } else if (f_heat->ui_state == HEAT_UI_SETUP) {
+        func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        return;
+    }
+
+    /* 恢复 panel_enter：现在只有 BT/BAT 图标，看会不会 C245 */
+    elunchbox_te_block_flag = 1;
+    printf("heat_enter: te_block=1 for panel_enter\n");
+    func_heat_panel_enter(f_heat);
+    printf("heat_enter: panel enter done\n");
+    home_gpu_wait_idle();
+    WDT_CLR();
+    elunchbox_te_block_flag = 0;
+    printf("heat_enter: te_block=0 released\n");
+#else
     home_top_time_bind(&f_heat->top_time, COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
                        COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
                        COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
@@ -1091,23 +1152,23 @@ void func_heat_enter(void)
     func_heat_countdown_stop();
     func_heat_display_refresh(f_heat);
     func_heat_status_refresh(f_heat);
-    printf("heat_display_register\n");
     heat_display_register(func_heat_display_on_info);
 
-    // 如果是从模式界面跳转过来的，自动开始加热
     if (lb_heat_autostart_consume()) {
-        printf("auto-start heating from new_heat\n");
         func_heat_start_heating(f_heat);
     } else if (f_heat->proto_mode != 1) {
-        printf("auto-start heating from mode, proto_mode=%d\n", f_heat->proto_mode);
         func_heat_start_heating(f_heat);
     }
+#endif
 }
 
 void func_heat_exit(void)
 {
     f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
 
+#if ELUNCHBOX_PANEL_EN
+    func_heat_panel_exit();
+#endif
     home_ui_shared_battery_detach_pic();
     heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
@@ -1131,6 +1192,68 @@ bool func_heat_ui_is_heating(void)
     f_heat = (f_heat_t *)func_cb.f_cb;
     return f_heat->ui_state == HEAT_UI_HEATING;
 }
+
+#if ELUNCHBOX_PANEL_EN
+u8 func_heat_panel_get_ui_state(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return 0;
+    }
+    return f_heat->ui_state;
+}
+
+u8 func_heat_panel_get_set_hour(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return 0;
+    }
+    return f_heat->set_hour;
+}
+
+u8 func_heat_panel_get_set_min(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return 0;
+    }
+    return f_heat->set_min;
+}
+
+u8 func_heat_panel_get_temp_idx(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return 0;
+    }
+    return f_heat->temp_idx;
+}
+
+u32 func_heat_panel_get_remain_min(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return 0;
+    }
+    return f_heat->heat_live_remain_min;
+}
+
+bool func_heat_panel_get_live_ready(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return false;
+    }
+    return f_heat->heat_live_ready;
+}
+#endif
 
 #if ELUNCHBOX_PANEL_EN
 static bool func_heat_key_page_ok(void)

@@ -121,7 +121,11 @@ void func_elunchbox_switch_to_heat(void)
 #endif
     home_gpu_wait_idle();
     WDT_CLR();
+#if ELUNCHBOX_PANEL_EN
+    func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+#else
     func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+#endif
 }
 
 #if ELUNCHBOX_PANEL_EN

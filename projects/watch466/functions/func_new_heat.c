@@ -814,8 +814,6 @@ static void new_heat_ok_key(f_new_heat_t *f)
 {
     u16 temp_f;
     u16 total_min;
-    u8 hour;
-    u8 min;
 
     if (f == NULL) {
         return;
@@ -827,15 +825,16 @@ static void new_heat_ok_key(f_new_heat_t *f)
         return;
     }
 
-    /* 时长已确认，调用加热函数开始加热 */
+    /* 时长已确认，启动加热后切换到 func_heat 显示加热面板。
+     * 不封锁 TE 做 form_create（避免 tmr thread miss 和 GPU 硬件状态问题），
+     * 仅封锁 func_heat_panel_enter 确保资源绑定期间不被 TE 打断。 */
     temp_f = tbl_new_heat_temp_f[f->temp_idx];
     total_min = tbl_new_heat_time_min[f->time_idx];
-    hour = (u8)(total_min / 60);
-    min = (u8)(total_min % 60);
 
-    lb_mode_to_heat_set(1, temp_f, hour, min);
+    printf("new_heat_ok: set preset + autostart, direct sta\n");
+    lb_mode_to_heat_set(1, temp_f, (u8)(total_min / 60), (u8)(total_min % 60));
     lb_heat_autostart_set(true);
-    func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    func_cb.sta = FUNC_HEAT;
 }
 
 /* 返回/电源键：时长设置中返回温度设置，温度设置中返回主页 */
@@ -1096,26 +1095,11 @@ void func_new_heat_enter(void)
 
 void func_new_heat_exit(void)
 {
-    f_new_heat_t *f = (f_new_heat_t *)func_cb.f_cb;
-
-    if (f != NULL) {
-        compo_picturebox_t *pics[8];
-        u8 n = 0;
-        u8 i;
-
-        if (f->pic_bt) pics[n++] = f->pic_bt;
-        if (f->pic_bat) pics[n++] = f->pic_bat;
-        if (f->pic_temp_track) pics[n++] = f->pic_temp_track;
-        if (f->pic_time_track) pics[n++] = f->pic_time_track;
-        if (f->pic_temp_point) pics[n++] = f->pic_temp_point;
-        if (f->pic_time_point) pics[n++] = f->pic_time_point;
-        if (f->pic_temp_badge) pics[n++] = f->pic_temp_badge;
-        if (f->pic_time_badge) pics[n++] = f->pic_time_badge;
-        for (i = 0; i < n; i++) {
-            home_ui_gpu_pic_detach_light(pics[i]);
-        }
-    }
-
+    /* GPU 资源由 func_exit() 的 compo_form_destroy() + compos_init() 统一清理。
+     * 此处不做 GPU detach，避免：
+     *   - 切 HOME 路径：func_switch_to 已 destroy form，frm_main=NULL，detach 是 use-after-free
+     *   - 切 HEAT 路径：func_exit 后续做完整 destroy，此处 detach 多余且触发 C245
+     * 仅 detach battery pic 全局引用，避免 dirty 指针遗留。 */
     home_ui_shared_battery_detach_pic();
     func_cb.last = FUNC_NEW_HEAT;
     printf("func_new_heat_exit\n");

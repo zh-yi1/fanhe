@@ -837,6 +837,10 @@
 		<Unit filename="functions/func_heat.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_heat_panel.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_heat_panel.h" />
 		<Unit filename="functions/heat_display_reg.c">
 			<Option compilerVar="CC" />
 		</Unit>
