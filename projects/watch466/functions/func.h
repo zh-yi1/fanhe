@@ -159,6 +159,7 @@ enum {
     FUNC_NEW_SETUP,                     //新主页→设置页
     FUNC_NEW_LANGUAGE,                  //新主页→语言页
     FUNC_NEW_VERINFO,                   //新主页→版本信息页
+    FUNC_NEW_TIME,                      //新主页→时间页
     FUNC_RESERVATION,                   //预约页
     FUNC_SETUP,                         //设置页
     FUNC_TIMEING,                       //定时页
