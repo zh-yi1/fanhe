@@ -14,6 +14,12 @@
 extern volatile u8 elunchbox_te_block_flag;
 #endif
 
+/* 外部变量：向加热页传递模式名称和默认参数 */
+extern const char *g_new_heat_mode_name;
+extern u8 g_new_heat_temp_idx;
+extern u8 g_new_heat_time_idx;
+extern u8 g_new_heat_proto_mode;
+
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #include "port_pt8028_key.h"
@@ -702,14 +708,18 @@ static void new_mode_confirm(f_new_mode_t *f)
         break;
 
     case NEW_MODE_ITEM_CHICKEN:
-        lb_mode_to_heat_set(2, 212, 1, 0);
-        lb_heat_autostart_set(true);
+        g_new_heat_mode_name = "Chicken";
+        g_new_heat_temp_idx = 4;       /* 212°F */
+        g_new_heat_time_idx = 0;       /* 60min (1H) */
+        g_new_heat_proto_mode = 2;
         func_cb.sta = FUNC_HEAT;
         break;
 
     case NEW_MODE_ITEM_PASTA:
-        lb_mode_to_heat_set(3, 194, 1, 0);
-        lb_heat_autostart_set(true);
+        g_new_heat_mode_name = "Pasta";
+        g_new_heat_temp_idx = 3;       /* 194°F */
+        g_new_heat_time_idx = 0;       /* 60min (1H) */
+        g_new_heat_proto_mode = 3;
         func_cb.sta = FUNC_HEAT;
         break;
 

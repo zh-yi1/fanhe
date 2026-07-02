@@ -24,14 +24,24 @@ extern volatile u8 elunchbox_te_block_flag;
 
 /*
  * 新加热设置页（320×240 白底）：
- *   顶栏：蓝牙 + 电量（new_dl, new_dl1..new_dl4，按原逻辑显示）
+ *   顶栏：蓝牙 + 电量 + 模式名称（Chicken / Pasta）
  *   温度条 new_temp_1..5，时长条 new_time_1..13，圆点 new_point
  *   默认 140°F / 1 小时；先调温度，确认后调时长，再确认开始加热
  * PT8028：TCH4 确认 | TCH5 返回 | TCH2/TCH6 减/加
+ *
+ * 模式页（func_new_mode.c）进入时通过全局变量传递模式名称和默认参数：
+ *   g_new_heat_mode_name  — 顶部显示的模式名称（NULL 则显示 "Heating Temp"）
+ *   g_new_heat_proto_mode — 启动时使用的协议模式值
+ *   g_new_heat_temp_idx    — 默认温度索引
+ *   g_new_heat_time_idx    — 默认时长索引
  */
 #define NEW_HEAT_STATUS_Y                 20
 #define NEW_HEAT_STATUS_RIGHT_MARGIN      10
 #define NEW_HEAT_STATUS_GAP               6
+
+#define NEW_HEAT_MODE_TITLE_Y             38
+#define NEW_HEAT_MODE_TITLE_H             36
+#define NEW_HEAT_MODE_TITLE_W             120
 
 #define NEW_HEAT_TEMP_LABEL_Y             58
 #define NEW_HEAT_TEMP_SLIDER_Y            82
@@ -57,6 +67,7 @@ extern volatile u8 elunchbox_te_block_flag;
 
 enum {
     COMPO_ID_SHAPE_BG = 1,
+    COMPO_ID_TXT_MODE_TITLE,
     COMPO_ID_PIC_BT,
     COMPO_ID_PIC_BAT,
     COMPO_ID_PIC_TEMP_TRACK,
@@ -93,6 +104,7 @@ typedef struct {
     compo_picturebox_t *pic_time_point;
     compo_picturebox_t *pic_temp_badge;
     compo_picturebox_t *pic_time_badge;
+    compo_textbox_t *txt_mode_title;
     compo_textbox_t *txt_temp_label;
     compo_textbox_t *txt_time_label;
     compo_textbox_t *txt_temp_val;
@@ -113,6 +125,12 @@ static const u16 tbl_new_heat_time_min[NEW_HEAT_TIME_CNT] = {
 
 /* 时间刻度尺显示三档：索引 0(1H)、6(1H30min)、12(2H) */
 static const u8 tbl_new_heat_time_scale_idx[3] = { 0, 6, 12 };
+
+/* 模式页（func_new_mode.c）进入时通过以下全局变量传递模式名称和默认参数 */
+const char *g_new_heat_mode_name = NULL;
+u8 g_new_heat_temp_idx = 0;
+u8 g_new_heat_time_idx = 0;
+u8 g_new_heat_proto_mode = 1;
 
 static void new_heat_white_bg_create(compo_form_t *frm)
 {
@@ -650,6 +668,13 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
         }
         f->txt_time_val = t;
     }
+    /* 显示模式名称（Chicken / Pasta），来自模式页全局变量 */
+    if (f->txt_mode_title != NULL && g_new_heat_mode_name != NULL) {
+        compo_textbox_set(f->txt_mode_title, g_new_heat_mode_name);
+        compo_textbox_set_visible(f->txt_mode_title, true);
+    } else if (f->txt_mode_title != NULL) {
+        compo_textbox_set_visible(f->txt_mode_title, false);
+    }
     if (f->txt_temp_label != NULL) {
         compo_textbox_set(f->txt_temp_label, "Heating Temp");
         compo_textbox_set_visible(f->txt_temp_label, true);
@@ -761,6 +786,7 @@ static void new_heat_bind_objects(f_new_heat_t *f)
 
     f->pic_bt = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_BT);
     f->pic_bat = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_BAT);
+    f->txt_mode_title = (compo_textbox_t *)compo_getobj_byid(COMPO_ID_TXT_MODE_TITLE);
     f->pic_temp_track = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_TEMP_TRACK);
     f->pic_time_track = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_TIME_TRACK);
     f->pic_temp_point = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_TEMP_POINT);
@@ -844,8 +870,13 @@ static void new_heat_ok_key(f_new_heat_t *f)
 #endif
 
     printf("new_heat_ok: set preset + autostart, direct sta\n");
-    lb_mode_to_heat_set(1, temp_f, (u8)(total_min / 60), (u8)(total_min % 60));
+    lb_mode_to_heat_set(g_new_heat_proto_mode, temp_f,
+                        (u8)(total_min / 60), (u8)(total_min % 60));
     lb_heat_autostart_set(true);
+    g_new_heat_mode_name = NULL;
+    g_new_heat_temp_idx = 0;
+    g_new_heat_time_idx = 0;
+    g_new_heat_proto_mode = 1;
     func_cb.sta = FUNC_HEAT;
 }
 
@@ -860,6 +891,10 @@ static void new_heat_power_key(f_new_heat_t *f)
         new_heat_ui_refresh(f);
         return;
     }
+    g_new_heat_mode_name = NULL;
+    g_new_heat_temp_idx = 0;
+    g_new_heat_time_idx = 0;
+    g_new_heat_proto_mode = 1;
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
@@ -924,6 +959,13 @@ compo_form_t *func_new_heat_form_create(void)
     pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_BAT);
     compo_picturebox_set_pos(pic, bat_x, NEW_HEAT_STATUS_Y);
     compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
+
+    /* 模式名称标题：显示 Chicken / Pasta（从模式页进入时），默认隐藏 */
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_MODE_TITLE, UI_BUF_0FONT_FONT_ASC_BIN,
+                              GUI_SCREEN_CENTER_X, NEW_HEAT_MODE_TITLE_Y,
+                              COLOR_BLACK, true);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_HEAT_MODE_TITLE_Y,
+                               NEW_HEAT_MODE_TITLE_W, NEW_HEAT_MODE_TITLE_H);
 
     txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_LABEL, UI_BUF_0FONT_FONT_ASC_BIN,
                               NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
@@ -1063,9 +1105,9 @@ void func_new_heat_enter(void)
     printf("eh_n\n");
     f->focus = NEW_HEAT_FOCUS_TEMP;
     printf("eh_o\n");
-    f->temp_idx = 0;
+    f->temp_idx = g_new_heat_temp_idx;
     printf("eh_p\n");
-    f->time_idx = 0;
+    f->time_idx = g_new_heat_time_idx;
     printf("eh_q\n");
     f->display_pending = false;
     printf("eh_r\n");
@@ -1107,6 +1149,10 @@ void func_new_heat_enter(void)
 
 void func_new_heat_exit(void)
 {
+    g_new_heat_mode_name = NULL;
+    g_new_heat_temp_idx = 0;
+    g_new_heat_time_idx = 0;
+    g_new_heat_proto_mode = 1;
     /* GPU 资源由 func_exit() 的 compo_form_destroy() + compos_init() 统一清理。
      * 此处不做 GPU detach，避免：
      *   - 切 HOME 路径：func_switch_to 已 destroy form，frm_main=NULL，detach 是 use-after-free
