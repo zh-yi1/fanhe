@@ -97,6 +97,7 @@ compo_form_t *func_new_warm_form_create(void);
 compo_form_t *func_new_mode_form_create(void);
 compo_form_t *func_new_setup_form_create(void);
 compo_form_t *func_new_language_form_create(void);
+compo_form_t *func_new_verinfo_form_create(void);
 #if ELUNCHBOX_PANEL_EN
 compo_form_t *func_new_reservation_form_create(void);
 #else
@@ -236,6 +237,7 @@ const func_t tbl_func_create[] = {
     {FUNC_NEW_MODE,                     func_new_mode_form_create},
     {FUNC_NEW_SETUP,                    func_new_setup_form_create},
     {FUNC_NEW_LANGUAGE,                 func_new_language_form_create},
+    {FUNC_NEW_VERINFO,                  func_new_verinfo_form_create},
 #if ELUNCHBOX_PANEL_EN
     {FUNC_RESERVATION,                  func_new_reservation_form_create},
 #else
@@ -424,6 +426,7 @@ extern void func_new_warm(void);
 extern void func_new_mode(void);
 extern void func_new_setup(void);
 extern void func_new_language(void);
+extern void func_new_verinfo(void);
 extern void func_timeing(void);
 extern void func_languageing(void);
 extern void func_verinfo(void);
@@ -565,6 +568,7 @@ const func_t tbl_func_entry[] = {
     {FUNC_NEW_MODE,                     func_new_mode},                 //新主页→模式页
     {FUNC_NEW_SETUP,                    func_new_setup},                //新主页→设置页
     {FUNC_NEW_LANGUAGE,                 func_new_language},             //新主页→语言页
+    {FUNC_NEW_VERINFO,                  func_new_verinfo},              //新主页→版本信息页
 #if ELUNCHBOX_PANEL_EN
     {FUNC_RESERVATION,                  func_new_reservation},          //预约页
 #else
@@ -857,6 +861,8 @@ void func_new_setup_enter(void);
 void func_new_setup_exit(void);
 void func_new_language_enter(void);
 void func_new_language_exit(void);
+void func_new_verinfo_enter(void);
+void func_new_verinfo_exit(void);
 void func_setup_enter(void);
 void func_setup_exit(void);
 void func_timeing_enter(void);
@@ -961,6 +967,7 @@ const func_t tbl_func_enter[] = {
     {FUNC_NEW_MODE,                     func_new_mode_enter},           //新主页→模式页
     {FUNC_NEW_SETUP,                    func_new_setup_enter},          //新主页→设置页
     {FUNC_NEW_LANGUAGE,                 func_new_language_enter},       //新主页→语言页
+    {FUNC_NEW_VERINFO,                  func_new_verinfo_enter},        //新主页→版本信息页
 #if ELUNCHBOX_PANEL_EN
     {FUNC_RESERVATION,                  func_new_reservation_enter},    //预约页
 #else
@@ -1289,6 +1296,7 @@ const func_t tbl_func_exit[] = {
     {FUNC_NEW_MODE,                     func_new_mode_exit},                //新主页→模式页
     {FUNC_NEW_SETUP,                    func_new_setup_exit},               //新主页→设置页
     {FUNC_NEW_LANGUAGE,                 func_new_language_exit},            //新主页→语言页
+    {FUNC_NEW_VERINFO,                  func_new_verinfo_exit},             //新主页→版本信息页
 #if ELUNCHBOX_PANEL_EN
     {FUNC_RESERVATION,                  func_new_reservation_exit},         //预约页
 #else

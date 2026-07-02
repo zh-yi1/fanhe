@@ -148,7 +148,7 @@ static void elunchbox_subpage_gpu_recycle_after_leave(void)
 static bool elunchbox_subpage_sta(u8 sta)
 {
     return sta == FUNC_NEW_HEAT || sta == FUNC_NEW_WARM || sta == FUNC_NEW_MODE
-        || sta == FUNC_NEW_SETUP || sta == FUNC_NEW_LANGUAGE;
+        || sta == FUNC_NEW_SETUP || sta == FUNC_NEW_LANGUAGE || sta == FUNC_NEW_VERINFO;
 }
 #endif
 
@@ -1592,7 +1592,7 @@ void func_message(size_msg_t msg)
         }
         if (func_cb.sta == FUNC_NEW_HEAT || func_cb.sta == FUNC_NEW_WARM
             || func_cb.sta == FUNC_NEW_MODE || func_cb.sta == FUNC_NEW_SETUP
-            || func_cb.sta == FUNC_NEW_LANGUAGE) {
+            || func_cb.sta == FUNC_NEW_LANGUAGE || func_cb.sta == FUNC_NEW_VERINFO) {
             break;
         }
 #endif

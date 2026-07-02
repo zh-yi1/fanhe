@@ -102,7 +102,7 @@ static const char * const tbl_new_setup_label[NEW_SETUP_ITEM_CNT] = {
 static const u8 tbl_new_setup_target[NEW_SETUP_ITEM_CNT] = {
     FUNC_TIMEING,
     FUNC_NEW_LANGUAGE,
-    FUNC_VERINFO,
+    FUNC_NEW_VERINFO,
 };
 
 #if ELUNCHBOX_PANEL_EN
