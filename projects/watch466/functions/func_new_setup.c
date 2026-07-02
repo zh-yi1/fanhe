@@ -39,9 +39,9 @@ extern volatile u8 elunchbox_te_block_flag;
 
 #define NEW_SETUP_PANEL_Y                  132
 #define NEW_SETUP_PANEL_W                  280
-#define NEW_SETUP_PANEL_H                  150
+#define NEW_SETUP_PANEL_H                  188
 
-#define NEW_SETUP_ROW_FIRST_Y              95
+#define NEW_SETUP_ROW_FIRST_Y              80
 #define NEW_SETUP_ROW_GAP                  42
 #define NEW_SETUP_ICON_X                   36
 #define NEW_SETUP_LABEL_GAP                12
