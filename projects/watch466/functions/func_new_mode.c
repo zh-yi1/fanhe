@@ -37,7 +37,7 @@ extern u8 g_new_heat_proto_mode;
 #define NEW_MODE_STATUS_Y                 20
 #define NEW_MODE_STATUS_RIGHT_MARGIN      10
 #define NEW_MODE_STATUS_GAP               6
-#define NEW_MODE_TITLE_Y                  38
+#define NEW_MODE_TITLE_Y                  18
 #define NEW_MODE_TITLE_W                  120
 #define NEW_MODE_TITLE_H                  36
 
@@ -49,7 +49,7 @@ extern u8 g_new_heat_proto_mode;
 #define NEW_MODE_ROW_GAP                  42
 #define NEW_MODE_ICON_X                   36
 #define NEW_MODE_LABEL_GAP                12
-#define NEW_MODE_ARROW_X                  298
+#define NEW_MODE_ARROW_X                  290
 #define NEW_MODE_LABEL_X                  (NEW_MODE_ICON_X + NEW_MODE_ICON_W / 2 + NEW_MODE_LABEL_GAP)
 #define NEW_MODE_LABEL_H                  36
 #define NEW_MODE_LABEL_W                  ((s16)(NEW_MODE_ARROW_X - NEW_MODE_NEW_LEFT_W / 2 - 10 - NEW_MODE_LABEL_X))
