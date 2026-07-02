@@ -28,8 +28,8 @@
 #define NEW_HEAT_NEW_PROGRESS_1_RAM_SIZE          0
 #define NEW_HEAT_NEW_PROGRESS_1_ANCHOR_X            0
 #define NEW_HEAT_NEW_PROGRESS_1_ANCHOR_Y            0
-#define NEW_HEAT_NEW_PROGRESS_1_TIP_X            0
-#define NEW_HEAT_NEW_PROGRESS_1_TIP_Y            0
+#define NEW_HEAT_NEW_PROGRESS_1_TIP_X            239
+#define NEW_HEAT_NEW_PROGRESS_1_TIP_Y            168
 
 #define NEW_HEAT_NEW_PROGRESS_10_W                 163
 #define NEW_HEAT_NEW_PROGRESS_10_H                 121

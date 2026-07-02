@@ -207,6 +207,29 @@ def tip_from_cropped_bin(ow: int, oh: int, pixels: list[int],
     return tip
 
 
+def arc_start_tip_from_bg(bw: int, bh: int, pixels: list[int],
+                          arc_cx: int, arc_cy: int,
+                          anchor_x: int, anchor_y: int) -> tuple[int, int]:
+    """初始圆点位置：灰色轨道外缘最低点（屏幕 Y 最大）。"""
+    ox = anchor_x - bw // 2
+    oy = anchor_y - bh // 2
+    grays = [
+        (x + ox, y + oy)
+        for y in range(bh)
+        for x in range(bw)
+        if is_track_gray(pixels[y * bw + x])
+    ]
+    if not grays:
+        return anchor_x, anchor_y + bh // 2
+    dists = [((p[0] - arc_cx) ** 2 + (p[1] - arc_cy) ** 2) for p in grays]
+    md = max(dists)
+    threshold = md * 92 // 100
+    outer = [p for p, d in zip(grays, dists) if d >= threshold]
+    if not outer:
+        outer = grays
+    return max(outer, key=lambda p: p[1])
+
+
 def repack_progress_icons() -> tuple[ProgressPack, list[ProgressPack]] | None:
     src_path = BIN_DIR / "new_progress_1.bin"
     if not src_path.exists():
@@ -339,7 +362,13 @@ def fill_progress_metadata(existing: dict[str, str],
         return
 
     arc_cx, arc_cy = bg_anchor
-    for i in range(1, 14):
+    if bg_path.exists():
+        bw, bh, bg_px = load_gpu_bin(bg_path)
+        start_x, start_y = arc_start_tip_from_bg(bw, bh, bg_px, arc_cx, arc_cy, arc_cx, arc_cy)
+        progress_tips["new_progress_1"] = (start_x, start_y)
+        print(f"new_progress_1: start tip=({start_x},{start_y})")
+
+    for i in range(2, 14):
         stem = f"new_progress_{i}"
         bin_path = BIN_DIR / f"{stem}.bin"
         if not bin_path.exists():

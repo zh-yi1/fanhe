@@ -267,31 +267,22 @@ static void heat_panel_white_bg(compo_form_t *frm)
     compo_shape_set_radius(bg, 0);
 }
 
-static u8 heat_panel_resolve_overlay_idx(u8 idx)
+static u8 heat_panel_clamp_progress_idx(u8 idx)
 {
-    u8 step;
-
     if (idx < 1) {
-        idx = 1;
+        return 1;
     }
     if (idx > NEW_HEAT_PROGRESS_CNT) {
-        idx = NEW_HEAT_PROGRESS_CNT;
-    }
-    step = idx - 1;
-    if (tbl_progress_w[step] == 0 || tbl_progress_h[step] == 0) {
-        /* new_progress_1 裁剪后为空，与蓝弧一致用第 2 帧锚点 */
-        return 2;
+        return NEW_HEAT_PROGRESS_CNT;
     }
     return idx;
 }
 
 static void heat_panel_point_pos(u8 idx, s16 *x, s16 *y)
 {
-    u8 overlay_idx;
     u8 step;
 
-    overlay_idx = heat_panel_resolve_overlay_idx(idx);
-    step = overlay_idx - 1;
+    step = heat_panel_clamp_progress_idx(idx) - 1;
     *x = tbl_progress_tip_x[step];
     *y = tbl_progress_tip_y[step];
 }
@@ -305,6 +296,7 @@ static void heat_panel_point_bind(u8 progress_idx)
         printf("point_bind: skip pic=NULL\n");
         return;
     }
+    /* idx=1 无蓝弧，圆点仍在轨道最低端；idx>=2 跟随蓝弧尖 */
     heat_panel_point_pos(progress_idx, &px, &py);
     if (!heat_panel_gpu_ram_bind(g_hp.pic_point, UI_BUF_NEW_UI_NEW_POINT_BIN,
                                   UI_LEN_NEW_UI_NEW_POINT_BIN,
@@ -335,13 +327,12 @@ static void heat_panel_track_apply(void)
 
 static void heat_panel_progress_overlay_apply(u8 idx)
 {
-    u8 overlay_idx;
     u8 step;
     u16 pw;
     u16 ph;
 
-    overlay_idx = heat_panel_resolve_overlay_idx(idx);
-    step = overlay_idx - 1;
+    idx = heat_panel_clamp_progress_idx(idx);
+    step = idx - 1;
     pw = tbl_progress_w[step];
     ph = tbl_progress_h[step];
     if (pw == 0 || ph == 0) {
@@ -349,10 +340,10 @@ static void heat_panel_progress_overlay_apply(u8 idx)
         compo_picturebox_set_visible(g_hp.pic_progress, false);
         return;
     }
-    printf("progress_overlay: idx=%u overlay=%u pw=%u ph=%u\n", idx, overlay_idx, pw, ph);
+    printf("progress_overlay: idx=%u pw=%u ph=%u\n", idx, pw, ph);
     {
-        u32 addr = heat_panel_progress_addr(overlay_idx);
-        u32 len = heat_panel_progress_len(overlay_idx);
+        u32 addr = heat_panel_progress_addr(idx);
+        u32 len = heat_panel_progress_len(idx);
 
         if (len <= HEAT_PANEL_ARC_RAM_CAP &&
             heat_panel_gpu_ram_bind(g_hp.pic_progress, addr, len,
@@ -428,9 +419,14 @@ static u8 heat_panel_calc_progress_idx(u16 total_min, u32 remain_min)
         remain_min = total_min;
     }
     elapsed = total_min - remain_min;
+    if (elapsed == 0) {
+        /* 初始：仅灰色轨道，new_progress_1 为空帧 */
+        return 1;
+    }
     if (elapsed >= total_min) {
         return NEW_HEAT_PROGRESS_CNT;
     }
+    /* elapsed 1..total-1 → idx 2..12，满圈为 13 */
     return (u8)(1 + (elapsed * (NEW_HEAT_PROGRESS_CNT - 1)) / total_min);
 }
 
