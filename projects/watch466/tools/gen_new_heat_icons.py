@@ -11,6 +11,7 @@ Run: python tools/gen_new_heat_icons.py
 
 from __future__ import annotations
 
+import math
 import struct
 from pathlib import Path
 
@@ -143,12 +144,67 @@ def crop_pixels(fw: int, fh: int, pixels: list[int], x: int, y: int, cw: int, ch
 
 
 class ProgressPack:
-    def __init__(self, w: int, h: int, anchor_x: int, anchor_y: int, ram_size: int):
+    def __init__(self, w: int, h: int, anchor_x: int, anchor_y: int, ram_size: int,
+                 tip_x: int = 0, tip_y: int = 0):
         self.w = w
         self.h = h
         self.anchor_x = anchor_x
         self.anchor_y = anchor_y
         self.ram_size = ram_size
+        self.tip_x = tip_x
+        self.tip_y = tip_y
+
+
+def arc_tip_growth_end(blues: list[tuple[int, int]], cx: int, cy: int,
+                       full_circle: bool = False) -> tuple[int, int]:
+    """蓝弧增长端：沿 CCW 扩展的最前沿外缘点；满圈帧取外缘最大极角。"""
+    if not blues:
+        return 0, 0
+    if full_circle:
+        dists = [((p[0] - cx) ** 2 + (p[1] - cy) ** 2) for p in blues]
+        md = max(dists)
+        threshold = md * 88 // 100
+        outer = [p for p, d in zip(blues, dists) if d >= threshold]
+        if not outer:
+            outer = blues
+        return max(outer, key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
+
+    angs = [(p, math.atan2(p[1] - cy, p[0] - cx)) for p in blues]
+    min_a = min(a for _, a in angs)
+    band = 0.12
+    cand = [p for p, a in angs if a <= min_a + band]
+    if not cand:
+        cand = [p for p, _ in angs]
+    return max(cand, key=lambda p: (p[0] - cx) ** 2 + (p[1] - cy) ** 2)
+
+
+def arc_tip_from_blue(pw: int, ph: int, pixels: list[int], cx: int, cy: int,
+                      full_circle: bool = False) -> tuple[int, int]:
+    blues = [
+        (x, y)
+        for y in range(ph)
+        for x in range(pw)
+        if is_progress_blue(pixels[y * pw + x])
+    ]
+    return arc_tip_growth_end(blues, cx, cy, full_circle)
+
+
+def tip_from_cropped_bin(ow: int, oh: int, pixels: list[int],
+                         arc_cx: int, arc_cy: int,
+                         anchor_x: int, anchor_y: int,
+                         full_circle: bool = False) -> tuple[int, int]:
+    ox = anchor_x - ow // 2
+    oy = anchor_y - oh // 2
+    blues = [
+        (x + ox, y + oy)
+        for y in range(oh)
+        for x in range(ow)
+        if is_progress_blue(pixels[y * ow + x])
+    ]
+    tip = arc_tip_growth_end(blues, arc_cx, arc_cy, full_circle)
+    if tip == (0, 0):
+        return anchor_x, anchor_y
+    return tip
 
 
 def repack_progress_icons() -> tuple[ProgressPack, list[ProgressPack]] | None:
@@ -178,6 +234,7 @@ def repack_progress_icons() -> tuple[ProgressPack, list[ProgressPack]] | None:
     track_crop = crop_pixels(track_fw, track_fh, track_px, tx, ty, tw, th)
     bg_size = save_gpu_bin(BIN_DIR / "new_progress_bg.bin", tw, th, track_crop)
     bg_pack = ProgressPack(tw, th, tx + tw // 2, ty + th // 2, bg_size)
+    arc_cx, arc_cy = bg_pack.anchor_x, bg_pack.anchor_y
     print(f"new_progress_bg.bin: {bg_size} bytes ({tw}x{th}) anchor=({bg_pack.anchor_x},{bg_pack.anchor_y})")
 
     overlays: list[ProgressPack] = []
@@ -206,9 +263,10 @@ def repack_progress_icons() -> tuple[ProgressPack, list[ProgressPack]] | None:
         crop = crop_pixels(pw, ph, blue_px, ox, oy, ow, oh)
         out_path = BIN_DIR / f"new_progress_{i}.bin"
         sz = save_gpu_bin(out_path, ow, oh, crop)
-        pack = ProgressPack(ow, oh, ox + ow // 2, oy + oh // 2, sz)
+        tip_x, tip_y = arc_tip_from_blue(pw, ph, blue_px, arc_cx, arc_cy, full_circle=(i == 13))
+        pack = ProgressPack(ow, oh, ox + ow // 2, oy + oh // 2, sz, tip_x, tip_y)
         overlays.append(pack)
-        print(f"new_progress_{i}.bin: {sz} bytes ({ow}x{oh}) anchor=({pack.anchor_x},{pack.anchor_y})")
+        print(f"new_progress_{i}.bin: {sz} bytes ({ow}x{oh}) anchor=({pack.anchor_x},{pack.anchor_y}) tip=({tip_x},{tip_y})")
 
     return bg_pack, overlays
 
@@ -219,6 +277,84 @@ def stem_from_png(name: str) -> str:
 
 def macro_prefix(stem: str) -> str:
     return "NEW_HEAT_" + stem.upper().replace(".", "_")
+
+
+# 裁剪后 progress 锚点（全屏坐标）；无 PNG 重打包时从已有 bin + 此表计算 tip
+DEFAULT_PROGRESS_ANCHORS: dict[str, tuple[int, int]] = {
+    "new_progress_bg": (160, 109),
+    **{f"new_progress_{i}": (0, 0) for i in range(1, 14)},
+}
+DEFAULT_PROGRESS_ANCHORS.update({
+    "new_progress_2": (241, 149),
+    "new_progress_3": (241, 137),
+    "new_progress_4": (235, 125),
+    "new_progress_5": (226, 116),
+    "new_progress_6": (214, 110),
+    "new_progress_7": (201, 108),
+    "new_progress_8": (189, 108),
+    "new_progress_9": (177, 108),
+    "new_progress_10": (168, 108),
+    "new_progress_11": (162, 108),
+    "new_progress_12": (160, 108),
+    "new_progress_13": (160, 108),
+})
+
+
+def parse_anchor(defines: dict[str, str], stem: str) -> tuple[int, int] | None:
+    tag = macro_prefix(stem)
+    x_key = f"{tag}_ANCHOR_X"
+    y_key = f"{tag}_ANCHOR_Y"
+    if x_key not in defines or y_key not in defines:
+        return None
+    return int(defines[x_key]), int(defines[y_key])
+
+
+def fill_progress_metadata(existing: dict[str, str],
+                           sizes: dict[str, tuple[int, int, int]],
+                           progress_anchors: dict[str, tuple[int, int]],
+                           progress_tips: dict[str, tuple[int, int]]) -> None:
+    bg_path = BIN_DIR / "new_progress_bg.bin"
+    if "new_progress_bg" not in sizes and bg_path.exists():
+        cached = parse_item_size(existing, "new_progress_bg")
+        if cached is not None:
+            sizes["new_progress_bg"] = cached
+        else:
+            w, h, _ = load_gpu_bin(bg_path)
+            sizes["new_progress_bg"] = (w, h, bg_path.stat().st_size)
+
+    for stem in ("new_progress_bg", *(f"new_progress_{i}" for i in range(1, 14))):
+        anchor = parse_anchor(existing, stem)
+        if anchor is None:
+            anchor = DEFAULT_PROGRESS_ANCHORS.get(stem)
+        if anchor is not None:
+            progress_anchors[stem] = anchor
+
+    bg_anchor = progress_anchors.get("new_progress_bg")
+    if bg_anchor is None and bg_path.exists():
+        w, h, _ = load_gpu_bin(bg_path)
+        bg_anchor = (w // 2, h // 2)
+        progress_anchors["new_progress_bg"] = bg_anchor
+        print(f"WARN: new_progress_bg anchor inferred ({bg_anchor[0]},{bg_anchor[1]})")
+    if bg_anchor is None:
+        return
+
+    arc_cx, arc_cy = bg_anchor
+    for i in range(1, 14):
+        stem = f"new_progress_{i}"
+        bin_path = BIN_DIR / f"{stem}.bin"
+        if not bin_path.exists():
+            continue
+        ow, oh, pixels = load_gpu_bin(bin_path)
+        if ow == 0 or oh == 0:
+            continue
+        anchor = progress_anchors.get(stem)
+        if anchor is None:
+            continue
+        ax, ay = anchor
+        tip_x, tip_y = tip_from_cropped_bin(ow, oh, pixels, arc_cx, arc_cy, ax, ay,
+                                            full_circle=(i == 13))
+        progress_tips[stem] = (tip_x, tip_y)
+        print(f"{stem}: anchor=({ax},{ay}) tip=({tip_x},{tip_y})")
 
 
 def load_existing_define_lines(path: Path) -> dict[str, str]:
@@ -251,6 +387,7 @@ def main() -> None:
     BIN_DIR.mkdir(parents=True, exist_ok=True)
     sizes: dict[str, tuple[int, int, int]] = {}
     progress_anchors: dict[str, tuple[int, int]] = {}
+    progress_tips: dict[str, tuple[int, int]] = {}
     track_max = 0
     badge_max = 0
     point_sz = 0
@@ -308,8 +445,11 @@ def main() -> None:
             stem = f"new_progress_{i}"
             sizes[stem] = (pack.w, pack.h, pack.ram_size)
             progress_anchors[stem] = (pack.anchor_x, pack.anchor_y)
+            progress_tips[stem] = (pack.tip_x, pack.tip_y)
             progress_max = max(progress_max, pack.ram_size)
             overlay_max = max(overlay_max, pack.ram_size)
+
+    fill_progress_metadata(existing, sizes, progress_anchors, progress_tips)
 
     for stem, (_, _, sz) in sizes.items():
         if stem.startswith("new_temp_") or stem.startswith("new_time_"):
@@ -356,6 +496,10 @@ def main() -> None:
             ax, ay = progress_anchors[stem]
             lines.append(f"#define {tag}_ANCHOR_X            {ax}")
             lines.append(f"#define {tag}_ANCHOR_Y            {ay}")
+            if stem in progress_tips:
+                tx, ty = progress_tips[stem]
+                lines.append(f"#define {tag}_TIP_X            {tx}")
+                lines.append(f"#define {tag}_TIP_Y            {ty}")
         lines.append("")
 
     if "new_point" in sizes:

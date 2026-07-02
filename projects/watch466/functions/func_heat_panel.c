@@ -116,6 +116,22 @@ static const s16 tbl_progress_ay[NEW_HEAT_PROGRESS_CNT] = {
     NEW_HEAT_NEW_PROGRESS_13_ANCHOR_Y,
 };
 
+static const s16 tbl_progress_tip_x[NEW_HEAT_PROGRESS_CNT] = {
+    NEW_HEAT_NEW_PROGRESS_1_TIP_X, NEW_HEAT_NEW_PROGRESS_2_TIP_X, NEW_HEAT_NEW_PROGRESS_3_TIP_X,
+    NEW_HEAT_NEW_PROGRESS_4_TIP_X, NEW_HEAT_NEW_PROGRESS_5_TIP_X, NEW_HEAT_NEW_PROGRESS_6_TIP_X,
+    NEW_HEAT_NEW_PROGRESS_7_TIP_X, NEW_HEAT_NEW_PROGRESS_8_TIP_X, NEW_HEAT_NEW_PROGRESS_9_TIP_X,
+    NEW_HEAT_NEW_PROGRESS_10_TIP_X, NEW_HEAT_NEW_PROGRESS_11_TIP_X, NEW_HEAT_NEW_PROGRESS_12_TIP_X,
+    NEW_HEAT_NEW_PROGRESS_13_TIP_X,
+};
+
+static const s16 tbl_progress_tip_y[NEW_HEAT_PROGRESS_CNT] = {
+    NEW_HEAT_NEW_PROGRESS_1_TIP_Y, NEW_HEAT_NEW_PROGRESS_2_TIP_Y, NEW_HEAT_NEW_PROGRESS_3_TIP_Y,
+    NEW_HEAT_NEW_PROGRESS_4_TIP_Y, NEW_HEAT_NEW_PROGRESS_5_TIP_Y, NEW_HEAT_NEW_PROGRESS_6_TIP_Y,
+    NEW_HEAT_NEW_PROGRESS_7_TIP_Y, NEW_HEAT_NEW_PROGRESS_8_TIP_Y, NEW_HEAT_NEW_PROGRESS_9_TIP_Y,
+    NEW_HEAT_NEW_PROGRESS_10_TIP_Y, NEW_HEAT_NEW_PROGRESS_11_TIP_Y, NEW_HEAT_NEW_PROGRESS_12_TIP_Y,
+    NEW_HEAT_NEW_PROGRESS_13_TIP_Y,
+};
+
 static heat_panel_ui_t g_hp;
 
 /* 内存布局（互不重叠，全部 set_ram，无 Flash DMA）：
@@ -251,27 +267,33 @@ static void heat_panel_white_bg(compo_form_t *frm)
     compo_shape_set_radius(bg, 0);
 }
 
-static void heat_panel_point_pos(u8 progress_idx, s16 *x, s16 *y)
+static u8 heat_panel_resolve_overlay_idx(u8 idx)
 {
     u8 step;
 
-    if (progress_idx < 1) {
-        progress_idx = 1;
+    if (idx < 1) {
+        idx = 1;
     }
-    if (progress_idx > NEW_HEAT_PROGRESS_CNT) {
-        progress_idx = NEW_HEAT_PROGRESS_CNT;
+    if (idx > NEW_HEAT_PROGRESS_CNT) {
+        idx = NEW_HEAT_PROGRESS_CNT;
     }
-    step = progress_idx - 1;
-    {
-        static const s16 tbl_x[NEW_HEAT_PROGRESS_CNT] = {
-            88, 96, 108, 122, 138, 154, 160, 166, 182, 198, 212, 224, 232,
-        };
-        static const s16 tbl_y[NEW_HEAT_PROGRESS_CNT] = {
-            118, 102, 90, 82, 76, 72, 70, 72, 76, 82, 90, 102, 118,
-        };
-        *x = tbl_x[step];
-        *y = tbl_y[step];
+    step = idx - 1;
+    if (tbl_progress_w[step] == 0 || tbl_progress_h[step] == 0) {
+        /* new_progress_1 裁剪后为空，与蓝弧一致用第 2 帧锚点 */
+        return 2;
     }
+    return idx;
+}
+
+static void heat_panel_point_pos(u8 idx, s16 *x, s16 *y)
+{
+    u8 overlay_idx;
+    u8 step;
+
+    overlay_idx = heat_panel_resolve_overlay_idx(idx);
+    step = overlay_idx - 1;
+    *x = tbl_progress_tip_x[step];
+    *y = tbl_progress_tip_y[step];
 }
 
 static void heat_panel_point_bind(u8 progress_idx)
@@ -318,17 +340,10 @@ static void heat_panel_progress_overlay_apply(u8 idx)
     u16 pw;
     u16 ph;
 
-    overlay_idx = idx;
+    overlay_idx = heat_panel_resolve_overlay_idx(idx);
     step = overlay_idx - 1;
     pw = tbl_progress_w[step];
     ph = tbl_progress_h[step];
-    /* new_progress_1 裁剪后为空；用第 2 帧作为起始蓝弧 */
-    if (pw == 0 || ph == 0) {
-        overlay_idx = 2;
-        step = overlay_idx - 1;
-        pw = tbl_progress_w[step];
-        ph = tbl_progress_h[step];
-    }
     if (pw == 0 || ph == 0) {
         home_gpu_wait_idle();
         compo_picturebox_set_visible(g_hp.pic_progress, false);
