@@ -23,8 +23,8 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_RES_ROLL_ROWS               5
 #define NEW_RES_ROLL_CENTER_ROW         2
 
-#define NEW_RES_TITLE_Y                 38
-#define NEW_RES_PANEL_Y                 140
+#define NEW_RES_TITLE_Y                 25
+#define NEW_RES_PANEL_Y                 145
 #define NEW_RES_PANEL_W                 280
 #define NEW_RES_PANEL_H                 185
 #define NEW_RES_ROW_GAP                 35
@@ -262,7 +262,29 @@ static void new_res_roller_apply(f_new_reservation_t *f)
     }
 
     if (f->txt_title != NULL) {
+        widget_text_t *widget = f->txt_title->txt;
+        rect_t rect;
+        area_t text_area;
+
+        compo_textbox_set_align_center(f->txt_title, true);
+        compo_textbox_set_wholewrap(f->txt_title, false);
+        compo_textbox_set_autoroll(f->txt_title, false);
+        compo_textbox_set_autoroll_mode(f->txt_title, TEXT_AUTOROLL_MODE_NULL);
+#if ELUNCHBOX_PANEL_EN
+        compo_textbox_set_autosize(f->txt_title, false);
+#endif
+        widget_text_set_ellipsis(widget, false);
+        widget_set_location(widget,
+                            GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y,
+                            GUI_SCREEN_WIDTH - 16, 40);
         compo_textbox_set(f->txt_title, "Set Time (Heating Finish Time)");
+        rect = widget_get_location(widget);
+        text_area = widget_text_get_area(widget);
+        if (rect.hei > text_area.hei) {
+            widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+        } else {
+            widget_text_set_client(widget, 0, 0);
+        }
         compo_textbox_set_visible(f->txt_title, true);
     }
 
@@ -361,11 +383,13 @@ compo_form_t *func_new_reservation_form_create(void)
     new_res_white_bg_create(frm);
     new_res_panel_create(frm);
 
-    /* 标题 "Set Time (Heating Finish Time)" = 32 字符 */
+    /* 标题 "Set Time (Heating Finish Time)" = 32 字符，预置 32buf */
     txt = new_res_txt_create(frm, COMPO_ID_TXT_TITLE, 32,
-                             GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y, 300, 28,
+                             GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y, GUI_SCREEN_WIDTH - 16, 28,
                              NEW_RES_COLOR_TITLE);
-    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y, 300, 28);
+    compo_textbox_set_align_center(txt, true);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y,
+                               GUI_SCREEN_WIDTH - 16, 28);
 
     for (col = 0; col < NEW_RES_ROLL_COLS; col++) {
         for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
