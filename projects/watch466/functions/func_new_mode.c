@@ -40,7 +40,10 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_MODE_ROW_FIRST_Y              68
 #define NEW_MODE_ROW_GAP                  42
 #define NEW_MODE_ICON_X                   36
-#define NEW_MODE_LABEL_X                  80
+#define NEW_MODE_LABEL_GAP                12
+#define NEW_MODE_LABEL_X                  (NEW_MODE_ICON_X + NEW_MODE_ICON_W / 2 + NEW_MODE_LABEL_GAP)
+#define NEW_MODE_LABEL_H                  36
+#define NEW_MODE_LABEL_W                  ((s16)(NEW_MODE_ARROW_X - NEW_MODE_NEW_LEFT_W / 2 - 10 - NEW_MODE_LABEL_X))
 #define NEW_MODE_ARROW_X                  298
 
 #define NEW_MODE_COLOR_TITLE              COLOR_BLACK
@@ -114,6 +117,8 @@ static s16 new_mode_row_y(u8 row)
     return (s16)(NEW_MODE_ROW_FIRST_Y + (s16)row * NEW_MODE_ROW_GAP);
 }
 
+static void new_mode_label_txt_apply(compo_textbox_t *txt, s16 row_y, const char *label, u16 color);
+
 static u32 new_mode_icon_addr(u8 item, bool selected)
 {
     static const u32 tbl[NEW_MODE_ITEM_CNT][2] = {
@@ -184,7 +189,6 @@ static bool new_mode_gpu_ram_bind(const char *tag, u8 *ram, u16 buf_size, u32 ad
     compo_picturebox_set_size(pic, w, h);
     compo_picturebox_set_pos(pic, x, y);
     compo_picturebox_set_visible(pic, true);
-    printf("nm_bind %s ok\n", tag);
     return true;
 }
 
@@ -229,14 +233,9 @@ static void new_mode_row_icon_apply(f_new_mode_t *f, u8 row, bool selected, s16 
 
 static void new_mode_row_arrow_apply(f_new_mode_t *f, u8 row, s16 row_y)
 {
-    char tag[8];
-
     if (f == NULL || row >= NEW_MODE_ITEM_CNT || f->pic_arrow[row] == NULL) {
         return;
     }
-    tag[0] = 'a';
-    tag[1] = '0' + row;
-    tag[2] = '\0';
     new_mode_arrow_ram_ensure();
     if (!new_mode_arrow_ram_ready) {
         compo_picturebox_set_visible(f->pic_arrow[row], false);
@@ -246,7 +245,53 @@ static void new_mode_row_arrow_apply(f_new_mode_t *f, u8 row, s16 row_y)
     compo_picturebox_set_size(f->pic_arrow[row], NEW_MODE_NEW_LEFT_W, NEW_MODE_NEW_LEFT_H);
     compo_picturebox_set_pos(f->pic_arrow[row], NEW_MODE_ARROW_X, row_y);
     compo_picturebox_set_visible(f->pic_arrow[row], true);
-    printf("nm_bind %s ok\n", tag);
+}
+#endif
+
+#if ELUNCHBOX_PANEL_EN
+static void new_mode_draw_now(void)
+{
+    home_gpu_wait_idle();
+    os_gui_draw_force();
+}
+
+/* forward: defined below in same file with #if ELUNCHBOX_PANEL_EN */
+static void new_mode_sel_bg_apply(f_new_mode_t *f);
+
+static void new_mode_row_apply_state(f_new_mode_t *f, u8 row, bool selected, bool with_arrow)
+{
+    s16 row_y;
+
+    if (f == NULL || row >= NEW_MODE_ITEM_CNT) {
+        return;
+    }
+    row_y = new_mode_row_y(row);
+
+    if (f->pic_icon[row] != NULL) {
+        new_mode_row_icon_apply(f, row, selected, row_y);
+    }
+    if (f->txt_label[row] != NULL) {
+        new_mode_label_txt_apply(f->txt_label[row], row_y, tbl_new_mode_label[row],
+                                 selected ? NEW_MODE_COLOR_SEL : NEW_MODE_COLOR_NOR);
+    }
+    if (with_arrow && f->pic_arrow[row] != NULL) {
+        new_mode_row_arrow_apply(f, row, row_y);
+    }
+}
+
+static void new_mode_sel_apply_delta(f_new_mode_t *f, u8 prev, u8 new_sel)
+{
+    if (f == NULL) {
+        return;
+    }
+    new_mode_sel_bg_apply(f);
+    if (prev < NEW_MODE_ITEM_CNT && prev != new_sel) {
+        new_mode_row_apply_state(f, prev, false, false);
+    }
+    if (new_sel < NEW_MODE_ITEM_CNT) {
+        new_mode_row_apply_state(f, new_sel, true, false);
+    }
+    new_mode_draw_now();
 }
 #endif
 
@@ -332,6 +377,39 @@ static compo_textbox_t *new_mode_txt_create(compo_form_t *frm, u16 id, u16 buf_s
     compo_textbox_set_forecolor(txt, color);
     compo_textbox_set_location(txt, x, y, w, h);
     return txt;
+}
+
+static void new_mode_label_txt_apply(compo_textbox_t *txt, s16 row_y, const char *label, u16 color)
+{
+    widget_text_t *widget;
+    s16 label_y;
+    rect_t rect;
+    area_t text_area;
+
+    if (txt == NULL) {
+        return;
+    }
+    widget = txt->txt;
+    label_y = (s16)(row_y - NEW_MODE_LABEL_H / 2);
+    compo_textbox_set_align_center(txt, false);
+    widget_set_align_center(widget, false);
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autosize(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+    compo_textbox_set_location(txt, NEW_MODE_LABEL_X, label_y, NEW_MODE_LABEL_W, NEW_MODE_LABEL_H);
+    compo_textbox_set_forecolor(txt, color);
+    compo_textbox_set(txt, label);
+
+    rect = widget_get_location(widget);
+    text_area = widget_text_get_area(widget);
+    if (rect.hei > text_area.hei) {
+        widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
+    compo_textbox_set_visible(txt, true);
 }
 
 static void new_mode_bg_create(compo_form_t *frm)
@@ -421,7 +499,6 @@ static void new_mode_sel_bg_apply(f_new_mode_t *f)
     compo_shape_set_location(f->shape_sel, GUI_SCREEN_CENTER_X, new_mode_row_y(f->sel),
                              NEW_MODE_NEW_CHAGE_W, NEW_MODE_NEW_CHAGE_H);
     compo_shape_set_visible(f->shape_sel, true);
-    printf("nm_shape sel row=%u\n", f->sel);
 #else
     if (f->pic_sel == NULL) {
         return;
@@ -435,7 +512,9 @@ static void new_mode_sel_bg_apply(f_new_mode_t *f)
 static void new_mode_list_apply_rows(f_new_mode_t *f, u8 from, u8 to, bool with_title)
 {
     u8 i;
+#if !ELUNCHBOX_PANEL_EN
     s16 row_y;
+#endif
 
     if (f == NULL || from > to || to >= NEW_MODE_ITEM_CNT) {
         return;
@@ -451,37 +530,30 @@ static void new_mode_list_apply_rows(f_new_mode_t *f, u8 from, u8 to, bool with_
 #endif
 
     for (i = from; i <= to; i++) {
+#if ELUNCHBOX_PANEL_EN
+        new_mode_row_apply_state(f, i, (i == f->sel), true);
+#else
         bool selected = (i == f->sel);
 
         row_y = new_mode_row_y(i);
 
         if (f->pic_icon[i] != NULL) {
-#if ELUNCHBOX_PANEL_EN
-            new_mode_row_icon_apply(f, i, selected, row_y);
-#else
             new_mode_pic_apply(f->pic_icon[i], new_mode_icon_addr(i, selected),
                                NEW_MODE_ICON_W, NEW_MODE_ICON_H,
                                NEW_MODE_ICON_X, row_y);
-#endif
         }
 
         if (f->txt_label[i] != NULL) {
-            compo_textbox_set(f->txt_label[i], tbl_new_mode_label[i]);
-            compo_textbox_set_forecolor(f->txt_label[i],
-                                        selected ? NEW_MODE_COLOR_SEL : NEW_MODE_COLOR_NOR);
-            compo_textbox_set_pos(f->txt_label[i], NEW_MODE_LABEL_X, row_y);
-            compo_textbox_set_visible(f->txt_label[i], true);
+            new_mode_label_txt_apply(f->txt_label[i], row_y, tbl_new_mode_label[i],
+                                     selected ? NEW_MODE_COLOR_SEL : NEW_MODE_COLOR_NOR);
         }
 
         if (f->pic_arrow[i] != NULL) {
-#if ELUNCHBOX_PANEL_EN
-            new_mode_row_arrow_apply(f, i, row_y);
-#else
             new_mode_pic_apply(f->pic_arrow[i], UI_BUF_NEW_UI_NEW_LEFT_BIN,
                                NEW_MODE_NEW_LEFT_W, NEW_MODE_NEW_LEFT_H,
                                NEW_MODE_ARROW_X, row_y);
-#endif
         }
+#endif
 #if ELUNCHBOX_PANEL_EN
         WDT_CLR();
 #endif
@@ -514,11 +586,19 @@ static void new_mode_ui_refresh(f_new_mode_t *f)
 
 static void new_mode_sel_next(f_new_mode_t *f)
 {
+    u8 prev;
+
     if (f == NULL) {
         return;
     }
+    prev = f->sel;
     f->sel = (u8)((f->sel + 1) % NEW_MODE_ITEM_CNT);
+#if ELUNCHBOX_PANEL_EN
+    printf("nm_sel %u->%u\n", prev, f->sel);
+    new_mode_sel_apply_delta(f, prev, f->sel);
+#else
     f->display_pending = true;
+#endif
 }
 
 static void new_mode_confirm(f_new_mode_t *f)
@@ -614,8 +694,11 @@ compo_form_t *func_new_mode_form_create(void)
 
         (void)new_mode_pic_create_hidden(frm, (u16)(COMPO_ID_PIC_ICON_BASE + i));
         (void)new_mode_pic_create_hidden(frm, (u16)(COMPO_ID_PIC_ARROW_BASE + i));
-        (void)new_mode_txt_create(frm, (u16)(COMPO_ID_TXT_LABEL_BASE + i), 12,
-                                  NEW_MODE_LABEL_X, row_y, 120, 24, NEW_MODE_COLOR_NOR);
+        new_mode_label_txt_apply(
+            new_mode_txt_create(frm, (u16)(COMPO_ID_TXT_LABEL_BASE + i), 12,
+                                NEW_MODE_LABEL_X, row_y, NEW_MODE_LABEL_W, NEW_MODE_LABEL_H,
+                                NEW_MODE_COLOR_NOR),
+            row_y, tbl_new_mode_label[i], NEW_MODE_COLOR_NOR);
     }
 
     return frm;
@@ -630,6 +713,10 @@ static void new_mode_pt8028_keys_process(f_new_mode_t *f)
         return;
     }
     press_tch = pt8028_take_press_tch();
+    if (press_tch == 0xff) {
+        return;
+    }
+    printf("nm_key press tch=%u\n", press_tch);
     if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
         elunchbox_user_activity_reset();
     }
@@ -646,6 +733,17 @@ static void new_mode_pt8028_keys_process(f_new_mode_t *f)
         printf("nm_key TCH5 power\n");
         new_mode_power_key();
     }
+}
+
+/* 须在 func_process() 之前调用：func.c 内也会 take_press_tch，顺序反了会丢键 */
+static void new_mode_keys_poll(f_new_mode_t *f)
+{
+    if (f == NULL || !f->key_ready) {
+        return;
+    }
+    pt8028_gpio_ensure_periodic();
+    pt8028_key_scan();
+    new_mode_pt8028_keys_process(f);
 }
 #endif
 
@@ -707,9 +805,19 @@ static void func_new_mode_process(void)
     if (!f->key_ready) {
         printf("nm_p1 first_frame te_block=%u\n", elunchbox_te_block_flag);
         func_process();
-        printf("nm_p2 first_frame done\n");
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
+        /* release_clear 清 press_emitted，若 TCH4 仍按住，下一帧 key_scan 会重新 emit_press。
+         * 此处主动扫一次 + take 消费这个残留按下，避免循环等待阻塞 GUI 线程。 */
+        pt8028_gpio_ensure_periodic();
+        pt8028_key_scan();
+        {
+            u8 stale = pt8028_take_press_tch();
+
+            if (stale != 0xff) {
+                printf("nm_p1 stale tch=%u consumed\n", stale);
+            }
+        }
         f->key_ready = true;
         printf("nm_p3 key_ready=1\n");
         return;
@@ -717,11 +825,10 @@ static void func_new_mode_process(void)
 #endif
 
     if (f->display_pending) {
-        printf("nm_ui_refresh pending\n");
         new_mode_ui_refresh(f);
     }
-#if ELUNCHBOX_PANEL_EN
-    printf("nm_p4 process te=%u\n", elunchbox_te_block_flag);
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    new_mode_keys_poll(f);
 #endif
 #if !ELUNCHBOX_PANEL_EN
     tm = rtc_clock_get();
@@ -732,10 +839,6 @@ static void func_new_mode_process(void)
     }
 #endif
     func_process();
-
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_mode_pt8028_keys_process(f);
-#endif
 }
 
 void func_new_mode_enter(void)
