@@ -154,6 +154,7 @@ enum {
     FUNC_HOME,                          //默认主页
     FUNC_MODE,                          //模式页
     FUNC_NEW_HEAT,                      //新主页→加热页
+    FUNC_NEW_WARM,                      //新主页→保温页
     FUNC_NEW_MODE,                      //新主页→模式页
     FUNC_NEW_SETUP,                     //新主页→设置页
     FUNC_RESERVATION,                   //预约页

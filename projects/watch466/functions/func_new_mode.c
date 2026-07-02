@@ -724,9 +724,7 @@ static void new_mode_confirm(f_new_mode_t *f)
         break;
 
     case NEW_MODE_ITEM_WARM:
-        lb_mode_to_heat_set(5, 140, 1, 0);
-        lb_heat_autostart_set(true);
-        func_cb.sta = FUNC_HEAT;
+        func_cb.sta = FUNC_NEW_WARM;
         break;
 
     default:

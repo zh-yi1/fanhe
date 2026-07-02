@@ -902,6 +902,9 @@
 		<Unit filename="functions/func_new_heat.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_new_warm.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_new_mode.c">
 			<Option compilerVar="CC" />
 		</Unit>
