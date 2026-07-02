@@ -332,7 +332,15 @@ static void new_res_ok_key(f_new_reservation_t *f)
         f->display_pending = true;
         return;
     }
-    func_reservation_new_ui_submit_time(f->appt_hour, f->appt_min, f->appt_sec);
+    /* 全部列已确认：保存预约时间到 g_res，跳转到加热参数设置页 */
+    g_res.setup_done = true;
+    g_res.appt_hour = f->appt_hour;
+    g_res.appt_min = f->appt_min;
+    g_res.heat_hour = 0;
+    g_res.heat_min = 0;
+    g_res.temp_idx = 0;
+    g_res_heat_pending = true;
+    func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
 }
 
 static void new_res_power_key(void)

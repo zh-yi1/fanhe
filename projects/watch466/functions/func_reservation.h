@@ -14,6 +14,22 @@ typedef enum {
     RES_PHASE_FINISHED,
 } reservation_phase_t;
 
+typedef struct reservation_global_t_ {
+    bool setup_done;
+    reservation_phase_t phase;
+    u8 appt_hour;
+    u8 appt_min;
+    u8 heat_hour;
+    u8 heat_min;
+    u8 temp_idx;
+    u32 appt_unix;
+    bool appt_triggered_today;
+    u8 last_poll_min;
+} reservation_global_t;
+
+extern reservation_global_t g_res;
+extern bool g_res_heat_pending;
+
 void func_reservation_poll(void);
 reservation_phase_t func_reservation_get_phase(void);
 bool func_reservation_is_waiting(void);
@@ -27,5 +43,8 @@ void func_reservation_on_manual_shutdown(void);
 void func_reservation_new_ui_load_time(u8 *hour, u8 *min, u8 *sec);
 void func_reservation_new_ui_submit_time(u8 hour, u8 min, u8 sec);
 bool func_reservation_new_ui_go_home(void);
+
+/* 两阶段提交：预约时间→加热参数→串口提交 */
+void func_reservation_new_ui_do_submit(void);
 
 #endif

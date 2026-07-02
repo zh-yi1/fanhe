@@ -7,6 +7,7 @@
 #include "home_ui_ram.h"
 #include "func_lunchbox_uart.h"
 #include "func_key_lock.h"
+#include "func_reservation.h"
 
 #if ELUNCHBOX_PANEL_EN
 extern volatile u8 elunchbox_te_block_flag;
@@ -830,6 +831,17 @@ static void new_heat_ok_key(f_new_heat_t *f)
      * 仅封锁 func_heat_panel_enter 确保资源绑定期间不被 TE 打断。 */
     temp_f = tbl_new_heat_temp_f[f->temp_idx];
     total_min = tbl_new_heat_time_min[f->time_idx];
+
+#if ELUNCHBOX_PANEL_EN
+    if (g_res_heat_pending) {
+        /* 预约模式：保存加热参数，提交预约串口指令 */
+        g_res.heat_hour = (u8)(total_min / 60);
+        g_res.heat_min = (u8)(total_min % 60);
+        g_res.temp_idx = f->temp_idx;
+        func_reservation_new_ui_do_submit();
+        return;
+    }
+#endif
 
     printf("new_heat_ok: set preset + autostart, direct sta\n");
     lb_mode_to_heat_set(1, temp_f, (u8)(total_min / 60), (u8)(total_min % 60));

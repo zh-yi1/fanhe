@@ -261,20 +261,8 @@ typedef struct f_reservation_t_ {
     compo_textbox_t *txt_info;
 } f_reservation_t;
 
-typedef struct reservation_global_t_ {
-    bool setup_done;
-    reservation_phase_t phase;
-    u8 appt_hour;
-    u8 appt_min;
-    u8 heat_hour;
-    u8 heat_min;
-    u8 temp_idx;
-    u32 appt_unix;              /* 预约触发 Unix 秒（实际日期+预约时:分经 tm_to_time 转换） */
-    bool appt_triggered_today;
-    u8 last_poll_min;
-} reservation_global_t;
-
-static reservation_global_t g_res;
+reservation_global_t g_res;
+bool g_res_heat_pending = false;
 
 static u8 res_heat_colon_ram[HEAT_WBX_RAM_SIZE];
 static u8 res_heat_timer_digit_ram[RES_TIMER_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
@@ -1343,6 +1331,50 @@ void func_reservation_new_ui_submit_time(u8 hour, u8 min, u8 sec)
     }
     printf("new_res submit: %02u:%02u unix=%u duration=%u\n",
            hour, min, g_res.appt_unix, duration);
+    lunchbox_reservation_send(1, 0, NULL, g_res.appt_unix,
+                              lunchbox_temp_f_to_idx(temp_f),
+                              duration, 1, 0xff);
+#endif
+
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    func_res_clear_switch_keys();
+    func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
+void func_reservation_new_ui_do_submit(void)
+{
+    u16 temp_f;
+    u8 duration;
+    u32 now;
+
+    g_res.phase = RES_PHASE_WAITING;
+    g_res.appt_triggered_today = false;
+    g_res.appt_unix = func_res_appt_unix_from_setting(g_res.appt_hour, g_res.appt_min);
+    now = func_res_now_unix();
+    if (g_res.appt_unix <= now) {
+        g_res.appt_unix += 86400;
+    }
+    g_res.last_poll_min = 0xff;
+    g_res_heat_pending = false;
+
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+
+#if FUNC_LUNCHBOX_UART_EN
+    temp_f = tbl_res_temp_preset[g_res.temp_idx];
+    duration = (u8)((u32)g_res.heat_hour * 60 + (u32)g_res.heat_min);
+    if (duration < LB_HEAT_DURATION_MIN_MIN) {
+        duration = LB_HEAT_DURATION_MIN_MIN;
+    } else if (duration > LB_HEAT_DURATION_MAX_MIN) {
+        duration = LB_HEAT_DURATION_MAX_MIN;
+    }
+    printf("new_res submit(appt=%02u:%02u heat=%uh%um idx=%u): unix=%u duration=%u\n",
+           g_res.appt_hour, g_res.appt_min,
+           g_res.heat_hour, g_res.heat_min, g_res.temp_idx,
+           g_res.appt_unix, duration);
     lunchbox_reservation_send(1, 0, NULL, g_res.appt_unix,
                               lunchbox_temp_f_to_idx(temp_f),
                               duration, 1, 0xff);
