@@ -1116,15 +1116,12 @@ void func_heat_enter(void)
         return;
     }
 
-    /* 恢复 panel_enter：现在只有 BT/BAT 图标，看会不会 C245 */
     elunchbox_te_block_flag = 1;
-    printf("heat_enter: te_block=1 for panel_enter\n");
     func_heat_panel_enter(f_heat);
-    printf("heat_enter: panel enter done\n");
     home_gpu_wait_idle();
     WDT_CLR();
     elunchbox_te_block_flag = 0;
-    printf("heat_enter: te_block=0 released\n");
+    printf("heat_enter: panel enter done\n");
 #else
     home_top_time_bind(&f_heat->top_time, COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
                        COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,

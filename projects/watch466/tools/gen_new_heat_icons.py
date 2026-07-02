@@ -255,6 +255,7 @@ def main() -> None:
     badge_max = 0
     point_sz = 0
     progress_max = 0
+    overlay_max = 0
     show_sz = 0
     progress_bg: ProgressPack | None = None
     progress_overlays: list[ProgressPack] | None = None
@@ -287,6 +288,7 @@ def main() -> None:
         elif stem == "new_show":
             show_sz = len(data)
 
+    overlay_max = 0
     repacked = repack_progress_icons()
     if repacked is not None:
         progress_bg, progress_overlays = repacked
@@ -295,13 +297,19 @@ def main() -> None:
             progress_bg.h,
             progress_bg.ram_size,
         )
-        progress_anchors["new_progress_bg"] = (progress_bg.anchor_x, progress_bg.anchor_y)
-        progress_max = max(progress_max, progress_bg.ram_size)
+        progress_anchors["new_progress_bg"] = (
+            progress_bg.anchor_x,
+            progress_bg.anchor_y,
+        )
+        # 裁剪后的 progress 尺寸才是真实 RAM 需求；全屏 320x240 临时 bin 不参与统计
+        progress_max = progress_bg.ram_size
+        overlay_max = 0
         for i, pack in enumerate(progress_overlays, start=1):
             stem = f"new_progress_{i}"
             sizes[stem] = (pack.w, pack.h, pack.ram_size)
             progress_anchors[stem] = (pack.anchor_x, pack.anchor_y)
             progress_max = max(progress_max, pack.ram_size)
+            overlay_max = max(overlay_max, pack.ram_size)
 
     for stem, (_, _, sz) in sizes.items():
         if stem.startswith("new_temp_") or stem.startswith("new_time_"):
@@ -310,7 +318,7 @@ def main() -> None:
             badge_max = max(badge_max, sz)
         elif stem == "new_point":
             point_sz = sz
-        elif stem.startswith("new_progress"):
+        elif stem == "new_progress_bg":
             progress_max = max(progress_max, sz)
         elif stem == "new_show":
             show_sz = sz
@@ -330,7 +338,8 @@ def main() -> None:
         f"#define NEW_HEAT_POINT_RAM_SIZE           {point_sz or int(existing.get('NEW_HEAT_POINT_RAM_SIZE', '1466'))}",
         "",
         "#define NEW_HEAT_PROGRESS_CNT                 13",
-        f"#define NEW_HEAT_PROGRESS_RAM_SIZE            {progress_max or int(existing.get('NEW_HEAT_PROGRESS_RAM_SIZE', '43568'))}",
+        f"#define NEW_HEAT_PROGRESS_RAM_SIZE            {progress_max or int(existing.get('NEW_HEAT_PROGRESS_RAM_SIZE', '44416'))}",
+        f"#define NEW_HEAT_PROGRESS_OVERLAY_RAM_SIZE    {overlay_max or int(existing.get('NEW_HEAT_PROGRESS_OVERLAY_RAM_SIZE', '43568'))}",
         f"#define NEW_HEAT_SHOW_RAM_SIZE                {show_sz or int(existing.get('NEW_HEAT_SHOW_RAM_SIZE', '23696'))}",
         "",
         "#define NEW_HEAT_TEMP_CNT                 5",

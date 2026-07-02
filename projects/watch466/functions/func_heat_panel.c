@@ -118,6 +118,38 @@ static const s16 tbl_progress_ay[NEW_HEAT_PROGRESS_CNT] = {
 
 static heat_panel_ui_t g_hp;
 
+/* bg→union heat_bg(.disp)；show→tab 图标池；蓝弧→digit_ram（≤31KB，互斥 new_heat） */
+#define HEAT_PANEL_SHOW_RAM         ((u8 *)home_ui_shared_icon_runtime)
+#define HEAT_PANEL_SHOW_RAM_CAP     ((u32)(HOME_UI_SHARED_TAB_CNT * NEW_HOME_TAB_RAM_SIZE))
+#define HEAT_PANEL_PROGRESS_RAM     ((u8 *)home_ui_digit_ram)
+#define HEAT_PANEL_PROGRESS_RAM_CAP ((u32)sizeof(home_ui_digit_ram))
+
+#if NEW_HEAT_SHOW_RAM_SIZE > (HOME_UI_SHARED_TAB_CNT * NEW_HOME_TAB_RAM_SIZE)
+#error "new_show.bin too large for home_ui_shared_icon_runtime pool"
+#endif
+
+static void heat_panel_pic_set_ram(compo_picturebox_t *pic, u32 flash_addr,
+                                   u16 w, u16 h, u8 *buf, u32 buf_size)
+{
+    u32 len;
+
+    if (pic == NULL || flash_addr == 0 || w == 0 || h == 0 || buf == NULL) {
+        return;
+    }
+    len = (u32)w * h * 2 + 8;
+    if (len > buf_size) {
+        printf("pic_ram: buf too small! need=%u have=%u\n", len, buf_size);
+        return;
+    }
+    printf("pic_ram: spiflash_read addr=0x%x len=%u\n", flash_addr, len);
+    os_spiflash_read(buf, flash_addr, len);
+    WDT_CLR();
+    printf("pic_ram: read done\n");
+    home_gpu_wait_idle();
+    compo_picturebox_set_ram(pic, buf);
+    printf("pic_ram: set_ram done\n");
+}
+
 static const u16 tbl_heat_temp_preset[7] = {
     104, 122, 140, 158, 176, 194, 212,
 };
@@ -211,70 +243,123 @@ static void heat_panel_point_bind(u8 progress_idx)
     s16 py;
 
     if (g_hp.pic_point == NULL) {
+        printf("point_bind: skip pic=NULL\n");
         return;
     }
     heat_panel_point_pos(progress_idx, &px, &py);
+    printf("point_bind: idx=%u pos=(%d,%d) spiflash_read addr=0x%x len=%u\n",
+           progress_idx, px, py, UI_BUF_NEW_UI_NEW_POINT_BIN, UI_LEN_NEW_UI_NEW_POINT_BIN);
     home_gpu_wait_idle();
     os_spiflash_read(home_ui_colon_ram, UI_BUF_NEW_UI_NEW_POINT_BIN, UI_LEN_NEW_UI_NEW_POINT_BIN);
+    printf("point_bind: spiflash done\n");
     if (!gui_set_ram_check(home_ui_colon_ram, __func__)) {
+        printf("point_bind: ram check fail\n");
         compo_picturebox_set_visible(g_hp.pic_point, false);
         return;
     }
     home_gpu_wait_idle();
     compo_picturebox_set_ram(g_hp.pic_point, home_ui_colon_ram);
+    printf("point_bind: set_ram done\n");
     compo_picturebox_set_size(g_hp.pic_point, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H);
     compo_picturebox_set_pos(g_hp.pic_point, px, py);
     compo_picturebox_set_visible(g_hp.pic_point, true);
     home_gpu_wait_idle();
+    printf("point_bind: done\n");
 }
 
 static void heat_panel_track_apply(void)
 {
     if (g_hp.track_ready || g_hp.pic_progress_bg == NULL) {
+        printf("track_apply: skip (ready=%d bg=%p)\n", g_hp.track_ready, g_hp.pic_progress_bg);
         return;
     }
-    home_ui_pic_set_flash(g_hp.pic_progress_bg, UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN,
-                          NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H);
+    printf("track_apply: set_ram bg addr=0x%x w=%u h=%u\n",
+           UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN, NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H);
+    heat_panel_pic_set_ram(g_hp.pic_progress_bg, UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN,
+                            NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H,
+                            home_ui_heat_bg_ram, sizeof(home_ui_heat_bg_ram));
+    compo_picturebox_set_size(g_hp.pic_progress_bg, NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H);
+    compo_picturebox_set_visible(g_hp.pic_progress_bg, true);
     compo_picturebox_set_pos(g_hp.pic_progress_bg,
                              NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X, NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y);
+    printf("track_apply: done\n");
     g_hp.track_ready = true;
 }
 
-static void heat_panel_progress_apply(u8 idx)
+static void heat_panel_progress_overlay_apply(u8 idx)
 {
+    u8 overlay_idx;
     u8 step;
     u16 pw;
     u16 ph;
 
-    if (g_hp.pic_progress == NULL || idx == 0) {
-        return;
-    }
-    if (idx == g_hp.last_progress_idx) {
-        return;
-    }
-    heat_panel_track_apply();
-    step = idx - 1;
+    overlay_idx = idx;
+    step = overlay_idx - 1;
     pw = tbl_progress_w[step];
     ph = tbl_progress_h[step];
+    /* new_progress_1 裁剪后为空；用第 2 帧作为起始蓝弧 */
+    if (pw == 0 || ph == 0) {
+        overlay_idx = 2;
+        step = overlay_idx - 1;
+        pw = tbl_progress_w[step];
+        ph = tbl_progress_h[step];
+    }
     if (pw == 0 || ph == 0) {
         home_gpu_wait_idle();
         compo_picturebox_set_visible(g_hp.pic_progress, false);
-    } else {
-        home_ui_pic_set_flash(g_hp.pic_progress, heat_panel_progress_addr(idx), pw, ph);
-        compo_picturebox_set_pos(g_hp.pic_progress, tbl_progress_ax[step], tbl_progress_ay[step]);
+        return;
     }
+    printf("progress_overlay: idx=%u overlay=%u pw=%u ph=%u\n", idx, overlay_idx, pw, ph);
+    {
+        u32 need = (u32)pw * ph * 2 + 8;
+
+        if (need <= HEAT_PANEL_PROGRESS_RAM_CAP) {
+            heat_panel_pic_set_ram(g_hp.pic_progress, heat_panel_progress_addr(overlay_idx),
+                                    pw, ph, HEAT_PANEL_PROGRESS_RAM, HEAT_PANEL_PROGRESS_RAM_CAP);
+        } else {
+            home_ui_pic_set_flash(g_hp.pic_progress, heat_panel_progress_addr(overlay_idx), pw, ph);
+        }
+    }
+    compo_picturebox_set_size(g_hp.pic_progress, pw, ph);
+    compo_picturebox_set_pos(g_hp.pic_progress, tbl_progress_ax[step], tbl_progress_ay[step]);
+    compo_picturebox_set_visible(g_hp.pic_progress, true);
+}
+
+static void heat_panel_progress_apply(u8 idx)
+{
+    if (g_hp.pic_progress == NULL || idx == 0) {
+        printf("progress_apply: skip pic=%p idx=%u\n", g_hp.pic_progress, idx);
+        return;
+    }
+    if (idx == g_hp.last_progress_idx) {
+        printf("progress_apply: skip same idx=%u\n", idx);
+        return;
+    }
+    printf("progress_apply: track_apply (idx=%u)\n", idx);
+    heat_panel_track_apply();
+    printf("progress_apply: idx=%u\n", idx);
+    heat_panel_progress_overlay_apply(idx);
     g_hp.last_progress_idx = idx;
+    printf("progress_apply: point_bind idx=%u\n", idx);
     heat_panel_point_bind(idx);
+    printf("progress_apply: done idx=%u\n", idx);
 }
 
 static void heat_panel_show_apply(void)
 {
     if (g_hp.pic_show == NULL || g_hp.show_ready) {
+        printf("show_apply: skip pic=%p ready=%d\n", g_hp.pic_show, g_hp.show_ready);
         return;
     }
-    home_ui_pic_set_flash(g_hp.pic_show, UI_BUF_NEW_UI_NEW_SHOW_BIN,
-                          NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H);
+    printf("show_apply: set_ram addr=0x%x w=%u h=%u\n",
+           UI_BUF_NEW_UI_NEW_SHOW_BIN, NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H);
+    heat_panel_pic_set_ram(g_hp.pic_show, UI_BUF_NEW_UI_NEW_SHOW_BIN,
+                            NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H,
+                            HEAT_PANEL_SHOW_RAM, HEAT_PANEL_SHOW_RAM_CAP);
+    compo_picturebox_set_size(g_hp.pic_show, NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H);
+    compo_picturebox_set_visible(g_hp.pic_show, true);
     compo_picturebox_set_pos(g_hp.pic_show, GUI_SCREEN_CENTER_X, HEAT_PANEL_SHOW_Y);
+    printf("show_apply: set_ram done\n");
     g_hp.show_ready = true;
 }
 
@@ -426,7 +511,20 @@ compo_form_t *func_heat_panel_form_create(void)
     compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
     g_hp.pic_bat = pic;
 
-    /* 文字框（纯 compos，不涉及 Flash/GPU，安全） */
+    /* 圆环图层（自下而上：灰轨 → 蓝弧 → 圆点 → show 条） */
+    pic = heat_panel_pic_hidden(frm, HEAT_PANEL_ID_PROGRESS_BG);
+    g_hp.pic_progress_bg = pic;
+
+    pic = heat_panel_pic_hidden(frm, HEAT_PANEL_ID_PROGRESS);
+    g_hp.pic_progress = pic;
+
+    pic = heat_panel_pic_hidden(frm, HEAT_PANEL_ID_POINT);
+    g_hp.pic_point = pic;
+
+    pic = heat_panel_pic_hidden(frm, HEAT_PANEL_ID_SHOW);
+    g_hp.pic_show = pic;
+
+    /* 文字最后创建，保证叠在图标之上 */
     g_hp.txt_remain = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_REMAIN,
                                      GUI_SCREEN_CENTER_X, HEAT_PANEL_REMAIN_Y,
                                      HEAT_PANEL_COLOR_VALUE, true);
@@ -457,10 +555,9 @@ compo_form_t *func_heat_panel_form_create(void)
                                       HEAT_PANEL_COLOR_LABEL, true);
     compo_textbox_set_location(g_hp.txt_dur_lbl, HEAT_PANEL_DUR_X, HEAT_PANEL_LBL_Y, 120, 22);
 
-    /* 暂不创建 progress/show/point 图片框 */
     g_hp.ui_ready = true;
 
-    printf("heat_panel_form_create: done (pic_bt/pic_bat + textboxes)\n");
+    printf("heat_panel_form_create: done (all icons, hidden, no flash)\n");
     return frm;
 }
 
@@ -523,10 +620,6 @@ void func_heat_panel_process(struct f_heat_t_ *f_heat)
 
 void func_heat_panel_enter(struct f_heat_t_ *f_heat)
 {
-    u16 total_min;
-    u32 remain_min;
-    u8 progress_idx;
-
     if (!g_hp.ui_ready || f_heat == NULL) {
         printf("heat_panel_enter: skip (ui_ready=%d f_heat=%p)\n", g_hp.ui_ready, f_heat);
         return;
@@ -538,11 +631,28 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
     home_ui_shared_status_init();
     func_heat_panel_status_refresh(f_heat);
     printf("heat_panel_enter: status_refresh done\n");
-    /* 文字框安全（纯 compos，无 GPU flash 绑定），恢复 */
-    heat_panel_text_apply(f_heat);
-    printf("heat_panel_enter: text_apply done\n");
+    heat_panel_track_apply();
+    printf("heat_panel_enter: track_apply done\n");
+
+    heat_panel_show_apply();
+    printf("heat_panel_enter: show_apply done\n");
+
+    u32 total_min, remain_min;
+    u8 progress_idx;
+    total_min = heat_panel_total_min(func_heat_panel_get_set_hour(f_heat),
+                                     func_heat_panel_get_set_min(f_heat));
+    if (func_heat_panel_get_live_ready(f_heat)) {
+        remain_min = func_heat_panel_get_remain_min(f_heat);
+    } else {
+        remain_min = total_min;
+    }
+    progress_idx = heat_panel_calc_progress_idx(total_min, remain_min);
+    printf("heat_panel_enter: total=%u remain=%u idx=%u\n", total_min, remain_min, progress_idx);
     g_hp.last_progress_idx = 0xff;
-    printf("heat_panel_enter: done (status + text)\n");
+    heat_panel_progress_apply(progress_idx);
+    printf("heat_panel_enter: progress_apply done (idx=%u, no DMA for zero size)\n", progress_idx);
+
+    heat_panel_text_apply(f_heat);
 }
 
 void func_heat_panel_exit(void)
