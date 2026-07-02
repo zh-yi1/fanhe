@@ -302,8 +302,9 @@ static void new_home_status_refresh(f_new_home_t *f)
         f->last_top_min = tm.min;
         f->last_top_sec = tm.sec;
         new_home_top_time_refresh(&f->top_time, &tm);
-        new_home_res_marquee_refresh(f);
     }
+    /* 预约提交回 Home 时 RTC 秒未必变化，跑马灯须每帧检查 */
+    new_home_res_marquee_refresh(f);
 }
 
 #if ELUNCHBOX_PANEL_EN
@@ -619,6 +620,7 @@ void func_home_process(void)
                 f->last_top_sec = tm.sec;
                 new_home_top_time_refresh(&f->top_time, &tm);
             }
+            new_home_res_marquee_refresh(f);
             f->display_stage = 0;
             func_home_gui_mark_dirty();
             tft_bglight_force_on();

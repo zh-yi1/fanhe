@@ -95,7 +95,11 @@ compo_form_t *func_mode_form_create(void);
 compo_form_t *func_new_heat_form_create(void);
 compo_form_t *func_new_mode_form_create(void);
 compo_form_t *func_new_setup_form_create(void);
+#if ELUNCHBOX_PANEL_EN
+compo_form_t *func_new_reservation_form_create(void);
+#else
 compo_form_t *func_reservation_form_create(void);
+#endif
 compo_form_t *func_setup_form_create(void);
 compo_form_t *func_timeing_form_create(void);
 compo_form_t *func_languageing_form_create(void);
@@ -228,7 +232,11 @@ const func_t tbl_func_create[] = {
     {FUNC_NEW_HEAT,                     func_new_heat_form_create},
     {FUNC_NEW_MODE,                     func_new_mode_form_create},
     {FUNC_NEW_SETUP,                    func_new_setup_form_create},
+#if ELUNCHBOX_PANEL_EN
+    {FUNC_RESERVATION,                  func_new_reservation_form_create},
+#else
     {FUNC_RESERVATION,                  func_reservation_form_create},
+#endif
     {FUNC_SETUP,                        func_setup_form_create},
     {FUNC_TIMEING,                      func_timeing_form_create},
     {FUNC_LANGUAGEING,                  func_languageing_form_create},
@@ -405,6 +413,7 @@ extern void func_home(void);
 extern void func_heat(void);
 extern void func_mode(void);
 extern void func_reservation(void);
+extern void func_new_reservation(void);
 extern void func_setup(void);
 extern void func_new_heat(void);
 extern void func_new_mode(void);
@@ -548,7 +557,11 @@ const func_t tbl_func_entry[] = {
     {FUNC_NEW_HEAT,                     func_new_heat},                 //新主页→加热页
     {FUNC_NEW_MODE,                     func_new_mode},                 //新主页→模式页
     {FUNC_NEW_SETUP,                    func_new_setup},                //新主页→设置页
+#if ELUNCHBOX_PANEL_EN
+    {FUNC_RESERVATION,                  func_new_reservation},          //预约页
+#else
     {FUNC_RESERVATION,                  func_reservation},              //预约页
+#endif
     {FUNC_SETUP,                        func_setup},                    //设置页
     {FUNC_TIMEING,                      func_timeing},                  //定时页
     {FUNC_LANGUAGEING,                  func_languageing},             //语言页
@@ -824,6 +837,8 @@ void func_mode_enter(void);
 void func_mode_exit(void);
 void func_reservation_enter(void);
 void func_reservation_exit(void);
+void func_new_reservation_enter(void);
+void func_new_reservation_exit(void);
 void func_new_heat_enter(void);
 void func_new_heat_exit(void);
 void func_new_mode_enter(void);
@@ -932,7 +947,11 @@ const func_t tbl_func_enter[] = {
     {FUNC_NEW_HEAT,                     func_new_heat_enter},           //新主页→加热页
     {FUNC_NEW_MODE,                     func_new_mode_enter},           //新主页→模式页
     {FUNC_NEW_SETUP,                    func_new_setup_enter},          //新主页→设置页
+#if ELUNCHBOX_PANEL_EN
+    {FUNC_RESERVATION,                  func_new_reservation_enter},    //预约页
+#else
     {FUNC_RESERVATION,                  func_reservation_enter},        //预约页
+#endif
     {FUNC_SETUP,                        func_setup_enter},              //设置页
     {FUNC_TIMEING,                      func_timeing_enter},            //定时页
     {FUNC_LANGUAGEING,                  func_languageing_enter},       //语言页
@@ -1254,7 +1273,11 @@ const func_t tbl_func_exit[] = {
     {FUNC_NEW_HEAT,                     func_new_heat_exit},                //新主页→加热页
     {FUNC_NEW_MODE,                     func_new_mode_exit},                //新主页→模式页
     {FUNC_NEW_SETUP,                    func_new_setup_exit},               //新主页→设置页
+#if ELUNCHBOX_PANEL_EN
+    {FUNC_RESERVATION,                  func_new_reservation_exit},         //预约页
+#else
     {FUNC_RESERVATION,                  func_reservation_exit},             //预约页
+#endif
     {FUNC_SETUP,                        func_setup_exit},                   //设置页
     {FUNC_TIMEING,                      func_timeing_exit},                 //定时页
     {FUNC_LANGUAGEING,                  func_languageing_exit},         //语言页

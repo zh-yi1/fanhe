@@ -539,8 +539,15 @@ void func_reservation_marquee_text(char *buf, u16 buf_len)
         return;
     }
 
-    /* 显示预约界面设置的预约时间（小时） */
-    snprintf(buf, buf_len, "Start in %02u H", g_res.appt_hour);
+    {
+        u32 sec = func_res_seconds_until_appt();
+        u32 hours = sec / 3600;
+
+        if (hours > 99) {
+            hours = 99;
+        }
+        snprintf(buf, buf_len, "Start in %02u H", (unsigned)hours);
+    }
 }
 
 static void func_res_info_text_update(f_reservation_t *f_res)
@@ -1259,6 +1266,105 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
+u8 func_reservation_new_ui_load_hour(void)
+{
+    u8 hour;
+    u8 min;
+    u8 sec;
+
+    func_reservation_new_ui_load_time(&hour, &min, &sec);
+    return hour;
+}
+
+void func_reservation_new_ui_load_time(u8 *hour, u8 *min, u8 *sec)
+{
+    if (hour == NULL || min == NULL || sec == NULL) {
+        return;
+    }
+    if (g_res.setup_done && g_res.phase == RES_PHASE_WAITING) {
+        *hour = g_res.appt_hour;
+        if (*hour > FUNC_RES_APPT_HOUR_MAX) {
+            *hour = FUNC_RES_APPT_HOUR_MAX;
+        }
+        *min = g_res.appt_min - (g_res.appt_min % 5);
+        *sec = 0;
+        return;
+    }
+    {
+        tm_t tm = rtc_clock_get();
+
+        *hour = (u8)((tm.hour + 1) % 24);
+        *min = (u8)((tm.min / 5) * 5);
+        *sec = 0;
+    }
+}
+
+void func_reservation_new_ui_submit_time(u8 hour, u8 min, u8 sec)
+{
+    u16 temp_f;
+    u8 duration;
+    u32 now;
+
+    (void)sec;
+    if (hour > FUNC_RES_APPT_HOUR_MAX) {
+        hour = FUNC_RES_APPT_HOUR_MAX;
+    }
+    min = min - (min % 5);
+    if (min > 55) {
+        min = 55;
+    }
+
+    g_res.setup_done = true;
+    g_res.phase = RES_PHASE_WAITING;
+    g_res.appt_hour = hour;
+    g_res.appt_min = min;
+    g_res.heat_hour = 1;
+    g_res.heat_min = 0;
+    g_res.temp_idx = 5;
+    g_res.appt_triggered_today = false;
+    g_res.appt_unix = func_res_appt_unix_from_setting(hour, min);
+    now = func_res_now_unix();
+    if (g_res.appt_unix <= now) {
+        g_res.appt_unix += 86400;
+    }
+    g_res.last_poll_min = 0xff;
+
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+
+#if FUNC_LUNCHBOX_UART_EN
+    temp_f = tbl_res_temp_preset[g_res.temp_idx];
+    duration = (u8)((u32)g_res.heat_hour * 60 + (u32)g_res.heat_min);
+    if (duration < LB_HEAT_DURATION_MIN_MIN) {
+        duration = LB_HEAT_DURATION_MIN_MIN;
+    } else if (duration > LB_HEAT_DURATION_MAX_MIN) {
+        duration = LB_HEAT_DURATION_MAX_MIN;
+    }
+    printf("new_res submit: %02u:%02u unix=%u duration=%u\n",
+           hour, min, g_res.appt_unix, duration);
+    lunchbox_reservation_send(1, 0, NULL, g_res.appt_unix,
+                              lunchbox_temp_f_to_idx(temp_f),
+                              duration, 1, 0xff);
+#endif
+
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    func_res_clear_switch_keys();
+    func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
+void func_reservation_new_ui_submit(u8 appt_hour)
+{
+    func_reservation_new_ui_submit_time(appt_hour, 0, 0);
+}
+
+bool func_reservation_new_ui_go_home(void)
+{
+    return func_res_switch_home();
+}
+
 static void func_res_ok_key(f_reservation_t *f_res)
 {
     if (f_res == NULL || func_cb.sta != FUNC_RESERVATION) {
@@ -1401,7 +1507,9 @@ static void func_res_value_inc(f_reservation_t *f_res)
     if (f_res->ui == RES_UI_APPT_TIME || f_res->ui == RES_UI_HEAT_SETUP) {
         switch (f_res->focus) {
         case RES_FOCUS_APPT_HOUR:
-            f_res->appt_hour++;
+            if (f_res->appt_hour < FUNC_RES_APPT_HOUR_MAX) {
+                f_res->appt_hour++;
+            }
             f_res->last_appt_key = 0xffff;
             break;
 
@@ -1692,26 +1800,24 @@ void func_reservation_poll(void)
 #if FUNC_RESERVATION_UI_EN
 #if ELUNCHBOX_PANEL_EN
             if (func_cb.sta == FUNC_RESERVATION) {
-                f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
-
-                if (f_res != NULL) {
-                    f_res->heat_hour = g_res.heat_hour;
-                    f_res->heat_min = g_res.heat_min;
-                    f_res->temp_idx = g_res.temp_idx;
-                    func_res_start_heating(f_res);
+                func_res_trigger_heating_uart_from_global();
+                if (func_cb.sta != FUNC_NEW_HEAT) {
+                    func_res_allow_switch = 1;
+                    func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+                    func_res_allow_switch = 0;
                 }
             } else {
 #if FUNC_LUNCHBOX_UART_EN
                 func_res_trigger_heating_uart_from_global();
 #endif
-                /* 自动息屏(非手动关机)：唤醒并跳转到预约加热界面 */
+                /* 自动息屏(非手动关机)：唤醒并跳转到加热界面 */
                 if (!elunchbox_pwr_is_manual_off()
                     && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
                     elunchbox_pwr_gui_wake();
                 }
-                if (func_cb.sta != FUNC_RESERVATION) {
+                if (func_cb.sta != FUNC_NEW_HEAT) {
                     func_res_allow_switch = 1;
-                    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+                    func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
                     func_res_allow_switch = 0;
                 }
             }

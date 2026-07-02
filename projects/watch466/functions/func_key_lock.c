@@ -78,7 +78,9 @@ static void func_key_lock_refresh_ui(void)
         func_verinfo_lock_icon_apply((f_verinfo_t *)func_cb.f_cb);
         break;
     case FUNC_RESERVATION:
+#if !ELUNCHBOX_PANEL_EN
         func_res_lock_icon_apply((f_reservation_t *)func_cb.f_cb);
+#endif
         break;
     default:
         break;
