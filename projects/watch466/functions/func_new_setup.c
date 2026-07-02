@@ -20,10 +20,6 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Run tools/gen_new_setup_icons.py then Output/bin/prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_LEFT_BIN
-#error "Missing left.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
-#endif
-
 /*
  * 设置页 — 效果图 SETUP
  *   顶栏：SETUP 标题 + 蓝牙/电量
@@ -41,7 +37,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_SETUP_PANEL_W                  280
 #define NEW_SETUP_PANEL_H                  188
 
-#define NEW_SETUP_ROW_FIRST_Y              80
+#define NEW_SETUP_ROW_FIRST_Y              68
 #define NEW_SETUP_ROW_GAP                  42
 #define NEW_SETUP_ICON_X                   36
 #define NEW_SETUP_LABEL_GAP                12
@@ -105,7 +101,7 @@ static const char * const tbl_new_setup_label[NEW_SETUP_ITEM_CNT] = {
 
 static const u8 tbl_new_setup_target[NEW_SETUP_ITEM_CNT] = {
     FUNC_TIMEING,
-    FUNC_LANGUAGEING,
+    FUNC_NEW_LANGUAGE,
     FUNC_VERINFO,
 };
 
