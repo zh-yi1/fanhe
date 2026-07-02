@@ -533,6 +533,11 @@ static void sfunc_sleep(void)
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     PLL1CON0 &= ~0x03;                          //disable pll1
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_manual_off_slp) {
+        RTC_WDT_DIS();                          // 手动关机: 关闭RTC看门狗, 防止长休眠期间复位
+    }
+#endif
     rtc_sleep_enter();
 
     //io analog input
