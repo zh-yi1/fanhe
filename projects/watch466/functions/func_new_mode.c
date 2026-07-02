@@ -32,6 +32,8 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_MODE_STATUS_RIGHT_MARGIN      10
 #define NEW_MODE_STATUS_GAP               6
 #define NEW_MODE_TITLE_Y                  38
+#define NEW_MODE_TITLE_W                  120
+#define NEW_MODE_TITLE_H                  36
 
 #define NEW_MODE_PANEL_Y                  132
 #define NEW_MODE_PANEL_W                  280
@@ -41,10 +43,10 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_MODE_ROW_GAP                  42
 #define NEW_MODE_ICON_X                   36
 #define NEW_MODE_LABEL_GAP                12
+#define NEW_MODE_ARROW_X                  298
 #define NEW_MODE_LABEL_X                  (NEW_MODE_ICON_X + NEW_MODE_ICON_W / 2 + NEW_MODE_LABEL_GAP)
 #define NEW_MODE_LABEL_H                  36
 #define NEW_MODE_LABEL_W                  ((s16)(NEW_MODE_ARROW_X - NEW_MODE_NEW_LEFT_W / 2 - 10 - NEW_MODE_LABEL_X))
-#define NEW_MODE_ARROW_X                  298
 
 #define NEW_MODE_COLOR_TITLE              COLOR_BLACK
 #define NEW_MODE_COLOR_SEL                0x0AD8
@@ -117,7 +119,11 @@ static s16 new_mode_row_y(u8 row)
     return (s16)(NEW_MODE_ROW_FIRST_Y + (s16)row * NEW_MODE_ROW_GAP);
 }
 
-static void new_mode_label_txt_apply(compo_textbox_t *txt, s16 row_y, const char *label, u16 color);
+static void new_mode_label_txt_prepare(compo_textbox_t *txt, s16 row_y);
+static void new_mode_label_txt_show(compo_textbox_t *txt, s16 row_y, const char *label, u16 color);
+static void new_mode_label_txt_color(compo_textbox_t *txt, u16 color);
+static void new_mode_title_txt_prepare(compo_textbox_t *txt);
+static void new_mode_title_txt_show(compo_textbox_t *txt);
 
 static u32 new_mode_icon_addr(u8 item, bool selected)
 {
@@ -249,16 +255,25 @@ static void new_mode_row_arrow_apply(f_new_mode_t *f, u8 row, s16 row_y)
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-static void new_mode_draw_now(void)
-{
-    home_gpu_wait_idle();
-    os_gui_draw_force();
-}
-
 /* forward: defined below in same file with #if ELUNCHBOX_PANEL_EN */
 static void new_mode_sel_bg_apply(f_new_mode_t *f);
 
-static void new_mode_row_apply_state(f_new_mode_t *f, u8 row, bool selected, bool with_arrow)
+static void new_mode_row_sel_update(f_new_mode_t *f, u8 row, bool selected)
+{
+    s16 row_y;
+
+    if (f == NULL || row >= NEW_MODE_ITEM_CNT) {
+        return;
+    }
+    row_y = new_mode_row_y(row);
+    if (f->pic_icon[row] != NULL) {
+        new_mode_row_icon_apply(f, row, selected, row_y);
+    }
+    new_mode_label_txt_color(f->txt_label[row],
+                             selected ? NEW_MODE_COLOR_SEL : NEW_MODE_COLOR_NOR);
+}
+
+static void new_mode_row_apply_state(f_new_mode_t *f, u8 row, bool selected, bool with_arrow, bool with_text)
 {
     s16 row_y;
 
@@ -270,8 +285,11 @@ static void new_mode_row_apply_state(f_new_mode_t *f, u8 row, bool selected, boo
     if (f->pic_icon[row] != NULL) {
         new_mode_row_icon_apply(f, row, selected, row_y);
     }
-    if (f->txt_label[row] != NULL) {
-        new_mode_label_txt_apply(f->txt_label[row], row_y, tbl_new_mode_label[row],
+    if (with_text && f->txt_label[row] != NULL) {
+        new_mode_label_txt_show(f->txt_label[row], row_y, tbl_new_mode_label[row],
+                                selected ? NEW_MODE_COLOR_SEL : NEW_MODE_COLOR_NOR);
+    } else if (!with_text) {
+        new_mode_label_txt_color(f->txt_label[row],
                                  selected ? NEW_MODE_COLOR_SEL : NEW_MODE_COLOR_NOR);
     }
     if (with_arrow && f->pic_arrow[row] != NULL) {
@@ -286,12 +304,11 @@ static void new_mode_sel_apply_delta(f_new_mode_t *f, u8 prev, u8 new_sel)
     }
     new_mode_sel_bg_apply(f);
     if (prev < NEW_MODE_ITEM_CNT && prev != new_sel) {
-        new_mode_row_apply_state(f, prev, false, false);
+        new_mode_row_sel_update(f, prev, false);
     }
     if (new_sel < NEW_MODE_ITEM_CNT) {
-        new_mode_row_apply_state(f, new_sel, true, false);
+        new_mode_row_sel_update(f, new_sel, true);
     }
-    new_mode_draw_now();
 }
 #endif
 
@@ -379,12 +396,10 @@ static compo_textbox_t *new_mode_txt_create(compo_form_t *frm, u16 id, u16 buf_s
     return txt;
 }
 
-static void new_mode_label_txt_apply(compo_textbox_t *txt, s16 row_y, const char *label, u16 color)
+static void new_mode_label_txt_prepare(compo_textbox_t *txt, s16 row_y)
 {
     widget_text_t *widget;
     s16 label_y;
-    rect_t rect;
-    area_t text_area;
 
     if (txt == NULL) {
         return;
@@ -399,8 +414,79 @@ static void new_mode_label_txt_apply(compo_textbox_t *txt, s16 row_y, const char
     compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
     widget_text_set_ellipsis(widget, false);
     compo_textbox_set_location(txt, NEW_MODE_LABEL_X, label_y, NEW_MODE_LABEL_W, NEW_MODE_LABEL_H);
+    compo_textbox_set_visible(txt, false);
+}
+
+static void new_mode_label_txt_show(compo_textbox_t *txt, s16 row_y, const char *label, u16 color)
+{
+    widget_text_t *widget;
+    rect_t rect;
+    area_t text_area;
+
+    if (txt == NULL) {
+        return;
+    }
+    new_mode_label_txt_prepare(txt, row_y);
+    widget = txt->txt;
     compo_textbox_set_forecolor(txt, color);
     compo_textbox_set(txt, label);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+
+    rect = widget_get_location(widget);
+    text_area = widget_text_get_area(widget);
+    if (rect.hei > text_area.hei) {
+        widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
+    compo_textbox_set_visible(txt, true);
+}
+
+static void new_mode_label_txt_color(compo_textbox_t *txt, u16 color)
+{
+    if (txt != NULL) {
+        compo_textbox_set_forecolor(txt, color);
+    }
+}
+
+static void new_mode_title_txt_prepare(compo_textbox_t *txt)
+{
+    widget_text_t *widget;
+
+    if (txt == NULL) {
+        return;
+    }
+    widget = txt->txt;
+    compo_textbox_set_align_center(txt, true);
+    widget_set_align_center(widget, true);
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autosize(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_MODE_TITLE_Y,
+                               NEW_MODE_TITLE_W, NEW_MODE_TITLE_H);
+    compo_textbox_set_forecolor(txt, NEW_MODE_COLOR_TITLE);
+    compo_textbox_set_visible(txt, false);
+}
+
+static void new_mode_title_txt_show(compo_textbox_t *txt)
+{
+    widget_text_t *widget;
+    rect_t rect;
+    area_t text_area;
+
+    if (txt == NULL) {
+        return;
+    }
+    new_mode_title_txt_prepare(txt);
+    widget = txt->txt;
+    compo_textbox_set(txt, "MODE");
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
 
     rect = widget_get_location(widget);
     text_area = widget_text_get_area(widget);
@@ -509,7 +595,7 @@ static void new_mode_sel_bg_apply(f_new_mode_t *f)
 #endif
 }
 
-static void new_mode_list_apply_rows(f_new_mode_t *f, u8 from, u8 to, bool with_title)
+static void new_mode_list_apply_rows(f_new_mode_t *f, u8 from, u8 to, bool with_title, bool with_text)
 {
     u8 i;
 #if !ELUNCHBOX_PANEL_EN
@@ -520,9 +606,8 @@ static void new_mode_list_apply_rows(f_new_mode_t *f, u8 from, u8 to, bool with_
         return;
     }
 
-    if (with_title && f->txt_title != NULL) {
-        compo_textbox_set(f->txt_title, "MODE");
-        compo_textbox_set_visible(f->txt_title, true);
+    if (with_text && with_title && f->txt_title != NULL) {
+        new_mode_title_txt_show(f->txt_title);
     }
 
 #if ELUNCHBOX_PANEL_EN
@@ -531,7 +616,7 @@ static void new_mode_list_apply_rows(f_new_mode_t *f, u8 from, u8 to, bool with_
 
     for (i = from; i <= to; i++) {
 #if ELUNCHBOX_PANEL_EN
-        new_mode_row_apply_state(f, i, (i == f->sel), true);
+        new_mode_row_apply_state(f, i, (i == f->sel), true, with_text);
 #else
         bool selected = (i == f->sel);
 
@@ -543,9 +628,9 @@ static void new_mode_list_apply_rows(f_new_mode_t *f, u8 from, u8 to, bool with_
                                NEW_MODE_ICON_X, row_y);
         }
 
-        if (f->txt_label[i] != NULL) {
-            new_mode_label_txt_apply(f->txt_label[i], row_y, tbl_new_mode_label[i],
-                                     selected ? NEW_MODE_COLOR_SEL : NEW_MODE_COLOR_NOR);
+        if (with_text && f->txt_label[i] != NULL) {
+            new_mode_label_txt_show(f->txt_label[i], row_y, tbl_new_mode_label[i],
+                                    selected ? NEW_MODE_COLOR_SEL : NEW_MODE_COLOR_NOR);
         }
 
         if (f->pic_arrow[i] != NULL) {
@@ -572,7 +657,7 @@ static void new_mode_list_apply(f_new_mode_t *f)
         return;
     }
     printf("nm_list_apply sel=%u\n", f->sel);
-    new_mode_list_apply_rows(f, 0, (u8)(NEW_MODE_ITEM_CNT - 1), true);
+    new_mode_list_apply_rows(f, 0, (u8)(NEW_MODE_ITEM_CNT - 1), true, true);
 }
 
 static void new_mode_ui_refresh(f_new_mode_t *f)
@@ -668,9 +753,10 @@ compo_form_t *func_new_mode_form_create(void)
     /* ELUNCHBOX：暂不创建顶栏时钟 picturebox（与 Home 共用 RAM，易 C245）；仅保留 MODE 标题+状态栏+列表 */
 
     txt = new_mode_txt_create(frm, COMPO_ID_TXT_TITLE, 8,
-                              GUI_SCREEN_CENTER_X, NEW_MODE_TITLE_Y, 80, 24,
+                              GUI_SCREEN_CENTER_X, NEW_MODE_TITLE_Y,
+                              NEW_MODE_TITLE_W, NEW_MODE_TITLE_H,
                               NEW_MODE_COLOR_TITLE);
-    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_MODE_TITLE_Y, 80, 24);
+    new_mode_title_txt_prepare(txt);
 
     bat_x = (s16)(GUI_SCREEN_WIDTH - NEW_MODE_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
     bt_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - NEW_MODE_STATUS_GAP - NEW_HOME_BT_W / 2);
@@ -694,11 +780,11 @@ compo_form_t *func_new_mode_form_create(void)
 
         (void)new_mode_pic_create_hidden(frm, (u16)(COMPO_ID_PIC_ICON_BASE + i));
         (void)new_mode_pic_create_hidden(frm, (u16)(COMPO_ID_PIC_ARROW_BASE + i));
-        new_mode_label_txt_apply(
+        new_mode_label_txt_prepare(
             new_mode_txt_create(frm, (u16)(COMPO_ID_TXT_LABEL_BASE + i), 12,
                                 NEW_MODE_LABEL_X, row_y, NEW_MODE_LABEL_W, NEW_MODE_LABEL_H,
                                 NEW_MODE_COLOR_NOR),
-            row_y, tbl_new_mode_label[i], NEW_MODE_COLOR_NOR);
+            row_y);
     }
 
     return frm;
@@ -803,6 +889,13 @@ static void func_new_mode_process(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
+        if (f->display_pending) {
+            printf("nm_p0 ui_apply\n");
+            home_gpu_wait_idle();
+            WDT_CLR();
+            new_mode_list_apply(f);
+            f->display_pending = false;
+        }
         printf("nm_p1 first_frame te_block=%u\n", elunchbox_te_block_flag);
         func_process();
         func_home_drain_stale_key_msgs();
@@ -880,16 +973,14 @@ void func_new_mode_enter(void)
     home_ui_shared_status_init();
     new_mode_status_refresh(f);
     WDT_CLR();
-    printf("nm_e3 list_apply\n");
-    new_mode_list_apply(f);
-    f->display_pending = false;
+    f->display_pending = true;
 
     printf("nm_e4 gpu_wait\n");
     home_gpu_wait_idle();
     WDT_CLR();
     elunchbox_te_block_flag = 0;
     tft_bglight_force_on();
-    printf("func_new_mode_enter: ok te_block=0\n");
+    printf("func_new_mode_enter: ok te_block=0 pending=1\n");
 #else
     f->top_time.last_key = 0xffff;
     f->last_top_min = 0xff;
