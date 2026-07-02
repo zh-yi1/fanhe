@@ -677,6 +677,8 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             u16 off = 0;
             while (off + 3 <= len) {
                 u8 m = data[off], t = data[off + 1], d = data[off + 2];
+                // 跳过空条目 (全零 = 加热模块未返回该模式信息)
+                if (m == 0 && t == 0 && d == 0) { off += 3; continue; }
                 printf("%s: temp=%u dur=%umin\n", m <= 3 ? mn[m] : "?", t, d);
                 off += 3;
             }

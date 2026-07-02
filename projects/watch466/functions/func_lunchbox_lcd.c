@@ -311,13 +311,13 @@ void lunchbox_reservation_delete(u8 id)
  */
 static u32 lb_next_time_of_day(u8 hour, u8 min)
 {
-    u32 rtc = RTCCNT;
-    u32 today_midnight = rtc - (rtc % 86400);
-    u32 target_rtc = today_midnight + (u32)hour * 3600 + (u32)min * 60;
-    if (target_rtc <= rtc) {
-        target_rtc += 86400;
+    u32 now_unix = lb_get_unix_time();
+    u32 today_midnight = now_unix - (now_unix % 86400);
+    u32 target_unix = today_midnight + (u32)hour * 3600 + (u32)min * 60;
+    if (target_unix <= now_unix) {
+        target_unix += 86400;
     }
-    return target_rtc + LB_RTC_UNIX_OFFSET;
+    return target_unix;
 }
 
 /**
@@ -330,6 +330,13 @@ static u32 lb_next_time_of_day(u8 hour, u8 min)
 void lunchbox_ble_send_presets(void)
 {
 #if LB_BRIDGE_MODE
+    // 守护: 未收到 APP 权威时间戳前不发预设, 避免时间偏差
+    if (!lb_has_ble_ts) {
+        //printf("BLE: presets skipped, no synced timestamp yet\n");
+        lb_ble_presets_pending = true;
+        return;
+    }
+
     u8 temp_idx = lunchbox_temp_f_to_idx(149);
 
     lunchbox_reservation_send(1, 1, "\xe6\x97\xa9\xe9\xa4\x90",
@@ -343,7 +350,7 @@ void lunchbox_ble_send_presets(void)
     lunchbox_reservation_send(3, 5, "\xe6\x84\x8f\xe9\x9d\xa2\xe6\xa8\xa1\xe5\xbc\x8f",
                               lb_get_unix_time(), temp_idx, 60, 0, 0xff);
 
-    printf("BLE connected: 5 presets sent to heat module via UART 0x03\n");
+    //printf("BLE connected: 5 presets sent to heat module via UART 0x03\n");
 #else
     // 本地模式: 预设已在 lunchbox_uart_init() → lb_local_init_presets() 中初始化
     // 后续用户新增预约 ID 从 6 开始 (lb_next_schedule_id = 6)
