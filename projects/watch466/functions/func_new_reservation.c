@@ -194,7 +194,7 @@ static u16 new_res_cell_color(u8 col, u8 row, u8 focus_col)
 }
 
 static compo_textbox_t *new_res_txt_create(compo_form_t *frm, u16 id, u16 buf_size,
-                                           s16 x, s16 y, u16 color)
+                                           s16 x, s16 y, u16 w, u16 h, u16 color)
 {
     compo_textbox_t *txt = compo_textbox_create(frm, buf_size);
 
@@ -207,7 +207,7 @@ static compo_textbox_t *new_res_txt_create(compo_form_t *frm, u16 id, u16 buf_si
 #endif
     compo_textbox_set_pos(txt, x, y);
     compo_textbox_set_forecolor(txt, color);
-    compo_textbox_set_location(txt, x, y, 40, 20);
+    compo_textbox_set_location(txt, x, y, w, h);
     return txt;
 }
 
@@ -218,7 +218,7 @@ static void new_res_white_bg_create(compo_form_t *frm)
     compo_setid(bg, COMPO_ID_SHAPE_BG);
     compo_shape_set_location(bg, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y,
                              GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
-    compo_shape_set_color(bg, COLOR_WHITE);
+    compo_shape_set_color(bg, NEW_RES_PANEL_BG);
     compo_shape_set_radius(bg, 0);
 }
 
@@ -229,7 +229,7 @@ static void new_res_panel_create(compo_form_t *frm)
     compo_setid(panel, COMPO_ID_SHAPE_PANEL);
     compo_shape_set_location(panel, GUI_SCREEN_CENTER_X, NEW_RES_PANEL_Y,
                              NEW_RES_PANEL_W, NEW_RES_PANEL_H);
-    compo_shape_set_color(panel, NEW_RES_PANEL_BG);
+    compo_shape_set_color(panel, COLOR_WHITE);
     compo_shape_set_radius(panel, 16);
 }
 
@@ -355,7 +355,7 @@ compo_form_t *func_new_reservation_form_create(void)
 
     /* 标题 "Set Time (Heating Finish Time)" = 32 字符 */
     txt = new_res_txt_create(frm, COMPO_ID_TXT_TITLE, 32,
-                             GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y,
+                             GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y, 300, 28,
                              NEW_RES_COLOR_TITLE);
     compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y, 300, 28);
 
@@ -364,15 +364,15 @@ compo_form_t *func_new_reservation_form_create(void)
             (void)new_res_txt_create(frm,
                                      (u16)(COMPO_ID_TXT_ROLL_BASE + col * NEW_RES_ROLL_ROWS + row),
                                      8,
-                                     new_res_col_x(col), new_res_row_y(row),
+                                     new_res_col_x(col), new_res_row_y(row), 56, 35,
                                      NEW_RES_COLOR_DIM);
         }
     }
 
     (void)new_res_txt_create(frm, COMPO_ID_TXT_COLON0, 8, NEW_RES_COLON_X0,
-                             new_res_row_y(NEW_RES_ROLL_CENTER_ROW), NEW_RES_COLOR_COLON);
+                             new_res_row_y(NEW_RES_ROLL_CENTER_ROW), 20, 32, NEW_RES_COLOR_COLON);
     (void)new_res_txt_create(frm, COMPO_ID_TXT_COLON1, 8, NEW_RES_COLON_X1,
-                             new_res_row_y(NEW_RES_ROLL_CENTER_ROW), NEW_RES_COLOR_COLON);
+                             new_res_row_y(NEW_RES_ROLL_CENTER_ROW), 20, 32, NEW_RES_COLOR_COLON);
 
     return frm;
 }
