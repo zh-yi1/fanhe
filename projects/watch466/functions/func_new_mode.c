@@ -114,7 +114,7 @@ typedef struct {
 } f_new_mode_t;
 
 static const char * const tbl_new_mode_label[NEW_MODE_ITEM_CNT] = {
-    "Delay",
+    "Order",
     "Chicken",
     "Pasta",
     "Warm",
@@ -917,6 +917,11 @@ static void func_new_mode_process(void)
 
             if (stale != 0xff) {
                 printf("nm_p1 stale tch=%u consumed\n", stale);
+                /* 处理初始化期间按下的 TCH3（模式/下一项），
+                   TCH4/TCH5 是进入本页的导航键，不处理以免误跳转 */
+                if (stale == PT8028_KEY_TCH3) {
+                    new_mode_sel_next(f);
+                }
             }
         }
         f->key_ready = true;
