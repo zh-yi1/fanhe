@@ -692,6 +692,7 @@ void func_new_warm_enter(void)
 
 #if ELUNCHBOX_PANEL_EN
     WDT_CLR();
+    elunchbox_te_block_flag = 1;
 #endif
 
     msg_queue_detach(NEW_WARM_MSG_POWER, 0);
@@ -700,10 +701,6 @@ void func_new_warm_enter(void)
     f = (f_new_warm_t *)func_cb.f_cb;
     f->last_progress_idx = 0xff;
     f->last_elapsed_min = 0xffffffff;
-#if ELUNCHBOX_PANEL_EN
-    f->key_ready = false;
-#endif
-    f->display_pending = true;
 
     func_cb.frm_main = func_new_warm_form_create();
     new_warm_bind_objects(f);
@@ -712,6 +709,11 @@ void func_new_warm_enter(void)
     home_ui_digit_pool_reset();
     home_ui_shared_status_init();
     WDT_CLR();
+
+    /* enter 内一次性完成 UI，首帧即完整显示保温页 */
+    new_warm_ui_apply(f);
+    f->display_pending = false;
+    f->key_ready = true;
 
     printf("nw_e gpu_wait\n");
     home_gpu_wait_idle();

@@ -1298,7 +1298,11 @@ void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
     f->ui_state = HEAT_UI_FINISHED;
     f->screen_locked = false;
     func_heat_led_sync(false);
-    func_switch_to(FUNC_NEW_WARM, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
+    func_switch_to(FUNC_NEW_WARM, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
 }
 #endif
 
