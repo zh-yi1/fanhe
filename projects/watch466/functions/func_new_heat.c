@@ -1080,7 +1080,9 @@ void func_new_heat_enter(void)
     printf("eh_a\n");
 
 #if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 1;
     printf("eh_b\n");
+    home_ui_digit_pool_reset();
     home_gpu_wait_idle();
     printf("eh_c\n");
     WDT_CLR();
@@ -1116,8 +1118,6 @@ void func_new_heat_enter(void)
     printf("eh_p\n");
     f->time_idx = g_new_heat_time_idx;
     printf("eh_q\n");
-    f->display_pending = true;
-    printf("eh_r\n");
 
     func_cb.frm_main = func_new_heat_form_create();
     printf("eh_s\n");
@@ -1142,8 +1142,11 @@ void func_new_heat_enter(void)
     printf("eh_za\n");
     WDT_CLR();
 
-    /* 字体和文字在 process 首帧设置（TE 仍屏蔽，但 GPU 已完成首帧 → 安全读 Flash）*/
-    /* TE 在 process 首帧设置完所有资源后才恢复 */
+    /* enter 内一次性完成文字/刻度，首帧即完整显示 */
+    new_heat_text_apply(f);
+    f->display_pending = false;
+    printf("eh_zb text_apply done\n");
+    WDT_CLR();
 
     home_gpu_wait_idle();
     printf("eh_zc\n");

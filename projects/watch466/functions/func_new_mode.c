@@ -712,7 +712,11 @@ static void new_mode_confirm(f_new_mode_t *f)
         g_new_heat_temp_idx = 4;       /* 212°F */
         g_new_heat_time_idx = 0;       /* 60min (1H) */
         g_new_heat_proto_mode = 2;
-        func_cb.sta = FUNC_HEAT;
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        func_home_drain_stale_key_msgs();
+        pt8028_release_clear();
+#endif
+        func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
         break;
 
     case NEW_MODE_ITEM_PASTA:
@@ -720,7 +724,11 @@ static void new_mode_confirm(f_new_mode_t *f)
         g_new_heat_temp_idx = 3;       /* 194°F */
         g_new_heat_time_idx = 0;       /* 60min (1H) */
         g_new_heat_proto_mode = 3;
-        func_cb.sta = FUNC_HEAT;
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        func_home_drain_stale_key_msgs();
+        pt8028_release_clear();
+#endif
+        func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
         break;
 
     case NEW_MODE_ITEM_WARM:
