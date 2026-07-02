@@ -671,7 +671,6 @@ static void func_new_warm_process(void)
     if (elapsed_min != f->last_elapsed_min) {
         new_warm_text_apply(f);
     }
-    new_warm_status_refresh(f);
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_warm_pt8028_keys_process(f);

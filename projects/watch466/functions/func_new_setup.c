@@ -86,6 +86,7 @@ typedef struct {
     bool display_pending;
 #if ELUNCHBOX_PANEL_EN
     bool key_ready;
+    bool text_pending;
 #endif
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_bat;
@@ -633,6 +634,37 @@ static void new_setup_list_apply(f_new_setup_t *f)
     new_setup_list_apply_rows(f, 0, (u8)(NEW_SETUP_ITEM_CNT - 1), true, true);
 }
 
+#if ELUNCHBOX_PANEL_EN
+/* 首帧仅绑图标/箭头（Flash→RAM），文字延后到 te_block=0 的下一帧，避免 gui thread miss */
+static void new_setup_icons_apply(f_new_setup_t *f)
+{
+    if (f == NULL) {
+        return;
+    }
+    new_setup_status_refresh(f);
+    new_setup_list_apply_rows(f, 0, (u8)(NEW_SETUP_ITEM_CNT - 1), false, false);
+}
+
+static void new_setup_text_apply(f_new_setup_t *f)
+{
+    u8 i;
+
+    if (f == NULL) {
+        return;
+    }
+    if (f->txt_title != NULL) {
+        new_setup_title_txt_show(f->txt_title);
+    }
+    for (i = 0; i < NEW_SETUP_ITEM_CNT; i++) {
+        if (f->txt_label[i] != NULL) {
+            new_setup_label_txt_show(f->txt_label[i], new_setup_row_y(i),
+                                     tbl_new_setup_label[i],
+                                     (i == f->sel) ? NEW_SETUP_COLOR_SEL : NEW_SETUP_COLOR_NOR);
+        }
+    }
+}
+#endif
+
 static void new_setup_ui_refresh(f_new_setup_t *f)
 {
     if (f == NULL) {
@@ -816,8 +848,13 @@ static void func_new_setup_process(void)
         if (f->display_pending) {
             home_gpu_wait_idle();
             WDT_CLR();
-            new_setup_list_apply(f);
+            new_setup_icons_apply(f);
             f->display_pending = false;
+            f->text_pending = true;
+        } else if (f->text_pending) {
+            WDT_CLR();
+            new_setup_text_apply(f);
+            f->text_pending = false;
         }
         func_process();
         func_home_drain_stale_key_msgs();
@@ -831,7 +868,9 @@ static void func_new_setup_process(void)
                 printf("ns_p stale tch=%u\n", stale);
             }
         }
-        f->key_ready = true;
+        if (!f->display_pending && !f->text_pending) {
+            f->key_ready = true;
+        }
         return;
     }
 #endif
@@ -839,8 +878,6 @@ static void func_new_setup_process(void)
     if (f->display_pending) {
         new_setup_ui_refresh(f);
     }
-
-    new_setup_status_refresh(f);
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_setup_keys_poll(f);
@@ -852,7 +889,7 @@ void func_new_setup_enter(void)
 {
     f_new_setup_t *f;
 
-    printf("func_new_setup_enter\n");
+    printf("func_new_setup_enter te_block=%u\n", elunchbox_te_block_flag);
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_set_home_msg_block(1);
@@ -860,10 +897,20 @@ void func_new_setup_enter(void)
     pt8028_release_clear();
 #endif
 
+#if ELUNCHBOX_PANEL_EN
+    WDT_CLR();
+#endif
+
+    msg_queue_detach(KU_BACK, 0);
+    msg_queue_detach(KU_MODE, 0);
+    msg_queue_detach(KU_RIGHT, 0);
+
     func_cb.f_cb = func_zalloc(sizeof(f_new_setup_t));
     f = (f_new_setup_t *)func_cb.f_cb;
 #if ELUNCHBOX_PANEL_EN
     f->key_ready = false;
+    f->text_pending = false;
+    new_setup_arrow_ram_ready = false;
 #endif
     f->display_pending = true;
 
@@ -874,11 +921,14 @@ void func_new_setup_enter(void)
     home_ui_digit_pool_reset();
     home_ui_shared_status_init();
     WDT_CLR();
+    /* 不在 enter 里读 Flash/设文字；首帧 process(te_block=0) 再分步绘制 */
     home_gpu_wait_idle();
     WDT_CLR();
     elunchbox_te_block_flag = 0;
     tft_bglight_force_on();
+    printf("func_new_setup_enter: ok te_block=0 pending=1\n");
 #else
+    new_setup_status_refresh(f);
     new_setup_list_apply(f);
     f->display_pending = false;
 #endif

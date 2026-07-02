@@ -1060,8 +1060,15 @@ static void func_new_heat_process(void)
         return;
     }
 
+#if ELUNCHBOX_PANEL_EN
+    if (f->display_pending) {
+        new_heat_text_apply(f);
+        f->display_pending = false;
+    }
+#else
     new_heat_text_apply(f);
     new_heat_status_refresh(f);
+#endif
     func_process();
 }
 
@@ -1109,7 +1116,7 @@ void func_new_heat_enter(void)
     printf("eh_p\n");
     f->time_idx = g_new_heat_time_idx;
     printf("eh_q\n");
-    f->display_pending = false;
+    f->display_pending = true;
     printf("eh_r\n");
 
     func_cb.frm_main = func_new_heat_form_create();
