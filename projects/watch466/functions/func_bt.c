@@ -543,6 +543,7 @@ static void func_bt_message_do(size_msg_t msg)
         }
         break;
 
+#if (BT_ID3_TAG_EN || LE_AMS_CLIENT_EN)
     case EVT_ID3_TITLE_UPDATE:
         func_bt_music_title_refresh(f_bt->title_buf);
         break;
@@ -550,6 +551,7 @@ static void func_bt_message_do(size_msg_t msg)
     case EVT_ID3_ARTIST_UPDATE:
         func_bt_music_artist_refresh(f_bt->artist_buf);
         break;
+#endif
 
     default:
         func_message(msg);
