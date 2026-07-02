@@ -23,11 +23,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_RES_ROLL_ROWS               5
 #define NEW_RES_ROLL_CENTER_ROW         2
 
-#define NEW_RES_TITLE_Y                 52
-#define NEW_RES_PANEL_Y                 118
-#define NEW_RES_PANEL_W                 268
-#define NEW_RES_PANEL_H                 128
-#define NEW_RES_ROW_GAP                 22
+#define NEW_RES_TITLE_Y                 38
+#define NEW_RES_PANEL_Y                 140
+#define NEW_RES_PANEL_W                 280
+#define NEW_RES_PANEL_H                 185
+#define NEW_RES_ROW_GAP                 35
 
 #define NEW_RES_COL_X_H                 88
 #define NEW_RES_COL_X_M                 160
@@ -36,7 +36,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_RES_COLON_X1                196
 
 #define NEW_RES_COLOR_TITLE             COLOR_BLACK
-#define NEW_RES_COLOR_HOUR_SEL          0x0AD8
+#define NEW_RES_COLOR_SEL_FOCUS         0x0AD8
 #define NEW_RES_COLOR_SEL               COLOR_BLACK
 #define NEW_RES_COLOR_DIM               0xC618
 #define NEW_RES_COLOR_COLON             0xDEFB
@@ -187,11 +187,8 @@ static u16 new_res_cell_color(u8 col, u8 row, u8 focus_col)
     if (row != NEW_RES_ROLL_CENTER_ROW) {
         return NEW_RES_COLOR_DIM;
     }
-    if (col == NEW_RES_FOCUS_HOUR) {
-        return NEW_RES_COLOR_HOUR_SEL;
-    }
     if (col == focus_col) {
-        return NEW_RES_COLOR_SEL;
+        return NEW_RES_COLOR_SEL_FOCUS;
     }
     return NEW_RES_COLOR_SEL;
 }
