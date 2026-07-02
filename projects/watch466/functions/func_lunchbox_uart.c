@@ -14,6 +14,7 @@
 #include "func_lunchbox_ota.h"
 #include "func_lunchbox_bridge.h"
 #include "func_lunchbox_ble.h"
+#include "func_lunchbox_uart_heat.h"
 #include "func_lunchbox_lcd.h"
 #include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN
@@ -238,6 +239,11 @@ static bool lb_frame_parse(void)
         printf("UART==>TX[heartbeat]: 55 AA 00 %02X 05 00 00 01 01 %02X\n",
                rx.msg_flag, (u8)(0x55+0xAA+0x00+rx.msg_flag+0x05+0x00+0x00+0x01+0x01) % 256);
         goto lb_frame_cleanup;  // 心跳不进入BLE翻译/本地分发，直接清理缓冲区
+    }
+
+    // ──── 加热模块 OTA: 注入 UART 0x04 应答到状态机 ────
+    if (rx.cmd == LB_UART_CMD_OTA) {
+        heat_ota_uart_response(&rx);
     }
 
 #if LB_BRIDGE_MODE
@@ -1605,6 +1611,9 @@ void lunchbox_uart_process(void)
         if (!lb_frame_parse())
             break;
     }
+
+    // 加热模块 OTA 状态机轮询 (超时检测/重试/继续发送)
+    heat_ota_process();
 }
 
 //-----------------------------------------------------------------------------

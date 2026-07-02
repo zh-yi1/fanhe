@@ -557,6 +557,7 @@ bool lunchbox_ble_rx_pending(void);     // 累积缓冲区是否有待处理数�
 #include "func_lunchbox_ble.h"
 #include "func_lunchbox_bridge.h"
 #include "func_lunchbox_ota.h"
+#include "func_lunchbox_uart_heat.h"
 
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_UART_H

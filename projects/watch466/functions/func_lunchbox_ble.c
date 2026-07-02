@@ -25,6 +25,7 @@
 #include "func_lunchbox_uart_internal.h"
 #include "func_lunchbox_ble.h"
 #include "func_lunchbox_bridge.h"
+#include "func_lunchbox_uart_heat.h"
 #include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
@@ -243,18 +244,20 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             }
 
             if (to_heat) {
-                printf("OTA: target=0x%02X -> forward to UART\n", target);
-                u8 uart_buf[LB_TXBUF_SIZE];
-                u16 uart_len = 0;
-                if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
-                    printf("BLE->UART==>TX[%d]: ", uart_len);
-                    for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
-                    printf("\n");
-                    {
-                        u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
-                        if (dl) lb_dp_dump_hex(uart_buf + 8, dl);
-                    }
-                    uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
+                // 加热模块 OTA: 先存储→校验CRC→再通过UART发送 (func_lunchbox_uart_heat.c)
+                printf("OTA: target=0x%02X -> heat module OTA handler\n", target);
+                switch (frame.cmd) {
+                case LB_CMD_OTA_START:
+                    heat_ota_handler_start(&frame, frame.msg_flag);
+                    break;
+                case LB_CMD_OTA_DATA:
+                    heat_ota_handler_data(&frame, frame.msg_flag);
+                    break;
+                case LB_CMD_OTA_END:
+                    heat_ota_handler_end(&frame, frame.msg_flag);
+                    break;
+                default:
+                    break;
                 }
             }
             goto next_frame;

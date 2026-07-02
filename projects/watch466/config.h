@@ -637,7 +637,7 @@
 #define PT8028_PWR_WAKE_MS              3000        //息屏/休眠后长按开关键亮屏(ms)
 #endif
 #define PT8028_LOCK_LONG_MS             3000        //锁键(TCH0)长按(ms)全局按键锁
-#define PT8028_HEAT_LONG_MS             3000        //加热键(TCH1)长按(ms)进入加热页
+#define PT8028_HEAT_LONG_MS             0           //加热键(TCH1)长按(ms)进入加热页, 0=点击即触发
 #define KEY_LOCK_HINT_MS                3000        //锁定/误触：右上角锁图标显示(ms)
 #define KEY_UNLOCK_HINT_MS              1500        //解锁图标显示(ms)
 

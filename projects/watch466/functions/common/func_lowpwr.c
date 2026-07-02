@@ -395,6 +395,7 @@ static void sfunc_sleep(void)
     u16 adc_ch;
     uint32_t sysclk;
     u32 wkie;
+    u32 clkgat0_bak = 0;
     bool gui_need_wkp = false;
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     bool elunchbox_guioff_slp = elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta;
@@ -602,6 +603,7 @@ static void sfunc_sleep(void)
 #if ELUNCHBOX_PANEL_EN
     if (elunchbox_manual_off_slp) {
         /* 手动关机: 关闭非必要外设时钟，仅保留 RTC/GPIO/WDT/BT_SLEEP */
+        clkgat0_bak = CLKGAT0;
         CLKGAT0 &= ~(BIT(CLKGAT0_UART0_CLK_EN)  |
                      BIT(CLKGAT0_UART1_CLK_EN)  |
                      BIT(CLKGAT0_HSUT0_CLK_EN)  |
@@ -618,6 +620,12 @@ static void sfunc_sleep(void)
     sleep_wakeup_config();
 
     gui_need_wkp = sfunc_sleep_proc();          //进入休眠
+
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_manual_off_slp && clkgat0_bak) {
+        CLKGAT0 = clkgat0_bak;                  // 恢复手动关机前的外设时钟
+    }
+#endif
 
     RTCCON9 = BIT(7) | BIT(5) | BIT(2);         //clr port, bt, wko wakeup pending
     RTCCON3 &= ~(BIT(17) | BIT(13));            //disable port, bt wakeup
