@@ -1100,8 +1100,7 @@ void func_heat_enter(void)
     func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
     func_heat_countdown_stop();
     func_heat_panel_mark_dirty(f_heat);
-    heat_display_register(func_heat_display_on_info);
-    printf("heat_enter: reg done, check autostart\n");
+    printf("heat_enter: panel bind done, check autostart\n");
 
     if (lb_heat_autostart_consume()) {
         printf("heat_enter: autostart -> start_heating\n");
@@ -1249,6 +1248,57 @@ bool func_heat_panel_get_live_ready(const void *f)
         return false;
     }
     return f_heat->heat_live_ready;
+}
+
+u16 func_heat_panel_get_live_temp_f(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return 0;
+    }
+    return f_heat->heat_live_temp_f;
+}
+
+bool func_heat_panel_is_heating(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return false;
+    }
+    return f_heat->ui_state == HEAT_UI_HEATING;
+}
+
+void func_heat_panel_set_live(struct f_heat_t_ *f_heat, u32 remain_min, u16 temp_f)
+{
+    f_heat_t *f = (f_heat_t *)f_heat;
+
+    if (f == NULL) {
+        return;
+    }
+    f->heat_live_remain_min = remain_min;
+    f->heat_live_temp_f = temp_f;
+    f->heat_live_ready = true;
+    f->last_timer_key = 0xffff;
+    f->last_temp_f = 0xffff;
+}
+
+void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
+{
+    f_heat_t *f = (f_heat_t *)f_heat;
+
+    if (f == NULL || f->ui_state != HEAT_UI_HEATING) {
+        return;
+    }
+    if (!f->heat_live_ready || f->heat_live_remain_min != 0) {
+        return;
+    }
+    func_heat_countdown_stop();
+    f->ui_state = HEAT_UI_FINISHED;
+    f->screen_locked = false;
+    func_heat_led_sync(false);
+    func_switch_to(FUNC_NEW_WARM, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 #endif
 

@@ -1,6 +1,7 @@
 #include "include.h"
 #include "func.h"
 #include "func_heat_panel.h"
+#include "heat_display_reg.h"
 #include "new_heat_res.h"
 #include "home_ui_shared.h"
 #include "home_icon_res.h"
@@ -133,6 +134,7 @@ static const s16 tbl_progress_tip_y[NEW_HEAT_PROGRESS_CNT] = {
 };
 
 static heat_panel_ui_t g_hp;
+static struct f_heat_t_ *g_hp_f_heat;
 
 /* 内存布局（互不重叠，全部 set_ram，无 Flash DMA）：
  *   heat_bg union → 灰色轨道（.disp）
@@ -365,8 +367,7 @@ static void heat_panel_progress_apply(u8 idx)
         return;
     }
     if (idx == g_hp.last_progress_idx) {
-        printf("progress_apply: skip same idx=%u\n", idx);
-        return;
+            return;
     }
     printf("progress_apply: track_apply (idx=%u)\n", idx);
     heat_panel_track_apply();
@@ -465,6 +466,38 @@ extern u8 func_heat_panel_get_set_min(const void *f);
 extern u8 func_heat_panel_get_temp_idx(const void *f);
 extern u32 func_heat_panel_get_remain_min(const void *f);
 extern bool func_heat_panel_get_live_ready(const void *f);
+extern u16 func_heat_panel_get_live_temp_f(const void *f);
+extern bool func_heat_panel_is_heating(const void *f);
+extern void func_heat_panel_set_live(struct f_heat_t_ *f_heat, u32 remain_min, u16 temp_f);
+extern void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat);
+
+void func_heat_panel_push_live(u32 heat_remain_min, u16 temp_f)
+{
+    /* 加热中：推送剩余时长和温度 */
+    heat_display_show(heat_remain_min, temp_f);
+}
+
+static void heat_panel_display_on_info(const heat_display_info_t *info)
+{
+    struct f_heat_t_ *f_heat;
+
+    if (info == NULL || g_hp_f_heat == NULL || func_cb.sta != FUNC_HEAT) {
+        return;
+    }
+    f_heat = g_hp_f_heat;
+    if (!func_heat_panel_is_heating(f_heat)) {
+        return;
+    }
+
+    func_heat_panel_set_live(f_heat, info->remain_min, info->temp_f);
+
+    if (info->remain_min == 0) {
+        func_heat_panel_heating_finish(f_heat);
+        return;
+    }
+
+    func_heat_panel_process(f_heat);
+}
 
 static void heat_panel_text_apply(const void *f_heat)
 {
@@ -480,10 +513,11 @@ static void heat_panel_text_apply(const void *f_heat)
                                      func_heat_panel_get_set_min(f_heat));
     if (func_heat_panel_get_live_ready(f_heat)) {
         remain_min = func_heat_panel_get_remain_min(f_heat);
+        temp_f = func_heat_panel_get_live_temp_f(f_heat);
     } else {
         remain_min = total_min;
+        temp_f = heat_panel_target_temp_f(func_heat_panel_get_temp_idx(f_heat));
     }
-    temp_f = heat_panel_target_temp_f(func_heat_panel_get_temp_idx(f_heat));
 
     heat_panel_format_remain(buf, remain_min);
     if (g_hp.txt_remain != NULL) {
@@ -600,8 +634,16 @@ compo_form_t *func_heat_panel_form_create(void)
 
 void func_heat_panel_bind(struct f_heat_t_ *f_heat)
 {
-    (void)f_heat;
+    g_hp_f_heat = f_heat;
     home_ui_shared_battery_attach_pic(g_hp.pic_bat);
+    heat_display_register(heat_panel_display_on_info);
+    if (f_heat != NULL && func_heat_panel_is_heating(f_heat)) {
+        heat_display_info_t last;
+
+        if (heat_display_get_last(&last)) {
+            heat_panel_display_on_info(&last);
+        }
+    }
 }
 
 void func_heat_panel_mark_dirty(struct f_heat_t_ *f_heat)
@@ -694,6 +736,7 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
 
 void func_heat_panel_exit(void)
 {
+    g_hp_f_heat = NULL;
     compo_picturebox_t *pics[5];
     u8 n = 0;
     u8 i;

@@ -15,6 +15,9 @@ void func_heat_panel_mark_dirty(struct f_heat_t_ *f_heat);
 void func_heat_panel_process(struct f_heat_t_ *f_heat);
 void func_heat_panel_status_refresh(struct f_heat_t_ *f_heat);
 
+/** 加热中：推送剩余时长和温度（UART/协议层 → UI 回调） */
+void func_heat_panel_push_live(u32 heat_remain_min, u16 temp_f);
+
 #endif
 
 #endif
