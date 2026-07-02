@@ -427,7 +427,7 @@ void func_home_gpu_detach_before_leave(f_new_home_t *f)
         return;
     }
 
-    /* 仅 light detach：勿 wait_idle / draw_force，gui thread miss 时会 WDT */
+    /* light detach：完整 detach 会长时间 wait_idle → gui thread miss */
     WDT_CLR();
     home_top_time_gpu_detach_light(&f->top_time);
 
@@ -513,6 +513,7 @@ static void func_home_pending_switch_exec(f_new_home_t *f)
 
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
+    pt8028_set_home_msg_block(1);
     WDT_CLR();
     /* 屏蔽 TE 中断，防止 func_exit(compos_init) → func_new_heat_enter(数据就绪)
      * 期间 TE 触发 GPU 渲染已清零或未就绪的 compos/图片数据 → C482。
@@ -728,14 +729,20 @@ void func_home_enter(void)
 
 void func_home_exit(void)
 {
-    (void)func_cb.f_cb;
-
 #if ELUNCHBOX_PANEL_EN
-    home_ui_shared_battery_detach_pic();
+    f_new_home_t *f = (f_new_home_t *)func_cb.f_cb;
+
+    if (f != NULL) {
+        func_home_gpu_detach_before_leave(f);
+    } else {
+        home_ui_shared_battery_detach_pic();
+    }
+#else
+    (void)func_cb.f_cb;
 #endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    pt8028_set_home_msg_block(0);
     pt8028_release_clear();
+    pt8028_set_home_msg_block(0);
 #endif
 #if USER_PANEL_LED
     panel_led_all_off();

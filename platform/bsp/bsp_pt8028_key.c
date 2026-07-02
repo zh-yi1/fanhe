@@ -1431,6 +1431,8 @@ void pt8028_release_clear(void)
     pt8028_cb.pwr_long_pending = 0;
     pt8028_cb.pwr_boot_mode = 0;
     pt8028_cb.pwr_boot_short_rel = 0;
+    pt8028_cb.pending_ku = NO_KEY;
+    pt8028_cb.release_hold_left = 0;
     pt8028_session_clear();
 }
 
