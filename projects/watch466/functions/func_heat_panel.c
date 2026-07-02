@@ -118,41 +118,78 @@ static const s16 tbl_progress_ay[NEW_HEAT_PROGRESS_CNT] = {
 
 static heat_panel_ui_t g_hp;
 
-/* bg→union heat_bg(.disp)；show→tab 图标池；蓝弧→digit_ram（≤31KB，互斥 new_heat） */
-#define HEAT_PANEL_SHOW_RAM         ((u8 *)home_ui_shared_icon_runtime)
-#define HEAT_PANEL_SHOW_RAM_CAP     ((u32)(HOME_UI_SHARED_TAB_CNT * NEW_HOME_TAB_RAM_SIZE))
-#define HEAT_PANEL_PROGRESS_RAM     ((u8 *)home_ui_digit_ram)
-#define HEAT_PANEL_PROGRESS_RAM_CAP ((u32)sizeof(home_ui_digit_ram))
+/* 内存布局（互不重叠，全部 set_ram，无 Flash DMA）：
+ *   heat_bg union → 灰色轨道（.disp）
+ *   icon_runtime  → 蓝色弧
+ *   colon_ram     → 圆点
+ *   show_ram BSS  → show 条（24KB，仅此一块额外 BSS） */
+static u8 heat_panel_show_ram[NEW_HEAT_SHOW_RAM_SIZE];
+#define HEAT_PANEL_ARC_RAM          ((u8 *)home_ui_shared_icon_runtime)
+#define HEAT_PANEL_ARC_RAM_CAP      ((u32)(HOME_UI_SHARED_TAB_CNT * NEW_HOME_TAB_RAM_SIZE))
 
-#if NEW_HEAT_SHOW_RAM_SIZE > (HOME_UI_SHARED_TAB_CNT * NEW_HOME_TAB_RAM_SIZE)
-#error "new_show.bin too large for home_ui_shared_icon_runtime pool"
-#endif
-
-static void heat_panel_pic_set_ram(compo_picturebox_t *pic, u32 flash_addr,
-                                   u16 w, u16 h, u8 *buf, u32 buf_size)
+static bool heat_panel_gpu_ram_bind(compo_picturebox_t *pic, u32 addr, u32 len,
+                                    u8 *ram, u32 cap, u16 w, u16 h, s16 x, s16 y)
 {
-    u32 len;
+    u16 need;
 
-    if (pic == NULL || flash_addr == 0 || w == 0 || h == 0 || buf == NULL) {
-        return;
+    if (pic == NULL || addr == 0 || len == 0 || w == 0 || h == 0 || ram == NULL) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
     }
-    len = (u32)w * h * 2 + 8;
-    if (len > buf_size) {
-        printf("pic_ram: buf too small! need=%u have=%u\n", len, buf_size);
-        return;
+    if (len > cap) {
+        printf("hp_bind: buf too small need=%u cap=%u\n", len, cap);
+        compo_picturebox_set_visible(pic, false);
+        return false;
     }
-    printf("pic_ram: spiflash_read addr=0x%x len=%u\n", flash_addr, len);
-    os_spiflash_read(buf, flash_addr, len);
-    WDT_CLR();
-    printf("pic_ram: read done\n");
     home_gpu_wait_idle();
-    compo_picturebox_set_ram(pic, buf);
-    printf("pic_ram: set_ram done\n");
+    os_spiflash_read(ram, addr, len);
+    WDT_CLR();
+    if (!gui_set_ram_check(ram, __func__)) {
+        compo_picturebox_set_visible(pic, false);
+        return false;
+    }
+    need = (u16)(8 + (u32)GET_LE16(&ram[4]) * GET_LE16(&ram[6]) * 2);
+    if (need > len || need > cap) {
+        compo_picturebox_set_visible(pic, false);
+        return false;
+    }
+    home_gpu_wait_idle();
+    compo_picturebox_set_ram(pic, ram);
+    compo_picturebox_set_size(pic, w, h);
+    compo_picturebox_set_pos(pic, x, y);
+    compo_picturebox_set_visible(pic, true);
+    return true;
 }
 
 static const u16 tbl_heat_temp_preset[7] = {
     104, 122, 140, 158, 176, 194, 212,
 };
+
+static u32 heat_panel_progress_len(u8 idx)
+{
+    static const u32 tbl[NEW_HEAT_PROGRESS_CNT] = {
+        UI_LEN_NEW_UI_NEW_PROGRESS_1_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_2_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_3_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_4_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_5_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_6_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_7_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_8_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_9_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_10_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_11_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_12_BIN,
+        UI_LEN_NEW_UI_NEW_PROGRESS_13_BIN,
+    };
+
+    if (idx == 0 || idx > NEW_HEAT_PROGRESS_CNT) {
+        return tbl[0];
+    }
+    return tbl[idx - 1];
+}
 
 static u32 heat_panel_progress_addr(u8 idx)
 {
@@ -247,24 +284,12 @@ static void heat_panel_point_bind(u8 progress_idx)
         return;
     }
     heat_panel_point_pos(progress_idx, &px, &py);
-    printf("point_bind: idx=%u pos=(%d,%d) spiflash_read addr=0x%x len=%u\n",
-           progress_idx, px, py, UI_BUF_NEW_UI_NEW_POINT_BIN, UI_LEN_NEW_UI_NEW_POINT_BIN);
-    home_gpu_wait_idle();
-    os_spiflash_read(home_ui_colon_ram, UI_BUF_NEW_UI_NEW_POINT_BIN, UI_LEN_NEW_UI_NEW_POINT_BIN);
-    printf("point_bind: spiflash done\n");
-    if (!gui_set_ram_check(home_ui_colon_ram, __func__)) {
-        printf("point_bind: ram check fail\n");
-        compo_picturebox_set_visible(g_hp.pic_point, false);
-        return;
+    if (!heat_panel_gpu_ram_bind(g_hp.pic_point, UI_BUF_NEW_UI_NEW_POINT_BIN,
+                                  UI_LEN_NEW_UI_NEW_POINT_BIN,
+                                  home_ui_colon_ram, HOME_COLON_RAM_SIZE,
+                                  NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py)) {
+        printf("point_bind: fail idx=%u\n", progress_idx);
     }
-    home_gpu_wait_idle();
-    compo_picturebox_set_ram(g_hp.pic_point, home_ui_colon_ram);
-    printf("point_bind: set_ram done\n");
-    compo_picturebox_set_size(g_hp.pic_point, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H);
-    compo_picturebox_set_pos(g_hp.pic_point, px, py);
-    compo_picturebox_set_visible(g_hp.pic_point, true);
-    home_gpu_wait_idle();
-    printf("point_bind: done\n");
 }
 
 static void heat_panel_track_apply(void)
@@ -273,15 +298,15 @@ static void heat_panel_track_apply(void)
         printf("track_apply: skip (ready=%d bg=%p)\n", g_hp.track_ready, g_hp.pic_progress_bg);
         return;
     }
-    printf("track_apply: set_ram bg addr=0x%x w=%u h=%u\n",
-           UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN, NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H);
-    heat_panel_pic_set_ram(g_hp.pic_progress_bg, UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN,
-                            NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H,
-                            home_ui_heat_bg_ram, sizeof(home_ui_heat_bg_ram));
-    compo_picturebox_set_size(g_hp.pic_progress_bg, NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H);
-    compo_picturebox_set_visible(g_hp.pic_progress_bg, true);
-    compo_picturebox_set_pos(g_hp.pic_progress_bg,
-                             NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X, NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y);
+    if (!heat_panel_gpu_ram_bind(g_hp.pic_progress_bg, UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN,
+                                  UI_LEN_NEW_UI_NEW_PROGRESS_BG_BIN,
+                                  home_ui_heat_bg_ram, sizeof(home_ui_heat_bg_ram),
+                                  NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H,
+                                  NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X,
+                                  NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y)) {
+        printf("track_apply: fail\n");
+        return;
+    }
     printf("track_apply: done\n");
     g_hp.track_ready = true;
 }
@@ -311,18 +336,20 @@ static void heat_panel_progress_overlay_apply(u8 idx)
     }
     printf("progress_overlay: idx=%u overlay=%u pw=%u ph=%u\n", idx, overlay_idx, pw, ph);
     {
-        u32 need = (u32)pw * ph * 2 + 8;
+        u32 addr = heat_panel_progress_addr(overlay_idx);
+        u32 len = heat_panel_progress_len(overlay_idx);
 
-        if (need <= HEAT_PANEL_PROGRESS_RAM_CAP) {
-            heat_panel_pic_set_ram(g_hp.pic_progress, heat_panel_progress_addr(overlay_idx),
-                                    pw, ph, HEAT_PANEL_PROGRESS_RAM, HEAT_PANEL_PROGRESS_RAM_CAP);
-        } else {
-            home_ui_pic_set_flash(g_hp.pic_progress, heat_panel_progress_addr(overlay_idx), pw, ph);
+        if (len <= HEAT_PANEL_ARC_RAM_CAP &&
+            heat_panel_gpu_ram_bind(g_hp.pic_progress, addr, len,
+                                    HEAT_PANEL_ARC_RAM, HEAT_PANEL_ARC_RAM_CAP,
+                                    pw, ph, tbl_progress_ax[step], tbl_progress_ay[step])) {
+            return;
         }
+        home_ui_pic_set_flash(g_hp.pic_progress, addr, pw, ph);
+        compo_picturebox_set_size(g_hp.pic_progress, pw, ph);
+        compo_picturebox_set_pos(g_hp.pic_progress, tbl_progress_ax[step], tbl_progress_ay[step]);
+        compo_picturebox_set_visible(g_hp.pic_progress, true);
     }
-    compo_picturebox_set_size(g_hp.pic_progress, pw, ph);
-    compo_picturebox_set_pos(g_hp.pic_progress, tbl_progress_ax[step], tbl_progress_ay[step]);
-    compo_picturebox_set_visible(g_hp.pic_progress, true);
 }
 
 static void heat_panel_progress_apply(u8 idx)
@@ -351,15 +378,14 @@ static void heat_panel_show_apply(void)
         printf("show_apply: skip pic=%p ready=%d\n", g_hp.pic_show, g_hp.show_ready);
         return;
     }
-    printf("show_apply: set_ram addr=0x%x w=%u h=%u\n",
-           UI_BUF_NEW_UI_NEW_SHOW_BIN, NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H);
-    heat_panel_pic_set_ram(g_hp.pic_show, UI_BUF_NEW_UI_NEW_SHOW_BIN,
-                            NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H,
-                            HEAT_PANEL_SHOW_RAM, HEAT_PANEL_SHOW_RAM_CAP);
-    compo_picturebox_set_size(g_hp.pic_show, NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H);
-    compo_picturebox_set_visible(g_hp.pic_show, true);
-    compo_picturebox_set_pos(g_hp.pic_show, GUI_SCREEN_CENTER_X, HEAT_PANEL_SHOW_Y);
-    printf("show_apply: set_ram done\n");
+    if (!heat_panel_gpu_ram_bind(g_hp.pic_show, UI_BUF_NEW_UI_NEW_SHOW_BIN,
+                                  UI_LEN_NEW_UI_NEW_SHOW_BIN,
+                                  heat_panel_show_ram, sizeof(heat_panel_show_ram),
+                                  NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H,
+                                  GUI_SCREEN_CENTER_X, HEAT_PANEL_SHOW_Y)) {
+        printf("show_apply: fail\n");
+        return;
+    }
     g_hp.show_ready = true;
 }
 
@@ -634,9 +660,6 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
     heat_panel_track_apply();
     printf("heat_panel_enter: track_apply done\n");
 
-    heat_panel_show_apply();
-    printf("heat_panel_enter: show_apply done\n");
-
     u32 total_min, remain_min;
     u8 progress_idx;
     total_min = heat_panel_total_min(func_heat_panel_get_set_hour(f_heat),
@@ -650,7 +673,10 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
     printf("heat_panel_enter: total=%u remain=%u idx=%u\n", total_min, remain_min, progress_idx);
     g_hp.last_progress_idx = 0xff;
     heat_panel_progress_apply(progress_idx);
-    printf("heat_panel_enter: progress_apply done (idx=%u, no DMA for zero size)\n", progress_idx);
+    printf("heat_panel_enter: progress_apply done (idx=%u)\n", progress_idx);
+
+    heat_panel_show_apply();
+    printf("heat_panel_enter: show_apply done\n");
 
     heat_panel_text_apply(f_heat);
 }
