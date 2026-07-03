@@ -52,7 +52,10 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_HEAT_TIME_SCALE_Y             184
 
 #define NEW_HEAT_LABEL_X                  20
+#define NEW_HEAT_BADGE_TXT_W              80
+
 #define NEW_HEAT_BADGE_X                  ((s16)(GUI_SCREEN_WIDTH - NEW_HEAT_STATUS_RIGHT_MARGIN - NEW_HEAT_BADGE_W / 2))
+#define NEW_HEAT_BADGE_TXT_X              ((s16)(NEW_HEAT_BADGE_X - (NEW_HEAT_BADGE_TXT_W - NEW_HEAT_BADGE_W) / 2))
 #define NEW_HEAT_SLIDER_SLOT_X            ((s16)((GUI_SCREEN_WIDTH - NEW_HEAT_SLIDER_W) / 2))
 
 #define NEW_HEAT_COLOR_LABEL              0x0AD8
@@ -591,6 +594,7 @@ static void new_heat_text_apply(f_new_heat_t *f)
         if (f->txt_temp_scale[i] != NULL) {
             new_heat_format_temp(buf, tbl_new_heat_temp_f[i]);
             compo_textbox_set(f->txt_temp_scale[i], buf);
+            widget_text_set_client(f->txt_temp_scale[i]->txt, 0, 5);
             compo_textbox_set_pos(f->txt_temp_scale[i],
                                   new_heat_point_x(i, NEW_HEAT_TEMP_CNT - 1, temp_w),
                                   NEW_HEAT_TEMP_SCALE_Y);
@@ -604,6 +608,7 @@ static void new_heat_text_apply(f_new_heat_t *f)
         if (f->txt_time_scale[i] != NULL) {
             new_heat_format_duration(buf, tbl_new_heat_time_min[tidx]);
             compo_textbox_set(f->txt_time_scale[i], buf);
+            widget_text_set_client(f->txt_time_scale[i]->txt, 0, 5);
             compo_textbox_set_pos(f->txt_time_scale[i],
                                   new_heat_point_x(tidx, NEW_HEAT_TIME_CNT - 1, time_w),
                                   NEW_HEAT_TIME_SCALE_Y);
@@ -651,7 +656,7 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
             compo_setid(t, COMPO_ID_TXT_TEMP_VAL);
             compo_textbox_set_wholewrap(t, false);
             compo_textbox_set_autosize(t, false);
-            compo_textbox_set_pos(t, NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_LABEL_Y);
+            compo_textbox_set_pos(t, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y);
             compo_textbox_set_forecolor(t, NEW_HEAT_COLOR_ON_BADGE);
         }
         f->txt_temp_val = t;
@@ -663,7 +668,7 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
             compo_setid(t, COMPO_ID_TXT_TIME_VAL);
             compo_textbox_set_wholewrap(t, false);
             compo_textbox_set_autosize(t, false);
-            compo_textbox_set_pos(t, NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y);
+            compo_textbox_set_pos(t, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y);
             compo_textbox_set_forecolor(t, NEW_HEAT_COLOR_OFF_BADGE);
         }
         f->txt_time_val = t;
@@ -743,18 +748,21 @@ static void new_heat_text_apply_scales(f_new_heat_t *f)
         if (f->txt_temp_scale[i] != NULL) {
             new_heat_format_temp(buf, tbl_new_heat_temp_f[i]);
             compo_textbox_set(f->txt_temp_scale[i], buf);
+            widget_text_set_client(f->txt_temp_scale[i]->txt, 0, 5);
             compo_textbox_set_pos(f->txt_temp_scale[i],
                                   new_heat_point_x(i, NEW_HEAT_TEMP_CNT - 1, temp_w),
                                   NEW_HEAT_TEMP_SCALE_Y);
             compo_textbox_set_visible(f->txt_temp_scale[i], true);
         }
     }
+
     for (i = 0; i < 3; i++) {
         u8 tidx = tbl_new_heat_time_scale_idx[i];
 
         if (f->txt_time_scale[i] != NULL) {
             new_heat_format_duration(buf, tbl_new_heat_time_min[tidx]);
             compo_textbox_set(f->txt_time_scale[i], buf);
+            widget_text_set_client(f->txt_time_scale[i]->txt, 0, 5);
             compo_textbox_set_pos(f->txt_time_scale[i],
                                   new_heat_point_x(tidx, NEW_HEAT_TIME_CNT - 1, time_w),
                                   NEW_HEAT_TIME_SCALE_Y);
@@ -983,11 +991,11 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_size(pic, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
 
     txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
-                              NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_ON_BADGE, true);
-    compo_textbox_set_location(txt, NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
+                              NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_ON_BADGE, true);
+    compo_textbox_set_location(txt, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_BADGE_TXT_W, NEW_HEAT_BADGE_H);
     txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
-                              NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_OFF_BADGE, true);
-    compo_textbox_set_location(txt, NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
+                              NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_OFF_BADGE, true);
+    compo_textbox_set_location(txt, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_BADGE_TXT_W, NEW_HEAT_BADGE_H);
 
     pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_TRACK);
     compo_picturebox_set_pos(pic, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SLIDER_Y);
@@ -1009,13 +1017,13 @@ compo_form_t *func_new_heat_form_create(void)
         txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_SCALE0 + i, UI_BUF_0FONT_FONT_ASC_12_BIN,
                             NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SCALE_Y,
                             NEW_HEAT_COLOR_SCALE, true);
-        compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SCALE_Y, 60, 16);
+        compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SCALE_Y, 85, 40);
     }
     for (u8 j = 0; j < 3; j++) {
         txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_SCALE0 + j, UI_BUF_0FONT_FONT_ASC_12_BIN,
                             NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SCALE_Y,
                             NEW_HEAT_COLOR_SCALE, true);
-        compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SCALE_Y, 70, 16);
+        compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SCALE_Y, 140, 40);
     }
 
     return frm;
