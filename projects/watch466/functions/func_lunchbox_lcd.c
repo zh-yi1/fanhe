@@ -71,6 +71,23 @@ bool lb_heat_autostart_consume(void)
 }
 
 //-----------------------------------------------------------------------------
+// 新加热页 → 加热页 自动启动标志 (一次性消费)
+//-----------------------------------------------------------------------------
+static bool lb_heat_autostart_flag;
+
+void lb_heat_autostart_set(bool en)
+{
+    lb_heat_autostart_flag = en;
+}
+
+bool lb_heat_autostart_consume(void)
+{
+    bool val = lb_heat_autostart_flag;
+    lb_heat_autostart_flag = false;
+    return val;
+}
+
+//-----------------------------------------------------------------------------
 // 状态查询
 //-----------------------------------------------------------------------------
 
@@ -360,16 +377,16 @@ void lunchbox_ble_send_presets(void)
 
     u8 temp_idx = lunchbox_temp_f_to_idx(149);
 
-    lunchbox_reservation_send(1, 1, "\xe6\x97\xa9\xe9\xa4\x90",
-                              lb_next_time_of_day(8, 0), temp_idx, 60, 0, 0xff);
-    lunchbox_reservation_send(1, 2, "\xe5\x8d\x88\xe9\xa4\x90",
-                              lb_next_time_of_day(10, 50), temp_idx, 70, 0, 0xff);
-    lunchbox_reservation_send(1, 3, "\xe6\x99\x9a\xe9\xa4\x90",
-                              lb_next_time_of_day(16, 30), temp_idx, 90, 0, 0xff);
-    lunchbox_reservation_send(2, 4, "\xe9\xb8\xa1\xe8\x85\xbf\xe6\xa8\xa1\xe5\xbc\x8f",
-                              lb_get_unix_time(), temp_idx, 60, 0, 0xff);
-    lunchbox_reservation_send(3, 5, "\xe6\x84\x8f\xe9\x9d\xa2\xe6\xa8\xa1\xe5\xbc\x8f",
-                              lb_get_unix_time(), temp_idx, 60, 0, 0xff);
+    // lunchbox_reservation_send(1, 1, "\xe6\x97\xa9\xe9\xa4\x90",
+    //                           lb_next_time_of_day(8, 0), temp_idx, 60, 0, 0xff);
+    // lunchbox_reservation_send(1, 2, "\xe5\x8d\x88\xe9\xa4\x90",
+    //                           lb_next_time_of_day(10, 50), temp_idx, 70, 0, 0xff);
+    // lunchbox_reservation_send(1, 3, "\xe6\x99\x9a\xe9\xa4\x90",
+    //                           lb_next_time_of_day(16, 30), temp_idx, 90, 0, 0xff);
+    // lunchbox_reservation_send(2, 4, "\xe9\xb8\xa1\xe8\x85\xbf\xe6\xa8\xa1\xe5\xbc\x8f",
+    //                           lb_get_unix_time(), temp_idx, 60, 0, 0xff);
+    // lunchbox_reservation_send(3, 5, "\xe6\x84\x8f\xe9\x9d\xa2\xe6\xa8\xa1\xe5\xbc\x8f",
+    //                           lb_get_unix_time(), temp_idx, 60, 0, 0xff);
 
     //printf("BLE connected: 5 presets sent to heat module via UART 0x03\n");
 #else
