@@ -164,10 +164,10 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
         memset(out_data, 0, 42);
         out_data[0] = rx->data[0];       // action = mode
         out_data[1] = 0;                 // id = 0 (模式模板)
-        out_data[37] = rx->data[1];      // temp
-        out_data[38] = rx->data[2];      // duration
-        out_data[39] = 0x01;             // enabled = 1
-        out_data[40] = 0xff;             // repeat = 0xff
+        out_data[38] = rx->data[1];      // temp
+        out_data[39] = rx->data[2];      // duration
+        out_data[40] = 0x01;             // enabled = 1
+        out_data[41] = 0xff;             // repeat = 0xff
         *out_len = 42;
         return true;
     }

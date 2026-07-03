@@ -223,6 +223,7 @@ static void heat_ota_send_boot_cmd(void)
 static void heat_ota_send_next_packet(void)
 {
     if (g_heat_ota.send_offset >= g_heat_ota.send_total) {
+        g_heat_ota.retry_count = 0;  // END 阶段重新计数
         heat_ota_send_end_packet();
         return;
     }
@@ -267,7 +268,6 @@ static void heat_ota_send_next_packet(void)
 static void heat_ota_send_end_packet(void)
 {
     g_heat_ota.uart_phase = HEAT_UART_PHASE_END;
-    g_heat_ota.retry_count = 0;
 
     u32 end_crc = heat_ota_get_final_crc();
     u8 crc_data[4];
@@ -307,11 +307,10 @@ static void heat_ota_start_uart_transfer(void)
     printf("[HEAT_OTA] send_total=%lu packets=%u\n",
            (unsigned long)g_heat_ota.send_total, g_heat_ota.total_packets);
 
-    // 直接开始发数据包，不发送 boot 引导命令
-    // (加热模块对 offset=0xFFFFFFFF 回复 err=0x01，会陷入死循环重试)
-    g_heat_ota.uart_phase = HEAT_UART_PHASE_DATA;
+    // 先发 boot 引导命令 (offset=0xFFFFFFFF) 让模块进入 boot 模式
+    // 模块对 boot 命令回复 err=0x01 属正常行为, heat_ota_handle_ack 已处理
     g_heat_ota.state = HEAT_OTA_SENDING;
-    heat_ota_send_next_packet();
+    heat_ota_send_boot_cmd();
 }
 
 //-----------------------------------------------------------------------------
@@ -320,9 +319,33 @@ static void heat_ota_start_uart_transfer(void)
 
 static void heat_ota_handle_ack(lb_rx_frame_t *rx)
 {
+    // 从响应中解析 offset (4 字节大端), 用于过滤过期应答
+    // 模块可能返回 data_len=0 (按文档) 或 data_len=4 (实际观察), 有 offset 时校验
+    if (rx->data && rx->data_len >= 4) {
+        u32 rx_offset = ((u32)rx->data[0] << 24) | ((u32)rx->data[1] << 16)
+                      | ((u32)rx->data[2] << 8)  | rx->data[3];
+        if (rx_offset != g_heat_ota.current_packet_offset) {
+            printf("[HEAT_OTA] rx offset=0x%08lX != expected=0x%08lX, dropping\n",
+                   (unsigned long)rx_offset,
+                   (unsigned long)g_heat_ota.current_packet_offset);
+            return;
+        }
+    }
+
+    // BOOT 阶段: err=0x01 表示模块收到复位指令, 视为成功
     if (rx->err_flag != 0x00) {
-        printf("[HEAT_OTA] ack err=0x%02X\n", rx->err_flag);
-        heat_ota_handle_timeout();
+        if (g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT && rx->err_flag == 0x01) {
+            printf("[HEAT_OTA] boot ack err=0x01 (expected), start data\n");
+            g_heat_ota.retry_count = 0;
+            g_heat_ota.uart_phase = HEAT_UART_PHASE_DATA;
+            g_heat_ota.send_offset = 0;
+            g_heat_ota.sent_packets = 0;
+            g_heat_ota.state = HEAT_OTA_SENDING;
+            heat_ota_send_next_packet();
+        } else {
+            printf("[HEAT_OTA] ack err=0x%02X\n", rx->err_flag);
+            heat_ota_handle_timeout();
+        }
         return;
     }
 
@@ -399,12 +422,26 @@ static void heat_ota_handle_timeout(void)
             heat_ota_uart_send(g_heat_ota.current_packet_offset,
                                packet_buf, aligned_len, msg);
         } else {
+            // END / RESTART_END 超时重发 (保留原 phase)
+            heat_uart_phase_t prev_phase = g_heat_ota.uart_phase;
             heat_ota_send_end_packet();
+            g_heat_ota.uart_phase = prev_phase;
             return;
         }
         g_heat_ota.state = HEAT_OTA_WAIT_ACK;
     } else {
+        // 已经在 END/RESTART_END 阶段 → 对端无响应, 放弃
+        if (g_heat_ota.uart_phase == HEAT_UART_PHASE_END ||
+            g_heat_ota.uart_phase == HEAT_UART_PHASE_RESTART_END) {
+            printf("[HEAT_OTA] no response to END, aborting\n");
+            heat_ota_reset();
+            return;
+        }
+
         printf("[HEAT_OTA] max retries, sending END and restarting\n");
+
+        // END 阶段重新计数, 避免立即触发 abort
+        g_heat_ota.retry_count = 0;
 
         u32 end_crc = heat_ota_get_final_crc();
         u8 crc_data[4];
@@ -610,10 +647,8 @@ void heat_ota_uart_response(lb_rx_frame_t *rx)
 {
     if (g_heat_ota.state != HEAT_OTA_WAIT_ACK) return;
 
-    if (rx->msg_flag != g_heat_ota.current_msg_flag) {
-        return;  // 忽略不匹配的应答
-    }
-
+    // 加热模块 OTA 应答 msg_flag 恒为 0, 不做匹配校验
+    // OTA 时序由 state/phase 状态机保证, 不依赖 msg_flag
     heat_ota_handle_ack(rx);
 }
 

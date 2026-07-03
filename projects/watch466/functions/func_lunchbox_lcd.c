@@ -54,6 +54,23 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out)
 }
 
 //-----------------------------------------------------------------------------
+// 新加热页 → 加热页 自动启动标志 (一次性消费)
+//-----------------------------------------------------------------------------
+static bool lb_heat_autostart_flag;
+
+void lb_heat_autostart_set(bool en)
+{
+    lb_heat_autostart_flag = en;
+}
+
+bool lb_heat_autostart_consume(void)
+{
+    bool val = lb_heat_autostart_flag;
+    lb_heat_autostart_flag = false;
+    return val;
+}
+
+//-----------------------------------------------------------------------------
 // 状态查询
 //-----------------------------------------------------------------------------
 

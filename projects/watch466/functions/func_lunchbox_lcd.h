@@ -110,5 +110,8 @@ void lunchbox_ble_send_presets(void);
 void lb_mode_to_heat_set(u8 proto_mode, u16 temp_f, u8 hour, u8 min);
 bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out);
 
+void lb_heat_autostart_set(bool en);
+bool lb_heat_autostart_consume(void);
+
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_LCD_H
