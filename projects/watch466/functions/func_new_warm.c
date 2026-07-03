@@ -9,6 +9,7 @@
 #include "func_key_lock.h"
 
 #if ELUNCHBOX_PANEL_EN
+#include "func_heat_panel.h"
 extern volatile u8 elunchbox_te_block_flag;
 #endif
 
@@ -157,6 +158,22 @@ static bool new_warm_gpu_ram_bind(compo_picturebox_t *pic, u32 addr, u32 len,
         return false;
     }
     home_gpu_wait_idle();
+    compo_picturebox_set_ram(pic, ram);
+    compo_picturebox_set_size(pic, w, h);
+    compo_picturebox_set_pos(pic, x, y);
+    compo_picturebox_set_visible(pic, true);
+    return true;
+}
+
+static bool new_warm_gpu_ram_bind_existing(compo_picturebox_t *pic, u8 *ram,
+                                             u16 w, u16 h, s16 x, s16 y)
+{
+    if (pic == NULL || ram == NULL || w == 0 || h == 0) {
+        return false;
+    }
+    if (!gui_set_ram_check(ram, __func__)) {
+        return false;
+    }
     compo_picturebox_set_ram(pic, ram);
     compo_picturebox_set_size(pic, w, h);
     compo_picturebox_set_pos(pic, x, y);
@@ -343,6 +360,17 @@ static void new_warm_track_apply(f_new_warm_t *f)
     if (f == NULL || f->pic_progress_bg == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (func_heat_panel_track_ram_valid()) {
+        if (new_warm_gpu_ram_bind_existing(f->pic_progress_bg, home_ui_heat_bg_ram,
+                                           NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H,
+                                           NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X,
+                                           NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y)) {
+            func_heat_panel_track_ram_consume();
+            return;
+        }
+    }
+#endif
     (void)new_warm_gpu_ram_bind(f->pic_progress_bg, UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN,
                                 UI_LEN_NEW_UI_NEW_PROGRESS_BG_BIN,
                                 home_ui_heat_bg_ram, sizeof(home_ui_heat_bg_ram),
@@ -485,7 +513,7 @@ static void new_warm_heating_stop(void)
 #endif
 }
 
-static void new_warm_ui_apply(f_new_warm_t *f)
+static void new_warm_ui_apply_visual(f_new_warm_t *f)
 {
     u32 elapsed_min;
     u8 progress_idx;
@@ -496,16 +524,24 @@ static void new_warm_ui_apply(f_new_warm_t *f)
     new_warm_title_txt_show(f->txt_title);
     new_warm_status_refresh(f);
 
-    if (!f->heating) {
-        new_warm_heating_start(f);
-    }
-
     elapsed_min = new_warm_elapsed_min(f);
     progress_idx = new_warm_calc_progress_idx(elapsed_min);
     new_warm_progress_apply(f, progress_idx);
 
     if (elapsed_min != f->last_elapsed_min) {
         new_warm_text_apply(f);
+    }
+}
+
+static void new_warm_ui_apply(f_new_warm_t *f)
+{
+    if (f == NULL) {
+        return;
+    }
+    new_warm_ui_apply_visual(f);
+
+    if (!f->heating) {
+        new_warm_heating_start(f);
     }
 }
 
@@ -706,12 +742,14 @@ void func_new_warm_enter(void)
     new_warm_bind_objects(f);
 
 #if ELUNCHBOX_PANEL_EN
-    home_ui_digit_pool_reset();
+    if (func_cb.last != FUNC_HEAT) {
+        home_ui_digit_pool_reset();
+    }
     home_ui_shared_status_init();
     WDT_CLR();
 
     /* enter 内一次性完成 UI，首帧即完整显示保温页 */
-    new_warm_ui_apply(f);
+    new_warm_ui_apply_visual(f);
     f->display_pending = false;
     f->key_ready = true;
 
@@ -720,6 +758,7 @@ void func_new_warm_enter(void)
     WDT_CLR();
     elunchbox_te_block_flag = 0;
     tft_bglight_force_on();
+    new_warm_heating_start(f);
     printf("func_new_warm_enter: ok\n");
 #else
     new_warm_ui_apply(f);

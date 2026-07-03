@@ -1163,10 +1163,18 @@ void func_heat_exit(void)
     f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
 
 #if ELUNCHBOX_PANEL_EN
-    func_heat_panel_exit();
+    if (func_cb.sta == FUNC_NEW_WARM) {
+        func_heat_panel_exit_to_warm();
+    } else {
+        func_heat_panel_exit();
+    }
+#else
+    (void)f_heat;
 #endif
     home_ui_shared_battery_detach_pic();
-    heat_display_unregister();
+    if (func_cb.sta != FUNC_NEW_WARM) {
+        heat_display_unregister();
+    }
 #if FUNC_LUNCHBOX_UART_EN
     if (f_heat != NULL && f_heat->ui_state == HEAT_UI_HEATING) {
         lunchbox_heat_stop();
@@ -1298,11 +1306,13 @@ void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
     f->ui_state = HEAT_UI_FINISHED;
     f->screen_locked = false;
     func_heat_led_sync(false);
+    heat_display_unregister();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
 #endif
-    func_switch_to(FUNC_NEW_WARM, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
+    elunchbox_te_block_flag = 1;
+    func_cb.sta = FUNC_NEW_WARM;
 }
 #endif
 

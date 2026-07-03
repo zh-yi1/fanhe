@@ -135,6 +135,7 @@ static const s16 tbl_progress_tip_y[NEW_HEAT_PROGRESS_CNT] = {
 
 static heat_panel_ui_t g_hp;
 static struct f_heat_t_ *g_hp_f_heat;
+static bool g_hp_track_ram_valid;
 
 /* 内存布局（互不重叠，全部 set_ram，无 Flash DMA）：
  *   heat_bg union → 灰色轨道（.disp）
@@ -325,6 +326,7 @@ static void heat_panel_track_apply(void)
     }
     printf("track_apply: done\n");
     g_hp.track_ready = true;
+    g_hp_track_ram_valid = true;
 }
 
 static void heat_panel_progress_overlay_apply(u8 idx)
@@ -734,8 +736,20 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
     heat_panel_text_apply(f_heat);
 }
 
+void func_heat_panel_exit_to_warm(void)
+{
+    g_hp_f_heat = NULL;
+    g_hp.track_ready = false;
+    g_hp.show_ready = false;
+    g_hp.last_progress_idx = 0xff;
+    g_hp.ui_ready = false;
+    /* 保留 g_hp_track_ram_valid 与 home_ui_heat_bg_ram，保温页复用灰轨 */
+    memset(&g_hp, 0, sizeof(g_hp));
+}
+
 void func_heat_panel_exit(void)
 {
+    g_hp_track_ram_valid = false;
     g_hp_f_heat = NULL;
     compo_picturebox_t *pics[5];
     u8 n = 0;
@@ -765,4 +779,14 @@ void func_heat_panel_exit(void)
         pics[i] = NULL;
     }
     memset(&g_hp, 0, sizeof(g_hp));
+}
+
+bool func_heat_panel_track_ram_valid(void)
+{
+    return g_hp_track_ram_valid;
+}
+
+void func_heat_panel_track_ram_consume(void)
+{
+    g_hp_track_ram_valid = false;
 }

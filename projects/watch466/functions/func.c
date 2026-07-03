@@ -1773,8 +1773,9 @@ void func_exit(void)
     bsp_asr_voice_wake_sta_clr();
 #endif
 #if ELUNCHBOX_PANEL_EN
-    printf("exit: frm_main=%p f_cb=%p last=%d sta=%d\n",
-           func_cb.frm_main, func_cb.f_cb, func_cb.last, func_cb.sta);
+    bool warm_from_heat = (func_cb.last == FUNC_HEAT && func_cb.sta == FUNC_NEW_WARM);
+    printf("exit: frm_main=%p f_cb=%p last=%d sta=%d warm_from_heat=%d\n",
+           func_cb.frm_main, func_cb.f_cb, func_cb.last, func_cb.sta, warm_from_heat);
 #endif
     //销毁窗体
     if (func_cb.frm_main != NULL) {
@@ -1786,12 +1787,16 @@ void func_exit(void)
         compo_form_destroy(func_cb.frm_main);
 #if ELUNCHBOX_PANEL_EN
         printf("exit: destroyed\n");
-        home_gpu_wait_idle();
-        printf("exit: wait2 done\n");
+        if (!warm_from_heat) {
+            home_gpu_wait_idle();
+            printf("exit: wait2 done\n");
+        }
         compos_init();
         printf("exit: compos_init done\n");
-        home_gpu_wait_idle();
-        printf("exit: wait3 done\n");
+        if (!warm_from_heat) {
+            home_gpu_wait_idle();
+            printf("exit: wait3 done\n");
+        }
 #endif
     }
     //释放FUNC控制结构体
