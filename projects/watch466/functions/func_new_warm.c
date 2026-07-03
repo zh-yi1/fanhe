@@ -37,8 +37,8 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_WARM_TITLE_W                  120
 #define NEW_WARM_TITLE_H                  36
 
-#define NEW_WARM_TIME_Y                   88
-#define NEW_WARM_TIME_LBL_Y               112
+#define NEW_WARM_TIME_Y                   115
+#define NEW_WARM_TIME_LBL_Y               140
 
 #define NEW_WARM_COLOR_TITLE              COLOR_BLACK
 #define NEW_WARM_COLOR_VALUE              0x2BF4
@@ -444,6 +444,7 @@ static void new_warm_text_apply(f_new_warm_t *f)
     }
     if (f->txt_elapsed_lbl != NULL) {
         compo_textbox_set(f->txt_elapsed_lbl, "Total Warm Time");
+        widget_text_set_client(f->txt_elapsed_lbl->txt, 0, 8);
         compo_textbox_set_visible(f->txt_elapsed_lbl, true);
     }
     f->last_elapsed_min = elapsed_min;
@@ -604,7 +605,7 @@ compo_form_t *func_new_warm_form_create(void)
                               GUI_SCREEN_CENTER_X, NEW_WARM_TIME_Y, 220, 36,
                               NEW_WARM_COLOR_VALUE, true);
     (void)new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED_LBL,
-                              GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y, 260, 24,
+                              GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y, 280, 40,
                               NEW_WARM_COLOR_LABEL, true);
 
     return frm;
