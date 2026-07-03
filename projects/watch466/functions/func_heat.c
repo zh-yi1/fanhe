@@ -529,6 +529,10 @@ void func_heat_temp_set_f(u16 temp_f)
 
 static void func_heat_lock_check(f_heat_t *f_heat)
 {
+#if ELUNCHBOX_PANEL_EN
+    (void)f_heat;
+    /* Panel：加热 30s 自动锁屏由 func_key_lock + lunchbox_heat_start 统一处理 */
+#else
     if (f_heat->ui_state != HEAT_UI_HEATING || f_heat->screen_locked) {
         return;
     }
@@ -536,6 +540,7 @@ static void func_heat_lock_check(f_heat_t *f_heat)
         f_heat->screen_locked = true;
         func_heat_lock_icon_apply(f_heat);
     }
+#endif
 }
 
 #if !ELUNCHBOX_PANEL_EN

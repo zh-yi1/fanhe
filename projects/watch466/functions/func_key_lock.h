@@ -14,6 +14,9 @@
 #ifndef KEY_UNLOCK_HINT_MS
 #define KEY_UNLOCK_HINT_MS              1500        //解锁图标显示(ms)
 #endif
+#ifndef HEAT_AUTO_LOCK_MS
+#define HEAT_AUTO_LOCK_MS               30000       //加热开始后自动锁屏(ms)
+#endif
 
 bool func_key_lock_is_active(void);
 bool func_key_lock_show_status_icon(bool page_local_locked);
@@ -23,6 +26,8 @@ bool func_key_lock_ku_blocked(u16 msg);
 void func_key_lock_on_page_change(void);
 void func_key_lock_on_form_destroy(void);
 void func_key_lock_notify_blocked(void);
+void func_key_lock_on_heating_start(void);
+void func_key_lock_on_heating_stop(void);
 
 #else
 
@@ -38,6 +43,8 @@ static inline bool func_key_lock_ku_blocked(u16 msg) { (void)msg; return false; 
 static inline void func_key_lock_on_page_change(void) {}
 static inline void func_key_lock_on_form_destroy(void) {}
 static inline void func_key_lock_notify_blocked(void) {}
+static inline void func_key_lock_on_heating_start(void) {}
+static inline void func_key_lock_on_heating_stop(void) {}
 
 #endif
 

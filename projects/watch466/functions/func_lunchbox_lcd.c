@@ -13,6 +13,7 @@
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "func.h"
+#include "func_key_lock.h"
 #endif
 #include "bsp_vbat.h"
 #include "heat_display_reg.h"
@@ -161,6 +162,7 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
     if (!elunchbox_pwr_is_manual_off()) {
         elunchbox_user_activity_reset();
     }
+    func_key_lock_on_heating_start();
 #endif
 
 #if !LB_BRIDGE_MODE
@@ -177,6 +179,9 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
  */
 void lunchbox_heat_stop(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    func_key_lock_on_heating_stop();
+#endif
     lb_keep_warm_active = false;
     lb_heat_lcd_active = false;
     lb_heat_task_active = false;

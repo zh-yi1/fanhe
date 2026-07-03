@@ -5,6 +5,9 @@
 
 #include "home_ui_lock_overlay.h"
 #include "bsp_pt8028_key.h"
+#include "func.h"
+#include "func_lunchbox_lcd.h"
+#include "heat_display_reg.h"
 #if USER_PANEL_LED
 #include "port_panel_led.h"
 #endif
@@ -22,6 +25,61 @@ static u32 key_lock_hint_start;
 static u8 key_lock_lp_tch;
 static u32 key_lock_lp_tick;
 static bool key_lock_lp_wait_rel;
+static u32 key_lock_heat_arm_tick;
+
+static void func_key_lock_set(bool locked);
+
+static bool func_key_lock_heating_active(void)
+{
+#if FUNC_LUNCHBOX_UART_EN
+    if (lunchbox_heating_task_active()) {
+        return true;
+    }
+#endif
+    if (heat_display_heating_active()) {
+        return true;
+    }
+    if (func_cb.sta == FUNC_HEAT && func_heat_ui_is_heating()) {
+        return true;
+    }
+    return false;
+}
+
+void func_key_lock_on_heating_start(void)
+{
+    if (key_lock_active) {
+        key_lock_heat_arm_tick = 0;
+        return;
+    }
+    if (key_lock_heat_arm_tick != 0) {
+        return;
+    }
+    key_lock_heat_arm_tick = tick_get();
+}
+
+void func_key_lock_on_heating_stop(void)
+{
+    key_lock_heat_arm_tick = 0;
+}
+
+static void func_key_lock_heat_auto_poll(void)
+{
+    if (key_lock_heat_arm_tick == 0) {
+        return;
+    }
+    if (key_lock_active) {
+        key_lock_heat_arm_tick = 0;
+        return;
+    }
+    if (!func_key_lock_heating_active()) {
+        key_lock_heat_arm_tick = 0;
+        return;
+    }
+    if (tick_check_expire(key_lock_heat_arm_tick, HEAT_AUTO_LOCK_MS)) {
+        key_lock_heat_arm_tick = 0;
+        func_key_lock_set(true);
+    }
+}
 
 bool func_key_lock_is_active(void)
 {
@@ -140,6 +198,8 @@ bool func_key_lock_ku_blocked(u16 msg)
 void func_key_lock_poll(void)
 {
     u8 tch;
+
+    func_key_lock_heat_auto_poll();
 
     if (key_lock_hint_on) {
         if (tick_check_expire(key_lock_hint_start, func_key_lock_hint_duration_ms())) {
