@@ -53,6 +53,22 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out)
     return true;
 }
 
+static bool lb_heat_autostart_pending;
+
+void lb_heat_autostart_set(bool en)
+{
+    lb_heat_autostart_pending = en;
+}
+
+bool lb_heat_autostart_consume(void)
+{
+    if (!lb_heat_autostart_pending) {
+        return false;
+    }
+    lb_heat_autostart_pending = false;
+    return true;
+}
+
 //-----------------------------------------------------------------------------
 // 状态查询
 //-----------------------------------------------------------------------------
