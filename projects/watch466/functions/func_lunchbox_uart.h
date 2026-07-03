@@ -189,6 +189,7 @@ enum {
     LB_UART_CMD_SCHEDULE    = 0x02,     // 查询预约列表
     LB_UART_CMD_SCHEDULE_OP = 0x03,     // 新增/修改/删除预约(合并)
     LB_UART_CMD_OTA         = 0x04,     // OTA(合并start/transfer/end)
+    LB_UART_CMD_HEARTBEAT   = 0x05,     // 心跳包: MCU↔加热模块, 验证双方在线 (MCU协议 v1.0.8 §6.1)
 };
 
 /*
@@ -374,6 +375,13 @@ void lunchbox_power_on(void);
 /** @brief LCD 时间同步 — 发送 UART 0x01 帧同步 Unix 时间戳到加热模块 */
 void lunchbox_time_sync(u32 unix_time);
 
+/** @brief 获取当前 Unix 时间戳
+ *
+ * 若已通过 APP 0x01 同步过权威时间，则用 synced_unix_ts + (RTCCNT - synced_rtccnt) 推算；
+ * 否则回退到 RTCCNT + LB_RTC_UNIX_OFFSET (本地RTC)。
+ */
+u32 lb_get_unix_time(void);
+
 /** @brief 加热自然结束后自动开启保温 (模式5, 140°F, 至低电关机) */
 void lunchbox_keep_warm_start(void);
 
@@ -422,6 +430,33 @@ u8 lunchbox_get_heat_enable(void);
 
 /** @brief 是否有进行中的加热/保温任务（用于禁止自动息屏） */
 bool lunchbox_heating_task_active(void);
+
+/** @brief BLE 连接成功回调 — 主动上报时间戳(0x03, dpid=11)给 APP
+ *
+ * 触发时机: ble_app_watch_connect_callback() 中调用。
+ * MCU 向 APP 发送一条 0x03 状态上报帧，仅含时间戳 DataPoint(dpid=11)。
+ * 时间戳来源: lb_get_unix_time() (已同步则用APP权威时间推算, 否则用本地RTC)。
+ *
+ * APP 可通过两条路径回传权威时间戳:
+ *   - 0x03 回传 dpid=11 → lb_ble_handle_app_time_sync() 处理 (桥模式/本地模式均支持)
+ *   - 0x01 产品信息查询 (数据区带 4B 时间戳) → lb_handler_product_info() 处理 (原有路径)
+ *
+ * MCU 收到 APP 时间戳后 → 下发 5 个固定预设 (ID 1~5) 到加热模块。
+ */
+void lunchbox_ble_on_connected(void);
+
+/** @brief BLE 连接后发送5个固定预约预设到加热模块 (UART 0x03)
+ *
+ * 触发时机: lunchbox_ble_on_connected() 中调用。
+ * MCU 向加热模块发送5条不可修改的固定预约(ID=1~5)，
+ * 命令字 0x03 (LB_UART_CMD_SCHEDULE_OP), 帧格式见 MCU通信协议.md §3.6。
+ *
+ * 预设列表:
+ *   ID=1: 早餐(8:00),   ID=2: 午餐(10:50), ID=3: 晚餐(16:30),
+ *   ID=4: 鸡腿模式,      ID=5: 意面模式
+ * 温度统一 149°F(60°C), enabled=0(停止加热), repeat=每天。
+ */
+void lunchbox_ble_send_presets(void);
 
 //-----------------------------------------------------------------------------
 // OTA 升级流程 (蓝牙通讯协议1.0.7.md §5)
@@ -519,6 +554,14 @@ void lunchbox_ble_set_tx_fn(lb_ble_tx_fn_t fn);
 
 /** @brief 处理 BLE 接收到的饭盒协议帧，自动校验+分发给命令处理器/翻译转发 */
 void lunchbox_ble_rx_handle(u8 *data, u16 len);
+bool lunchbox_ble_rx_pending(void);     // 累积缓冲区是否有待处理数据
+
+// 子系统 API (拆分后的独立模块)
+#include "func_lunchbox_lcd.h"
+#include "func_lunchbox_ble.h"
+#include "func_lunchbox_bridge.h"
+#include "func_lunchbox_ota.h"
+#include "func_lunchbox_uart_heat.h"
 
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_UART_H

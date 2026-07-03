@@ -340,7 +340,11 @@
 #define BT_HFP_RECORD_DEVICE_VOL_EN     0   //是否支持分别记录不同连接设备的通话音量
 #define BT_HFP_RING_NUMBER_EN           0   //是否支持来电报号
 #define BT_HFP_INBAND_RING_EN           0   //是否支持手机来电铃声（部分android不支持，默认用本地RING提示音）
+#if !ELUNCHBOX_PANEL_EN
 #define BT_HFP_BAT_REPORT_EN            1   //是否支持电量显示
+#else
+#define BT_HFP_BAT_REPORT_EN            0   //饭盒无 HFP，无需电量上报
+#endif
 #define BT_HFP_MSBC_EN                  0   //是否打开宽带语音功能
 #define BT_A2DP_AAC_AUDIO_EN            0   //是否支持蓝牙AAC音频格式
 #define BT_HFP_3WAY_CTRL_EN             0   //是否使能三方通话管理
@@ -382,10 +386,19 @@
 #define USE_APP_TYPE                    APP_BLUE_FIT //选择手表应用app类型
 
 //ANCS
+#if !ELUNCHBOX_PANEL_EN
 #define LE_ANCS_CLIENT_EN               1   //是否打开ANCS Clients
 #define LE_ANCS_MANUAL_EN               1   //是否需要手动打开ancs, 需要调用发起ancs连接的相关接口
+#else
+#define LE_ANCS_CLIENT_EN               0   //饭盒无 Apple 通知
+#define LE_ANCS_MANUAL_EN               0
+#endif
 //AMS
+#if !ELUNCHBOX_PANEL_EN
 #define LE_AMS_CLIENT_EN                1   //是否打开AMS Clients
+#else
+#define LE_AMS_CLIENT_EN                0   //饭盒无 Apple 音乐
+#endif
 
 #define LE_ADV0_EN                      0   //是否打开无连接广播功能
 #define LE_WIN10_POPUP                  0   //是否打开win10 swift pair快速配对
@@ -624,7 +637,7 @@
 #define PT8028_PWR_WAKE_MS              3000        //息屏/休眠后长按开关键亮屏(ms)
 #endif
 #define PT8028_LOCK_LONG_MS             3000        //锁键(TCH0)长按(ms)全局按键锁
-#define PT8028_HEAT_LONG_MS             3000        //加热键(TCH1)长按(ms)进入加热页
+#define PT8028_HEAT_LONG_MS             0           //加热键(TCH1)长按(ms)进入加热页, 0=点击即触发
 #define KEY_LOCK_HINT_MS                3000        //锁定/误触：右上角锁图标显示(ms)
 #define KEY_UNLOCK_HINT_MS              1500        //解锁图标显示(ms)
 
@@ -742,7 +755,11 @@
 /*****************************************************************************
  * Module    : Loudspeaker mute检测配置
  *****************************************************************************/
+#if !ELUNCHBOX_PANEL_EN
 #define LOUDSPEAKER_MUTE_EN             1           //是否使能功放MUTE
+#else
+#define LOUDSPEAKER_MUTE_EN             0           //饭盒无喇叭
+#endif
 #define LOUDSPEAKER_MUTE_INIT()         loudspeaker_mute_init()
 #define LOUDSPEAKER_MUTE_DIS()          loudspeaker_disable()
 #define LOUDSPEAKER_MUTE()              loudspeaker_mute()
@@ -816,7 +833,11 @@
 /*****************************************************************************
  * Module    : 提示音 功能选择
  *****************************************************************************/
+#if !ELUNCHBOX_PANEL_EN
 #define WARNING_TONE_EN                 1            //是否打开提示音功能, 总开关
+#else
+#define WARNING_TONE_EN                 0            //饭盒无需提示音
+#endif
 #define WARING_MAXVOL_MP3               0            //最大音量提示音WAV或MP3选择， 播放WAV可以与MUSIC叠加播放。
 #define WARNING_WAVRES_PLAY             0            //是否支持WAV提示音播放
 #define WARNING_VOLUME                  xcfg_cb.warning_volume   //播放提示音的音量级数

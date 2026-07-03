@@ -10,9 +10,9 @@ setuserbin(FLASH_UI_BASE, FLASH_UI_SIZE, ui.bin, 0);   #起始地址要与ui.xm�
 #if FLASHDB_EN
 setkeepseg(0x4000); //数据库使用
 #endif
-#if ((LE_AB_FOT_EN) && (AB_FOT_TYPE_PACK))
+#if AB_FOT_TYPE_PACK
 setunpack(unpack.bin);
-setpkgarea(FLASH_PKG_START, FLASH_PKG_SIZE); 
+setpkgarea(FLASH_PKG_START, FLASH_PKG_SIZE);
 #endif
 #if DONGLE_AUTH_EN
 setauth(0xDDE05A0D, soft_key);

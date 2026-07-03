@@ -687,7 +687,7 @@ static void func_timeing_save_rtc(f_timeing_t *f_timeing)
 
 #if FUNC_LUNCHBOX_UART_EN
     /* 同步时间给加热模块 */
-    lunchbox_time_sync(RTCCNT + LB_RTC_UNIX_OFFSET);
+    lunchbox_time_sync(lb_get_unix_time());
 #endif
 }
 

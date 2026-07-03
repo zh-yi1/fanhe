@@ -207,7 +207,7 @@ void param_fmrx_chbuf_read(void)
 }
 #endif // FUNC_FMRX_EN
 
-#if LE_AB_FOT_EN
+#if LE_AB_FOT_EN || FUNC_LUNCHBOX_UART_EN
 
 AT(.text.bsp.param)
 void param_fot_addr_write(u8 *param)

@@ -267,7 +267,14 @@ bool sfunc_sleep_proc(void)
 
 
 
-    PWRCON0 = (PWRCON0 & ~0x1f) | 12;           //12: 1v, 每档0.025v
+#if ELUNCHBOX_PANEL_EN
+    if (manual_off) {
+        PWRCON0 = (PWRCON0 & ~0x1f) | 8;       //8: 0.9v (手动关机极限省电，保留retention)
+    } else
+#endif
+    {
+        PWRCON0 = (PWRCON0 & ~0x1f) | 12;      //12: 1v, 每档0.025v
+    }
     if (vddio_level) {
         PWRCON0 = (PWRCON0 & ~(BIT(5)*0xF)) | BIT(5) * vddio_level;   // VDDIO电压，step=0.1V 0:2.4V
     }
@@ -277,27 +284,30 @@ bool sfunc_sleep_proc(void)
     sys_cb.sleep_wakeup_time = -1L;
     while(bt_is_sleep()) {
         WDT_CLR();
-        bt_thread_check_trigger();
+#if ELUNCHBOX_PANEL_EN
+        if (!manual_off)
+#endif
+            bt_thread_check_trigger();
         status = bt_sleep_proc();
 
 //        printf(lp_osc_str, get_sleep_proc_delay());
 #if SENSOR_HUB_EN
         bsp_senshb_lp_process();
 #endif
-        if(status == 1) {
-            ret = sleep_timer();
-            if(ret) {
+        if (status == 1) {
 #if ELUNCHBOX_PANEL_EN
-                /* 手动关机时不允许转入 hard power-down；仅允许 port/wko 硬件唤醒 */
-                if (manual_off) {
-                    if (ret == 2) {
-                        /* 低电仍需退出浅睡，交由上层处理 */
-                        break;
-                    }
-                    /* ret==1 (pwroff_delay 到期或 PWRKEY 松开)：忽略，继续浅睡等待 TCH5 */
-                } else
+            if (manual_off) {
+                /* 手动关机: 跳过 sleep_timer (省ADC/charge_detect), 仅低电退出 */
+                if (++sys_cb.sleep_counter >= 60) {
+                    sys_cb.sleep_counter = 0;
+                    ret = sleep_timer();
+                    if (ret == 2) break; /* 低电退出 */
+                }
+            } else
 #endif
-                {
+            {
+                ret = sleep_timer();
+                if (ret) {
                     if (ret == 1) {
                         func_cb.sta = FUNC_PWROFF;
                     }
@@ -308,7 +318,12 @@ bool sfunc_sleep_proc(void)
         wkpnd = port_wakeup_get_status();
         wko_wkup_flag = port_wko_is_wakeup();
 
-        port_int_sleep_process(&wkpnd);
+#if ELUNCHBOX_PANEL_EN
+        if (!manual_off)
+#endif
+        {
+            port_int_sleep_process(&wkpnd);
+        }
 #if ELUNCHBOX_PANEL_EN
         if (!manual_off)
 #endif
@@ -319,6 +334,9 @@ bool sfunc_sleep_proc(void)
             gui_need_wkp = true;
             break;
         }
+#if ELUNCHBOX_PANEL_EN
+        if (!manual_off)
+#endif
         if ((RTCCON9 & BIT(2)) || (RTCCON10 & BIT(2)) || wko_wkup_flag) {
             printf(wko_wakeup_str);
             gui_need_wkp = true;
@@ -377,6 +395,7 @@ static void sfunc_sleep(void)
     u16 adc_ch;
     uint32_t sysclk;
     u32 wkie;
+    u32 clkgat0_bak = 0;
     bool gui_need_wkp = false;
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     bool elunchbox_guioff_slp = elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta;
@@ -400,7 +419,10 @@ static void sfunc_sleep(void)
     }
 #endif
 
-    printf("%s%s\n", __func__, elunchbox_guioff_slp ? "(elunchbox guioff)" : "");
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_manual_off_slp)
+#endif
+        printf("%s%s\n", __func__, elunchbox_guioff_slp ? "(elunchbox guioff)" : "");
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_guioff_slp) {
         elunchbox_guioff_sleep_mode_enter();
@@ -512,6 +534,11 @@ static void sfunc_sleep(void)
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     PLL1CON0 &= ~0x03;                          //disable pll1
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_manual_off_slp) {
+        RTC_WDT_DIS();                          // 手动关机: 关闭RTC看门狗, 防止长休眠期间复位
+    }
+#endif
     rtc_sleep_enter();
 
     //io analog input
@@ -572,9 +599,33 @@ static void sfunc_sleep(void)
 
     wkie = WKUPCON & BIT(16);
     WKUPCON &= ~BIT(16);                        //休眠时关掉WKIE
+
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_manual_off_slp) {
+        /* 手动关机: 关闭非必要外设时钟，仅保留 RTC/GPIO/WDT/BT_SLEEP */
+        clkgat0_bak = CLKGAT0;
+        CLKGAT0 &= ~(BIT(CLKGAT0_UART0_CLK_EN)  |
+                     BIT(CLKGAT0_UART1_CLK_EN)  |
+                     BIT(CLKGAT0_HSUT0_CLK_EN)  |
+                     BIT(CLKGAT0_IIS_CLK_EN)    |
+                     BIT(CLKGAT0_SPI0_CLK_EN)   |
+                     BIT(CLKGAT0_SPI1_CLK_EN)   |
+                     BIT(CLKGAT0_SPI2_CLK_EN)   |
+                     BIT(CLKGAT0_TMR0_CLK_EN)   |
+                     BIT(CLKGAT0_TMR1_CLK_EN)   |
+                     BIT(CLKGAT0_TMR2_CLK_EN));
+    }
+#endif
+
     sleep_wakeup_config();
 
     gui_need_wkp = sfunc_sleep_proc();          //进入休眠
+
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_manual_off_slp && clkgat0_bak) {
+        CLKGAT0 = clkgat0_bak;                  // 恢复手动关机前的外设时钟
+    }
+#endif
 
     RTCCON9 = BIT(7) | BIT(5) | BIT(2);         //clr port, bt, wko wakeup pending
     RTCCON3 &= ~(BIT(17) | BIT(13));            //disable port, bt wakeup
