@@ -54,22 +54,6 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out)
     return true;
 }
 
-static bool lb_heat_autostart_pending;
-
-void lb_heat_autostart_set(bool en)
-{
-    lb_heat_autostart_pending = en;
-}
-
-bool lb_heat_autostart_consume(void)
-{
-    if (!lb_heat_autostart_pending) {
-        return false;
-    }
-    lb_heat_autostart_pending = false;
-    return true;
-}
-
 //-----------------------------------------------------------------------------
 // 新加热页 → 加热页 自动启动标志 (一次性消费)
 //-----------------------------------------------------------------------------
@@ -344,6 +328,7 @@ void lunchbox_reservation_delete(u8 id)
 // BLE 连接回调
 //-----------------------------------------------------------------------------
 
+#if 0
 /**
  * @brief 计算下一个指定时分(北京时间)的Unix时间戳
  */
@@ -357,6 +342,7 @@ static u32 lb_next_time_of_day(u8 hour, u8 min)
     }
     return target_unix;
 }
+#endif
 
 /**
  * @brief BLE 连接后发送5个固定预约预设到加热模块 (UART 0x03)
@@ -375,7 +361,7 @@ void lunchbox_ble_send_presets(void)
         return;
     }
 
-    u8 temp_idx = lunchbox_temp_f_to_idx(149);
+    // u8 temp_idx = lunchbox_temp_f_to_idx(149);
 
     // lunchbox_reservation_send(1, 1, "\xe6\x97\xa9\xe9\xa4\x90",
     //                           lb_next_time_of_day(8, 0), temp_idx, 60, 0, 0xff);
