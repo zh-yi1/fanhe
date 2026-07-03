@@ -29,7 +29,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_VERINFO_STATUS_RIGHT_MARGIN    10
 #define NEW_VERINFO_STATUS_GAP             6
 #define NEW_VERINFO_TITLE_X                36
-#define NEW_VERINFO_TITLE_Y                38
+#define NEW_VERINFO_TITLE_Y                22
 #define NEW_VERINFO_TITLE_W                200
 #define NEW_VERINFO_TITLE_H                36
 #define NEW_VERINFO_VERSION_Y              GUI_SCREEN_CENTER_Y

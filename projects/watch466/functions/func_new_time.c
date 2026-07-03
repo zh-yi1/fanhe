@@ -35,7 +35,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIME_STATUS_RIGHT_MARGIN       10
 #define NEW_TIME_STATUS_GAP                6
 #define NEW_TIME_TITLE_X                   36
-#define NEW_TIME_TITLE_Y                   38
+#define NEW_TIME_TITLE_Y                   15
 #define NEW_TIME_TITLE_W                   120
 #define NEW_TIME_TITLE_H                   36
 

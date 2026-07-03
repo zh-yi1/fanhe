@@ -29,7 +29,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_SETUP_STATUS_Y                 20
 #define NEW_SETUP_STATUS_RIGHT_MARGIN      10
 #define NEW_SETUP_STATUS_GAP               6
-#define NEW_SETUP_TITLE_Y                  38
+#define NEW_SETUP_TITLE_Y                  22
 #define NEW_SETUP_TITLE_W                  120
 #define NEW_SETUP_TITLE_H                  36
 
