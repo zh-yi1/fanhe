@@ -205,9 +205,9 @@ void home_ui_lock_overlay_show(bool unlock_icon)
     lock_overlay_visible = true;
     home_ui_lock_overlay_bring_front_internal();
 
-    compo_update();
-    home_gpu_wait_idle();
-    os_gui_draw_force();
+    /* 让主循环中的 compo_update() + gui_process() 自然渲染 overlay，
+       避免在此处强制 home_gpu_wait_idle() + os_gui_draw_force()
+       阻塞 GUI 线程导致 "gui thread miss" 及锁图标显示延迟 */
     WDT_CLR();
 }
 
