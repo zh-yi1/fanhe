@@ -321,6 +321,7 @@ static const u16 tbl_mode_g_digit_w[10] = {
     MODE_G5_W, MODE_G6_W, MODE_G7_W, MODE_G8_W, MODE_G9_W,
 };
 
+#if 0
 static const u16 tbl_mode_g_digit_h[10] = {
     MODE_G0_H, MODE_G1_H, MODE_G2_H, MODE_G3_H, MODE_G4_H,
     MODE_G5_H, MODE_G6_H, MODE_G7_H, MODE_G8_H, MODE_G9_H,
@@ -332,13 +333,12 @@ static const u32 tbl_mode_digit_white_addr[10] = {
     UI_BUF_HOME_8_BIN, UI_BUF_HOME_9_BIN,
 };
 
-
-
 static const u16 tbl_mode_digit_white_len[10] = {
     UI_LEN_HOME_0_BIN, UI_LEN_HOME_1_BIN, UI_LEN_HOME_2_BIN, UI_LEN_HOME_3_BIN,
     UI_LEN_HOME_4_BIN, UI_LEN_HOME_5_BIN, UI_LEN_HOME_6_BIN, UI_LEN_HOME_7_BIN,
     UI_LEN_HOME_8_BIN, UI_LEN_HOME_9_BIN,
 };
+#endif
 
 /* Mode 中部倒计时使用 w0x（白字，与 Heat 共享 RAM，不占用 home_ui_digit_ram） */
 static const u32 tbl_mode_w_digit_addr[10] = {
@@ -627,12 +627,14 @@ void func_mode_temp_set_f(u16 temp_f)
     }
 }
 
+#if !FUNC_LUNCHBOX_UART_EN
 static void func_mode_countdown_tick(void)
 {
     if (mode_countdown_running && mode_countdown_remain_sec > 0) {
         mode_countdown_remain_sec--;
     }
 }
+#endif
 
 static void func_mode_lock_check(f_mode_t *f_mode)
 {
@@ -1198,19 +1200,16 @@ static compo_shape_t *func_mode_tab_line_create(compo_form_t *frm, u16 id, s16 x
 
 static void func_mode_tab_create(compo_form_t *frm, u8 idx, u16 id_base, const char *label, s16 x)
 {
-    compo_shape_t *sel_bg;
-    compo_shape_t *border_out;
-    compo_shape_t *border_in;
     compo_picturebox_t *pic;
     compo_picturebox_t *pic_label;
     compo_button_t *btn;
 
-    sel_bg = func_mode_shape_create(frm, id_base + 0, x, MODE_TAB_BTN_Y,
-                                    MODE_TAB_BTN_W, MODE_TAB_BTN_H, MODE_COLOR_BLUE, MODE_TAB_BTN_R);
-    border_out = func_mode_shape_create(frm, id_base + 1, x, MODE_TAB_BTN_Y,
-                                        MODE_TAB_BTN_W, MODE_TAB_BTN_H, COLOR_WHITE, MODE_TAB_BTN_R);
-    border_in = func_mode_shape_create(frm, id_base + 2, x, MODE_TAB_BTN_Y,
-                                       MODE_TAB_BTN_W - 4, MODE_TAB_BTN_H - 4, COLOR_BLACK, MODE_TAB_BTN_R_IN);
+    func_mode_shape_create(frm, id_base + 0, x, MODE_TAB_BTN_Y,
+                           MODE_TAB_BTN_W, MODE_TAB_BTN_H, MODE_COLOR_BLUE, MODE_TAB_BTN_R);
+    func_mode_shape_create(frm, id_base + 1, x, MODE_TAB_BTN_Y,
+                           MODE_TAB_BTN_W, MODE_TAB_BTN_H, COLOR_WHITE, MODE_TAB_BTN_R);
+    func_mode_shape_create(frm, id_base + 2, x, MODE_TAB_BTN_Y,
+                           MODE_TAB_BTN_W - 4, MODE_TAB_BTN_H - 4, COLOR_BLACK, MODE_TAB_BTN_R_IN);
 
     pic = compo_picturebox_create(frm, UI_MODE_PLACEHOLDER);
     compo_setid(pic, tbl_mode_tab_pic_id[idx]);

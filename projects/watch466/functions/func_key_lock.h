@@ -21,6 +21,7 @@ void func_key_lock_poll(void);
 bool func_key_lock_filter_tch(u8 tch);
 bool func_key_lock_ku_blocked(u16 msg);
 void func_key_lock_on_page_change(void);
+void func_key_lock_on_form_destroy(void);
 void func_key_lock_notify_blocked(void);
 
 #else
@@ -35,6 +36,7 @@ static inline void func_key_lock_poll(void) {}
 static inline bool func_key_lock_filter_tch(u8 tch) { (void)tch; return false; }
 static inline bool func_key_lock_ku_blocked(u16 msg) { (void)msg; return false; }
 static inline void func_key_lock_on_page_change(void) {}
+static inline void func_key_lock_on_form_destroy(void) {}
 static inline void func_key_lock_notify_blocked(void) {}
 
 #endif

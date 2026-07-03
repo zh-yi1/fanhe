@@ -1,6 +1,7 @@
 #include "include.h"
 #include "home_ui_lock_overlay.h"
 #include "new_home_icon_res.h"
+#include "home_ui_lock_res.h"
 #include "home_ui_shared.h"
 #include "home_ui_ram.h"
 #include "new_heat_res.h"

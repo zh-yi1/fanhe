@@ -910,6 +910,7 @@ static void new_heat_power_key(f_new_heat_t *f)
 }
 
 /* 定期刷新状态栏（蓝牙、电量电池图标按原始逻辑显示） */
+#if !ELUNCHBOX_PANEL_EN
 static void new_heat_status_refresh(f_new_heat_t *f)
 {
     if (f == NULL) {
@@ -928,6 +929,7 @@ static void new_heat_status_refresh(f_new_heat_t *f)
     home_ui_shared_status_bind_bat(f->pic_bat);
 #endif
 }
+#endif
 
 static compo_textbox_t *new_heat_txt_create(compo_form_t *frm, u16 id, u32 font_addr,
                                             s16 x, s16 y, u16 color, bool center)

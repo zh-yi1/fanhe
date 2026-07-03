@@ -58,7 +58,8 @@ const u8 SYS_CTL_ON_TO_FUNC_STA_TABLE[] = {
     SYS_CTL_FUNC_SETTINGS_ON,       FUNC_SETTING,
 };
 
-#define LIST_ITEM_CNT_MAX (sizeof(tbl_list_data) / sizeof(tbl_list_data[0]))
+/* UI_BUF_ICON_*_BIN 未定义，tbl_list_data 为占位空数组；实际条目数固定为 17 */
+#define LIST_ITEM_CNT_MAX                   17
 
 static u8 list_data_sort[LIST_ITEM_CNT_MAX] = {
     SYS_CTL_FUNC_ACTIVITY_ON,

@@ -1881,6 +1881,7 @@ void func_exit(void)
     //销毁窗体
     if (func_cb.frm_main != NULL) {
 #if ELUNCHBOX_PANEL_EN
+        func_key_lock_on_form_destroy();
         printf("exit: destroy form\n");
         if (elunchbox_te_block_flag) {
             elunchbox_te_block_flag = 0;

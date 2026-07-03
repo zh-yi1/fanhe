@@ -463,6 +463,7 @@ static u8 pt8028_press_tch_resolve(void)
     return 0xff;
 }
 
+#if 0
 /*
  * 释放沿：OUT_FLAG=1 读 Hold；111 为空闲。
  * Hold 无效时回退到按下阶段(OUT_FLAG=0)采样结果。
@@ -491,17 +492,20 @@ static u8 pt8028_release_tch_resolve(u8 hold_raw)
 #endif
     return tch;
 }
+#endif
 
 #ifndef PT8028_HOLD_READ_CNT
 #define PT8028_HOLD_READ_CNT            8
 #endif
 
+#if 0
 /* 释放沿：OUT_FLAG=1 立即连读 Hold，多数表决（高阻） */
 AT(.com_text.bsp.pt8028)
 static u8 pt8028_hold_read_maj(void)
 {
     return pt8028_read_bcd_hold();
 }
+#endif
 
 /* OUT_FLAG=0 时 BCD 输出即键值（表2） */
 AT(.com_text.bsp.pt8028)
@@ -662,6 +666,7 @@ static void pt8028_press_sample(void)
 #endif
 }
 
+#if 0
 AT(.com_text.bsp.pt8028)
 static void pt8028_release_hold_sample(void)
 {
@@ -672,6 +677,7 @@ static void pt8028_release_hold_sample(void)
         pt8028_hist_accum(pt8028_cb.release_hold_hist, bcd);
     }
 }
+#endif
 
 AT(.com_text.bsp.pt8028)
 static u8 pt8028_hist_best_tch06(void)
@@ -702,6 +708,7 @@ static bool pt8028_hist_tch7_only(void)
 }
 
 /* 松手 Hold：OUT_FLAG=1 时 D 应 Hold TCH0~6；111 为空闲态不是键 */
+#if !ELUNCHBOX_PANEL_EN
 AT(.com_text.bsp.pt8028)
 static u8 pt8028_hold_hist_to_tch(const u8 *hold_hist)
 {
@@ -713,6 +720,7 @@ static u8 pt8028_hold_hist_to_tch(const u8 *hold_hist)
     }
     return 0xff;
 }
+#endif
 
 /*
  * 松手解析：饭盒按表2读 Hold；非饭盒走 hist/snap。
@@ -720,12 +728,12 @@ static u8 pt8028_hold_hist_to_tch(const u8 *hold_hist)
 AT(.com_text.bsp.pt8028)
 static u8 pt8028_release_tch_get(void)
 {
-    u8 tch;
-    u8 hold;
-
 #if ELUNCHBOX_PANEL_EN
     return pt8028_elunchbox_release_tch();
 #else
+    u8 tch;
+    u8 hold;
+
     if (pt8028_cb.press_snap_tch <= PT8028_KEY_TCH6) {
         return pt8028_cb.press_snap_tch;
     }
@@ -884,6 +892,7 @@ static void pt8028_emit_short_up(u8 tch)
 #endif
 }
 
+#if !ELUNCHBOX_PANEL_EN
 AT(.com_text.bsp.pt8028)
 static void pt8028_release_finish(void)
 {
@@ -913,6 +922,7 @@ static void pt8028_release_finish(void)
     pt8028_cb.press_key = NO_KEY;
     pt8028_cb.press_snap_tch = PT8028_KEY_NONE;
 }
+#endif
 
 AT(.com_text.bsp.pt8028)
 void pt8028_gpio_mark_configured(void)

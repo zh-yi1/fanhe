@@ -3,28 +3,11 @@
 
 #if ELUNCHBOX_PANEL_EN
 
+#include "home_ui_lock_overlay.h"
 #include "bsp_pt8028_key.h"
 #if USER_PANEL_LED
 #include "port_panel_led.h"
 #endif
-
-typedef struct f_home_t_ f_home_t;
-typedef struct f_heat_t_ f_heat_t;
-typedef struct f_mode_t_ f_mode_t;
-typedef struct f_setup_t_ f_setup_t;
-typedef struct f_timeing_t_ f_timeing_t;
-typedef struct f_languageing_t_ f_languageing_t;
-typedef struct f_verinfo_t_ f_verinfo_t;
-typedef struct f_reservation_t_ f_reservation_t;
-
-void func_home_lock_icon_apply(f_home_t *f_home);
-void func_heat_lock_icon_apply(f_heat_t *f_heat);
-void func_mode_lock_icon_apply(f_mode_t *f_mode);
-void func_setup_lock_icon_apply(f_setup_t *f_setup);
-void func_timeing_lock_icon_apply(f_timeing_t *f_timeing);
-void func_languageing_lock_icon_apply(f_languageing_t *f_lang);
-void func_verinfo_lock_icon_apply(f_verinfo_t *f_verinfo);
-void func_res_lock_icon_apply(f_reservation_t *f_res);
 
 typedef enum {
     KEY_LOCK_HINT_NONE = 0,
@@ -47,47 +30,17 @@ bool func_key_lock_is_active(void)
 
 bool func_key_lock_show_status_icon(bool page_local_locked)
 {
-    return page_local_locked || key_lock_hint_on;
+    /* 全局按键锁用全屏 new_lock/new_unlock overlay，右上角小锁仅用于页内 screen_locked */
+    return page_local_locked;
 }
 
-static void func_key_lock_refresh_ui(void)
+static void func_key_lock_overlay_apply(void)
 {
-    if (func_cb.f_cb == NULL) {
-        return;
+    if (key_lock_hint_on) {
+        home_ui_lock_overlay_show(key_lock_hint_mode == KEY_LOCK_HINT_UNLOCK);
+    } else {
+        home_ui_lock_overlay_hide();
     }
-    switch (func_cb.sta) {
-    case FUNC_HOME:
-        func_home_lock_icon_apply((f_home_t *)func_cb.f_cb);
-        break;
-    case FUNC_HEAT:
-        func_heat_lock_icon_apply((f_heat_t *)func_cb.f_cb);
-        break;
-    case FUNC_MODE:
-        func_mode_lock_icon_apply((f_mode_t *)func_cb.f_cb);
-        break;
-    case FUNC_SETUP:
-        func_setup_lock_icon_apply((f_setup_t *)func_cb.f_cb);
-        break;
-    case FUNC_TIMEING:
-        func_timeing_lock_icon_apply((f_timeing_t *)func_cb.f_cb);
-        break;
-    case FUNC_LANGUAGEING:
-        func_languageing_lock_icon_apply((f_languageing_t *)func_cb.f_cb);
-        break;
-    case FUNC_VERINFO:
-        func_verinfo_lock_icon_apply((f_verinfo_t *)func_cb.f_cb);
-        break;
-    case FUNC_RESERVATION:
-#if !ELUNCHBOX_PANEL_EN
-        func_res_lock_icon_apply((f_reservation_t *)func_cb.f_cb);
-#endif
-        break;
-    default:
-        break;
-    }
-#if ELUNCHBOX_PANEL_EN
-    os_gui_draw_force();
-#endif
 }
 
 static void func_key_lock_hint_show(key_lock_hint_mode_t mode)
@@ -95,7 +48,7 @@ static void func_key_lock_hint_show(key_lock_hint_mode_t mode)
     key_lock_hint_mode = mode;
     key_lock_hint_on = true;
     key_lock_hint_start = tick_get();
-    func_key_lock_refresh_ui();
+    func_key_lock_overlay_apply();
 }
 
 static void func_key_lock_hint_hide(void)
@@ -105,7 +58,7 @@ static void func_key_lock_hint_hide(void)
     }
     key_lock_hint_on = false;
     key_lock_hint_mode = KEY_LOCK_HINT_NONE;
-    func_key_lock_refresh_ui();
+    home_ui_lock_overlay_hide();
 }
 
 static u32 func_key_lock_hint_duration_ms(void)
@@ -139,9 +92,15 @@ static void func_key_lock_set(bool locked)
 
 void func_key_lock_on_page_change(void)
 {
+    home_ui_lock_overlay_reset();
     if (key_lock_hint_on) {
-        func_key_lock_refresh_ui();
+        func_key_lock_overlay_apply();
     }
+}
+
+void func_key_lock_on_form_destroy(void)
+{
+    home_ui_lock_overlay_reset();
 }
 
 bool func_key_lock_filter_tch(u8 tch)
@@ -149,6 +108,7 @@ bool func_key_lock_filter_tch(u8 tch)
     if (!key_lock_active) {
         return false;
     }
+    /* 锁定态仅电源键 TCH5 有效 */
     if (tch == PT8028_KEY_TCH5) {
         return false;
     }
@@ -181,9 +141,12 @@ void func_key_lock_poll(void)
 {
     u8 tch;
 
-    if (key_lock_hint_on &&
-        tick_check_expire(key_lock_hint_start, func_key_lock_hint_duration_ms())) {
-        func_key_lock_hint_hide();
+    if (key_lock_hint_on) {
+        if (tick_check_expire(key_lock_hint_start, func_key_lock_hint_duration_ms())) {
+            func_key_lock_hint_hide();
+        } else {
+            home_ui_lock_overlay_bring_front();
+        }
     }
 
     if (key_lock_lp_wait_rel) {

@@ -303,7 +303,7 @@ compo_form_t *func_bt_form_create(void)
     compo_textbox_set(lyric_txt, i18n[STR_UNKNOWN]);
 
     //新建按钮
-    compo_button_t *btn;
+    // compo_button_t *btn;
     // btn = compo_button_create_by_image(frm, UI_BUF_MUSIC_PREV_BIN);
     // compo_setid(btn, COMPO_ID_BTN_PREV);
     // compo_button_set_pos(btn, 64, GUI_SCREEN_CENTER_Y);
@@ -377,8 +377,6 @@ static void func_bt_music_play_btnpic_refresh(u8 sta)
     if (!bt_cb.bt_form_created) {
         return ;
     }
-    compo_button_t *btn = compo_getobj_byid(COMPO_ID_BTN_PLAY);
-
     if (sta) {
      //   compo_button_set_bgimg(btn, UI_BUF_MUSIC_PAUSE_BIN);
     } else {

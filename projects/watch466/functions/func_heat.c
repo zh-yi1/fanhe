@@ -210,7 +210,9 @@ static const u16 tbl_heat_temp_preset[HEAT_TEMP_PRESET_CNT] = {
 
 static u8 heat_temp_digit_ram[HEAT_TEMP_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
 static u8 heat_temp_degf_ram[HEAT_TEMP_DEG_RAM_MAX_SIZE];
+#if !ELUNCHBOX_PANEL_EN
 static u8 heat_temp_suffix_ram[HEAT_TEMP_SUF_RAM_MAX_SIZE];
+#endif
 
 static u32 heat_countdown_remain_sec;
 static bool heat_countdown_running;
@@ -249,6 +251,7 @@ static const u16 tbl_heat_b_digit_w[10] = {
     HEAT_B5X_W, HEAT_B6X_W, HEAT_B7X_W, HEAT_B8X_W, HEAT_B9X_W,
 };
 
+#if !ELUNCHBOX_PANEL_EN
 static const u16 tbl_heat_timer_id[HEAT_TIMER_IDX_CNT] = {
     COMPO_ID_PIC_TIMER_H10, COMPO_ID_PIC_TIMER_H1,
     COMPO_ID_PIC_TIMER_M10, COMPO_ID_PIC_TIMER_M1,
@@ -257,6 +260,7 @@ static const u16 tbl_heat_timer_id[HEAT_TIMER_IDX_CNT] = {
 static const u16 tbl_heat_temp_id[HEAT_TEMP_IDX_CNT] = {
     COMPO_ID_PIC_TEMP_H, COMPO_ID_PIC_TEMP_T10, COMPO_ID_PIC_TEMP_T1,
 };
+#endif
 
 static void func_heat_display_refresh(f_heat_t *f_heat);
 static void func_heat_heating_finish_check(f_heat_t *f_heat);
@@ -312,6 +316,7 @@ static void func_heat_reset_setup(f_heat_t *f_heat)
     func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
 }
 
+#if !ELUNCHBOX_PANEL_EN
 static void func_heat_display_on_info(const heat_display_info_t *info)
 {
     printf("func_heat_display_on_info\n");
@@ -357,6 +362,7 @@ static void func_heat_status_icons_apply(f_heat_t *f_heat)
     }
     home_ui_shared_status_bind_bat(f_heat->pic_bat);
 }
+#endif
 
 void func_heat_lock_icon_apply(f_heat_t *f_heat)
 {
@@ -532,6 +538,7 @@ static void func_heat_lock_check(f_heat_t *f_heat)
     }
 }
 
+#if !ELUNCHBOX_PANEL_EN
 static void func_heat_heating_finish_check(f_heat_t *f_heat)
 {
     if (f_heat->ui_state != HEAT_UI_HEATING) {
@@ -548,6 +555,7 @@ static void func_heat_heating_finish_check(f_heat_t *f_heat)
     func_heat_led_sync(false);
     func_mode_keep_warm_enter();
 }
+#endif
 
 static void func_heat_status_refresh(f_heat_t *f_heat)
 {
@@ -566,6 +574,7 @@ static void func_heat_status_refresh(f_heat_t *f_heat)
     func_heat_lock_check(f_heat);
 }
 
+#if !ELUNCHBOX_PANEL_EN
 static void func_heat_timer_layout_ex(f_heat_t *f_heat, u8 hour, u8 min, bool h_white, bool m_white)
 {
     const u16 *htbl = h_white ? tbl_heat_w_digit_w : tbl_heat_b_digit_w;
@@ -604,7 +613,9 @@ static void func_heat_timer_layout_ex(f_heat_t *f_heat, u8 hour, u8 min, bool h_
     compo_picturebox_set_size(f_heat->pic_timer[HEAT_TIMER_IDX_M1],
                               mtbl[m_digits[1]], m_digit_h);
 }
+#endif
 
+#if !ELUNCHBOX_PANEL_EN
 static void func_heat_timer_update_ex(f_heat_t *f_heat, u8 hour, u8 min, bool h_white, bool m_white)
 {
     u8 digits[HEAT_TIMER_IDX_CNT];
@@ -643,6 +654,7 @@ static void func_heat_timer_update_ex(f_heat_t *f_heat, u8 hour, u8 min, bool h_
 
     func_heat_timer_layout_ex(f_heat, hour, min, h_white, m_white);
 }
+#endif
 
 static void func_heat_display_refresh(f_heat_t *f_heat)
 {
@@ -1337,7 +1349,9 @@ static bool func_heat_key_page_ok(void)
 void func_heat_key_poll(void)
 {
     static u8 heat_key_lp_tch = PT8028_KEY_NONE;
+#if PT8028_HEAT_LONG_MS > 0
     static u32 heat_key_lp_tick;
+#endif
     static bool heat_key_lp_wait_rel;
 
     u8 tch;
@@ -1381,7 +1395,9 @@ void func_heat_key_poll(void)
     if (tch == PT8028_KEY_TCH1) {
         if (heat_key_lp_tch != PT8028_KEY_TCH1) {
             heat_key_lp_tch = PT8028_KEY_TCH1;
+#if PT8028_HEAT_LONG_MS > 0
             heat_key_lp_tick = tick_get();
+#endif
 #if PT8028_HEAT_LONG_MS == 0
             func_elunchbox_switch_to_heat();
             heat_key_lp_wait_rel = true;

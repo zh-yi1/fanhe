@@ -117,6 +117,7 @@ static void new_lang_title_txt_show(compo_textbox_t *txt);
 static void new_lang_sel_bg_apply(f_new_lang_t *f);
 
 #if ELUNCHBOX_PANEL_EN
+#if 0
 static bool new_lang_gpu_ram_bind(u8 *ram, u16 buf_size, u32 addr, u16 len,
                                   compo_picturebox_t *pic, u16 w, u16 h, s16 x, s16 y)
 {
@@ -145,6 +146,7 @@ static bool new_lang_gpu_ram_bind(u8 *ram, u16 buf_size, u32 addr, u16 len,
     compo_picturebox_set_visible(pic, true);
     return true;
 }
+#endif
 
 static void new_lang_arrow_ram_ensure(void)
 {
