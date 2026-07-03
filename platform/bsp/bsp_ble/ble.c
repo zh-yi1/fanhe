@@ -194,7 +194,26 @@ void ble_init_att(void)
 //可重定义该函数修改ble地址
 void ble_get_local_bd_addr(u8 *addr)
 {
-    memcpy(addr, xcfg_cb.bt_addr, 6);
+    // 优先使用 xcfg 烧录的唯一 MAC 地址
+    // 若为默认值 (41:42:00:00:00:xx) 则使用 flash 持久化的随机密钥
+    if (xcfg_cb.bt_addr[0] == 0x41 && xcfg_cb.bt_addr[1] == 0x42
+        && xcfg_cb.bt_addr[2] == 0x00 && xcfg_cb.bt_addr[3] == 0x00) {
+        u32 key;
+        cm_read((u8*)&key, PAGE0(PARAM_RANDOM_KEY), 4);
+        if (key == 0 || key == UINT_MAX) {
+            key = sys_cb.rand_seed;
+            cm_write((u8*)&key, PAGE0(PARAM_RANDOM_KEY), 4);
+            cm_sync();
+        }
+        addr[0] = 0x41;
+        addr[1] = 0x42;
+        addr[2] = (key >> 24) & 0xFF;
+        addr[3] = (key >> 16) & 0xFF;
+        addr[4] = (key >> 8) & 0xFF;
+        addr[5] = key & 0xFF;
+    } else {
+        memcpy(addr, xcfg_cb.bt_addr, 6);
+    }
 #if !LE_SM_SC_EN
     addr[5] ^= 0x55;
 #endif

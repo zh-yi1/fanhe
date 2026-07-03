@@ -708,6 +708,10 @@ void ble_app_watch_init(void)
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_ble_set_tx_fn(lb_ble_tx_wrapper);
 #endif
+
+    // 显式设置 BLE 空口地址为 flash 持久化的固定地址
+    // 避免 SDK 库每次初始化时生成随机地址导致手机无法重连
+    bt_ctrl0_msg(BT_CTL0_BLE_SET_BLE_ADDR);
 }
 
 /**
