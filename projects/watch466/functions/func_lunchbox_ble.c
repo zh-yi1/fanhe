@@ -26,6 +26,7 @@
 #include "func_lunchbox_ble.h"
 #include "func_lunchbox_bridge.h"
 #include "func_lunchbox_uart_heat.h"
+
 #include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
@@ -244,7 +245,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             }
 
             if (to_heat) {
-                // 加热模块 OTA: 先存储→校验CRC→再通过UART发送 (func_lunchbox_uart_heat.c)
+                // 加热模块 OTA: 存储到 SPI Flash → 校验CRC → UART发送
                 printf("OTA: target=0x%02X -> heat module OTA handler\n", target);
                 switch (frame.cmd) {
                 case LB_CMD_OTA_START:

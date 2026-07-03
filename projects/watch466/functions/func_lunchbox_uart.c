@@ -14,7 +14,7 @@
 #include "func_lunchbox_ota.h"
 #include "func_lunchbox_bridge.h"
 #include "func_lunchbox_ble.h"
-#include "func_lunchbox_uart_heat.h"
+
 #include "func_lunchbox_lcd.h"
 #include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN

@@ -26,7 +26,7 @@
 //-----------------------------------------------------------------------------
 
 /** @brief OTA 数据存储缓冲区大小 (字节), 需能容纳完整的加热模块固件 */
-#define HEAT_OTA_BUF_SIZE           (20 * 1024)   // 40KB, buffer在disp区不占sram
+#define HEAT_OTA_BUF_SIZE           (20 * 1024)   
 
 /** @brief 每包 UART 发送的数据大小 (MCU协议默认128字节, 必须可被16整除) */
 #define HEAT_OTA_PACKET_SIZE        128
