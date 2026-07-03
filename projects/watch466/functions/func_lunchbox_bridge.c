@@ -106,6 +106,31 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
             p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
             memcpy(p, rx->data, rx->data_len);
             p += rx->data_len;
+
+            // 扫描 BLE 数据: 若 APP 仅下发 DP02=0(模式=关闭) 而未带 DP10(是否加热),
+            // 则自动补充 DP10=0(停止加热), 使 MCU 收到明确的停止加热信号
+            // 对应蓝牙通讯协议 §3.4 / §4.1.7 — DP10 是控制加热启停的专用属性
+            {
+                bool has_dp02_off = false;
+                bool has_dp10     = false;
+                u16 off = 0;
+                while (off + 4 <= rx->data_len) {
+                    u8  dpid    = rx->data[off];
+                    u16 val_len = ((u16)rx->data[off + 2] << 8) | rx->data[off + 3];
+                    if (off + 4 + val_len > rx->data_len) break;
+                    if (dpid == LB_DPID_HEAT_MODE && val_len >= 1 && rx->data[off + 4] == 0) {
+                        has_dp02_off = true;
+                    }
+                    if (dpid == LB_DPID_HEAT_ENABLE) {
+                        has_dp10 = true;
+                    }
+                    off += 4 + val_len;
+                }
+                if (has_dp02_off && !has_dp10) {
+                    p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 0);
+                }
+            }
+
             *out_len = p - out_data;
 
             heat_display_feed_dp(rx->data, rx->data_len);
