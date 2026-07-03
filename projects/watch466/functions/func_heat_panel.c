@@ -36,8 +36,8 @@ extern volatile u8 elunchbox_te_block_flag;
 #define HEAT_PANEL_COLOR_VALUE          0x2BF4
 #define HEAT_PANEL_COLOR_LABEL          0x0AD8
 
-#define HEAT_PANEL_REMAIN_Y             88
-#define HEAT_PANEL_REMAIN_LBL_Y         112
+#define HEAT_PANEL_REMAIN_Y             115
+#define HEAT_PANEL_REMAIN_LBL_Y         140
 #define HEAT_PANEL_SHOW_Y               210
 #define HEAT_PANEL_TEMP_X               72
 #define HEAT_PANEL_DUR_X                248
@@ -606,7 +606,7 @@ compo_form_t *func_heat_panel_form_create(void)
     g_hp.txt_remain_lbl = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_REMAIN_LBL,
                                          GUI_SCREEN_CENTER_X, HEAT_PANEL_REMAIN_LBL_Y,
                                          HEAT_PANEL_COLOR_LABEL, true);
-    compo_textbox_set_location(g_hp.txt_remain_lbl, GUI_SCREEN_CENTER_X, HEAT_PANEL_REMAIN_LBL_Y, 260, 24);
+    compo_textbox_set_location(g_hp.txt_remain_lbl, GUI_SCREEN_CENTER_X, HEAT_PANEL_REMAIN_LBL_Y, 260, 38);
 
     g_hp.txt_temp = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_TEMP,
                                    HEAT_PANEL_TEMP_X, HEAT_PANEL_VAL_Y,
