@@ -38,11 +38,11 @@ extern volatile u8 elunchbox_te_block_flag;
 
 #define HEAT_PANEL_REMAIN_Y             115
 #define HEAT_PANEL_REMAIN_LBL_Y         140
-#define HEAT_PANEL_SHOW_Y               210
+#define HEAT_PANEL_SHOW_Y               215
 #define HEAT_PANEL_TEMP_X               72
 #define HEAT_PANEL_DUR_X                248
-#define HEAT_PANEL_VAL_Y                192
-#define HEAT_PANEL_LBL_Y                212
+#define HEAT_PANEL_VAL_Y                196
+#define HEAT_PANEL_LBL_Y                218
 
 #define HEAT_PANEL_ARC_CX               (GUI_SCREEN_WIDTH / 2)
 #define HEAT_PANEL_ARC_CY               95
@@ -538,6 +538,7 @@ static void heat_panel_text_apply(const void *f_heat)
     }
     if (g_hp.txt_temp_lbl != NULL) {
         compo_textbox_set(g_hp.txt_temp_lbl, "Heating Temp");
+        widget_text_set_client(g_hp.txt_temp_lbl->txt, 0, 7);
         compo_textbox_set_visible(g_hp.txt_temp_lbl, true);
     }
 
@@ -548,6 +549,7 @@ static void heat_panel_text_apply(const void *f_heat)
     }
     if (g_hp.txt_dur_lbl != NULL) {
         compo_textbox_set(g_hp.txt_dur_lbl, "Heating Duration");
+        widget_text_set_client(g_hp.txt_dur_lbl->txt, 0, 7);
         compo_textbox_set_visible(g_hp.txt_dur_lbl, true);
     }
 }
@@ -616,7 +618,7 @@ compo_form_t *func_heat_panel_form_create(void)
     g_hp.txt_temp_lbl = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_TEMP_LBL,
                                        HEAT_PANEL_TEMP_X, HEAT_PANEL_LBL_Y,
                                        HEAT_PANEL_COLOR_LABEL, true);
-    compo_textbox_set_location(g_hp.txt_temp_lbl, HEAT_PANEL_TEMP_X, HEAT_PANEL_LBL_Y, 120, 22);
+    compo_textbox_set_location(g_hp.txt_temp_lbl, HEAT_PANEL_TEMP_X, HEAT_PANEL_LBL_Y, 120, 26);
 
     g_hp.txt_dur = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_DUR,
                                   HEAT_PANEL_DUR_X, HEAT_PANEL_VAL_Y,
@@ -626,7 +628,7 @@ compo_form_t *func_heat_panel_form_create(void)
     g_hp.txt_dur_lbl = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_DUR_LBL,
                                       HEAT_PANEL_DUR_X, HEAT_PANEL_LBL_Y,
                                       HEAT_PANEL_COLOR_LABEL, true);
-    compo_textbox_set_location(g_hp.txt_dur_lbl, HEAT_PANEL_DUR_X, HEAT_PANEL_LBL_Y, 120, 22);
+    compo_textbox_set_location(g_hp.txt_dur_lbl, HEAT_PANEL_DUR_X, HEAT_PANEL_LBL_Y, 120, 26);
 
     g_hp.ui_ready = true;
 
