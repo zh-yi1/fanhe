@@ -58,7 +58,11 @@ const u8 SYS_CTL_ON_TO_FUNC_STA_TABLE[] = {
     SYS_CTL_FUNC_SETTINGS_ON,       FUNC_SETTING,
 };
 
-#define LIST_ITEM_CNT_MAX (sizeof(tbl_list_data) / sizeof(tbl_list_data[0]))
+/* UI_BUF_ICON_*_BIN 未定义，tbl_list_data 为占位空数组；实际条目数固定为 17 */
+#define LIST_ITEM_CNT_MAX                   17
+
+/* list_data_sort + 配套操作函数：功能暂不可用，#if 0 避免空数组越界警告 */
+#if 0
 
 static u8 list_data_sort[LIST_ITEM_CNT_MAX] = {
     SYS_CTL_FUNC_ACTIVITY_ON,
@@ -80,7 +84,6 @@ static u8 list_data_sort[LIST_ITEM_CNT_MAX] = {
     SYS_CTL_FUNC_SETTINGS_ON,
 };
 
-//根据vidx信息获取list_data
 static const compo_listbox_item_t *get_tbl_list_data_by_vidx(u16 vidx)
 {
     for (u8 i = 0; i < LIST_ITEM_CNT_MAX; i++) {
@@ -88,272 +91,97 @@ static const compo_listbox_item_t *get_tbl_list_data_by_vidx(u16 vidx)
             return (compo_listbox_item_t *)&tbl_list_data[i];
         }
     }
-
     return NULL;
 }
 
-//根据排序表更新list_data
 static void func_compo_list_data_update(void)
 {
     f_compo_select_sub_t *f_compo_select_sub = (f_compo_select_sub_t *)func_cb.f_cb;
     compo_listbox_item_t *p_list_data = f_compo_select_sub->p_list_data;
-    int i;
-
-    for (i = 0; i < LIST_ITEM_CNT_MAX; i++) {
+    for (int i = 0; i < LIST_ITEM_CNT_MAX; i++) {
         if (list_data_sort[i] != p_list_data[i].vidx) {
             memcpy(&p_list_data[i], get_tbl_list_data_by_vidx(list_data_sort[i]), sizeof(compo_listbox_item_t));
         }
     }
 }
 
-//获取已添加数量
 static u8 list_data_sort_get_add_cnt(void)
 {
-    int i;
     u8 cnt = 0;
-
-    for (i = 0; i < LIST_ITEM_CNT_MAX; i++) {
-        if (bsp_sys_get_ctlbit(list_data_sort[i])) {
-            cnt ++;
-        } else {
-            break;
-        }
+    for (int i = 0; i < LIST_ITEM_CNT_MAX; i++) {
+        if (bsp_sys_get_ctlbit(list_data_sort[i])) { cnt++; } else { break; }
     }
-
     return cnt;
 }
 
-//添加
 static void list_data_sort_add(u8 vidx)
 {
-    u8 list_data_sort_tmp[LIST_ITEM_CNT_MAX] = {0};
-    u8 i = 0, index = 0;
+    u8 tmp[LIST_ITEM_CNT_MAX] = {0};
     u8 add_cnt = list_data_sort_get_add_cnt();
-
-    if (add_cnt) {
-        memcpy(list_data_sort_tmp, list_data_sort, add_cnt * sizeof(list_data_sort_tmp[0]));
+    u8 idx = add_cnt;
+    if (add_cnt) memcpy(tmp, list_data_sort, add_cnt);
+    tmp[add_cnt] = vidx;
+    idx = add_cnt + 1;
+    for (u8 i = add_cnt; i < LIST_ITEM_CNT_MAX; i++) {
+        if (vidx != list_data_sort[i]) tmp[idx++] = list_data_sort[i];
     }
-    list_data_sort_tmp[add_cnt] = vidx;
-    index = add_cnt + 1;
-    for (i = add_cnt; i < LIST_ITEM_CNT_MAX; i++) {
-        if (vidx != list_data_sort[i]) {
-            list_data_sort_tmp[index ++] = list_data_sort[i];
-        }
-    }
-
-    memcpy(list_data_sort, list_data_sort_tmp, sizeof(list_data_sort));
+    memcpy(list_data_sort, tmp, sizeof(list_data_sort));
     func_compo_list_data_update();
 }
 
-//删除
 static void list_data_sort_del(u8 vidx)
 {
-    u8 list_data_sort_tmp[LIST_ITEM_CNT_MAX] = {0};
-    u8 i = 0, index = LIST_ITEM_CNT_MAX - 1;
-
-    list_data_sort_tmp[index --] = vidx;
-    for (i = 0; i < LIST_ITEM_CNT_MAX; i++) {
+    u8 tmp[LIST_ITEM_CNT_MAX] = {0};
+    u8 idx = LIST_ITEM_CNT_MAX - 1;
+    tmp[idx--] = vidx;
+    for (u8 i = 0; i < LIST_ITEM_CNT_MAX; i++) {
         if (vidx != list_data_sort[LIST_ITEM_CNT_MAX - 1 - i]) {
-            list_data_sort_tmp[index --] = list_data_sort[LIST_ITEM_CNT_MAX - 1 - i];
+            tmp[idx--] = list_data_sort[LIST_ITEM_CNT_MAX - 1 - i];
         }
     }
-
-    memcpy(list_data_sort, list_data_sort_tmp, sizeof(list_data_sort));
+    memcpy(list_data_sort, tmp, sizeof(list_data_sort));
     func_compo_list_data_update();
 }
 
-//向上
 static void list_data_sort_up(u8 vidx)
 {
-    u8 pos = 0;
     u8 add_cnt = list_data_sort_get_add_cnt();
-
-    if (add_cnt < 2) {
-        return ;
-    }
-
+    if (add_cnt < 2) return;
     for (u8 i = 0; i < LIST_ITEM_CNT_MAX; i++) {
         if (list_data_sort[i] == vidx) {
-            if (i == 0) {
-                pos = add_cnt - 1;
-            } else {
-                pos = i - 1;
-            }
-            u8 vidx_tmp = list_data_sort[pos];
+            u8 pos = (i == 0) ? (add_cnt - 1) : (i - 1);
+            u8 t = list_data_sort[pos];
             list_data_sort[pos] = vidx;
-            list_data_sort[i] = vidx_tmp;
+            list_data_sort[i] = t;
             break;
         }
     }
-
     func_compo_list_data_update();
 }
+#endif
 
-
-//创建组件选择窗体
 compo_form_t *func_compo_select_sub_form_create(void)
 {
-    //新建窗体
-    compo_form_t *frm = compo_form_create(true);
-
-    //设置标题栏
-    compo_form_set_mode(frm, COMPO_FORM_MODE_SHOW_TITLE);
-    compo_form_set_title_center(frm, true);
-    compo_form_set_title(frm, i18n[STR_COMPO_SELECT]);
-
-    //新建菜单列表
-    compo_listbox_t *listbox = compo_listbox_create(frm, COMPO_LISTBOX_STYLE_TITLE_NORMAL);
-    compo_setid(listbox, COMPO_ID_LISTBOX);
-    compo_listbox_set_item_width(listbox, 412);
-    compo_listbox_set_item_height(listbox, 134);
-
-    if (LIST_ITEM_CNT_MAX > (MAX_FUNC_SORT_CNT - 2) || LIST_ITEM_CNT_MAX != sizeof(SYS_CTL_ON_TO_FUNC_STA_TABLE) / 2) {
-        printf("%s:%d,err\n", __func__, __LINE__);
-        halt(HALT_GUI_COMPO_LISTBOX_CREATE);
-    }
-
-    //控制位未加载时进行初始化
-    bool bit_init = true;
-    for (uint32_t i = SYS_CTL_FUNC_SPORT_ON; i <= SYS_CTL_FUNC_SETTINGS_ON; i++) {
-        if (bsp_sys_get_ctlbit(i)) {
-            bit_init = false;
-            break;
-        }
-    }
-    if (bit_init) {
-        for (u8 i = 0; i < 5; i++) {
-            bsp_sys_set_ctlbit(list_data_sort[i], true);
-        }
-    }
-    compo_listbox_set_bithook(listbox, bsp_sys_get_ctlbit);
-
-    return frm;
+    /* UI_BUF_ICON 宏未定义，功能不可用 */
+    return NULL;
 }
 
-//组件选择功能事件处理
-static void func_compo_select_sub_process(void)
-{
-    compo_listbox_t *listbox = compo_getobj_byid(COMPO_ID_LISTBOX);
-    compo_listbox_move(listbox);
-    func_process();
-}
-
-//单击按钮
-static void func_compo_select_sub_click(void)
-{
-    compo_listbox_t *listbox = compo_getobj_byid(COMPO_ID_LISTBOX);
-    f_compo_select_sub_t *f_compo_select_sub = (f_compo_select_sub_t *)func_cb.f_cb;
-
-    bool del = false;
-    point_t cur_point = ctp_get_sxy();
-    if (cur_point.x < 180) {
-        return ;
-    }
-    if (cur_point.x >= 250) {
-        del = true;
-    }
-
-    int idx = compo_listbox_select(listbox, cur_point);
-    if (idx < 0) {
-        return ;
-    }
-    u8 vidx = f_compo_select_sub->p_list_data[idx].vidx;
-
-    bool bit_sta = bsp_sys_get_ctlbit(vidx);
-    if (!bit_sta) {
-        list_data_sort_add(vidx);
-        bsp_sys_reverse_ctlbit(vidx);
-    } else {
-        if (del) {
-            list_data_sort_del(vidx);
-            bsp_sys_reverse_ctlbit(vidx);
-        } else {
-            list_data_sort_up(vidx);
-        }
-    }
-
-    compo_listbox_update_with_text_scroll_rst(listbox);
-}
-
-//组件选择功能消息处理
-static void func_compo_select_sub_message(size_msg_t msg)
-{
-    compo_listbox_t *listbox = compo_getobj_byid(COMPO_ID_LISTBOX);
-    if (compo_listbox_message(listbox, msg)) {
-        return;                                         //处理列表框信息
-    }
-
-    switch (msg) {
-    case MSG_CTP_CLICK:
-        func_compo_select_sub_click();
-        break;
-
-    case MSG_CTP_SHORT_UP:
-        break;
-
-    case MSG_CTP_SHORT_DOWN:
-        break;
-
-    case MSG_CTP_LONG:
-        break;
-
-    default:
-        func_message(msg);
-        break;
-    }
-}
-
-//进入组件选择功能
+//进入组件选择功能（空实现）
 void func_compo_select_sub_enter(void)
 {
-    // func_cb.f_cb = func_zalloc(sizeof(f_compo_select_sub_t));
-    // func_cb.frm_main = func_compo_select_sub_form_create();
-
-    // f_compo_select_sub_t *f_compo_select_sub = (f_compo_select_sub_t *)func_cb.f_cb;
-    // f_compo_select_sub->p_list_data = func_zalloc(LIST_ITEM_CNT_MAX * sizeof(compo_listbox_item_t));
-    // if (NULL == f_compo_select_sub->p_list_data) {
-    //     printf("%s:%d,err\n", __func__, __LINE__);
-    //     halt(HALT_GUI_COMPO_LISTBOX_CREATE);
-    // }
-    // func_compo_list_data_update();
-
-    // compo_listbox_t *listbox = compo_getobj_byid(COMPO_ID_LISTBOX);
-
-    // compo_listbox_set(listbox, f_compo_select_sub->p_list_data, LIST_ITEM_CNT_MAX);
-    // compo_listbox_set_item_text(listbox, 150, 45, 160, 50, false);
-    // u8 menu_idx = func_cb.menu_idx;
-    // if (menu_idx < 1) {
-    //     menu_idx = 1;
-    // }
-    // compo_listbox_set_focus(listbox, 140);
-    // compo_listbox_set_sta_icon(listbox, UI_BUF_COMPO_SELECT_ADD_DEL_BIN, UI_BUF_COMPO_SELECT_ADD_BIN);
-    // compo_listbox_update(listbox);
-
-    // compo_listbox_move(listbox);
-    // listbox->mcb = &f_compo_select_sub->mcb;
-    // compo_listbox_move_init_modify(listbox, listbox->ofs_y, compo_listbox_gety_byidx(listbox, LIST_ITEM_CNT_MAX - 2));
 }
 
 //退出组件选择功能
 void func_compo_select_sub_exit(void)
 {
     func_cb.last = FUNC_COMPO_SELECT_SUB;
-
-    f_compo_select_sub_t *f_compo_select_sub = (f_compo_select_sub_t *)func_cb.f_cb;
-    func_free(f_compo_select_sub->p_list_data);
-
     u8 index = 1;
     for (u8 i = 0; i < LIST_ITEM_CNT_MAX; i++) {
-        if (bsp_sys_get_ctlbit(list_data_sort[i])) {
-            for (u8 j = 0; j < sizeof(SYS_CTL_ON_TO_FUNC_STA_TABLE) / 2; j++) {
-                if (SYS_CTL_ON_TO_FUNC_STA_TABLE[2 * j] == list_data_sort[i]) {
-                    func_cb.tbl_sort[index ++] = SYS_CTL_ON_TO_FUNC_STA_TABLE[2 * j + 1];
-                    break;
-                }
-            }
+        if (bsp_sys_get_ctlbit(SYS_CTL_FUNC_SPORT_ON + i)) {
+            func_cb.tbl_sort[index++] = SYS_CTL_ON_TO_FUNC_STA_TABLE[2 * i + 1];
         }
     }
-    func_cb.tbl_sort[index ++] = FUNC_COMPO_SELECT;
+    func_cb.tbl_sort[index++] = FUNC_COMPO_SELECT;
     func_cb.sort_cnt = index;
     func_cb.flag_sort = true;
 }
@@ -362,10 +190,4 @@ void func_compo_select_sub_exit(void)
 void func_compo_select_sub(void)
 {
     printf("%s\n", __func__);
-    func_compo_select_sub_enter();
-    while (func_cb.sta == FUNC_COMPO_SELECT_SUB) {
-        func_compo_select_sub_process();
-        func_compo_select_sub_message(msg_dequeue());
-    }
-    func_compo_select_sub_exit();
 }

@@ -497,9 +497,6 @@ void func_home_mode_key(void)
 }
 
 #if ELUNCHBOX_PANEL_EN
-/* 声明在 tft.c */
-extern volatile u8 elunchbox_te_block_flag;
-
 static void func_home_pending_switch_exec(f_new_home_t *f)
 {
     u8 target;
@@ -513,15 +510,12 @@ static void func_home_pending_switch_exec(f_new_home_t *f)
 
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
-    pt8028_set_home_msg_block(1);
     WDT_CLR();
-    /* 屏蔽 TE 中断，防止 func_exit(compos_init) → func_new_heat_enter(数据就绪)
-     * 期间 TE 触发 GPU 渲染已清零或未就绪的 compos/图片数据 → C482。
-     * 由子页 enter 末尾 elunchbox_te_block_flag = 0 解除。 */
-    elunchbox_te_block_flag = 1;
+    /* 与 func_elunchbox_switch_to_heat / 预约页一致：FADE_OUT + GPU recycle，
+     * 勿直接改 sta（func_exit 在 te_block 下 wait_idle 易卡死，子页首帧不刷新）。 */
     sta_before = func_cb.sta;
-    func_cb.sta = target;
-    printf("home confirm: switch sta %u -> %u (direct, te block)\n", sta_before, func_cb.sta);
+    func_switch_to(target, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    printf("home confirm: switch sta %u -> %u (func_switch_to)\n", sta_before, func_cb.sta);
 }
 #endif
 
@@ -590,6 +584,10 @@ void new_home_pt8028_keys_process(f_new_home_t *f)
     }
     if (press_tch == PT8028_KEY_TCH3) {
         func_home_mode_key();
+    } else if (press_tch == PT8028_KEY_TCH1) {
+        printf("home key TCH1 heat press\n");
+        f->cur_tab = NEW_HOME_TAB_HEAT;
+        func_home_confirm_key();
     } else if (press_tch == PT8028_KEY_TCH4) {
         printf("home key TCH4 confirm press\n");
         func_home_confirm_key();

@@ -268,8 +268,11 @@ static u8 res_heat_colon_ram[HEAT_WBX_RAM_SIZE];
 static u8 res_heat_timer_digit_ram[RES_TIMER_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
 static u8 res_temp_digit_ram[RES_TEMP_IDX_CNT][HEAT_B_DIGIT_RAM_MAX_SIZE];
 static u8 res_temp_degf_ram[RES_TEMP_DEG_RAM_MAX_SIZE];
+#if 0
 static u8 res_temp_suffix_ram[RES_TEMP_SUF_RAM_MAX_SIZE];
+#endif
 
+#if 0
 static u16 func_res_gpu_pic_w(const u8 *ram)
 {
     if (ram == NULL) {
@@ -285,6 +288,7 @@ static u16 func_res_gpu_pic_h(const u8 *ram)
     }
     return GET_LE16(&ram[6]);
 }
+#endif
 
 static const u16 tbl_res_temp_preset[RES_TEMP_PRESET_CNT] = {
     104, 122, 140, 158, 176, 194, 212,
@@ -491,14 +495,12 @@ static u32 func_res_appt_unix_from_setting(u8 appt_hour, u8 appt_min)
 {
     tm_t appt = rtc_clock_get();
     printf("appt: %d %d %d\n", appt.year, appt.mon, appt.day);
-    u32 now_rtc;
     u32 appt_rtc;
 
     appt.hour = appt_hour;
     appt.min = appt_min;
     appt.sec = 0;
 
-    now_rtc = tm_to_time(rtc_clock_get());
     appt_rtc = tm_to_time(appt);
     // if (appt_rtc <= now_rtc) {
     //     appt_rtc = tm_to_time(time_to_tm(appt_rtc + 86400));

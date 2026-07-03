@@ -99,6 +99,9 @@ typedef struct {
     u8 temp_idx;
     u8 time_idx;
     bool display_pending;
+#if ELUNCHBOX_PANEL_EN
+    bool key_ready;
+#endif
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_bat;
     compo_picturebox_t *pic_temp_track;
@@ -907,6 +910,7 @@ static void new_heat_power_key(f_new_heat_t *f)
 }
 
 /* 定期刷新状态栏（蓝牙、电量电池图标按原始逻辑显示） */
+#if !ELUNCHBOX_PANEL_EN
 static void new_heat_status_refresh(f_new_heat_t *f)
 {
     if (f == NULL) {
@@ -925,6 +929,7 @@ static void new_heat_status_refresh(f_new_heat_t *f)
     home_ui_shared_status_bind_bat(f->pic_bat);
 #endif
 }
+#endif
 
 static compo_textbox_t *new_heat_txt_create(compo_form_t *frm, u16 id, u32 font_addr,
                                             s16 x, s16 y, u16 color, bool center)
@@ -1029,17 +1034,76 @@ compo_form_t *func_new_heat_form_create(void)
     return frm;
 }
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+static void new_heat_pt8028_keys_process(f_new_heat_t *f)
+{
+    u8 press_tch;
+
+    if (f == NULL || !f->key_ready) {
+        return;
+    }
+    press_tch = pt8028_take_press_tch();
+    if (press_tch == 0xff) {
+        return;
+    }
+    if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
+        elunchbox_user_activity_reset();
+    }
+    if (func_key_lock_filter_tch(press_tch)) {
+        return;
+    }
+    if (press_tch == PT8028_KEY_TCH4) {
+        new_heat_ok_key(f);
+    } else if (press_tch == PT8028_KEY_TCH5) {
+        new_heat_power_key(f);
+    } else if (press_tch == PT8028_KEY_TCH2) {
+        new_heat_value_dec(f);
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        new_heat_value_inc(f);
+    }
+}
+
+static void new_heat_keys_poll(f_new_heat_t *f)
+{
+    if (f == NULL || !f->key_ready) {
+        return;
+    }
+    pt8028_gpio_ensure_periodic();
+    pt8028_key_scan();
+    new_heat_pt8028_keys_process(f);
+}
+#endif
+
 static void func_new_heat_message(size_msg_t msg)
 {
     f_new_heat_t *f = (f_new_heat_t *)func_cb.f_cb;
 
+    if (msg == NO_MSG || func_cb.sta != FUNC_NEW_HEAT) {
+        return;
+    }
     if (sys_cb.flag_swithing) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (f != NULL && !f->key_ready) {
+        return;
+    }
+#endif
     if (func_key_lock_ku_blocked(msg)) {
         return;
     }
-    /* 进入时已通过 msg_queue_detach 清理干净，此处按功能直接分发 */
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    /* PT8028 走 new_heat_pt8028_keys_process，勿重复处理消息队列 */
+    switch (msg) {
+    case KU_BACK:
+    case KU_VOL_UP:
+    case KU_VOL_DOWN:
+    case KEY_RIGHT | KEY_SHORT_UP:
+        return;
+    default:
+        break;
+    }
+#endif
     switch (msg) {
     case KU_BACK:       /* NEW_HEAT_MSG_OK = 确认键 */
         new_heat_ok_key(f);
@@ -1069,10 +1133,35 @@ static void func_new_heat_process(void)
     }
 
 #if ELUNCHBOX_PANEL_EN
+    if (!f->key_ready) {
+        if (f->display_pending) {
+            home_gpu_wait_idle();
+            WDT_CLR();
+            new_heat_status_icons_apply(f);
+            new_heat_tracks_apply(f);
+            new_heat_badges_apply(f);
+            new_heat_text_apply(f);
+            f->display_pending = false;
+        }
+        func_process();
+        func_home_drain_stale_key_msgs();
+        pt8028_release_clear();
+        pt8028_gpio_ensure_periodic();
+        pt8028_key_scan();
+        (void)pt8028_take_press_tch();
+        f->key_ready = true;
+        return;
+    }
+#endif
+
+#if ELUNCHBOX_PANEL_EN
     if (f->display_pending) {
-        new_heat_text_apply(f);
+        new_heat_ui_refresh(f);
         f->display_pending = false;
     }
+#if USER_PT8028_KEY
+    new_heat_keys_poll(f);
+#endif
 #else
     new_heat_text_apply(f);
     new_heat_status_refresh(f);
@@ -1085,84 +1174,53 @@ void func_new_heat_enter(void)
     f_new_heat_t *f;
 
     printf("func_new_heat_enter\n");
-    printf("eh_a\n");
 
 #if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 1;
-    printf("eh_b\n");
-    home_ui_digit_pool_reset();
-    home_gpu_wait_idle();
-    printf("eh_c\n");
-    WDT_CLR();
-    printf("eh_d\n");
+    lb_heat_autostart_set(false);
 #endif
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    printf("eh_e\n");
+    pt8028_set_home_msg_block(1);
     func_home_drain_stale_key_msgs();
-    printf("eh_f\n");
     pt8028_release_clear();
-    printf("eh_g\n");
 #endif
+
     msg_queue_detach(KU_BACK, 0);
-    printf("eh_h\n");
     msg_queue_detach(KU_VOL_UP, 0);
-    printf("eh_i\n");
     msg_queue_detach(KU_VOL_DOWN, 0);
-    printf("eh_j\n");
     msg_queue_detach(KU_RIGHT, 0);
-    printf("eh_k\n");
 
     func_cb.f_cb = func_zalloc(sizeof(f_new_heat_t));
-    printf("eh_l\n");
     WDT_CLR();
-    printf("eh_m\n");
 
     f = (f_new_heat_t *)func_cb.f_cb;
-    printf("eh_n\n");
     f->focus = NEW_HEAT_FOCUS_TEMP;
-    printf("eh_o\n");
     f->temp_idx = g_new_heat_temp_idx;
-    printf("eh_p\n");
     f->time_idx = g_new_heat_time_idx;
-    printf("eh_q\n");
+#if ELUNCHBOX_PANEL_EN
+    f->key_ready = false;
+    f->display_pending = true;
+    home_ui_digit_pool_reset();
+#endif
 
     func_cb.frm_main = func_new_heat_form_create();
-    printf("eh_s\n");
-    WDT_CLR();
-    printf("eh_t\n");
     new_heat_bind_objects(f);
-    printf("eh_u\n");
-    WDT_CLR();
 
-    /* 预加载共享状态到 RAM */
+#if ELUNCHBOX_PANEL_EN
     home_ui_shared_status_init();
-    printf("eh_v3\n");
-
-    /* 绑定 BT/电池图片（TE 已屏蔽，安全读 Flash）*/
-    new_heat_status_icons_apply(f);
-    printf("eh_y\n");
-    WDT_CLR();
-
-    /* 绑定 track/badge 图片数据 */
-    new_heat_tracks_apply(f);
-    new_heat_badges_apply(f);
-    printf("eh_za\n");
-    WDT_CLR();
-
-    /* enter 内一次性完成文字/刻度，首帧即完整显示 */
-    new_heat_text_apply(f);
-    f->display_pending = false;
-    printf("eh_zb text_apply done\n");
-    WDT_CLR();
-
     home_gpu_wait_idle();
-    printf("eh_zc\n");
     WDT_CLR();
     elunchbox_te_block_flag = 0;
-    printf("eh_ze te=0\n");
     tft_bglight_force_on();
-    printf("eh_zf\n");
+    printf("func_new_heat_enter: ok te_block=0 pending=1\n");
+#else
+    home_ui_shared_status_init();
+    new_heat_status_icons_apply(f);
+    new_heat_tracks_apply(f);
+    new_heat_badges_apply(f);
+    new_heat_text_apply(f);
+    f->display_pending = false;
+#endif
 }
 
 void func_new_heat_exit(void)
@@ -1177,6 +1235,10 @@ void func_new_heat_exit(void)
      *   - 切 HEAT 路径：func_exit 后续做完整 destroy，此处 detach 多余且触发 C245
      * 仅 detach battery pic 全局引用，避免 dirty 指针遗留。 */
     home_ui_shared_battery_detach_pic();
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_set_home_msg_block(0);
+    pt8028_release_clear();
+#endif
     func_cb.last = FUNC_NEW_HEAT;
     printf("func_new_heat_exit\n");
 }

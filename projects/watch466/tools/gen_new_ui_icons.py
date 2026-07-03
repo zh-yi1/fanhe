@@ -38,6 +38,8 @@ ICON_ITEMS = [
     (("new_dl2.png", "dl2.png"), "new_dl2"),
     (("new_dl3.png", "dl3.png"), "new_dl3"),
     (("new_dl4.png", "dl4.png"), "new_dl4"),
+    (("new_lock.png",), "new_lock"),
+    (("new_unlock.png",), "new_unlock"),
 ]
 
 TIME_ITEMS = (
@@ -113,6 +115,8 @@ def emit_header(sizes: dict[str, tuple[int, int]]) -> None:
         "new_dl2": "NEW_HOME_BAT_DL2",
         "new_dl3": "NEW_HOME_BAT_DL3",
         "new_dl4": "NEW_HOME_BAT_DL4",
+        "new_lock": "NEW_UI_LOCK",
+        "new_unlock": "NEW_UI_UNLOCK",
     }
     for stem, prefix in key_map.items():
         if stem in sizes:
@@ -136,15 +140,36 @@ def emit_header(sizes: dict[str, tuple[int, int]]) -> None:
     print(f"wrote {OUT_H}")
 
 
+def read_bin_size(bin_path: Path) -> tuple[int, int]:
+    data = bin_path.read_bytes()
+    if len(data) < 8:
+        raise ValueError(f"bad gpu bin: {bin_path}")
+    w, h = struct.unpack("<HH", data[4:8])
+    return w, h
+
+
+def process_icon(png_names: tuple[str, ...], stem: str, sizes: dict[str, tuple[int, int]]) -> None:
+    bin_path = BIN_DIR / f"{stem}.bin"
+    try:
+        src = resolve_src(png_names)
+        data, w, h = png_to_gpu(src)
+        write_bin(f"{stem}.bin", data, src)
+    except SystemExit:
+        if not bin_path.exists():
+            raise
+        data = bin_path.read_bytes()
+        w, h = read_bin_size(bin_path)
+        print(f"{stem}.bin: keep existing {len(data)} bytes")
+        src = bin_path
+    sizes[stem] = (w, h)
+
+
 def main() -> None:
     SRC_DIR.mkdir(parents=True, exist_ok=True)
     sizes: dict[str, tuple[int, int]] = {}
 
     for png_names, stem in ICON_ITEMS:
-        src = resolve_src(png_names)
-        data, w, h = png_to_gpu(src)
-        write_bin(f"{stem}.bin", data, src)
-        sizes[stem] = (w, h)
+        process_icon(png_names, stem, sizes)
 
     for png_name in TIME_ITEMS:
         stem = "new_" + png_name.replace(".png", "")

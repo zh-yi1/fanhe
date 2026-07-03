@@ -13,6 +13,7 @@
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "func.h"
+#include "func_key_lock.h"
 #endif
 #include "bsp_vbat.h"
 #include "heat_display_reg.h"
@@ -162,6 +163,7 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
     if (!elunchbox_pwr_is_manual_off()) {
         elunchbox_user_activity_reset();
     }
+    func_key_lock_on_heating_start();
 #endif
 
 #if !LB_BRIDGE_MODE
@@ -178,6 +180,9 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
  */
 void lunchbox_heat_stop(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    func_key_lock_on_heating_stop();
+#endif
     lb_keep_warm_active = false;
     lb_heat_lcd_active = false;
     lb_heat_task_active = false;
@@ -323,6 +328,7 @@ void lunchbox_reservation_delete(u8 id)
 // BLE 连接回调
 //-----------------------------------------------------------------------------
 
+#if 0
 /**
  * @brief 计算下一个指定时分(北京时间)的Unix时间戳
  */
@@ -336,6 +342,7 @@ static u32 lb_next_time_of_day(u8 hour, u8 min)
     }
     return target_unix;
 }
+#endif
 
 /**
  * @brief BLE 连接后发送5个固定预约预设到加热模块 (UART 0x03)
@@ -354,7 +361,7 @@ void lunchbox_ble_send_presets(void)
         return;
     }
 
-    u8 temp_idx = lunchbox_temp_f_to_idx(149);
+    // u8 temp_idx = lunchbox_temp_f_to_idx(149);
 
     // lunchbox_reservation_send(1, 1, "\xe6\x97\xa9\xe9\xa4\x90",
     //                           lb_next_time_of_day(8, 0), temp_idx, 60, 0, 0xff);

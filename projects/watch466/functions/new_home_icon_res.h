@@ -31,6 +31,14 @@
 #define NEW_HOME_BAT_DL4_H                 18
 #define NEW_HOME_BAT_DL4_RAM_SIZE          (8 + 31 * 18 * 2)
 
+#define NEW_UI_LOCK_W                 80
+#define NEW_UI_LOCK_H                 100
+#define NEW_UI_LOCK_RAM_SIZE          (8 + 80 * 100 * 2)
+
+#define NEW_UI_UNLOCK_W                 106
+#define NEW_UI_UNLOCK_H                 100
+#define NEW_UI_UNLOCK_RAM_SIZE          (8 + 106 * 100 * 2)
+
 #define NEW_HOME_BAT_W                  31
 #define NEW_HOME_BAT_H                  17
 

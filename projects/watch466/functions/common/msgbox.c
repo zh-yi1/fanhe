@@ -41,7 +41,6 @@ typedef struct msg_cb_t_ {
 //创建对话框窗体
 static compo_form_t *msgbox_frm_create(char *msg, char *title, int mode, char msg_type)
 {
-    compo_button_t *btn;
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
 

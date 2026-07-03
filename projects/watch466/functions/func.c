@@ -109,9 +109,15 @@ void func_elunchbox_switch_to_reservation(void)
 
 void func_elunchbox_switch_to_heat(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    if (func_cb.sta == FUNC_NEW_HEAT || func_cb.sta == FUNC_HEAT) {
+        return;
+    }
+#else
     if (func_cb.sta == FUNC_HEAT) {
         return;
     }
+#endif
     if (sys_cb.flag_swithing) {
         return;
     }
@@ -176,6 +182,8 @@ void func_elunchbox_res_key_poll(void)
 #if ELUNCHBOX_PANEL_EN
 static bool elunchbox_pwr_gui_off;
 static bool elunchbox_pwr_manual_off;   /* 长按3s手动关机：浅睡态，长按再开 */
+static bool elunchbox_pwr_wake_armed;   /* manual off 后须松手 TCH5 才允许再次长按唤醒 */
+static bool elunchbox_manual_wake_pending; /* 浅睡内检测到长按，退出 sleep 后再亮屏 */
 static bool elunchbox_boot_power_sent;
 static s32 elunchbox_guioff_sleep_delay = -1L;
 static u8 elunchbox_guioff_sleep_mode;
@@ -329,14 +337,16 @@ static void elunchbox_pwr_manual_shutdown(void)
     func_reservation_on_manual_shutdown();
 #endif
     elunchbox_boot_power_sent = false;
-    /* 软关机低电：GPU 掉电 + 强制 BT 浅睡（本板 PT8028 硬关机 sfunc_pwrdown 无法可靠唤醒）。
-     * 唤醒：再次长按 TCH5 3s -> elunchbox_screen_wake + UI 重绑。
-     */
-    gui_sleep(true);
-    elunchbox_pwr_gui_off = true;
+    /* 先设 manual_off，阻止 gui_sleep / ble_disconnect 回调访问已掉电 GPU */
     elunchbox_pwr_manual_off = true;
+    elunchbox_pwr_wake_armed = false;
+    elunchbox_pwr_gui_off = true;
     sys_cb.gui_need_wakeup = 0;
     elunchbox_guioff_sleep_delay = 0;
+    /* 软关机低电：GPU 掉电 + 强制 BT 浅睡（本板 PT8028 硬关机 sfunc_pwrdown 无法可靠唤醒）。
+     * 唤醒：松手后再次长按 TCH5 3s -> elunchbox_screen_wake + UI 重绑。
+     */
+    gui_sleep(true);
 
 #if LE_EN
     ble_disconnect();   // 断开BLE连接 (连接保持则射频周期性活跃，功耗极高)
@@ -352,22 +362,42 @@ static void elunchbox_pwr_manual_shutdown(void)
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_pwr_long_consume();
+    /* 等松手：否则同一长按会在 3s 后再次 pending → 立刻亮屏 */
+    while (!pt8028_out_flag_is_idle()) {
+        WDT_CLR();
+        delay_5ms(1);
+    }
+    pt8028_key_scan();
     pt8028_release_clear();
+    pt8028_pwr_long_consume();
+    pt8028_set_home_msg_block(0);
+    elunchbox_pwr_wake_armed = true;
 #endif
 
     printf("elunchbox: TCH5 long -> manual off (low power sleep)\n");
 }
+
+static bool elunchbox_is_guioff(void);
 
 void elunchbox_guioff_sleep_post_wake(bool key_wake)
 {
     elunchbox_guioff_sleep_mode = 0;
     pt8028_port_gpio_init();
     pt8028_key_scan();
+    /* 浅睡循环内只置 pending，此处退出 sleep 后再 gui_wakeup */
+    if (elunchbox_manual_wake_pending_take()) {
+        if (elunchbox_is_guioff()) {
+            printf("elunchbox: complete manual wake after sleep\n");
+            elunchbox_pwr_gui_wake();
+        }
+    }
 #if USER_PT8028_KEY
-    func_elunchbox_guioff_wake_poll();
+    if (elunchbox_is_guioff()) {
+        func_elunchbox_guioff_wake_poll();
 #if SOFT_POWER_ON_OFF
-    func_elunchbox_pwr_long_poll();
+        func_elunchbox_pwr_long_poll();
 #endif
+    }
 #endif
     if (!elunchbox_pwr_is_manual_off()) {
         elunchbox_guioff_sleep_service();
@@ -425,21 +455,27 @@ void elunchbox_pwr_gui_wake(void)
 static void elunchbox_screen_wake(void)
 {
     bool was_manual = elunchbox_pwr_manual_off;
+    bool go_home = was_manual && (func_cb.sta != FUNC_HOME);
 
     elunchbox_pwr_gui_off = false;
     elunchbox_pwr_manual_off = false;
+    elunchbox_pwr_wake_armed = true;
+    elunchbox_manual_wake_pending = false;
     elunchbox_guioff_sleep_delay_reset();
+    if (go_home) {
+        func_cb.sta = FUNC_HOME;
+    }
     if (sys_cb.gui_sleep_sta) {
         gui_wakeup();
     }
     tft_bglight_force_on();
     elunchbox_user_activity_reset();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    /* 唤醒后清理 PT8028 按键状态，避免长按残留导致立刻再次关机或误触发 */
     pt8028_port_gpio_init();
     pt8028_key_scan();
     pt8028_pwr_long_consume();
     pt8028_release_clear();
+    pt8028_set_home_msg_block(1);
 #endif
 #if FUNC_LUNCHBOX_UART_EN
     if (was_manual) {
@@ -449,16 +485,14 @@ static void elunchbox_screen_wake(void)
     }
 #endif
 #if ELUNCHBOX_PANEL_EN
-    /* 唤醒后强制重载共享资源（电量/状态图标等），并清理可能的陈旧绑定 */
     home_ui_shared_status_inited = false;
     home_ui_shared_status_lock_preloaded = false;
     home_ui_shared_battery_boot_init();
     func_home_gui_mark_dirty();
-
-    /* 强制 Home UI 完整刷新绑定（tab 图标、status、倒计时、时间等）。
-     * 在 guioff 唤醒后调用，可显著降低因 GPU/组件状态与共享 RAM 不一致导致的 C24x halt。
-     */
-    func_home_force_ui_refresh_after_wake();
+    /* 手动关机时若不在 Home，改 sta 后由 func_home_enter 重建 UI */
+    if (!go_home && func_cb.sta == FUNC_HOME) {
+        func_home_force_ui_refresh_after_wake();
+    }
 #endif
 
 #if LE_EN
@@ -508,6 +542,19 @@ static void elunchbox_guioff_idle_process(void)
     }
 }
 
+static bool elunchbox_manual_off_long_ready(void)
+{
+    if (pt8028_take_pwr_long_pending()) {
+        pt8028_pwr_long_consume();
+        return true;
+    }
+    if ((pt8028_is_power_key_held() || pt8028_boot_tch5_down()) && pt8028_pwr_key_long_ready()) {
+        pt8028_pwr_long_consume();
+        return true;
+    }
+    return false;
+}
+
 static void func_elunchbox_guioff_wake_poll(void)
 {
     static u32 hold_start;
@@ -516,6 +563,30 @@ static void func_elunchbox_guioff_wake_poll(void)
         hold_start = 0;
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_is_manual_off()) {
+        if (!elunchbox_pwr_wake_armed) {
+            hold_start = 0;
+            if (pt8028_take_pwr_long_pending()) {
+                pt8028_pwr_long_consume();
+            }
+            return;
+        }
+        /* 直接读 GPIO(OUT_FLAG+BCD)，不依赖 press_emitted / 浅睡内驱动状态 */
+        if (pt8028_boot_tch5_down() || pt8028_is_power_key_held()) {
+            if (hold_start == 0) {
+                hold_start = tick_get();
+            } else if (tick_check_expire(hold_start, PT8028_PWR_LONG_MS)) {
+                hold_start = 0;
+                printf("elunchbox: TCH5 %dms wake from manual off\n", PT8028_PWR_LONG_MS);
+                elunchbox_pwr_gui_wake();
+            }
+        } else {
+            hold_start = 0;
+        }
+        return;
+    }
+#endif
     if (pt8028_is_power_key_held() || pt8028_boot_tch5_down()) {
         if (hold_start == 0) {
             hold_start = tick_get();
@@ -537,12 +608,42 @@ static void func_elunchbox_pwr_long_poll(void)
     pt8028_pwr_long_consume();
     if (elunchbox_is_guioff()) {
         if (elunchbox_pwr_is_manual_off()) {
-            printf("elunchbox: TCH5 long -> wake from manual off\n");
-            elunchbox_pwr_gui_wake();
+            if (elunchbox_pwr_wake_armed) {
+                printf("elunchbox: TCH5 long pending -> wake from manual off\n");
+                elunchbox_pwr_gui_wake();
+            }
         }
         return;
     }
     elunchbox_pwr_manual_shutdown();
+}
+
+void elunchbox_manual_off_sleep_poll(void)
+{
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_is_manual_off() || !elunchbox_pwr_wake_armed) {
+        return;
+    }
+    WDT_CLR();
+    pt8028_gpio_ensure_periodic();
+    pt8028_key_scan();
+    if (elunchbox_manual_off_long_ready()) {
+        elunchbox_manual_wake_pending = true;
+    }
+#endif
+}
+
+bool elunchbox_manual_wake_pending_take(void)
+{
+    bool pending = elunchbox_manual_wake_pending;
+
+    elunchbox_manual_wake_pending = false;
+    return pending;
+}
+
+bool elunchbox_manual_wake_pending_peek(void)
+{
+    return elunchbox_manual_wake_pending;
 }
 #endif /* ELUNCHBOX_PANEL_EN */
 
@@ -585,21 +686,22 @@ void func_process(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-    /* 手动关机：按键唤醒检测；按住开关键期间不进浅睡以便累计 3s 长按 */
+    /* 手动关机：按键唤醒检测；不进浅睡，主循环全电压轮询 TCH5 */
     if (guioff && elunchbox_pwr_is_manual_off()) {
         WDT_CLR();
 #if USER_PT8028_KEY
+        pt8028_set_home_msg_block(0);
         pt8028_gpio_ensure_periodic();
         pt8028_key_scan();
         func_elunchbox_guioff_wake_poll();
 #if SOFT_POWER_ON_OFF
         func_elunchbox_pwr_long_poll();
 #endif
-        if (!pt8028_is_power_key_held() && !pt8028_boot_tch5_down()) {
-            sleep_process(bt_is_allow_sleep);
-        }
+        reset_sleep_delay();
+        reset_pwroff_delay();
 #else
-        sleep_process(bt_is_allow_sleep);
+        reset_sleep_delay();
+        reset_pwroff_delay();
 #endif
         return;
     }
@@ -1779,7 +1881,11 @@ void func_exit(void)
     //销毁窗体
     if (func_cb.frm_main != NULL) {
 #if ELUNCHBOX_PANEL_EN
+        func_key_lock_on_form_destroy();
         printf("exit: destroy form\n");
+        if (elunchbox_te_block_flag) {
+            elunchbox_te_block_flag = 0;
+        }
         home_gpu_wait_idle();
         printf("exit: wait1 done\n");
 #endif
