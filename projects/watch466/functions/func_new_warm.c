@@ -33,7 +33,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_WARM_STATUS_Y                 20
 #define NEW_WARM_STATUS_RIGHT_MARGIN      10
 #define NEW_WARM_STATUS_GAP               6
-#define NEW_WARM_TITLE_Y                  38
+#define NEW_WARM_TITLE_Y                  25
 #define NEW_WARM_TITLE_W                  120
 #define NEW_WARM_TITLE_H                  36
 
@@ -326,6 +326,13 @@ static void new_warm_title_txt_show(compo_textbox_t *txt)
                                NEW_WARM_TITLE_W, NEW_WARM_TITLE_H);
     compo_textbox_set_forecolor(txt, NEW_WARM_COLOR_TITLE);
     compo_textbox_set(txt, "WARM");
+    rect = widget_get_location(widget);
+    text_area = widget_text_get_area(widget);
+    if (rect.hei > text_area.hei) {
+        widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
 
     rect = widget_get_location(widget);
     text_area = widget_text_get_area(widget);
