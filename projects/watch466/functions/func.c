@@ -109,9 +109,15 @@ void func_elunchbox_switch_to_reservation(void)
 
 void func_elunchbox_switch_to_heat(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    if (func_cb.sta == FUNC_NEW_HEAT || func_cb.sta == FUNC_HEAT) {
+        return;
+    }
+#else
     if (func_cb.sta == FUNC_HEAT) {
         return;
     }
+#endif
     if (sys_cb.flag_swithing) {
         return;
     }
@@ -1780,6 +1786,9 @@ void func_exit(void)
     if (func_cb.frm_main != NULL) {
 #if ELUNCHBOX_PANEL_EN
         printf("exit: destroy form\n");
+        if (elunchbox_te_block_flag) {
+            elunchbox_te_block_flag = 0;
+        }
         home_gpu_wait_idle();
         printf("exit: wait1 done\n");
 #endif

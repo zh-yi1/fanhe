@@ -1342,9 +1342,21 @@ void func_heat_key_poll(void)
 
     u8 tch;
 
+#if ELUNCHBOX_PANEL_EN
+    /* Home 在 new_home_pt8028_keys_process 内处理 TCH1 */
+    if (func_cb.sta == FUNC_HOME) {
+        return;
+    }
+#endif
+
     if (sys_cb.flag_swithing || func_cb.sta == FUNC_HEAT) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (func_cb.sta == FUNC_NEW_HEAT) {
+        return;
+    }
+#endif
     if (!func_heat_key_page_ok()) {
         return;
     }
@@ -1370,10 +1382,17 @@ void func_heat_key_poll(void)
         if (heat_key_lp_tch != PT8028_KEY_TCH1) {
             heat_key_lp_tch = PT8028_KEY_TCH1;
             heat_key_lp_tick = tick_get();
-        } else if (tick_check_expire(heat_key_lp_tick, PT8028_HEAT_LONG_MS)) {
+#if PT8028_HEAT_LONG_MS == 0
+            func_elunchbox_switch_to_heat();
+            heat_key_lp_wait_rel = true;
+#endif
+        }
+#if PT8028_HEAT_LONG_MS > 0
+        else if (tick_check_expire(heat_key_lp_tick, PT8028_HEAT_LONG_MS)) {
             func_elunchbox_switch_to_heat();
             heat_key_lp_wait_rel = true;
         }
+#endif
     } else {
         heat_key_lp_tch = PT8028_KEY_NONE;
     }
