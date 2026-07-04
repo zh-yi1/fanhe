@@ -11,6 +11,7 @@
 #include "home_ui_gpu_detach.h"
 
 #if ELUNCHBOX_PANEL_EN
+#include "func_key_lock.h"
 extern volatile u8 elunchbox_te_block_flag;
 #endif
 
@@ -945,6 +946,18 @@ void func_heat_panel_process(struct f_heat_t_ *f_heat)
     }
 
     func_heat_panel_status_refresh(f_heat);
+
+#if ELUNCHBOX_PANEL_EN
+    /* 加热中：30s 自动锁屏（HEAT_AUTO_LOCK_MS），锁图标 3s 后消失（KEY_LOCK_HINT_MS） */
+    if (func_heat_panel_is_heating(f_heat)) {
+        func_key_lock_poll();
+        if (func_key_lock_hint_is_on()) {
+            func_key_lock_overlay_to_front();
+        }
+    } else {
+        func_key_lock_on_heating_stop();
+    }
+#endif
 }
 
 void func_heat_panel_enter(struct f_heat_t_ *f_heat)
@@ -986,11 +999,20 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
     printf("heat_panel_enter: show_apply done\n");
 
     heat_panel_text_apply(f_heat);
+
+#if ELUNCHBOX_PANEL_EN
+    if (func_heat_panel_is_heating(f_heat) && !elunchbox_pwr_is_manual_off()) {
+        func_key_lock_on_heating_start();
+    }
+#endif
 }
 
 void func_heat_panel_exit_to_warm(void)
 {
     g_hp_f_heat = NULL;
+#if ELUNCHBOX_PANEL_EN
+    func_key_lock_on_heating_stop();
+#endif
     heat_panel_arc_detach();
     g_hp.track_ready = false;
     g_hp.show_ready = false;
@@ -1004,6 +1026,9 @@ void func_heat_panel_exit(void)
 {
     g_hp_track_ram_valid = false;
     g_hp_f_heat = NULL;
+#if ELUNCHBOX_PANEL_EN
+    func_key_lock_on_heating_stop();
+#endif
     compo_picturebox_t *pics[5];
     u8 n = 0;
     u8 i;

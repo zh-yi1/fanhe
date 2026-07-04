@@ -749,12 +749,13 @@ static void func_heat_start_heating(f_heat_t *f_heat)
                    lunchbox_temp_f_to_idx(target_temp_f), duration_min, f_heat->proto_mode);
             lunchbox_heat_start(f_heat->proto_mode, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
         }
-#if ELUNCHBOX_PANEL_EN
-        else if (!elunchbox_pwr_is_manual_off()) {
-            elunchbox_user_activity_reset();
-            func_key_lock_on_heating_start();
-        }
+    }
 #endif
+
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_is_manual_off()) {
+        elunchbox_user_activity_reset();
+        func_key_lock_on_heating_start();
     }
 #endif
 
@@ -1437,6 +1438,7 @@ void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
     func_heat_led_sync(false);
     heat_display_unregister();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_key_lock_on_heating_stop();
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
 #endif
