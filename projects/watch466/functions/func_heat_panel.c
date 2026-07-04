@@ -157,6 +157,79 @@ static u8 heat_panel_show_ram[NEW_HEAT_SHOW_RAM_SIZE];
 
 #define HEAT_PANEL_OVERLAY_SKIP565      0xFFFF
 #define HEAT_PANEL_OVERLAY_ROW_MAX      192
+#define HEAT_PANEL_POINT_SNAP_RADIUS    24
+
+static bool heat_panel_is_blue565(u16 c)
+{
+    u16 r = (c >> 11) & 0x1F;
+    u16 g = (c >> 5) & 0x3F;
+    u16 b = c & 0x1F;
+
+    return (r >= 24 && g >= 56 && b >= 28);
+}
+
+/* 合成后把圆点吸附到距预期 TIP 最近的蓝像素，确保落在蓝弧顶点上 */
+static void heat_panel_point_snap_to_blue(s16 tx, s16 ty, s16 *x, s16 *y)
+{
+    u16 tw;
+    u16 th;
+    s16 ox;
+    s16 oy;
+    u32 best_d;
+    s16 best_x;
+    s16 best_y;
+    bool found;
+    u16 iy;
+    u16 ix;
+    u32 snap_r2;
+
+    tw = GET_LE16(&home_ui_heat_bg_ram[4]);
+    th = GET_LE16(&home_ui_heat_bg_ram[6]);
+    if (tw == 0 || th == 0) {
+        return;
+    }
+    ox = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X - (s16)(tw / 2);
+    oy = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y - (s16)(th / 2);
+    snap_r2 = (u32)HEAT_PANEL_POINT_SNAP_RADIUS * HEAT_PANEL_POINT_SNAP_RADIUS;
+    best_d = 0xffffffffUL;
+    best_x = tx;
+    best_y = ty;
+    found = false;
+
+    for (iy = 0; iy < th; iy++) {
+        for (ix = 0; ix < tw; ix++) {
+            u32 di = 8 + ((u32)iy * tw + ix) * 2;
+            u16 c = GET_LE16(&home_ui_heat_bg_ram[di]);
+            s16 sx;
+            s16 sy;
+            s32 dx;
+            s32 dy;
+            u32 d;
+
+            if (!heat_panel_is_blue565(c)) {
+                continue;
+            }
+            sx = ox + (s16)ix;
+            sy = oy + (s16)iy;
+            dx = (s32)sx - (s32)tx;
+            dy = (s32)sy - (s32)ty;
+            d = (u32)(dx * dx + dy * dy);
+            if (d > snap_r2) {
+                continue;
+            }
+            if (!found || d < best_d) {
+                found = true;
+                best_d = d;
+                best_x = sx;
+                best_y = sy;
+            }
+        }
+    }
+    if (found) {
+        *x = best_x;
+        *y = best_y;
+    }
+}
 
 static void heat_panel_blit_overlay(u8 *dst, u16 tw, u16 th,
                                     u32 overlay_addr, u16 ow, u16 oh,
@@ -258,9 +331,6 @@ static bool heat_panel_progress_composite_apply(u8 idx)
     if (g_hp.pic_progress != NULL) {
         compo_picturebox_set_visible(g_hp.pic_progress, false);
         compo_picturebox_set_ram(g_hp.pic_progress, NULL);
-    }
-    if (g_hp.pic_point != NULL && g_hp.pic_point->img != NULL) {
-        widget_set_top(g_hp.pic_point->img, true);
     }
     g_hp.track_ready = true;
     g_hp_track_ram_valid = false;
@@ -412,12 +482,23 @@ static u8 heat_panel_clamp_progress_idx(u8 idx)
 
 static void heat_panel_point_pos(u8 idx, s16 *x, s16 *y)
 {
-    u8 step;
+    u8 pi;
+    u8 tip_step;
 
-    /* 圆点跟蓝弧同一帧 TIP：满弧(idx=13)在远 CCW 端，空弧(idx=1)回到轨道起点(右下) */
-    step = heat_panel_clamp_progress_idx(idx) - 1;
-    *x = tbl_progress_tip_x[step];
-    *y = tbl_progress_tip_y[step];
+    pi = heat_panel_clamp_progress_idx(idx);
+    if (pi >= NEW_HEAT_PROGRESS_CNT) {
+        /* 满弧：圆点在轨道右下起点（倒计时消耗从此向 CCW 端推进） */
+        tip_step = 0;
+    } else if (pi <= 1) {
+        /* 空弧：圆点在远 CCW 端 */
+        tip_step = NEW_HEAT_PROGRESS_CNT - 1;
+    } else {
+        /* 中间帧：与 overlay 同帧 TIP，即蓝弧前沿顶点 */
+        tip_step = pi - 1;
+    }
+    *x = tbl_progress_tip_x[tip_step];
+    *y = tbl_progress_tip_y[tip_step];
+    heat_panel_point_snap_to_blue(*x, *y, x, y);
 }
 
 static void heat_panel_point_bind(u8 progress_idx)
@@ -434,7 +515,11 @@ static void heat_panel_point_bind(u8 progress_idx)
                                   UI_LEN_NEW_UI_NEW_POINT_BIN,
                                   home_ui_colon_ram, HOME_COLON_RAM_SIZE,
                                   NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py)) {
-        printf("point_bind: fail idx=%u\n", progress_idx);
+        printf("point_bind: fail idx=%u tip=(%d,%d)\n", progress_idx, px, py);
+        return;
+    }
+    if (g_hp.pic_point->img != NULL) {
+        widget_set_top(g_hp.pic_point->img, true);
     }
 }
 
