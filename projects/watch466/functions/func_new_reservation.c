@@ -13,6 +13,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #include "port_pt8028_key.h"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 预约页 — 效果图「Set Time (Heating Finish Time)」
  *   三列滚轮：时(0~23) / 分(5min步进) / 秒(5s步进)
@@ -73,6 +78,40 @@ typedef struct {
     compo_textbox_t *txt_roll[NEW_RES_ROLL_COLS][NEW_RES_ROLL_ROWS];
     compo_textbox_t *txt_colon[2];
 } f_new_reservation_t;
+
+#if ELUNCHBOX_PANEL_EN
+static bool new_res_font_ready;
+
+static void new_res_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_res_font_apply_once(f_new_reservation_t *f)
+{
+    u8 col;
+    u8 row;
+
+    if (new_res_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_res_font_bind_txt(f->txt_title);
+    for (col = 0; col < NEW_RES_ROLL_COLS; col++) {
+        for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
+            WDT_CLR();
+            new_res_font_bind_txt(f->txt_roll[col][row]);
+        }
+    }
+    WDT_CLR();
+    new_res_font_bind_txt(f->txt_colon[0]);
+    new_res_font_bind_txt(f->txt_colon[1]);
+    new_res_font_ready = true;
+}
+#endif
 
 static s16 new_res_col_x(u8 col)
 {
@@ -204,6 +243,8 @@ static compo_textbox_t *new_res_txt_create(compo_form_t *frm, u16 id, u16 buf_si
     /* 禁用 autosize → 后续 compo_textbox_set() 不读字体 Flash，避免 C281 */
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, NEW_HEAT_FONT);
 #endif
     compo_textbox_set_pos(txt, x, y);
     compo_textbox_set_forecolor(txt, color);
@@ -260,6 +301,10 @@ static void new_res_roller_apply(f_new_reservation_t *f)
     if (f == NULL) {
         return;
     }
+
+#if ELUNCHBOX_PANEL_EN
+    new_res_font_apply_once(f);
+#endif
 
     if (f->txt_title != NULL) {
         widget_text_t *widget = f->txt_title->txt;
@@ -324,6 +369,10 @@ static void new_res_ui_refresh(f_new_reservation_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+    WDT_CLR();
+#endif
     new_res_roller_apply(f);
     f->display_pending = false;
 }
@@ -459,6 +508,7 @@ void func_new_reservation_enter(void)
     printf("func_new_reservation_enter\n");
 
 #if ELUNCHBOX_PANEL_EN
+    new_res_font_ready = false;
     home_gpu_wait_idle();
     WDT_CLR();
 #endif
