@@ -243,7 +243,10 @@ void func_elunchbox_res_key_poll(void);
 void func_elunchbox_switch_to_heat(void);
 /** BLE 0x04 加热指令：直达 func_heat_panel（参数已由 lb_mode_to_heat_set 预设） */
 void func_elunchbox_switch_to_heat_panel(void);
+/** BLE 0x04 保温指令：跳转 func_new_warm */
+void func_elunchbox_switch_to_warm_panel(void);
 void func_heat_ble_remote_restart(void);
+void func_new_warm_ble_restart(void);
 void func_heat_key_poll(void);
 bool func_heat_ui_is_heating(void);
 bool elunchbox_pwr_gui_off_is_on(void);

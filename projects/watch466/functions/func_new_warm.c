@@ -525,6 +525,29 @@ static void new_warm_heating_stop(void)
 #endif
 }
 
+#if ELUNCHBOX_PANEL_EN
+/** @brief 已在保温页时 BLE 再次下发保温参数：重启 UART 保温任务 */
+void func_new_warm_ble_restart(void)
+{
+    f_new_warm_t *f;
+
+    if (func_cb.sta != FUNC_NEW_WARM || func_cb.f_cb == NULL) {
+        return;
+    }
+    f = (f_new_warm_t *)func_cb.f_cb;
+    new_warm_heating_stop();
+    f->heating = false;
+    f->start_tick = tick_get();
+    f->last_progress_idx = 0xff;
+    f->last_elapsed_min = 0;
+#if LB_BRIDGE_MODE
+    lb_heat_uart_remote_set(true);
+#endif
+    new_warm_heating_start(f);
+    printf("new_warm_ble_restart: ok\n");
+}
+#endif
+
 static void new_warm_ui_apply_visual(f_new_warm_t *f)
 {
     u32 elapsed_min;

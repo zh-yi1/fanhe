@@ -153,6 +153,8 @@ static void elunchbox_ble_pending_sta_poll(void)
     if (sta == func_cb.sta) {
         if (sta == FUNC_HEAT) {
             func_heat_ble_remote_restart();
+        } else if (sta == FUNC_NEW_WARM) {
+            func_new_warm_ble_restart();
         }
         return;
     }
@@ -182,6 +184,25 @@ void func_elunchbox_switch_to_heat_panel(void)
     }
     elunchbox_ble_pending_sta = FUNC_HEAT;
     printf("elunchbox: heat panel pending (cur_sta=%u switching=%u)\n",
+           func_cb.sta, sys_cb.flag_swithing ? 1u : 0u);
+#endif
+}
+
+void func_elunchbox_switch_to_warm_panel(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_is_manual_off()
+        && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
+        elunchbox_pwr_intentional_wake = elunchbox_pwr_is_manual_off();
+        elunchbox_pwr_gui_wake_reason("ble warm start");
+        elunchbox_pwr_intentional_wake = false;
+    }
+    if (func_cb.sta == FUNC_NEW_WARM && func_cb.f_cb != NULL) {
+        func_new_warm_ble_restart();
+        return;
+    }
+    elunchbox_ble_pending_sta = FUNC_NEW_WARM;
+    printf("elunchbox: warm panel pending (cur_sta=%u switching=%u)\n",
            func_cb.sta, sys_cb.flag_swithing ? 1u : 0u);
 #endif
 }

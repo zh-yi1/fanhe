@@ -31,6 +31,7 @@
 //-----------------------------------------------------------------------------
 bool lb_keep_warm_active = false;
 bool lb_heat_lcd_active;     /* LCD 已下发加热/保温，至 stop 或 MCU 确认结束 */
+static u8 lb_warm_temp_idx = 0xff;  /* 0xff=默认 140°F；BLE 跳转保温页前可指定 */
 
 //-----------------------------------------------------------------------------
 // 模式界面 → 加热界面 预设参数传递
@@ -235,11 +236,48 @@ void lunchbox_heat_stop(void)
 // 保温控制
 //-----------------------------------------------------------------------------
 
+void lunchbox_keep_warm_set_temp_idx(u8 temp_idx)
+{
+    lb_warm_temp_idx = (temp_idx <= 6) ? temp_idx : 0xff;
+}
+
+#if ELUNCHBOX_PANEL_EN
+static void lunchbox_warm_mark_active(void)
+{
+    lb_keep_warm_active = true;
+    lb_heat_lcd_active = true;
+    lb_heat_task_active = true;
+    if (!elunchbox_pwr_is_manual_off()) {
+        elunchbox_user_activity_reset();
+    }
+    func_key_lock_on_heating_start();
+}
+#endif
+
 void lunchbox_keep_warm_start(void)
 {
-    if (lb_keep_warm_active) return;
-    lunchbox_heat_start(LB_KEEP_WARM_MODE,
-                        lunchbox_temp_f_to_idx(LB_KEEP_WARM_TEMP_F), 0);
+    u8 temp_idx;
+
+    if (lb_keep_warm_active) {
+        return;
+    }
+    if (lb_warm_temp_idx <= 6) {
+        temp_idx = lb_warm_temp_idx;
+        lb_warm_temp_idx = 0xff;
+    } else {
+        temp_idx = lunchbox_temp_f_to_idx(LB_KEEP_WARM_TEMP_F);
+    }
+
+#if LB_BRIDGE_MODE
+    if (lb_heat_uart_remote_consume()) {
+#if ELUNCHBOX_PANEL_EN
+        lunchbox_warm_mark_active();
+#endif
+        printf("keep_warm_start: bridge skip UART temp_idx=%u\n", temp_idx);
+        return;
+    }
+#endif
+    lunchbox_heat_start(LB_KEEP_WARM_MODE, temp_idx, 0);
 }
 
 void lunchbox_keep_warm_stop(void)
@@ -500,9 +538,13 @@ static void lb_dp_parse_heat_control(const u8 *data, u16 len, lb_heat_control_dp
     }
 }
 
-/** @brief 判断是否应跳转加热页（兼容 APP 未带 DP10 仅下发模式/温度/时长） */
+/** @brief 判断是否应跳转加热/保温页（兼容 APP 未带 DP10 仅下发模式/温度/时长） */
 static bool lb_heat_control_wants_panel(const lb_heat_control_dp_t *dp)
 {
+    /* 保温(5)：下发模式即进入保温页 */
+    if (dp->got_mode && dp->mode == 5) {
+        return true;
+    }
     /* 鸡腿(2)/意面(3)：协议 §3.4 下发模式即开始对应预设加热 */
     if (dp->got_mode && (dp->mode == 2 || dp->mode == 3)) {
         return true;
@@ -532,6 +574,56 @@ static void lunchbox_ble_goto_heat_panel(u8 proto_mode, u16 temp_f, u8 hour, u8 
     lb_heat_uart_remote_set(true);
 #endif
     func_elunchbox_switch_to_heat_panel();
+}
+
+/** @brief 跳转 func_new_warm 保温页（温度档位由 lunchbox_keep_warm_set_temp_idx 预设） */
+static void lunchbox_ble_goto_warm_panel(u8 temp_idx)
+{
+    lunchbox_keep_warm_set_temp_idx(temp_idx);
+#if LB_BRIDGE_MODE
+    lb_heat_uart_remote_set(true);
+#endif
+    func_elunchbox_switch_to_warm_panel();
+}
+
+/** @brief 0x04 控制帧：保温模式 → func_new_warm */
+void lunchbox_control_apply_warm(const u8 *data, u16 len)
+{
+    lb_heat_control_dp_t dp;
+    u8 proto_mode;
+    u8 temp_idx;
+
+    lb_dp_parse_heat_control(data, len, &dp);
+
+    if (dp.got_enable && dp.enable == 0) {
+        return;
+    }
+
+    if (dp.got_mode && dp.mode >= 1 && dp.mode <= 5) {
+        lb_ble_cached_heat_mode = dp.mode;
+    }
+    proto_mode = dp.got_mode ? dp.mode : lb_ble_cached_heat_mode;
+    if (proto_mode != 5) {
+        return;
+    }
+
+    if (!lb_heat_control_wants_panel(&dp)) {
+        return;
+    }
+
+    if (dp.got_temp) {
+        temp_idx = dp.temp_idx;
+    } else {
+        temp_idx = lb_mode_temp[5];
+    }
+    if (temp_idx > 6) {
+        temp_idx = lunchbox_temp_f_to_idx(LB_KEEP_WARM_TEMP_F);
+    }
+
+    printf("BLE warm: temp_idx=%u (%uF) -> warm panel\n",
+           temp_idx, lunchbox_temp_idx_to_f(temp_idx));
+
+    lunchbox_ble_goto_warm_panel(temp_idx);
 }
 
 /** @brief 0x04 控制帧含总开关时，驱动面板关机/开机（桥模式与本地模式共用） */
@@ -579,6 +671,7 @@ void lunchbox_control_apply_heat(const u8 *data, u16 len)
         return;
     }
     if (proto_mode == 5) {
+        lunchbox_control_apply_warm(data, len);
         return;
     }
 
