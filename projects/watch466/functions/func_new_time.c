@@ -26,6 +26,10 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Missing w0m.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_HOME_W5_BIN
+#error "Missing w5.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
+#endif
+
 #ifndef UI_BUF_HOME_WCM_BIN
 #error "Missing wcm.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
 #endif
@@ -288,13 +292,13 @@ static const char *new_time_stage_name(u8 stage)
 
 static const u32 tbl_new_time_digit_addr[10] = {
     UI_BUF_HOME_W0M_BIN, UI_BUF_HOME_W1M_BIN, UI_BUF_HOME_W2M_BIN, UI_BUF_HOME_W3M_BIN,
-    UI_BUF_HOME_W4M_BIN, UI_BUF_HOME_W5M_BIN, UI_BUF_HOME_W6M_BIN, UI_BUF_HOME_W7M_BIN,
+    UI_BUF_HOME_W4M_BIN, UI_BUF_HOME_W5_BIN, UI_BUF_HOME_W6M_BIN, UI_BUF_HOME_W7M_BIN,
     UI_BUF_HOME_W8M_BIN, UI_BUF_HOME_W9M_BIN,
 };
 
 static const u16 tbl_new_time_digit_len[10] = {
     UI_LEN_HOME_W0M_BIN, UI_LEN_HOME_W1M_BIN, UI_LEN_HOME_W2M_BIN, UI_LEN_HOME_W3M_BIN,
-    UI_LEN_HOME_W4M_BIN, UI_LEN_HOME_W5M_BIN, UI_LEN_HOME_W6M_BIN, UI_LEN_HOME_W7M_BIN,
+    UI_LEN_HOME_W4M_BIN, UI_LEN_HOME_W5_BIN, UI_LEN_HOME_W6M_BIN, UI_LEN_HOME_W7M_BIN,
     UI_LEN_HOME_W8M_BIN, UI_LEN_HOME_W9M_BIN,
 };
 
