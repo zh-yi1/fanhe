@@ -1320,7 +1320,7 @@ static u8 lb_handler_control(lb_rx_frame_t *rx)
     lunchbox_uart_send_response(LB_CMD_CONTROL, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
 
 #if ELUNCHBOX_PANEL_EN
-    lunchbox_control_apply_power_switch(rx->data, rx->data_len);
+    lunchbox_control_apply_panel(rx->data, rx->data_len);
 #endif
 
     // 属性变化后主动上报 APP

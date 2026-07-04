@@ -112,10 +112,20 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out);
 
 void lb_heat_autostart_set(bool en);
 bool lb_heat_autostart_consume(void);
+/** @brief BLE 桥模式已转发 UART 时，func_heat 跳过重复 lunchbox_heat_start */
+void lb_heat_uart_remote_set(bool en);
+bool lb_heat_uart_remote_consume(void);
+
+/** @brief 协议温度档位 → 华氏度 (0=40°C ~ 6=100°C) */
+u16 lunchbox_temp_idx_to_f(u8 idx);
 
 #if ELUNCHBOX_PANEL_EN
 /** @brief 解析 0x04 控制帧中的总开关 DP，执行面板关/开机 */
 void lunchbox_control_apply_power_switch(const u8 *data, u16 len);
+/** @brief 解析 0x04 控制帧中的加热 DP，跳转 func_heat_panel 并同步参数 */
+void lunchbox_control_apply_heat(const u8 *data, u16 len);
+/** @brief 0x04 控制帧面板侧统一入口（开关机 + 加热页） */
+void lunchbox_control_apply_panel(const u8 *data, u16 len);
 #endif
 
 #endif // FUNC_LUNCHBOX_UART_EN

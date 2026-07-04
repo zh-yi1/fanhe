@@ -135,6 +135,58 @@ void func_elunchbox_switch_to_heat(void)
 }
 
 #if ELUNCHBOX_PANEL_EN
+static bool elunchbox_pwr_intentional_wake; /* manual_off 下允许 gui_wakeup（前置声明） */
+static u8   elunchbox_ble_pending_sta;      /* BLE 触发的延后切页（避免 flag_swithing 时丢失） */
+
+static void elunchbox_ble_pending_sta_poll(void)
+{
+    u8 sta;
+
+    if (elunchbox_ble_pending_sta == 0) {
+        return;
+    }
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    sta = elunchbox_ble_pending_sta;
+    elunchbox_ble_pending_sta = 0;
+    if (sta == func_cb.sta) {
+        if (sta == FUNC_HEAT) {
+            func_heat_ble_remote_restart();
+        }
+        return;
+    }
+    printf("elunchbox: deferred switch sta=%u from=%u\n", sta, func_cb.sta);
+#if USER_PT8028_KEY
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
+    home_gpu_wait_idle();
+    WDT_CLR();
+    func_switch_to(sta, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+#endif
+
+void func_elunchbox_switch_to_heat_panel(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_is_manual_off()
+        && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
+        elunchbox_pwr_intentional_wake = elunchbox_pwr_is_manual_off();
+        elunchbox_pwr_gui_wake_reason("ble heat start");
+        elunchbox_pwr_intentional_wake = false;
+    }
+    if (func_cb.sta == FUNC_HEAT && func_cb.f_cb != NULL) {
+        func_heat_ble_remote_restart();
+        return;
+    }
+    elunchbox_ble_pending_sta = FUNC_HEAT;
+    printf("elunchbox: heat panel pending (cur_sta=%u switching=%u)\n",
+           func_cb.sta, sys_cb.flag_swithing ? 1u : 0u);
+#endif
+}
+
+#if ELUNCHBOX_PANEL_EN
 static void elunchbox_subpage_gpu_recycle_after_leave(void)
 {
     WDT_CLR();
@@ -184,7 +236,6 @@ static bool elunchbox_pwr_gui_off;
 static bool elunchbox_pwr_manual_off;   /* 长按3s手动关机：浅睡态，长按再开 */
 static bool elunchbox_pwr_wake_armed;   /* manual off 后允许再次长按 3s 唤醒 */
 static bool elunchbox_pwr_need_fresh_press; /* 关机松手后须新一次按下才计 3s 唤醒 */
-static bool elunchbox_pwr_intentional_wake; /* manual_off 下允许 gui_wakeup */
 static bool elunchbox_manual_wake_pending; /* 浅睡内检测到长按，退出 sleep 后再亮屏 */
 static bool elunchbox_boot_power_sent;
 static bool elunchbox_pwr_hw_off;       /* 协议/BLE 关机已向加热模块发 PowerSwitch=OFF */
@@ -1109,6 +1160,9 @@ void func_process(void)
 
 #if USER_PT8028_KEY && SOFT_POWER_ON_OFF
     func_elunchbox_pwr_long_poll();
+#endif
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_ble_pending_sta_poll();
 #endif
 }
 

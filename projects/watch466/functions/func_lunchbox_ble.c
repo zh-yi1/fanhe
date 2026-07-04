@@ -30,6 +30,7 @@
 #include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
+#include "func_lunchbox_lcd.h"
 #endif
 
 #if FUNC_LUNCHBOX_UART_EN
@@ -283,7 +284,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
                 heat_display_feed_dp(frame.data, frame.data_len);
 #if ELUNCHBOX_PANEL_EN
                 home_ui_shared_battery_feed_dp(frame.data, frame.data_len);
-                lunchbox_control_apply_power_switch(frame.data, frame.data_len);
+                lunchbox_control_apply_panel(frame.data, frame.data_len);
 #endif
             }
         }

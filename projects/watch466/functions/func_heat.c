@@ -729,6 +729,7 @@ static void func_heat_start_heating(f_heat_t *f_heat)
 
 #if FUNC_LUNCHBOX_UART_EN
     {
+        bool skip_uart = lb_heat_uart_remote_consume();
         u16 target_temp_f = (f_heat->temp_idx < HEAT_TEMP_PRESET_CNT)
                           ? tbl_heat_temp_preset[f_heat->temp_idx]
                           : tbl_heat_temp_preset[0];
@@ -739,10 +740,21 @@ static void func_heat_start_heating(f_heat_t *f_heat)
         } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
             duration_min = LB_HEAT_DURATION_MAX_MIN;
         }
-        printf("lb: heat_start -> UART\n");
-        printf("target_temp_f: %d, duration_min: %d, proto_mode: %d\n",
-               lunchbox_temp_f_to_idx(target_temp_f), duration_min, f_heat->proto_mode);
-        lunchbox_heat_start(f_heat->proto_mode, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
+#if LB_BRIDGE_MODE
+        if (!skip_uart)
+#endif
+        {
+            printf("lb: heat_start -> UART\n");
+            printf("target_temp_f: %d, duration_min: %d, proto_mode: %d\n",
+                   lunchbox_temp_f_to_idx(target_temp_f), duration_min, f_heat->proto_mode);
+            lunchbox_heat_start(f_heat->proto_mode, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
+        }
+#if ELUNCHBOX_PANEL_EN
+        else if (!elunchbox_pwr_is_manual_off()) {
+            elunchbox_user_activity_reset();
+            func_key_lock_on_heating_start();
+        }
+#endif
     }
 #endif
 
@@ -750,6 +762,75 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     func_heat_display_refresh(f_heat);
     printf("start_heating: display_refresh done\n");
 }
+
+#if ELUNCHBOX_PANEL_EN
+void func_heat_ble_remote_restart(void)
+{
+    f_heat_t *f_heat;
+    lb_mode_to_heat_preset_t preset;
+    u32 total_min;
+
+    if (func_cb.sta != FUNC_HEAT || func_cb.f_cb == NULL) {
+        return;
+    }
+    if (!lb_mode_to_heat_get(&preset)) {
+        return;
+    }
+
+    f_heat = (f_heat_t *)func_cb.f_cb;
+    f_heat->set_hour   = preset.hour;
+    f_heat->set_min    = preset.min;
+    f_heat->temp_idx   = func_heat_temp_f_to_idx(preset.temp_f);
+    f_heat->proto_mode = preset.proto_mode;
+    func_heat_setup_apply_total_min(f_heat, func_heat_setup_total_min(f_heat));
+
+    f_heat->ui_state = HEAT_UI_HEATING;
+    f_heat->screen_locked = false;
+    f_heat->heat_start_tick = tick_get();
+    total_min = (u32)f_heat->set_hour * 60 + f_heat->set_min;
+    f_heat->heat_total_sec = total_min * 60;
+    if (f_heat->heat_total_sec == 0) {
+        f_heat->heat_total_sec = 60;
+    }
+    f_heat->heat_live_ready = false;
+    f_heat->heat_live_remain_min = 0;
+    f_heat->heat_live_temp_f = 0;
+    f_heat->last_timer_key = 0xffff;
+    f_heat->last_temp_f = 0xffff;
+    func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
+    func_heat_countdown_stop();
+
+#if FUNC_LUNCHBOX_UART_EN && !LB_BRIDGE_MODE
+    {
+        u16 target_temp_f = (f_heat->temp_idx < HEAT_TEMP_PRESET_CNT)
+                          ? tbl_heat_temp_preset[f_heat->temp_idx]
+                          : tbl_heat_temp_preset[0];
+        u32 duration_min = f_heat->heat_total_sec / 60;
+
+        if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
+            duration_min = LB_HEAT_DURATION_MIN_MIN;
+        } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
+            duration_min = LB_HEAT_DURATION_MAX_MIN;
+        }
+        lunchbox_heat_start(f_heat->proto_mode, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
+    }
+#else
+    (void)lb_heat_uart_remote_consume();
+    if (!elunchbox_pwr_is_manual_off()) {
+        elunchbox_user_activity_reset();
+        func_key_lock_on_heating_start();
+    }
+#endif
+
+    func_heat_led_sync(true);
+    func_heat_panel_mark_dirty(f_heat);
+    elunchbox_te_block_flag = 1;
+    func_heat_panel_enter(f_heat);
+    elunchbox_te_block_flag = 0;
+    printf("heat_ble_remote_restart: mode=%u %uh%um temp_idx=%u\n",
+           f_heat->proto_mode, f_heat->set_hour, f_heat->set_min, f_heat->temp_idx);
+}
+#endif
 
 static void func_heat_ok_key(f_heat_t *f_heat)
 {

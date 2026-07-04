@@ -71,6 +71,33 @@ bool lb_heat_autostart_consume(void)
     return val;
 }
 
+/** @brief BLE 0x04 已转发 UART 时，func_heat 侧跳过重复 lunchbox_heat_start */
+static bool lb_heat_uart_remote_flag;
+
+void lb_heat_uart_remote_set(bool en)
+{
+    lb_heat_uart_remote_flag = en;
+}
+
+bool lb_heat_uart_remote_consume(void)
+{
+    bool val = lb_heat_uart_remote_flag;
+    lb_heat_uart_remote_flag = false;
+    return val;
+}
+
+/** @brief 协议温度档位 → 华氏度 (0=40°C ~ 6=100°C) */
+u16 lunchbox_temp_idx_to_f(u8 idx)
+{
+    u16 temp_c;
+
+    if (idx > 6) {
+        idx = 6;
+    }
+    temp_c = 40 + (u16)idx * 10;
+    return (u16)(temp_c * 9 / 5 + 32);
+}
+
 //-----------------------------------------------------------------------------
 // 状态查询
 //-----------------------------------------------------------------------------
@@ -398,6 +425,82 @@ void lunchbox_ble_on_connected(void)
 }
 
 #if ELUNCHBOX_PANEL_EN
+typedef struct {
+    bool got_mode;
+    bool got_duration;
+    bool got_temp;
+    bool got_enable;
+    u8   mode;
+    u8   temp_idx;
+    u32  duration_min;
+    u8   enable;
+} lb_heat_control_dp_t;
+
+static void lb_dp_parse_heat_control(const u8 *data, u16 len, lb_heat_control_dp_t *out)
+{
+    u16 off = 0;
+
+    memset(out, 0, sizeof(*out));
+    while (off + 4 <= len) {
+        u8  dpid    = data[off];
+        u16 val_len = ((u16)data[off + 2] << 8) | data[off + 3];
+
+        if (off + 4 + val_len > len) {
+            break;
+        }
+        u8 *val = data + off + 4;
+
+        switch (dpid) {
+        case LB_DPID_HEAT_MODE:
+            if (val_len >= 1) {
+                out->mode = val[0];
+                out->got_mode = true;
+            }
+            break;
+        case LB_DPID_HEAT_DURATION:
+            if (val_len >= 4) {
+                out->duration_min = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                                  | ((u32)val[2] << 8) | val[3];
+                out->got_duration = true;
+            } else if (val_len >= 1) {
+                out->duration_min = val[0];
+                out->got_duration = true;
+            }
+            break;
+        case LB_DPID_HEAT_TEMP:
+            if (val_len >= 1) {
+                out->temp_idx = val[0];
+                out->got_temp = true;
+            }
+            break;
+        case LB_DPID_HEAT_ENABLE:
+            if (val_len >= 1) {
+                out->enable = val[0];
+                out->got_enable = true;
+            }
+            break;
+        default:
+            break;
+        }
+        off += 4 + val_len;
+    }
+}
+
+/** @brief 判断是否应跳转加热页（兼容 APP 未带 DP10 仅下发模式/温度/时长） */
+static bool lb_heat_control_wants_panel(const lb_heat_control_dp_t *dp)
+{
+    if (dp->got_enable) {
+        return dp->enable != 0;
+    }
+    if (dp->got_mode && dp->mode >= 1 && dp->mode <= 3) {
+        return true;
+    }
+    if (dp->got_duration || dp->got_temp) {
+        return true;
+    }
+    return false;
+}
+
 /** @brief 0x04 控制帧含总开关时，驱动面板关机/开机（桥模式与本地模式共用） */
 void lunchbox_control_apply_power_switch(const u8 *data, u16 len)
 {
@@ -407,6 +510,82 @@ void lunchbox_control_apply_power_switch(const u8 *data, u16 len)
         return;
     }
     elunchbox_pwr_ble_switch(sw != 0);
+}
+
+/** @brief 0x04 控制帧含「是否加热=1」时，跳转加热页并同步 UI 参数 */
+void lunchbox_control_apply_heat(const u8 *data, u16 len)
+{
+    lb_heat_control_dp_t dp;
+    u8   proto_mode;
+    u16  temp_f;
+    u32  duration_min;
+    u8   hour;
+    u8   min;
+
+    lb_dp_parse_heat_control(data, len, &dp);
+
+    printf("BLE heat ctrl: en=%u got_en=%u mode=%u got_mode=%u dur=%lu got_dur=%u temp=%u got_temp=%u\n",
+           dp.enable, dp.got_enable ? 1u : 0u,
+           dp.mode, dp.got_mode ? 1u : 0u,
+           (unsigned long)dp.duration_min, dp.got_duration ? 1u : 0u,
+           dp.temp_idx, dp.got_temp ? 1u : 0u);
+
+    if (!lb_heat_control_wants_panel(&dp)) {
+        return;
+    }
+
+    if (dp.got_enable && dp.enable == 0) {
+        return;
+    }
+
+    proto_mode = dp.got_mode ? dp.mode : 1;
+    if (proto_mode == 0 || proto_mode == 4) {
+        return;
+    }
+    if (proto_mode == 5) {
+        return;
+    }
+
+    if (dp.got_temp) {
+        temp_f = lunchbox_temp_idx_to_f(dp.temp_idx);
+    } else if (proto_mode <= 5) {
+        temp_f = lunchbox_temp_idx_to_f(lb_mode_temp[proto_mode]);
+    } else {
+        temp_f = lunchbox_temp_idx_to_f(4);
+    }
+
+    if (dp.got_duration) {
+        duration_min = dp.duration_min;
+    } else if (proto_mode <= 5 && lb_mode_duration[proto_mode] > 0) {
+        duration_min = lb_mode_duration[proto_mode];
+    } else {
+        duration_min = 30;
+    }
+    if (duration_min < 1) {
+        duration_min = 1;
+    } else if (duration_min > 5999) {
+        duration_min = 5999;
+    }
+
+    hour = (u8)(duration_min / 60);
+    min  = (u8)(duration_min % 60);
+
+    printf("BLE heat: mode=%u temp_f=%u dur=%lu -> heat panel\n",
+           proto_mode, temp_f, (unsigned long)duration_min);
+
+    lb_mode_to_heat_set(proto_mode, temp_f, hour, min);
+    lb_heat_autostart_set(true);
+#if LB_BRIDGE_MODE
+    lb_heat_uart_remote_set(true);
+#endif
+    func_elunchbox_switch_to_heat_panel();
+}
+
+/** @brief 0x04 控制帧：面板侧总开关 + 加热页跳转 */
+void lunchbox_control_apply_panel(const u8 *data, u16 len)
+{
+    lunchbox_control_apply_power_switch(data, len);
+    lunchbox_control_apply_heat(data, len);
 }
 #endif
 
