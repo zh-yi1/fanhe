@@ -175,6 +175,18 @@ static void new_home_tab_apply(f_new_home_t *f)
     home_gpu_wait_idle();
 }
 
+static void new_home_top_time_restore(f_new_home_t *f)
+{
+    if (f == NULL) {
+        return;
+    }
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+    WDT_CLR();
+#endif
+    home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
+}
+
 static void new_home_white_bg_create(compo_form_t *frm)
 {
     compo_shape_t *bg = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
@@ -310,10 +322,8 @@ void func_home_force_ui_refresh_after_wake(void)
     new_home_status_icons_apply(f);
     new_home_logo_apply(f);
     new_home_tab_apply(f);
+    new_home_top_time_restore(f);
 
-    {
-        home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
-    }
     new_home_res_marquee_refresh(f);
     func_home_gui_mark_dirty();
     home_gpu_wait_idle();
@@ -331,8 +341,6 @@ compo_form_t *func_home_form_create(void)
     s16 bt_x;
 
     new_home_white_bg_create(frm);
-
-    home_top_time_txt_create(frm, COMPO_ID_TXT_TOP_TIME);
 
     bat_x = (s16)(GUI_SCREEN_WIDTH - NEW_HOME_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
     lock_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - NEW_HOME_STATUS_GAP - HOME_STATUS_LOCK_W / 2);
@@ -388,6 +396,9 @@ compo_form_t *func_home_form_create(void)
     compo_picturebox_set_pos(pic, NEW_HOME_TAB_SETUP_X, NEW_HOME_TAB_Y);
     compo_picturebox_set_size(pic, NEW_HOME_TAB_ICON_MAX_W, NEW_HOME_TAB_ICON_MAX_H);
     compo_picturebox_set_visible(pic, false);
+
+    /* 最后创建，保证 Tab/GPU 重绘后仍位于最上层 */
+    home_top_time_txt_create(frm, COMPO_ID_TXT_TOP_TIME);
 
     return frm;
 }
@@ -468,8 +479,7 @@ void func_home_mode_key(void)
     }
     new_home_tab_apply(f);
 #if ELUNCHBOX_PANEL_EN
-    new_home_draw_now();
-    func_home_gui_mark_dirty();
+    new_home_top_time_restore(f);
 #endif
 }
 
@@ -588,7 +598,7 @@ void func_home_process(void)
             new_home_status_icons_apply(f);
             new_home_logo_apply(f);
             new_home_tab_apply(f);
-            home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
+            new_home_top_time_restore(f);
             new_home_res_marquee_refresh(f);
             f->display_stage = 0;
             func_home_gui_mark_dirty();
@@ -616,6 +626,7 @@ void func_home_process(void)
     new_home_status_refresh(f);
     func_process();
 #if ELUNCHBOX_PANEL_EN
+    home_top_time_txt_keep_visible(&f->top_time);
     func_home_pending_switch_exec(f);
 #endif
 }
@@ -663,6 +674,8 @@ void func_home_enter(void)
     f = (f_new_home_t *)func_cb.f_cb;
     f->screen_locked = false;
     f->cur_tab = NEW_HOME_TAB_HEAT;    /* 默认选中 Heat Tab */
+    f->last_top_min = 0xff;
+    f->last_top_sec = 0xff;
     new_home_bind_objects(f);
 
 #if ELUNCHBOX_PANEL_EN
@@ -678,7 +691,7 @@ void func_home_enter(void)
     new_home_status_icons_apply(f);
     new_home_logo_apply(f);
     new_home_tab_apply(f);
-    home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
+    new_home_top_time_restore(f);
     new_home_res_marquee_refresh(f);
 #endif
 

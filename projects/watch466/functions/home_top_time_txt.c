@@ -125,8 +125,15 @@ bool home_top_time_txt_refresh(home_top_time_txt_t *ui, tm_t *tm)
                                HOME_TOP_TIME_TXT_W, HOME_TOP_TIME_TXT_H);
     compo_textbox_set_forecolor(ui->txt, COLOR_BLACK);
     home_top_time_txt_format(buf, sizeof(buf), tm);
+#if ELUNCHBOX_PANEL_EN
+    widget_text_set(ui->txt->txt, buf);
+#else
     compo_textbox_set(ui->txt, buf);
+#endif
     compo_textbox_set_visible(ui->txt, true);
+    if (widget != NULL) {
+        widget_set_top(widget, true);
+    }
     ui->last_key = key;
     return true;
 }
@@ -163,4 +170,35 @@ void home_top_time_txt_force(home_top_time_txt_t *ui, u8 *last_min, u8 *last_sec
     }
     ui->last_key = 0xffff;
     home_top_time_txt_refresh(ui, &tm);
+}
+
+void home_top_time_txt_keep_visible(home_top_time_txt_t *ui)
+{
+    char buf[12];
+    tm_t tm;
+    widget_text_t *widget;
+
+    if (ui == NULL || ui->txt == NULL || ui->last_key == 0xffff) {
+        return;
+    }
+
+    home_top_time_txt_font_once(ui);
+    tm = rtc_clock_get();
+    home_top_time_txt_format(buf, sizeof(buf), &tm);
+    widget = ui->txt->txt;
+    compo_textbox_set_align_center(ui->txt, false);
+    if (widget != NULL) {
+        widget_set_align_center(widget, false);
+        widget_text_set_ellipsis(widget, false);
+    }
+    compo_textbox_set_forecolor(ui->txt, COLOR_BLACK);
+    compo_textbox_set_visible(ui->txt, true);
+#if ELUNCHBOX_PANEL_EN
+    if (widget != NULL) {
+        widget_text_set(widget, buf);
+        widget_set_top(widget, true);
+    }
+#else
+    compo_textbox_set(ui->txt, buf);
+#endif
 }

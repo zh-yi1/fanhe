@@ -2,7 +2,6 @@
 #include "func.h"
 #include "func_reservation.h"
 #include "func_key_lock.h"
-#include "home_top_time_txt.h"
 #include "home_ui_shared.h"
 
 #if ELUNCHBOX_PANEL_EN
@@ -55,7 +54,6 @@ extern volatile u8 elunchbox_te_block_flag;
 
 enum {
     COMPO_ID_SHAPE_BG = 1,
-    COMPO_ID_TXT_TOP_TIME,
     COMPO_ID_SHAPE_PANEL,
     COMPO_ID_TXT_TITLE,
     COMPO_ID_TXT_ROLL_BASE = 10,
@@ -75,10 +73,7 @@ typedef struct {
     u8 appt_min;
     u8 appt_sec;
     u8 focus_col;
-    u8 last_top_min;
-    u8 last_top_sec;
     bool display_pending;
-    home_top_time_txt_t top_time;
     compo_textbox_t *txt_title;
     compo_textbox_t *txt_roll[NEW_RES_ROLL_COLS][NEW_RES_ROLL_ROWS];
     compo_textbox_t *txt_colon[2];
@@ -287,7 +282,6 @@ static void new_res_bind_objects(f_new_reservation_t *f)
     if (f == NULL) {
         return;
     }
-    home_top_time_txt_bind(&f->top_time, COMPO_ID_TXT_TOP_TIME);
     f->txt_title = compo_getobj_byid(COMPO_ID_TXT_TITLE);
     for (col = 0; col < NEW_RES_ROLL_COLS; col++) {
         for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
@@ -379,7 +373,6 @@ static void new_res_ui_refresh(f_new_reservation_t *f)
     home_gpu_wait_idle();
     WDT_CLR();
 #endif
-    home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
     new_res_roller_apply(f);
     f->display_pending = false;
 }
@@ -437,8 +430,6 @@ compo_form_t *func_new_reservation_form_create(void)
     u8 row;
 
     new_res_white_bg_create(frm);
-
-    home_top_time_txt_create(frm, COMPO_ID_TXT_TOP_TIME);
 
     new_res_panel_create(frm);
 
@@ -508,7 +499,6 @@ static void func_new_reservation_process(void)
     if (f->display_pending) {
         new_res_ui_refresh(f);
     }
-    home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
     func_process();
 }
 
@@ -538,8 +528,6 @@ void func_new_reservation_enter(void)
     f = (f_new_reservation_t *)func_cb.f_cb;
     func_reservation_new_ui_load_time(&f->appt_hour, &f->appt_min, &f->appt_sec);
     f->focus_col = NEW_RES_FOCUS_HOUR;
-    f->last_top_min = 0xff;
-    f->last_top_sec = 0xff;
 
     func_cb.frm_main = func_new_reservation_form_create();
     new_res_bind_objects(f);
