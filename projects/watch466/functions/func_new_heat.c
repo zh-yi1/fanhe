@@ -954,7 +954,8 @@ static void new_heat_power_key(f_new_heat_t *f)
     g_new_heat_temp_idx = 0;
     g_new_heat_time_idx = 0;
     g_new_heat_proto_mode = 1;
-    func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    /* 不调 func_switch_to：让 func_exit() 安全路径做清理 */
+    func_cb.sta = FUNC_HOME;
 }
 
 /* 定期刷新状态栏（蓝牙、电量电池图标按原始逻辑显示） */
@@ -1099,7 +1100,10 @@ static void new_heat_pt8028_keys_process(f_new_heat_t *f)
     if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
         elunchbox_user_activity_reset();
     }
-    if (func_key_lock_filter_tch(press_tch)) {
+    /* TCH0 锁键由 func_key_lock_poll() 独占总线处理，此处跳过。
+       否则锁键长摁触发后用户若未松手，每帧都会调用 func_key_lock_notify_blocked()
+       重置 3s 计时器，导致锁图标永远无法自动隐藏。 */
+    if (press_tch != PT8028_KEY_TCH0 && func_key_lock_filter_tch(press_tch)) {
         return;
     }
     if (press_tch == PT8028_KEY_TCH4) {
@@ -1129,15 +1133,15 @@ static void func_new_heat_message(size_msg_t msg)
     if (msg == NO_MSG || func_cb.sta != FUNC_NEW_HEAT) {
         return;
     }
-    if (sys_cb.flag_swithing) {
+    if (sys_cb.flag_swithing) {    //正在切换动画中，不处理
         return;
     }
 #if ELUNCHBOX_PANEL_EN
-    if (f != NULL && !f->key_ready) {
+    if (f != NULL && !f->key_ready) {  //UI还没准备好，不处理
         return;
     }
 #endif
-    if (func_key_lock_ku_blocked(msg)) {
+    if (func_key_lock_ku_blocked(msg)) {  //摁键被锁，不处理
         return;
     }
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -1264,6 +1268,8 @@ void func_new_heat_enter(void)
     new_heat_bind_objects(f);
 
 #if ELUNCHBOX_PANEL_EN
+    /* 进入新加热页后 30s 未上锁则自动上锁，防止误触 */
+    func_key_lock_on_heating_start();
     home_ui_shared_status_init();
     home_gpu_wait_idle();
     WDT_CLR();
@@ -1303,10 +1309,11 @@ void func_new_heat_exit(void)
 void func_new_heat(void)
 {
     printf("func_new_heat run\n");
-    func_new_heat_enter();
+    func_new_heat_enter();                        //init
     while (func_cb.sta == FUNC_NEW_HEAT) {
-        func_new_heat_process();
-        func_new_heat_message(msg_dequeue());
+        func_new_heat_process();                  //刷新UI
+        func_new_heat_message(msg_dequeue());     //处理摁键消息
+        func_key_lock_poll();                     //锁键超时隐藏/自动上锁
     }
     func_new_heat_exit();
 }

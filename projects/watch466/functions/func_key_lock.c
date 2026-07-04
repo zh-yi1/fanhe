@@ -31,6 +31,10 @@ static void func_key_lock_set(bool locked);
 
 static bool func_key_lock_heating_active(void)
 {
+    /* 新加热设置页（调温/调时）也可触发自动锁键 */
+    if (func_cb.sta == FUNC_NEW_HEAT) {
+        return true;
+    }
 #if FUNC_LUNCHBOX_UART_EN
     if (lunchbox_heating_task_active()) {
         return true;
@@ -150,10 +154,15 @@ static void func_key_lock_set(bool locked)
 
 void func_key_lock_on_page_change(void)
 {
+    printf("key_lock: page_change start, hint=%d\n", key_lock_hint_on);
     home_ui_lock_overlay_reset();
+    printf("key_lock: reset done\n");
     if (key_lock_hint_on) {
+        printf("key_lock: applying overlay\n");
         func_key_lock_overlay_apply();
+        printf("key_lock: overlay applied\n");
     }
+    printf("key_lock: page_change done\n");
 }
 
 void func_key_lock_on_form_destroy(void)
@@ -204,6 +213,12 @@ void func_key_lock_poll(void)
     if (key_lock_hint_on) {
         if (tick_check_expire(key_lock_hint_start, func_key_lock_hint_duration_ms())) {
             func_key_lock_hint_hide();
+        } else if (!home_ui_lock_overlay_is_visible()) {
+            /* 页面切换后 overlay 已被安全清理（含 GPU detach），
+               在新 form 上重建锁键图标 */
+            home_ui_lock_overlay_show(key_lock_hint_mode == KEY_LOCK_HINT_UNLOCK);
+        } else {
+            home_ui_lock_overlay_bring_front();
         }
     }
 
