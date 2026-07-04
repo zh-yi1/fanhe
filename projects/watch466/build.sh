@@ -449,7 +449,6 @@ do_link() {
         fi
     done
 
-    # 添加特殊 .o 文件
     obj_files+=("${OBJ_DIR}/ram.o")
 
     info "  链接 ${#obj_files[@]} 个对象文件..."
