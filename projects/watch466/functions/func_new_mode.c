@@ -29,6 +29,11 @@ extern u8 g_new_heat_proto_mode;
 #error "Run tools/gen_new_mode_icons.py then Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 模式页 — 列表：Delay / Chicken / Pasta / Warm
  *   模式键：循环选中；确认键：进入对应功能
@@ -112,6 +117,34 @@ typedef struct {
     compo_textbox_t *txt_title;
     compo_textbox_t *txt_label[NEW_MODE_ITEM_CNT];
 } f_new_mode_t;
+
+#if ELUNCHBOX_PANEL_EN
+static bool new_mode_font_ready;
+
+static void new_mode_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_mode_font_apply_once(f_new_mode_t *f)
+{
+    u8 i;
+
+    if (new_mode_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_mode_font_bind_txt(f->txt_title);
+    for (i = 0; i < NEW_MODE_ITEM_CNT; i++) {
+        WDT_CLR();
+        new_mode_font_bind_txt(f->txt_label[i]);
+    }
+    new_mode_font_ready = true;
+}
+#endif
 
 static const char * const tbl_new_mode_label[NEW_MODE_ITEM_CNT] = {
     "Order",
@@ -395,6 +428,8 @@ static compo_textbox_t *new_mode_txt_create(compo_form_t *frm, u16 id, u16 buf_s
 #if ELUNCHBOX_PANEL_EN
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, NEW_HEAT_FONT);
 #endif
     compo_textbox_set_pos(txt, x, y);
     compo_textbox_set_forecolor(txt, color);
@@ -662,6 +697,9 @@ static void new_mode_list_apply(f_new_mode_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    new_mode_font_apply_once(f);
+#endif
     printf("nm_list_apply sel=%u\n", f->sel);
     new_mode_list_apply_rows(f, 0, (u8)(NEW_MODE_ITEM_CNT - 1), true, true);
 }
@@ -671,6 +709,10 @@ static void new_mode_ui_refresh(f_new_mode_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+    WDT_CLR();
+#endif
     new_mode_list_apply(f);
     f->display_pending = false;
 }
@@ -980,6 +1022,7 @@ void func_new_mode_enter(void)
     f = (f_new_mode_t *)func_cb.f_cb;
     f->sel = NEW_MODE_ITEM_DELAY;
 #if ELUNCHBOX_PANEL_EN
+    new_mode_font_ready = false;
     f->key_ready = false;
     new_mode_arrow_ram_ready = false;
 #endif
