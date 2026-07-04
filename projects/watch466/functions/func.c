@@ -262,7 +262,7 @@ static bool elunchbox_boot_power_sent;
 static bool elunchbox_pwr_hw_off;       /* 协议/BLE 关机已向加热模块发 PowerSwitch=OFF */
 static s32 elunchbox_guioff_sleep_delay = -1L;
 static u8 elunchbox_guioff_sleep_mode;
-static u32 elunchbox_idle_tmr;          /* 100ms 单位，独立于 sys_cb.guioff_delay */
+static u32 elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;  /* 100ms 单位，独立于 sys_cb.guioff_delay */
 #if USER_PT8028_KEY
 static void func_elunchbox_guioff_wake_poll(void);
 #endif
@@ -394,6 +394,8 @@ bool elunchbox_is_device_powered(void)
     return true;
 }
 
+static void elunchbox_pwr_manual_shutdown(void);
+
 void elunchbox_pwr_gui_off_activate(void)
 {
     if (elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) {
@@ -403,15 +405,8 @@ void elunchbox_pwr_gui_off_activate(void)
         elunchbox_user_activity_reset();
         return;
     }
-#if USER_PANEL_LED
-    panel_led_all_off();
-#endif
-    gui_sleep(false);
-    elunchbox_pwr_gui_off = true;
-    elunchbox_pwr_manual_off = false;
-    sys_cb.gui_need_wakeup = 0;
-    elunchbox_guioff_sleep_delay_reset();
-    printf("elunchbox: guioff idle %ds\n", ELUNCHBOX_GUIOFF_TIME_SEC);
+    printf("elunchbox: auto shutdown after %ds idle\n", ELUNCHBOX_GUIOFF_TIME_SEC);
+    elunchbox_pwr_manual_shutdown();
 }
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -2243,6 +2238,8 @@ void func_run(void)
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
 #if ELUNCHBOX_PANEL_EN
+    elunchbox_pwr_gui_off = false;
+    elunchbox_pwr_manual_off = false;
     home_ui_shared_battery_boot_init();
     elunchbox_user_activity_reset();
 #endif
