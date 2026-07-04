@@ -60,8 +60,8 @@
 #define NEW_HEAT_NEW_PROGRESS_13_RAM_SIZE          43568
 #define NEW_HEAT_NEW_PROGRESS_13_ANCHOR_X            160
 #define NEW_HEAT_NEW_PROGRESS_13_ANCHOR_Y            108
-#define NEW_HEAT_NEW_PROGRESS_13_TIP_X            71
-#define NEW_HEAT_NEW_PROGRESS_13_TIP_Y            143
+#define NEW_HEAT_NEW_PROGRESS_13_TIP_X            75
+#define NEW_HEAT_NEW_PROGRESS_13_TIP_Y            168
 
 #define NEW_HEAT_NEW_PROGRESS_2_W                 17
 #define NEW_HEAT_NEW_PROGRESS_2_H                 39

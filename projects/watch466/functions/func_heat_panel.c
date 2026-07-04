@@ -1,4 +1,4 @@
-#include "include.h"
+﻿#include "include.h"
 #include "func.h"
 #include "func_heat_panel.h"
 #include "heat_display_reg.h"
@@ -482,23 +482,12 @@ static u8 heat_panel_clamp_progress_idx(u8 idx)
 
 static void heat_panel_point_pos(u8 idx, s16 *x, s16 *y)
 {
-    u8 pi;
     u8 tip_step;
 
-    pi = heat_panel_clamp_progress_idx(idx);
-    if (pi >= NEW_HEAT_PROGRESS_CNT) {
-        /* 满弧：圆点在轨道右下起点（倒计时消耗从此向 CCW 端推进） */
-        tip_step = 0;
-    } else if (pi <= 1) {
-        /* 空弧：圆点在远 CCW 端 */
-        tip_step = NEW_HEAT_PROGRESS_CNT - 1;
-    } else {
-        /* 中间帧：与 overlay 同帧 TIP，即蓝弧前沿顶点 */
-        tip_step = pi - 1;
-    }
+    /* idx 与 TIP 表一一对应：idx=13→左端 TIP_13，idx=1→右端 TIP_1 */
+    tip_step = heat_panel_clamp_progress_idx(idx) - 1;
     *x = tbl_progress_tip_x[tip_step];
     *y = tbl_progress_tip_y[tip_step];
-    heat_panel_point_snap_to_blue(*x, *y, x, y);
 }
 
 static void heat_panel_point_bind(u8 progress_idx)
