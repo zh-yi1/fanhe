@@ -48,19 +48,19 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_HEAT_MODE_TITLE_H             36
 #define NEW_HEAT_MODE_TITLE_W             120
 
-#define NEW_HEAT_TEMP_LABEL_Y             58
+#define NEW_HEAT_TEMP_LABEL_Y             52
 #define NEW_HEAT_TEMP_SLIDER_Y            82
 #define NEW_HEAT_TEMP_SCALE_Y             100
 
-#define NEW_HEAT_TIME_LABEL_Y             142
+#define NEW_HEAT_TIME_LABEL_Y             137
 #define NEW_HEAT_TIME_SLIDER_Y            166
 #define NEW_HEAT_TIME_SCALE_Y             184
 
-#define NEW_HEAT_LABEL_X                  20
+#define NEW_HEAT_LABEL_X                  95
 #define NEW_HEAT_BADGE_TXT_W              80
 
 #define NEW_HEAT_BADGE_X                  ((s16)(GUI_SCREEN_WIDTH - NEW_HEAT_STATUS_RIGHT_MARGIN - NEW_HEAT_BADGE_W / 2))
-#define NEW_HEAT_BADGE_TXT_X              ((s16)(NEW_HEAT_BADGE_X - (NEW_HEAT_BADGE_TXT_W - NEW_HEAT_BADGE_W) / 2))
+#define NEW_HEAT_BADGE_TXT_X              ((s16)(NEW_HEAT_BADGE_X - (NEW_HEAT_BADGE_TXT_W - NEW_HEAT_BADGE_W) / 2 +12))
 #define NEW_HEAT_SLIDER_SLOT_X            ((s16)((GUI_SCREEN_WIDTH - NEW_HEAT_SLIDER_W) / 2))
 
 #define NEW_HEAT_COLOR_LABEL              0x0AD8
