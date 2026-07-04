@@ -263,6 +263,7 @@ static bool elunchbox_pwr_hw_off;       /* 协议/BLE 关机已向加热模块�
 static s32 elunchbox_guioff_sleep_delay = -1L;
 static u8 elunchbox_guioff_sleep_mode;
 static u32 elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;  /* 100ms 单位，独立于 sys_cb.guioff_delay */
+static bool elunchbox_pwr_pending_auto_shutdown;  /* 空闲定时器到期，延迟执行 manual_shutdown */
 #if USER_PT8028_KEY
 static void func_elunchbox_guioff_wake_poll(void);
 #endif
@@ -406,7 +407,7 @@ void elunchbox_pwr_gui_off_activate(void)
         return;
     }
     printf("elunchbox: auto shutdown after %ds idle\n", ELUNCHBOX_GUIOFF_TIME_SEC);
-    elunchbox_pwr_manual_shutdown();
+    elunchbox_pwr_pending_auto_shutdown = true;
 }
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -467,10 +468,16 @@ static void elunchbox_pwr_manual_shutdown(void)
     elunchbox_pwr_gui_off = true;
     sys_cb.gui_need_wakeup = 0;
     elunchbox_guioff_sleep_delay = 0;
-    /* 软关机低电：GPU 掉电 + 强制 BT 浅睡（本板 PT8028 硬关机 sfunc_pwrdown 无法可靠唤醒）。
-     * 唤醒：松手后再次长按 TCH5 3s -> elunchbox_screen_wake + UI 重绑。
-     */
+    /* GPU 掉电前先挂起 UART，防止 RX 中断在掉电过程中破坏堆内存 */
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_uart_suspend();
+#endif
     gui_sleep(true);
+    /* 立即恢复 UART 硬件以便接收充电模块数据唤醒屏幕，但禁止 TX */
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_uart_resume();
+    lb_uart_tx_block(true);
+#endif
 
 #if LE_EN
     ble_disconnect();   // 断开BLE连接 (连接保持则射频周期性活跃，功耗极高)
@@ -479,10 +486,6 @@ static void elunchbox_pwr_manual_shutdown(void)
 #if BT_BACKSTAGE_EN
     bt_disconnect(0);   // 断开经典蓝牙
     bt_scan_disable();
-#endif
-    /* 手动关机不挂起串口，保留 UART1 RX 以便充电模块发来的数据能唤醒屏幕；禁止 TX */
-#if FUNC_LUNCHBOX_UART_EN
-    lb_uart_tx_block(true);
 #endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_pwr_long_consume();
@@ -671,8 +674,7 @@ static void elunchbox_screen_wake(void)
 #endif
 #if FUNC_LUNCHBOX_UART_EN
     if (was_manual || elunchbox_pwr_hw_off) {
-        lb_uart_tx_block(false);  /* 恢复 UART TX */
-        lunchbox_uart_resume();
+        lb_uart_tx_block(false);  /* 恢复 UART TX（硬件已在关机时恢复，这里只解封） */
         lunchbox_power_on();
         elunchbox_boot_power_sent = true;
         elunchbox_pwr_hw_off = false;
@@ -1097,6 +1099,12 @@ void func_process(void)
     if (sleep_process(bt_is_allow_sleep)) {
         bt_cb.disp_status = 0xff;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_pending_auto_shutdown) {
+        elunchbox_pwr_pending_auto_shutdown = false;
+        elunchbox_pwr_manual_shutdown();
+    }
+#endif
 #if ELUNCHBOX_KEEP_AWAKE && ELUNCHBOX_PANEL_EN
     sys_cb.sleep_en = 0;
 #endif
