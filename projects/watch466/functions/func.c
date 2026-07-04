@@ -931,6 +931,12 @@ static void func_elunchbox_key_notify_poll(void)
     if (tch > PT8028_KEY_TCH7) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (func_key_lock_is_active() && tch != PT8028_KEY_TCH5) {
+        func_key_lock_notify_blocked();
+        return;
+    }
+#endif
     key_val = pt8028_tch_to_lunchbox_key(tch);
     if (key_val != 0) {
         lunchbox_key_notify(key_val);
@@ -1039,6 +1045,9 @@ void func_process(void)
             panel_led_scan();
         }
 #endif
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        func_key_lock_poll();
+#endif
         if (func_cb.frm_main != NULL) {
             compo_update();
             if (gui_do_refresh) {
@@ -1051,7 +1060,6 @@ void func_process(void)
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         func_heat_key_poll();
 #endif
-        func_key_lock_poll();
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_keep_warm_poll();
 #endif

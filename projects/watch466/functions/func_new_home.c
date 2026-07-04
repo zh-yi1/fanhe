@@ -662,6 +662,10 @@ void func_home_process(void)
             tft_bglight_force_on();
         }
         if (f->display_stage != 0) {
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+            pt8028_gpio_ensure_periodic();
+            pt8028_key_scan();
+#endif
             func_process();
             return;
         }
@@ -694,6 +698,9 @@ void func_home_process(void)
         return;
     }
     home_top_time_txt_bring_front(&f->top_time);
+    if (func_key_lock_hint_is_on()) {
+        func_key_lock_overlay_to_front();
+    }
     func_home_pending_switch_exec(f);
 #endif
 }

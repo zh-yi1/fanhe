@@ -29,6 +29,9 @@ void func_key_lock_on_form_destroy(void);
 void func_key_lock_notify_blocked(void);
 void func_key_lock_on_heating_start(void);
 void func_key_lock_on_heating_stop(void);
+/** 锁/解锁图标是否正在显示 */
+bool func_key_lock_hint_is_on(void);
+void func_key_lock_overlay_to_front(void);
 
 #else
 
@@ -46,6 +49,8 @@ static inline void func_key_lock_on_form_destroy(void) {}
 static inline void func_key_lock_notify_blocked(void) {}
 static inline void func_key_lock_on_heating_start(void) {}
 static inline void func_key_lock_on_heating_stop(void) {}
+static inline bool func_key_lock_hint_is_on(void) { return false; }
+static inline void func_key_lock_overlay_to_front(void) {}
 
 #endif
 
