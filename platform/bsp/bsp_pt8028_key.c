@@ -1601,6 +1601,26 @@ void pt8028_pwr_long_consume(void)
 }
 
 AT(.text.bsp.pt8028)
+void pt8028_pwr_manual_off_arm(void)
+{
+    pt8028_lines_t ln;
+
+    pt8028_gpio_bcd_ensure();
+    ln = pt8028_read_lines();
+    pt8028_cb.press_active = 0;
+    pt8028_cb.release_done = 1;
+    pt8028_cb.press_emitted = 0;
+    pt8028_cb.press_tick = tick_get();
+    pt8028_cb.pwr_long_fired = 0;
+    pt8028_cb.pwr_long_pending = 0;
+    pt8028_cb.pwr_boot_mode = 0;
+    pt8028_cb.session_tch = 0xff;
+    pt8028_cb.press_bcd = 0xff;
+    pt8028_cb.last_out_flag = ln.out_flag;
+    pt8028_release_clear();
+}
+
+AT(.text.bsp.pt8028)
 void pt8028_pwr_boot_scan_begin(void)
 {
     pt8028_lines_t ln;

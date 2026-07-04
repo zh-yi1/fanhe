@@ -691,6 +691,9 @@ void func_home_process(void)
     new_home_status_refresh(f);
     func_process();
 #if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
     home_top_time_txt_bring_front(&f->top_time);
     func_home_pending_switch_exec(f);
 #endif

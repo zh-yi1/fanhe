@@ -829,6 +829,11 @@ static void func_new_language_process(void)
     }
 
     func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_lang_keys_poll(f);
 #endif

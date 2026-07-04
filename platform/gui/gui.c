@@ -326,6 +326,12 @@ void gui_sleep(bool is_gpu_exit)
 
 void gui_wakeup(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_manual_off_gui_wake_ok()) {
+        printf("elunchbox: gui_wakeup BLOCKED (manual_off, not intentional)\n");
+        return;
+    }
+#endif
     if (sys_cb.gui_sleep_sta) {
         gpu_init();
 //        led_pg_on();

@@ -94,6 +94,8 @@ bool pt8028_take_pwr_long_pending(void);
 bool pt8028_pwr_key_long_ready(void);
 /* 开机成功后清除长按关机挂起，避免进主循环立刻关机 */
 void pt8028_pwr_long_consume(void);
+/* 手动关机完成：清除按下状态，须松手后再按才计 3s 唤醒 */
+void pt8028_pwr_manual_off_arm(void);
 /* 关机态开机检测：进入 power_on_check 前调用 */
 void pt8028_pwr_boot_scan_begin(void);
 /* TCH5 未满 3s 松开，取走后清零 */

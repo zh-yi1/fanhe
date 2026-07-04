@@ -906,6 +906,11 @@ static void func_new_setup_process(void)
     }
 
     func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_setup_keys_poll(f);
 #endif

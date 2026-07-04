@@ -1210,6 +1210,11 @@ static void func_new_heat_process(void)
     home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
 #endif
     func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_heat_keys_poll(f);
 #endif

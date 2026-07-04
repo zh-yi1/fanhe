@@ -158,7 +158,7 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 #if ELUNCHBOX_PANEL_EN
     if (!elunchbox_pwr_is_manual_off()
         && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
-        elunchbox_pwr_gui_wake();
+        elunchbox_pwr_gui_wake_reason("heat_start");
     }
     if (!elunchbox_pwr_is_manual_off()) {
         elunchbox_user_activity_reset();

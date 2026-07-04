@@ -244,10 +244,15 @@ void func_elunchbox_switch_to_heat(void);
 void func_heat_key_poll(void);
 bool func_heat_ui_is_heating(void);
 bool elunchbox_pwr_gui_off_is_on(void);
+bool elunchbox_ui_is_live(void);
 bool elunchbox_pwr_is_manual_off(void);
+bool elunchbox_pwr_manual_off_wake_pressing(void);
 void elunchbox_pwr_gui_off_activate(void);
 bool elunchbox_is_device_powered(void);
 void elunchbox_pwr_gui_wake(void);
+void elunchbox_pwr_gui_wake_reason(const char *reason);
+/** manual_off 时仅允许 intentional wake 调用 gui_wakeup */
+bool elunchbox_pwr_manual_off_gui_wake_ok(void);
 void elunchbox_manual_off_sleep_poll(void);
 bool elunchbox_manual_wake_pending_take(void);
 bool elunchbox_manual_wake_pending_peek(void);

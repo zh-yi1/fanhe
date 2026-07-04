@@ -182,7 +182,9 @@ void func_elunchbox_res_key_poll(void)
 #if ELUNCHBOX_PANEL_EN
 static bool elunchbox_pwr_gui_off;
 static bool elunchbox_pwr_manual_off;   /* 长按3s手动关机：浅睡态，长按再开 */
-static bool elunchbox_pwr_wake_armed;   /* manual off 后须松手 TCH5 才允许再次长按唤醒 */
+static bool elunchbox_pwr_wake_armed;   /* manual off 后允许再次长按 3s 唤醒 */
+static bool elunchbox_pwr_need_fresh_press; /* 关机松手后须新一次按下才计 3s 唤醒 */
+static bool elunchbox_pwr_intentional_wake; /* manual_off 下允许 gui_wakeup */
 static bool elunchbox_manual_wake_pending; /* 浅睡内检测到长按，退出 sleep 后再亮屏 */
 static bool elunchbox_boot_power_sent;
 static s32 elunchbox_guioff_sleep_delay = -1L;
@@ -285,10 +287,30 @@ bool elunchbox_pwr_gui_off_is_on(void)
     return elunchbox_pwr_gui_off;
 }
 
+bool elunchbox_ui_is_live(void)
+{
+    return !sys_cb.gui_sleep_sta && !elunchbox_pwr_gui_off;
+}
+
 bool elunchbox_pwr_is_manual_off(void)
 {
 #if ELUNCHBOX_PANEL_EN
     return elunchbox_pwr_manual_off;
+#else
+    return false;
+#endif
+}
+
+bool elunchbox_pwr_manual_off_wake_pressing(void)
+{
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_is_manual_off() || !elunchbox_pwr_wake_armed) {
+        return false;
+    }
+    if (elunchbox_pwr_need_fresh_press) {
+        return false;
+    }
+    return pt8028_is_power_key_held() || pt8028_boot_tch5_down();
 #else
     return false;
 #endif
@@ -317,6 +339,40 @@ void elunchbox_pwr_gui_off_activate(void)
     sys_cb.gui_need_wakeup = 0;
     elunchbox_guioff_sleep_delay_reset();
     printf("elunchbox: guioff idle %ds\n", ELUNCHBOX_GUIOFF_TIME_SEC);
+}
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+static bool pt8028_pwr_key_fully_released(void)
+{
+    pt8028_gpio_ensure();
+    return pt8028_out_flag_is_idle() && !pt8028_boot_tch5_down()
+        && !pt8028_is_power_key_held() && !pt8028_is_press_active();
+}
+
+static void elunchbox_pwr_key_dbg(const char *tag)
+{
+    printf("elunchbox: keydbg [%s] idle=%u boot5=%u held=%u active=%u longrdy=%u fresh=%u armed=%u\n",
+           tag,
+           pt8028_out_flag_is_idle() ? 1u : 0u,
+           pt8028_boot_tch5_down() ? 1u : 0u,
+           pt8028_is_power_key_held() ? 1u : 0u,
+           pt8028_is_press_active() ? 1u : 0u,
+           pt8028_pwr_key_long_ready() ? 1u : 0u,
+           elunchbox_pwr_need_fresh_press ? 1u : 0u,
+           elunchbox_pwr_wake_armed ? 1u : 0u);
+}
+#endif
+
+bool elunchbox_pwr_manual_off_gui_wake_ok(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_is_manual_off()) {
+        return true;
+    }
+    return elunchbox_pwr_intentional_wake;
+#else
+    return true;
+#endif
 }
 
 static void elunchbox_pwr_manual_shutdown(void)
@@ -362,16 +418,17 @@ static void elunchbox_pwr_manual_shutdown(void)
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_pwr_long_consume();
-    /* 等松手：否则同一长按会在 3s 后再次 pending → 立刻亮屏 */
-    while (!pt8028_out_flag_is_idle()) {
-        WDT_CLR();
-        delay_5ms(1);
-    }
+    /* 不阻塞等待松手(会卡住主循环数秒)；先清按键态，由 need_fresh_press 门禁唤醒 */
+    pt8028_pwr_manual_off_arm();
     pt8028_key_scan();
-    pt8028_release_clear();
-    pt8028_pwr_long_consume();
+    if (!pt8028_pwr_key_fully_released()) {
+        elunchbox_pwr_key_dbg("shutdown still holding -> need_fresh_press");
+    } else {
+        elunchbox_pwr_key_dbg("shutdown already released");
+    }
     pt8028_set_home_msg_block(0);
     elunchbox_pwr_wake_armed = true;
+    elunchbox_pwr_need_fresh_press = true;
 #endif
 
     printf("elunchbox: TCH5 long -> manual off (low power sleep)\n");
@@ -381,14 +438,17 @@ static bool elunchbox_is_guioff(void);
 
 void elunchbox_guioff_sleep_post_wake(bool key_wake)
 {
+    printf("elunchbox: sleep_post_wake key_wake=%u manual=%u pending=%u\n",
+           key_wake ? 1u : 0u,
+           elunchbox_pwr_is_manual_off() ? 1u : 0u,
+           elunchbox_manual_wake_pending_peek() ? 1u : 0u);
     elunchbox_guioff_sleep_mode = 0;
     pt8028_port_gpio_init();
     pt8028_key_scan();
     /* 浅睡循环内只置 pending，此处退出 sleep 后再 gui_wakeup */
     if (elunchbox_manual_wake_pending_take()) {
         if (elunchbox_is_guioff()) {
-            printf("elunchbox: complete manual wake after sleep\n");
-            elunchbox_pwr_gui_wake();
+            elunchbox_pwr_gui_wake_reason("sleep_post_wake pending");
         }
     }
 #if USER_PT8028_KEY
@@ -446,10 +506,32 @@ bool elunchbox_guioff_idle_expired(void)
 
 void elunchbox_pwr_gui_wake(void)
 {
+    elunchbox_pwr_gui_wake_reason("unspecified");
+}
+
+void elunchbox_pwr_gui_wake_reason(const char *reason)
+{
+    const char *tag = (reason != NULL) ? reason : "?";
+
+    printf("elunchbox: WAKE try reason=%s manual=%u guioff=%u sleep=%u fresh=%u armed=%u sta=%u\n",
+           tag,
+           elunchbox_pwr_is_manual_off() ? 1u : 0u,
+           elunchbox_pwr_gui_off ? 1u : 0u,
+           sys_cb.gui_sleep_sta ? 1u : 0u,
+           elunchbox_pwr_need_fresh_press ? 1u : 0u,
+           elunchbox_pwr_wake_armed ? 1u : 0u,
+           (unsigned)func_cb.sta);
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    elunchbox_pwr_key_dbg("wake_try");
+#endif
     if (!elunchbox_pwr_gui_off && !sys_cb.gui_sleep_sta) {
+        printf("elunchbox: WAKE ignored (already on) reason=%s\n", tag);
         return;
     }
+    elunchbox_pwr_intentional_wake = true;
+    printf("elunchbox: WAKE execute reason=%s\n", tag);
     elunchbox_pwr_gui_off_exit();
+    elunchbox_pwr_intentional_wake = false;
 }
 
 static void elunchbox_screen_wake(void)
@@ -460,6 +542,7 @@ static void elunchbox_screen_wake(void)
     elunchbox_pwr_gui_off = false;
     elunchbox_pwr_manual_off = false;
     elunchbox_pwr_wake_armed = true;
+    elunchbox_pwr_need_fresh_press = false;
     elunchbox_manual_wake_pending = false;
     elunchbox_guioff_sleep_delay_reset();
     if (go_home) {
@@ -542,8 +625,43 @@ static void elunchbox_guioff_idle_process(void)
     }
 }
 
+static bool elunchbox_manual_off_wake_ready(void)
+{
+    static u8 fresh_wait_logged;
+
+    if (!elunchbox_pwr_wake_armed) {
+        return false;
+    }
+    if (elunchbox_pwr_need_fresh_press) {
+        if (pt8028_boot_tch5_down() || pt8028_is_power_key_held()) {
+            if (!fresh_wait_logged) {
+                fresh_wait_logged = 1;
+                printf("elunchbox: wake blocked, wait TCH5 release (fresh_press)\n");
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+                elunchbox_pwr_key_dbg("fresh_wait_release");
+#endif
+            }
+            return false;
+        }
+        elunchbox_pwr_need_fresh_press = false;
+        fresh_wait_logged = 0;
+        printf("elunchbox: fresh_press cleared, ready for new 3s hold\n");
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        elunchbox_pwr_key_dbg("fresh_cleared");
+#endif
+    }
+    return true;
+}
+
 static bool elunchbox_manual_off_long_ready(void)
 {
+    if (!elunchbox_manual_off_wake_ready()) {
+        if (pt8028_take_pwr_long_pending()) {
+            printf("elunchbox: discard pwr_long_pending (not wake_ready)\n");
+            pt8028_pwr_long_consume();
+        }
+        return false;
+    }
     if (pt8028_take_pwr_long_pending()) {
         pt8028_pwr_long_consume();
         return true;
@@ -558,16 +676,29 @@ static bool elunchbox_manual_off_long_ready(void)
 static void func_elunchbox_guioff_wake_poll(void)
 {
     static u32 hold_start;
+    static u8  hold_log_once;
 
     if (!elunchbox_is_guioff()) {
         hold_start = 0;
+        hold_log_once = 0;
         return;
     }
 #if ELUNCHBOX_PANEL_EN
     if (elunchbox_pwr_is_manual_off()) {
         if (!elunchbox_pwr_wake_armed) {
             hold_start = 0;
+            hold_log_once = 0;
             if (pt8028_take_pwr_long_pending()) {
+                printf("elunchbox: discard pwr_long_pending (!wake_armed)\n");
+                pt8028_pwr_long_consume();
+            }
+            return;
+        }
+        if (!elunchbox_manual_off_wake_ready()) {
+            hold_start = 0;
+            hold_log_once = 0;
+            if (pt8028_take_pwr_long_pending()) {
+                printf("elunchbox: discard pwr_long_pending (!wake_ready poll)\n");
                 pt8028_pwr_long_consume();
             }
             return;
@@ -576,13 +707,24 @@ static void func_elunchbox_guioff_wake_poll(void)
         if (pt8028_boot_tch5_down() || pt8028_is_power_key_held()) {
             if (hold_start == 0) {
                 hold_start = tick_get();
+                if (!hold_log_once) {
+                    hold_log_once = 1;
+                    printf("elunchbox: manual off hold begin (need %ums)\n", PT8028_PWR_LONG_MS);
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+                    elunchbox_pwr_key_dbg("hold_begin");
+#endif
+                }
             } else if (tick_check_expire(hold_start, PT8028_PWR_LONG_MS)) {
                 hold_start = 0;
-                printf("elunchbox: TCH5 %dms wake from manual off\n", PT8028_PWR_LONG_MS);
-                elunchbox_pwr_gui_wake();
+                hold_log_once = 0;
+                elunchbox_pwr_gui_wake_reason("guioff_poll 3s hold");
             }
         } else {
+            if (hold_start != 0) {
+                printf("elunchbox: manual off hold cancelled (released)\n");
+            }
             hold_start = 0;
+            hold_log_once = 0;
         }
         return;
     }
@@ -592,8 +734,7 @@ static void func_elunchbox_guioff_wake_poll(void)
             hold_start = tick_get();
         } else if (tick_check_expire(hold_start, PT8028_PWR_WAKE_MS)) {
             hold_start = 0;
-            printf("elunchbox: TCH5 %dms wake from guioff\n", PT8028_PWR_WAKE_MS);
-            elunchbox_pwr_gui_wake();
+            elunchbox_pwr_gui_wake_reason("guioff_poll auto_guioff");
         }
     } else {
         hold_start = 0;
@@ -605,16 +746,24 @@ static void func_elunchbox_pwr_long_poll(void)
     if (!pt8028_take_pwr_long_pending()) {
         return;
     }
+    printf("elunchbox: pwr_long_pending taken manual=%u guioff=%u\n",
+           elunchbox_pwr_is_manual_off() ? 1u : 0u,
+           elunchbox_is_guioff() ? 1u : 0u);
     pt8028_pwr_long_consume();
     if (elunchbox_is_guioff()) {
         if (elunchbox_pwr_is_manual_off()) {
-            if (elunchbox_pwr_wake_armed) {
-                printf("elunchbox: TCH5 long pending -> wake from manual off\n");
-                elunchbox_pwr_gui_wake();
+            if (elunchbox_manual_off_wake_ready()) {
+                elunchbox_pwr_gui_wake_reason("pwr_long_poll manual");
+            } else {
+                printf("elunchbox: pwr_long_pending wake blocked (!wake_ready)\n");
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+                elunchbox_pwr_key_dbg("long_poll blocked");
+#endif
             }
         }
         return;
     }
+    printf("elunchbox: pwr_long_pending -> manual shutdown\n");
     elunchbox_pwr_manual_shutdown();
 }
 
@@ -628,6 +777,7 @@ void elunchbox_manual_off_sleep_poll(void)
     pt8028_gpio_ensure_periodic();
     pt8028_key_scan();
     if (elunchbox_manual_off_long_ready()) {
+        printf("elunchbox: manual_off_sleep_poll long ready -> pending\n");
         elunchbox_manual_wake_pending = true;
     }
 #endif
@@ -686,23 +836,33 @@ void func_process(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-    /* 手动关机：按键唤醒检测；不进浅睡，主循环全电压轮询 TCH5 */
+    /* 手动关机：按键唤醒检测 + 浅睡过滤非 TCH5 唤醒源 */
     if (guioff && elunchbox_pwr_is_manual_off()) {
+        static u32 manual_off_hb_tick;
+
         WDT_CLR();
 #if USER_PT8028_KEY
         pt8028_set_home_msg_block(0);
         pt8028_gpio_ensure_periodic();
         pt8028_key_scan();
+        if (tick_check_expire(manual_off_hb_tick, 2000)) {
+            manual_off_hb_tick = tick_get();
+            printf("elunchbox: manual_off heartbeat\n");
+            elunchbox_pwr_key_dbg("heartbeat");
+        }
         func_elunchbox_guioff_wake_poll();
 #if SOFT_POWER_ON_OFF
         func_elunchbox_pwr_long_poll();
 #endif
-        reset_sleep_delay();
-        reset_pwroff_delay();
-#else
-        reset_sleep_delay();
-        reset_pwroff_delay();
 #endif
+        elunchbox_guioff_idle_process();
+#if ELUNCHBOX_GUIOFF_SLEEP_EN
+        /* 进入浅睡过滤非 TCH5 的唤醒源（BLE/定时器/IO 中断），
+         * sfunc_sleep_proc 内只响应 TCH5 长按唤醒。 */
+        sleep_process(bt_is_allow_sleep);
+#endif
+        reset_sleep_delay();
+        reset_pwroff_delay();
         return;
     }
 #endif
