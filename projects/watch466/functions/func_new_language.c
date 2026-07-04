@@ -746,8 +746,6 @@ static void new_lang_keys_poll(f_new_lang_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
     new_lang_pt8028_keys_process(f);
 }
 #endif
@@ -818,15 +816,7 @@ static void func_new_language_process(void)
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        {
-            u8 stale = pt8028_take_press_tch();
-
-            if (stale != 0xff) {
-                printf("nl_p stale tch=%u\n", stale);
-            }
-        }
+        (void)pt8028_take_press_tch();
         if (!f->display_pending && !f->text_pending) {
             f->key_ready = true;
         }
@@ -838,10 +828,10 @@ static void func_new_language_process(void)
         new_lang_ui_refresh(f);
     }
 
+    func_process();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_lang_keys_poll(f);
 #endif
-    func_process();
 }
 
 void func_new_language_enter(void)

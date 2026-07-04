@@ -1205,6 +1205,17 @@ u8 pt8028_get_led_tch(void)
 {
     u8 tch;
 
+#if ELUNCHBOX_PANEL_EN
+    if (pt8028_cb.press_emitted && pt8028_cb.session_tch <= PT8028_KEY_TCH7) {
+        tch = pt8028_cb.session_tch;
+        if (tch <= PT8028_KEY_TCH6) {
+            return tch;
+        }
+        if (tch == PT8028_KEY_TCH7) {
+            return PT8028_KEY_TCH7;
+        }
+    }
+#endif
     if (!pt8028_is_pressed()) {
         return PT8028_KEY_NONE;
     }
@@ -1454,6 +1465,15 @@ u8 pt8028_take_home_action(void)
     act = pt8028_cb.home_act_pending;
     pt8028_cb.home_act_pending = PT8028_HOME_ACT_NONE;
     return act;
+}
+
+AT(.com_text.bsp.pt8028)
+u8 pt8028_peek_press_tch(void)
+{
+    if (!pt8028_cb.press_pending) {
+        return 0xff;
+    }
+    return pt8028_cb.session_tch;
 }
 
 AT(.com_text.bsp.pt8028)

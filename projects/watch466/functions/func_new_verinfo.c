@@ -392,8 +392,6 @@ static void new_verinfo_keys_poll(f_new_verinfo_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
     new_verinfo_pt8028_keys_process(f);
 }
 #endif
@@ -458,15 +456,7 @@ static void func_new_verinfo_process(void)
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        {
-            u8 stale = pt8028_take_press_tch();
-
-            if (stale != 0xff) {
-                printf("nv_p stale tch=%u\n", stale);
-            }
-        }
+        (void)pt8028_take_press_tch();
         if (!f->display_pending && !f->text_pending) {
             f->key_ready = true;
         }
@@ -479,10 +469,10 @@ static void func_new_verinfo_process(void)
         f->display_pending = false;
     }
 
+    func_process();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_verinfo_keys_poll(f);
 #endif
-    func_process();
 }
 
 void func_new_verinfo_enter(void)

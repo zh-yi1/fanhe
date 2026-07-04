@@ -1000,8 +1000,6 @@ static void new_time_keys_poll(f_new_time_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
     new_time_pt8028_keys_process(f);
 }
 #endif
@@ -1066,13 +1064,7 @@ static void func_new_time_process(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
-        u8 stage_before = f->load_stage;
-
-        home_gpu_wait_idle();
         WDT_CLR();
-        printf("nt_ld: %s te=%u rtc=%u:%u pm=%u\n",
-               new_time_stage_name(stage_before), elunchbox_te_block_flag,
-               f->disp_h, f->min, f->is_pm);
         switch (f->load_stage) {
         case NEW_TIME_LOAD_STATUS:
             new_time_status_refresh(f);
@@ -1110,27 +1102,15 @@ static void func_new_time_process(void)
             new_time_text_apply(f);
             f->load_stage = NEW_TIME_LOAD_DONE;
             f->key_ready = true;
-            printf("nt_ld: ready focus=%u\n", f->focus);
             break;
         default:
             f->key_ready = true;
             break;
         }
-        printf("nt_ld: done %s -> %s key=%u\n",
-               new_time_stage_name(stage_before),
-               new_time_stage_name(f->load_stage), f->key_ready);
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        {
-            u8 stale = pt8028_take_press_tch();
-
-            if (stale != 0xff) {
-                printf("nt_p stale tch=%u\n", stale);
-            }
-        }
+        (void)pt8028_take_press_tch();
         return;
     }
 #endif
@@ -1140,10 +1120,10 @@ static void func_new_time_process(void)
         f->display_pending = false;
     }
 
+    func_process();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_time_keys_poll(f);
 #endif
-    func_process();
 }
 
 void func_new_time_enter(void)

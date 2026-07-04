@@ -585,11 +585,9 @@ void new_home_pt8028_keys_process(f_new_home_t *f)
     if (press_tch == PT8028_KEY_TCH3) {
         func_home_mode_key();
     } else if (press_tch == PT8028_KEY_TCH1) {
-        printf("home key TCH1 heat press\n");
         f->cur_tab = NEW_HOME_TAB_HEAT;
         func_home_confirm_key();
     } else if (press_tch == PT8028_KEY_TCH4) {
-        printf("home key TCH4 confirm press\n");
         func_home_confirm_key();
     }
 }

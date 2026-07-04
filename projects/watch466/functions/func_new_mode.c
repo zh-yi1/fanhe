@@ -700,7 +700,6 @@ static void new_mode_list_apply(f_new_mode_t *f)
 #if ELUNCHBOX_PANEL_EN
     new_mode_font_apply_once(f);
 #endif
-    printf("nm_list_apply sel=%u\n", f->sel);
     new_mode_list_apply_rows(f, 0, (u8)(NEW_MODE_ITEM_CNT - 1), true, true);
 }
 
@@ -727,7 +726,6 @@ static void new_mode_sel_next(f_new_mode_t *f)
     prev = f->sel;
     f->sel = (u8)((f->sel + 1) % NEW_MODE_ITEM_CNT);
 #if ELUNCHBOX_PANEL_EN
-    printf("nm_sel %u->%u\n", prev, f->sel);
     new_mode_sel_apply_delta(f, prev, f->sel);
 #else
     f->display_pending = true;
@@ -860,7 +858,6 @@ static void new_mode_pt8028_keys_process(f_new_mode_t *f)
     if (press_tch == 0xff) {
         return;
     }
-    printf("nm_key press tch=%u\n", press_tch);
     if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
         elunchbox_user_activity_reset();
     }
@@ -868,25 +865,20 @@ static void new_mode_pt8028_keys_process(f_new_mode_t *f)
         return;
     }
     if (press_tch == PT8028_KEY_TCH3) {
-        printf("nm_key TCH3 mode\n");
         new_mode_sel_next(f);
     } else if (press_tch == PT8028_KEY_TCH4) {
-        printf("nm_key TCH4 confirm\n");
         new_mode_confirm(f);
     } else if (press_tch == PT8028_KEY_TCH5) {
-        printf("nm_key TCH5 power\n");
         new_mode_power_key();
     }
 }
 
-/* 须在 func_process() 之前调用：func.c 内也会 take_press_tch，顺序反了会丢键 */
+/* 须在 func_process() 之后调用：统一由 func.c 扫键，此处只 take 处理 */
 static void new_mode_keys_poll(f_new_mode_t *f)
 {
     if (f == NULL || !f->key_ready) {
         return;
     }
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
     new_mode_pt8028_keys_process(f);
 }
 #endif
@@ -948,34 +940,22 @@ static void func_new_mode_process(void)
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
         if (f->display_pending) {
-            printf("nm_p0 ui_apply\n");
             home_gpu_wait_idle();
             WDT_CLR();
             new_mode_list_apply(f);
             f->display_pending = false;
         }
-        printf("nm_p1 first_frame te_block=%u\n", elunchbox_te_block_flag);
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        /* release_clear 清 press_emitted，若 TCH4 仍按住，下一帧 key_scan 会重新 emit_press。
-         * 此处主动扫一次 + take 消费这个残留按下，避免循环等待阻塞 GUI 线程。 */
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
         {
             u8 stale = pt8028_take_press_tch();
 
-            if (stale != 0xff) {
-                printf("nm_p1 stale tch=%u consumed\n", stale);
-                /* 处理初始化期间按下的 TCH3（模式/下一项），
-                   TCH4/TCH5 是进入本页的导航键，不处理以免误跳转 */
-                if (stale == PT8028_KEY_TCH3) {
-                    new_mode_sel_next(f);
-                }
+            if (stale != 0xff && stale == PT8028_KEY_TCH3) {
+                new_mode_sel_next(f);
             }
         }
         f->key_ready = true;
-        printf("nm_p3 key_ready=1\n");
         return;
     }
 #endif
@@ -983,9 +963,6 @@ static void func_new_mode_process(void)
     if (f->display_pending) {
         new_mode_ui_refresh(f);
     }
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_mode_keys_poll(f);
-#endif
 #if !ELUNCHBOX_PANEL_EN
     tm = rtc_clock_get();
     if (f->last_top_min != tm.min || f->last_top_sec != tm.sec) {
@@ -995,6 +972,9 @@ static void func_new_mode_process(void)
     }
 #endif
     func_process();
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    new_mode_keys_poll(f);
+#endif
 }
 
 void func_new_mode_enter(void)

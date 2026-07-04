@@ -204,8 +204,6 @@ void func_key_lock_poll(void)
     if (key_lock_hint_on) {
         if (tick_check_expire(key_lock_hint_start, func_key_lock_hint_duration_ms())) {
             func_key_lock_hint_hide();
-        } else {
-            home_ui_lock_overlay_bring_front();
         }
     }
 

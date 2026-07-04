@@ -746,7 +746,7 @@ void func_process(void)
 
             pt8028_gpio_ensure_periodic();
             pt8028_key_scan();
-            press_tch = pt8028_take_press_tch();
+            press_tch = pt8028_peek_press_tch();
             if (press_tch <= PT8028_KEY_TCH6) {
                 elunchbox_user_activity_reset();
             }
@@ -756,8 +756,10 @@ void func_process(void)
 #endif
 #endif
 #if USER_PANEL_LED && USER_PT8028_KEY
-        /* 按下对应 TCH 点亮 LED，松开全灭（原理图 LED1~6 -> PB0/PB1/PB2/PB5/PB6/PB7） */
-        panel_led_scan();
+        /* Home 已在 func_home_process 扫 LED；此处跳过避免重复 GPIO 采样 */
+        if (func_cb.sta != FUNC_HOME) {
+            panel_led_scan();
+        }
 #endif
         if (func_cb.frm_main != NULL) {
             compo_update();

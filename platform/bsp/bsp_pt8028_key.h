@@ -81,6 +81,8 @@ void pt8028_key_scan(void);
 void pt8028_set_home_msg_block(u8 en);
 void pt8028_release_clear(void);
 u8 pt8028_take_press_tch(void);
+/* 按下沿 pending，不消费（供 activity/LED 用，勿与 take 混用） */
+u8 pt8028_peek_press_tch(void);
 u8 pt8028_take_release_tch(void);
 u8 pt8028_take_home_action(void);
 bool pt8028_take_res_key_pending(void);

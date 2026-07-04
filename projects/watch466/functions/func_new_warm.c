@@ -681,7 +681,6 @@ static void func_new_warm_process(void)
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
         if (f->display_pending) {
-            printf("nw_p0 ui_apply\n");
             home_gpu_wait_idle();
             WDT_CLR();
             new_warm_ui_apply(f);
@@ -690,15 +689,7 @@ static void func_new_warm_process(void)
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        {
-            u8 stale = pt8028_take_press_tch();
-
-            if (stale != 0xff) {
-                printf("nw_p1 stale tch=%u consumed\n", stale);
-            }
-        }
+        (void)pt8028_take_press_tch();
         f->key_ready = true;
         return;
     }
