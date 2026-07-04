@@ -269,6 +269,14 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
         {
             u8 uart_buf[LB_TXBUF_SIZE];
             u16 uart_len = 0;
+
+#if ELUNCHBOX_PANEL_EN
+            /* 0x0a 修改模式预设：桥模式也更新本地 lb_mode_*，供后续 0x04 跳转加热页使用 */
+            if (frame.cmd == LB_CMD_MODE_MODIFY && frame.data && frame.data_len >= 3) {
+                lunchbox_mode_preset_local_set(frame.data[0], frame.data[1], frame.data[2]);
+            }
+#endif
+
             if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
                 printf("BLE->UART==>TX[%d]: ", uart_len);
                 for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);

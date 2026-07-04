@@ -1222,8 +1222,12 @@ static u8 lb_handler_mode_modify(lb_rx_frame_t *rx)
         return LB_ERR_EXEC_FAIL;
     }
 
+#if ELUNCHBOX_PANEL_EN
+    lunchbox_mode_preset_local_set(mode, rx->data[1], rx->data[2]);
+#else
     lb_mode_temp[mode]     = rx->data[1];
     lb_mode_duration[mode] = rx->data[2];
+#endif
     lunchbox_uart_send_response(LB_CMD_MODE_MODIFY, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
     return LB_ERR_SUCCESS;
 }

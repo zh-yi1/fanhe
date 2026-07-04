@@ -120,6 +120,8 @@ bool lb_heat_uart_remote_consume(void);
 u16 lunchbox_temp_idx_to_f(u8 idx);
 
 #if ELUNCHBOX_PANEL_EN
+/** @brief 更新本地模式预设 (0x0a / 桥模式 BLE 侧同步) */
+void lunchbox_mode_preset_local_set(u8 mode, u8 temp_idx, u8 duration_min);
 /** @brief 解析 0x04 控制帧中的总开关 DP，执行面板关/开机 */
 void lunchbox_control_apply_power_switch(const u8 *data, u16 len);
 /** @brief 解析 0x04 控制帧中的加热 DP，跳转 func_heat_panel 并同步参数 */
