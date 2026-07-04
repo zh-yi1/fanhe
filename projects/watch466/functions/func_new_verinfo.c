@@ -15,6 +15,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #include "port_pt8028_key.h"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 #ifndef VERINFO_VERSION_STR
 #define VERINFO_VERSION_STR               "3E 610317-V1.0"
 #endif
@@ -66,6 +71,30 @@ static void new_verinfo_version_txt_prepare(compo_textbox_t *txt);
 static void new_verinfo_version_txt_show(compo_textbox_t *txt);
 
 #if ELUNCHBOX_PANEL_EN
+static bool new_verinfo_font_ready;
+
+static void new_verinfo_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_verinfo_font_apply_once(f_new_verinfo_t *f)
+{
+    if (new_verinfo_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_verinfo_font_bind_txt(f->txt_title);
+    WDT_CLR();
+    new_verinfo_font_bind_txt(f->txt_version);
+    new_verinfo_font_ready = true;
+}
+#endif
+
+#if ELUNCHBOX_PANEL_EN
 static compo_picturebox_t *new_verinfo_pic_create_hidden(compo_form_t *frm, u16 id)
 {
     compo_picturebox_t *pic = (compo_picturebox_t *)compo_create(frm, COMPO_TYPE_PICTUREBOX);
@@ -110,6 +139,8 @@ static compo_textbox_t *new_verinfo_txt_create(compo_form_t *frm, u16 id, u16 bu
 #if ELUNCHBOX_PANEL_EN
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, NEW_HEAT_FONT);
 #endif
     compo_textbox_set_align_center(txt, center);
     compo_textbox_set_pos(txt, x, y);
@@ -283,6 +314,7 @@ static void new_verinfo_text_apply(f_new_verinfo_t *f)
     if (f == NULL) {
         return;
     }
+    new_verinfo_font_apply_once(f);
     new_verinfo_title_txt_show(f->txt_title);
     new_verinfo_version_txt_show(f->txt_version);
 }
@@ -475,6 +507,7 @@ void func_new_verinfo_enter(void)
     func_cb.f_cb = func_zalloc(sizeof(f_new_verinfo_t));
     f = (f_new_verinfo_t *)func_cb.f_cb;
 #if ELUNCHBOX_PANEL_EN
+    new_verinfo_font_ready = false;
     f->key_ready = false;
     f->text_pending = false;
 #endif
