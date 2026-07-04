@@ -22,6 +22,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Run tools/gen_new_heat_icons.py then Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 新加热设置页（320×240 白底）：
  *   顶栏：蓝牙 + 电量 + 模式名称（Chicken / Pasta）
@@ -544,6 +549,40 @@ static void new_heat_badges_apply(f_new_heat_t *f)
 #define NEW_HEAT_GPU_SETTLE_FRAMES      5
 
 #if ELUNCHBOX_PANEL_EN
+static bool new_heat_font_ready;
+
+static void new_heat_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_heat_font_apply_once(f_new_heat_t *f)
+{
+    u8 i;
+
+    if (new_heat_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_heat_font_bind_txt(f->txt_mode_title);
+    new_heat_font_bind_txt(f->txt_temp_label);
+    new_heat_font_bind_txt(f->txt_time_label);
+    new_heat_font_bind_txt(f->txt_temp_val);
+    new_heat_font_bind_txt(f->txt_time_val);
+    for (i = 0; i < NEW_HEAT_TEMP_CNT; i++) {
+        WDT_CLR();
+        new_heat_font_bind_txt(f->txt_temp_scale[i]);
+    }
+    for (i = 0; i < 3; i++) {
+        WDT_CLR();
+        new_heat_font_bind_txt(f->txt_time_scale[i]);
+    }
+    new_heat_font_ready = true;
+}
+
 static void new_heat_text_apply_main(f_new_heat_t *f);
 static void new_heat_text_apply_scales(f_new_heat_t *f);
 #endif
@@ -560,6 +599,7 @@ static void new_heat_text_apply(f_new_heat_t *f)
     }
 
 #if ELUNCHBOX_PANEL_EN
+    new_heat_font_apply_once(f);
     new_heat_text_apply_main(f);
     new_heat_text_apply_scales(f);
     return;
@@ -943,7 +983,7 @@ static compo_textbox_t *new_heat_txt_create(compo_form_t *frm, u16 id, u32 font_
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
 #else
-    compo_textbox_set_font(txt, font_addr);
+    compo_textbox_set_font(txt, font_addr ? font_addr : NEW_HEAT_FONT);
     compo_textbox_set_autosize(txt, true);
     compo_textbox_set_align_center(txt, center);
 #endif
@@ -974,16 +1014,16 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
 
     /* 模式名称标题：显示 Chicken / Pasta（从模式页进入时），默认隐藏 */
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_MODE_TITLE, UI_BUF_0FONT_FONT_ASC_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_MODE_TITLE, NEW_HEAT_FONT,
                               GUI_SCREEN_CENTER_X, NEW_HEAT_MODE_TITLE_Y,
                               COLOR_BLACK, true);
     compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_HEAT_MODE_TITLE_Y,
                                NEW_HEAT_MODE_TITLE_W, NEW_HEAT_MODE_TITLE_H);
 
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_LABEL, UI_BUF_0FONT_FONT_ASC_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_LABEL, NEW_HEAT_FONT,
                               NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
     compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, 300, 30);
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_LABEL, UI_BUF_0FONT_FONT_ASC_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_LABEL, NEW_HEAT_FONT,
                               NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
     compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y, 300, 30);
 
@@ -995,10 +1035,10 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_pos(pic, NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y);
     compo_picturebox_set_size(pic, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
 
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_VAL, NEW_HEAT_FONT,
                               NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_ON_BADGE, true);
     compo_textbox_set_location(txt, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_BADGE_TXT_W, NEW_HEAT_BADGE_H);
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_VAL, NEW_HEAT_FONT,
                               NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_OFF_BADGE, true);
     compo_textbox_set_location(txt, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_BADGE_TXT_W, NEW_HEAT_BADGE_H);
 
@@ -1019,13 +1059,13 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_size(pic, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H);
 
     for (u8 i = 0; i < NEW_HEAT_TEMP_CNT; i++) {
-        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_SCALE0 + i, UI_BUF_0FONT_FONT_ASC_12_BIN,
+        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_SCALE0 + i, NEW_HEAT_FONT,
                             NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SCALE_Y,
                             NEW_HEAT_COLOR_SCALE, true);
         compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SCALE_Y, 85, 40);
     }
     for (u8 j = 0; j < 3; j++) {
-        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_SCALE0 + j, UI_BUF_0FONT_FONT_ASC_12_BIN,
+        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_SCALE0 + j, NEW_HEAT_FONT,
                             NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SCALE_Y,
                             NEW_HEAT_COLOR_SCALE, true);
         compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SCALE_Y, 140, 40);
@@ -1198,6 +1238,7 @@ void func_new_heat_enter(void)
     f->temp_idx = g_new_heat_temp_idx;
     f->time_idx = g_new_heat_time_idx;
 #if ELUNCHBOX_PANEL_EN
+    new_heat_font_ready = false;
     f->key_ready = false;
     f->display_pending = true;
     home_ui_digit_pool_reset();
