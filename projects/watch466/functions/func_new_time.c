@@ -4,7 +4,6 @@
 #include "new_home_icon_res.h"
 #include "home_icon_res.h"
 #include "home_ui_shared.h"
-#include "home_ui_ram.h"
 #include "func_key_lock.h"
 #include "func_lunchbox_uart.h"
 #include "ui_layout_anchor.h"
@@ -22,38 +21,18 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Run tools/gen_new_time_icons.py then Output/bin/prebuild.bat"
 #endif
 
-#ifndef UI_BUF_HOME_W0M_BIN
-#error "Missing w0m.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
-#endif
-
-#ifndef UI_BUF_HOME_W5_BIN
-#error "Missing w5.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
-#endif
-
-#ifndef UI_BUF_HOME_WCM_BIN
-#error "Missing wcm.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
-#endif
-
-#ifndef UI_BUF_HOME_HM_BIN
-#error "Missing Hm.bin: run tools/gen_home_icons.py + prebuild.bat"
-#endif
-
-#ifndef UI_BUF_HOME_MINM_BIN
-#error "Missing Minm.bin: run tools/gen_home_icons.py + prebuild.bat"
-#endif
-
 #ifndef UI_BUF_0FONT_FONT_TEST_BIN
 #error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
 #endif
 #define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
 
 /*
- * 时间设置页 — 布局与 func_timeing.c 一致（466 设计稿缩放 + 320×240 时钟右上角锚点）
- *   顶栏：TIME（左对齐）+ 蓝牙/电量，无返回图标
- *   时/分列 + AM/PM + NO/YES；白底/浅灰框；数字时钟区图标/排版与 func_timeing.c 一致（HOME w0m/wcm）
+ * 时间设置页 — 浅色底；时钟数字/冒号/H/Min 用 textbox（无 bitmap 黑底）
  */
-#define NEW_TIME_COLON_W                   5
-#define NEW_TIME_COLON_H                   29
+#define NEW_TIME_COLON_W                   8
+#define NEW_TIME_COLON_H                   36
+#define NEW_TIME_CLOCK_TXT_W               24
+#define NEW_TIME_CLOCK_TXT_H               36
 
 #define NEW_TIME_REF_W                     466
 #define NEW_TIME_REF_H                     466
@@ -147,12 +126,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIME_COLOR_OFF                 COLOR_BLACK
 #define NEW_TIME_COLOR_SEL                 0x0AD8
 #define NEW_TIME_COLOR_BOX_NOR             0xCFDF
+#ifndef NEW_TIME_BOX_RADIUS
 #define NEW_TIME_BOX_RADIUS                12
+#endif
 #define NEW_TIME_BTN_RADIUS                8
 #define NEW_TIME_AMPM_RADIUS               6
-
-#define NEW_TIME_DIGIT_SLOTS               4
-#define NEW_TIME_DIGIT_RAM_MAX_SIZE        1436
 
 enum {
     NEW_TIME_FOCUS_HOUR = 0,
@@ -174,17 +152,17 @@ enum {
     COMPO_ID_PIC_HOUR_DOWN,
     COMPO_ID_PIC_MIN_UP,
     COMPO_ID_PIC_MIN_DOWN,
-    COMPO_ID_PIC_H10,
-    COMPO_ID_PIC_H1,
-    COMPO_ID_PIC_COLON,
-    COMPO_ID_PIC_M10,
-    COMPO_ID_PIC_M1,
+    COMPO_ID_TXT_H10,
+    COMPO_ID_TXT_H1,
+    COMPO_ID_TXT_COLON,
+    COMPO_ID_TXT_M10,
+    COMPO_ID_TXT_M1,
     COMPO_ID_SHAPE_AM,
     COMPO_ID_SHAPE_PM,
     COMPO_ID_SHAPE_NO,
     COMPO_ID_SHAPE_YES,
-    COMPO_ID_PIC_H_SUFFIX,
-    COMPO_ID_PIC_MIN_SUFFIX,
+    COMPO_ID_TXT_H_SUFFIX,
+    COMPO_ID_TXT_MIN_SUFFIX,
     COMPO_ID_TXT_AM,
     COMPO_ID_TXT_PM,
     COMPO_ID_TXT_NO,
@@ -195,8 +173,7 @@ enum {
     NEW_TIME_LOAD_STATUS = 0,
     NEW_TIME_LOAD_SHAPES,
     NEW_TIME_LOAD_ARROWS,
-    NEW_TIME_LOAD_DIGITS_H,
-    NEW_TIME_LOAD_DIGITS_M,
+    NEW_TIME_LOAD_CLOCK,
     NEW_TIME_LOAD_TEXT,
     NEW_TIME_LOAD_DONE,
 };
@@ -225,14 +202,14 @@ typedef struct {
     compo_picturebox_t *pic_hour_down;
     compo_picturebox_t *pic_min_up;
     compo_picturebox_t *pic_min_down;
-    compo_picturebox_t *pic_h10;
-    compo_picturebox_t *pic_h1;
-    compo_picturebox_t *pic_colon;
-    compo_picturebox_t *pic_m10;
-    compo_picturebox_t *pic_m1;
     compo_textbox_t *txt_title;
-    compo_picturebox_t *pic_h_suffix;
-    compo_picturebox_t *pic_min_suffix;
+    compo_textbox_t *txt_h10;
+    compo_textbox_t *txt_h1;
+    compo_textbox_t *txt_colon;
+    compo_textbox_t *txt_m10;
+    compo_textbox_t *txt_m1;
+    compo_textbox_t *txt_h_suffix;
+    compo_textbox_t *txt_min_suffix;
     compo_textbox_t *txt_am;
     compo_textbox_t *txt_pm;
     compo_textbox_t *txt_no;
@@ -240,11 +217,9 @@ typedef struct {
 } f_new_time_t;
 
 #if ELUNCHBOX_PANEL_EN
-/* 仅箭头用小缓冲；数字/冒号复用 home_ui_digit_ram / home_ui_colon_ram（页间互斥） */
+/* 仅箭头用小缓冲 */
 static u8 new_time_arrow_up_ram[NEW_TIME_NEW_UP_RAM_SIZE];
 static u8 new_time_arrow_down_ram[NEW_TIME_NEW_DOWN_RAM_SIZE];
-static u8 new_time_hm_ram[HOME_TIMEING_SUFFIX_RAM_MAX_SIZE];
-static u8 new_time_minm_ram[HOME_TIMEING_SUFFIX_RAM_MAX_SIZE];
 static bool new_time_res_up_ready;
 static bool new_time_res_down_ready;
 static bool new_time_font_ready;
@@ -265,6 +240,20 @@ static void new_time_font_apply_once(f_new_time_t *f)
     WDT_CLR();
     new_time_font_bind_txt(f->txt_title);
     WDT_CLR();
+    new_time_font_bind_txt(f->txt_h10);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_h1);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_colon);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_m10);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_m1);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_h_suffix);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_min_suffix);
+    WDT_CLR();
     new_time_font_bind_txt(f->txt_am);
     WDT_CLR();
     new_time_font_bind_txt(f->txt_pm);
@@ -281,34 +270,13 @@ static const char *new_time_stage_name(u8 stage)
     case NEW_TIME_LOAD_STATUS:   return "status";
     case NEW_TIME_LOAD_SHAPES:   return "shapes";
     case NEW_TIME_LOAD_ARROWS:   return "arrows";
-    case NEW_TIME_LOAD_DIGITS_H: return "dig_h";
-    case NEW_TIME_LOAD_DIGITS_M: return "dig_m";
+    case NEW_TIME_LOAD_CLOCK:    return "clock";
     case NEW_TIME_LOAD_TEXT:     return "text";
     case NEW_TIME_LOAD_DONE:     return "done";
     default:                     return "?";
     }
 }
 #endif
-
-static const u32 tbl_new_time_digit_addr[10] = {
-    UI_BUF_HOME_W0M_BIN, UI_BUF_HOME_W1M_BIN, UI_BUF_HOME_W2M_BIN, UI_BUF_HOME_W3M_BIN,
-    UI_BUF_HOME_W4M_BIN, UI_BUF_HOME_W5_BIN, UI_BUF_HOME_W6M_BIN, UI_BUF_HOME_W7M_BIN,
-    UI_BUF_HOME_W8M_BIN, UI_BUF_HOME_W9M_BIN,
-};
-
-static const u16 tbl_new_time_digit_len[10] = {
-    UI_LEN_HOME_W0M_BIN, UI_LEN_HOME_W1M_BIN, UI_LEN_HOME_W2M_BIN, UI_LEN_HOME_W3M_BIN,
-    UI_LEN_HOME_W4M_BIN, UI_LEN_HOME_W5_BIN, UI_LEN_HOME_W6M_BIN, UI_LEN_HOME_W7M_BIN,
-    UI_LEN_HOME_W8M_BIN, UI_LEN_HOME_W9M_BIN,
-};
-
-static const u16 tbl_new_time_digit_w[10] = {
-    20, 5, 20, 19, 20, 20, 21, 19, 20, 20,
-};
-
-static const u16 tbl_new_time_digit_h[10] = {
-    34, 32, 34, 34, 32, 34, 34, 33, 34, 34,
-};
 
 static void new_time_parse_rtc(u8 *disp_h, u8 *min, bool *is_pm)
 {
@@ -355,22 +323,28 @@ static void new_time_pic_pos_tr(compo_picturebox_t *pic, s16 tr_x, s16 tr_y, u16
     compo_picturebox_set_pos(pic, tr_x - (s16)(w / 2), tr_y + (s16)(h / 2));
 }
 
-static void new_time_clock_digit_pos_tr(compo_picturebox_t *pic, u16 w, u16 h, s16 tr_x, s16 tr_y)
-{
-    if (pic == NULL) {
-        return;
-    }
-    new_time_pic_pos_tr(pic, tr_x, tr_y, w, h);
-    compo_picturebox_set_size(pic, w, h);
-    compo_picturebox_set_visible(pic, true);
-}
-
 static void new_time_txt_pos_tr(compo_textbox_t *txt, s16 tr_x, s16 tr_y, s16 w, s16 h)
 {
     if (txt == NULL) {
         return;
     }
     compo_textbox_set_location(txt, (s16)(tr_x - w / 2), (s16)(tr_y + h / 2), w, h);
+}
+
+static void new_time_label_show(compo_textbox_t *txt, const char *label, u16 color);
+
+static void new_time_clock_digit_show(compo_textbox_t *txt, u8 digit,
+                                      s16 tr_x, s16 tr_y, u16 color)
+{
+    char buf[2];
+
+    if (txt == NULL || digit > 9) {
+        return;
+    }
+    buf[0] = (char)('0' + digit);
+    buf[1] = '\0';
+    new_time_txt_pos_tr(txt, tr_x, tr_y, NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H);
+    new_time_label_show(txt, buf, color);
 }
 
 #if ELUNCHBOX_PANEL_EN
@@ -399,78 +373,6 @@ static compo_shape_t *new_time_shape_create(compo_form_t *frm, u16 id,
     return shape;
 }
 
-static bool new_time_gpu_ram_bind(u8 *ram, u16 buf_size, u32 addr, u16 len,
-                                  compo_picturebox_t *pic, u16 w, u16 h)
-{
-    u16 need;
-
-    if (pic == NULL || ram == NULL || len == 0 || len > buf_size || len > NEW_TIME_DIGIT_RAM_MAX_SIZE) {
-        if (pic != NULL) {
-            compo_picturebox_set_visible(pic, false);
-        }
-        return false;
-    }
-#if ELUNCHBOX_PANEL_EN
-    u8 was_blocked = elunchbox_te_block_flag;
-    if (!was_blocked) {
-        elunchbox_te_block_flag = 1;
-        home_gpu_wait_idle();
-    }
-#endif
-    WDT_CLR();
-    os_spiflash_read(ram, addr, len);
-    if (!gui_set_ram_check(ram, __func__)) {
-        printf("nt_spi: fail ram=%p addr=0x%06lx len=%u\n",
-               (void *)ram, (unsigned long)addr, (unsigned)len);
-        compo_picturebox_set_visible(pic, false);
-#if ELUNCHBOX_PANEL_EN
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 0;
-        }
-#endif
-        return false;
-    }
-    need = (u16)(8 + (u32)GET_LE16(&ram[4]) * GET_LE16(&ram[6]) * 2);
-    if (need > len || need > buf_size) {
-        compo_picturebox_set_visible(pic, false);
-#if ELUNCHBOX_PANEL_EN
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 0;
-        }
-#endif
-        return false;
-    }
-    compo_picturebox_set_ram(pic, ram);
-    compo_picturebox_set_size(pic, w, h);
-    compo_picturebox_set_visible(pic, true);
-#if ELUNCHBOX_PANEL_EN
-    if (!was_blocked) {
-        home_gpu_wait_idle();
-        elunchbox_te_block_flag = 0;
-    }
-#endif
-    return true;
-}
-
-static bool new_time_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic,
-                                s16 tr_x, s16 tr_y)
-{
-    u16 w;
-    u16 h;
-
-    if (digit > 9 || slot >= NEW_TIME_DIGIT_SLOTS || pic == NULL) {
-        return false;
-    }
-    w = tbl_new_time_digit_w[digit];
-    h = tbl_new_time_digit_h[digit];
-    if (!new_time_gpu_ram_bind(home_ui_digit_ram[slot], HOME_DIGIT_RAM_MAX_SIZE,
-                               tbl_new_time_digit_addr[digit],
-                               tbl_new_time_digit_len[digit], pic, w, h)) {
-        return false;
-    }
-    new_time_clock_digit_pos_tr(pic, w, h, tr_x, tr_y);
-    return true;
-}
 #endif
 
 static compo_textbox_t *new_time_txt_create(compo_form_t *frm, u16 id, u16 buf_size,
@@ -639,87 +541,46 @@ static void new_time_arrows_apply(f_new_time_t *f)
 #endif
 }
 
-static void new_time_digits_apply_hour(f_new_time_t *f)
+static void new_time_clock_apply(f_new_time_t *f)
 {
     u8 h10;
     u8 h1;
-
-    if (f == NULL) {
-        return;
-    }
-    h10 = (u8)(f->disp_h / 10);
-    h1 = (u8)(f->disp_h % 10);
-
-#if ELUNCHBOX_PANEL_EN
-    (void)new_time_load_digit(0, h10, f->pic_h10,
-                              NEW_TIME_CLOCK_TR_H10_X, NEW_TIME_CLOCK_TR_Y);
-    (void)new_time_load_digit(1, h1, f->pic_h1,
-                              NEW_TIME_CLOCK_TR_H1_X, NEW_TIME_CLOCK_TR_Y);
-    if (f->pic_colon != NULL) {
-        if (new_time_gpu_ram_bind(home_ui_colon_ram, HOME_COLON_RAM_SIZE,
-                                  UI_BUF_HOME_WCM_BIN, UI_LEN_HOME_WCM_BIN,
-                                  f->pic_colon, NEW_TIME_COLON_W, NEW_TIME_COLON_H)) {
-            new_time_pic_pos_tr(f->pic_colon, NEW_TIME_CLOCK_TR_COLON_X, NEW_TIME_CLOCK_TR_Y,
-                                NEW_TIME_COLON_W, NEW_TIME_COLON_H);
-        }
-    }
-#endif
-}
-
-static void new_time_digits_apply_min(f_new_time_t *f)
-{
     u8 m10;
     u8 m1;
+    u16 hour_color;
+    u16 min_color;
 
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    new_time_font_apply_once(f);
+#endif
+    h10 = (u8)(f->disp_h / 10);
+    h1 = (u8)(f->disp_h % 10);
     m10 = (u8)(f->min / 10);
     m1 = (u8)(f->min % 10);
+    hour_color = (f->focus == NEW_TIME_FOCUS_HOUR) ? NEW_TIME_COLOR_ON : NEW_TIME_COLOR_OFF;
+    min_color = (f->focus == NEW_TIME_FOCUS_MIN) ? NEW_TIME_COLOR_ON : NEW_TIME_COLOR_OFF;
 
-#if ELUNCHBOX_PANEL_EN
-    (void)new_time_load_digit(2, m10, f->pic_m10,
-                              NEW_TIME_CLOCK_TR_M10_X, NEW_TIME_CLOCK_TR_Y);
-    (void)new_time_load_digit(3, m1, f->pic_m1,
-                              NEW_TIME_CLOCK_TR_M1_X, NEW_TIME_CLOCK_TR_Y);
-#endif
-}
-
-static void new_time_suffix_apply(f_new_time_t *f)
-{
-    if (f == NULL) {
-        return;
-    }
-#if ELUNCHBOX_PANEL_EN
-    if (new_time_gpu_ram_bind(new_time_hm_ram, HOME_TIMEING_SUFFIX_RAM_MAX_SIZE,
-                              UI_BUF_HOME_HM_BIN, UI_LEN_HOME_HM_BIN,
-                              f->pic_h_suffix, HOME_TIMEING_HM_W, HOME_TIMEING_HM_H)) {
-        new_time_pic_pos_tr(f->pic_h_suffix, NEW_TIME_SUFFIX_H_TR_X, NEW_TIME_SUFFIX_TR_Y,
-                            HOME_TIMEING_HM_W, HOME_TIMEING_HM_H);
-    }
-    if (new_time_gpu_ram_bind(new_time_minm_ram, HOME_TIMEING_SUFFIX_RAM_MAX_SIZE,
-                              UI_BUF_HOME_MINM_BIN, UI_LEN_HOME_MINM_BIN,
-                              f->pic_min_suffix, HOME_TIMEING_MINM_W, HOME_TIMEING_MINM_H)) {
-        new_time_pic_pos_tr(f->pic_min_suffix, NEW_TIME_SUFFIX_MIN_TR_X, NEW_TIME_SUFFIX_TR_Y,
-                            HOME_TIMEING_MINM_W, HOME_TIMEING_MINM_H);
-    }
-#endif
+    new_time_clock_digit_show(f->txt_h10, h10, NEW_TIME_CLOCK_TR_H10_X, NEW_TIME_CLOCK_TR_Y, hour_color);
+    new_time_clock_digit_show(f->txt_h1, h1, NEW_TIME_CLOCK_TR_H1_X, NEW_TIME_CLOCK_TR_Y, hour_color);
+    new_time_txt_pos_tr(f->txt_colon, NEW_TIME_CLOCK_TR_COLON_X, NEW_TIME_CLOCK_TR_Y,
+                        NEW_TIME_COLON_W, NEW_TIME_COLON_H);
+    new_time_label_show(f->txt_colon, ":", NEW_TIME_COLOR_OFF);
+    new_time_clock_digit_show(f->txt_m10, m10, NEW_TIME_CLOCK_TR_M10_X, NEW_TIME_CLOCK_TR_Y, min_color);
+    new_time_clock_digit_show(f->txt_m1, m1, NEW_TIME_CLOCK_TR_M1_X, NEW_TIME_CLOCK_TR_Y, min_color);
+    new_time_txt_pos_tr(f->txt_h_suffix, NEW_TIME_SUFFIX_H_TR_X, NEW_TIME_SUFFIX_TR_Y,
+                        HOME_TIMEING_HM_W, HOME_TIMEING_HM_H);
+    new_time_label_show(f->txt_h_suffix, "H", NEW_TIME_COLOR_OFF);
+    new_time_txt_pos_tr(f->txt_min_suffix, NEW_TIME_SUFFIX_MIN_TR_X, NEW_TIME_SUFFIX_TR_Y,
+                        HOME_TIMEING_MINM_W, HOME_TIMEING_MINM_H);
+    new_time_label_show(f->txt_min_suffix, "min", NEW_TIME_COLOR_OFF);
 }
 
 static void new_time_digits_apply(f_new_time_t *f)
 {
-    if (f == NULL) {
-        return;
-    }
-#if ELUNCHBOX_PANEL_EN
-    elunchbox_te_block_flag = 1;
-    home_gpu_wait_idle();
-    new_time_digits_apply_hour(f);
-    new_time_digits_apply_min(f);
-    new_time_suffix_apply(f);
-    home_gpu_wait_idle();
-    elunchbox_te_block_flag = 0;
-#endif
+    new_time_clock_apply(f);
 }
 
 static void new_time_text_apply(f_new_time_t *f)
@@ -945,13 +806,13 @@ static void new_time_bind_objects(f_new_time_t *f)
     f->pic_hour_down = compo_getobj_byid(COMPO_ID_PIC_HOUR_DOWN);
     f->pic_min_up = compo_getobj_byid(COMPO_ID_PIC_MIN_UP);
     f->pic_min_down = compo_getobj_byid(COMPO_ID_PIC_MIN_DOWN);
-    f->pic_h10 = compo_getobj_byid(COMPO_ID_PIC_H10);
-    f->pic_h1 = compo_getobj_byid(COMPO_ID_PIC_H1);
-    f->pic_colon = compo_getobj_byid(COMPO_ID_PIC_COLON);
-    f->pic_m10 = compo_getobj_byid(COMPO_ID_PIC_M10);
-    f->pic_m1 = compo_getobj_byid(COMPO_ID_PIC_M1);
-    f->pic_h_suffix = compo_getobj_byid(COMPO_ID_PIC_H_SUFFIX);
-    f->pic_min_suffix = compo_getobj_byid(COMPO_ID_PIC_MIN_SUFFIX);
+    f->txt_h10 = compo_getobj_byid(COMPO_ID_TXT_H10);
+    f->txt_h1 = compo_getobj_byid(COMPO_ID_TXT_H1);
+    f->txt_colon = compo_getobj_byid(COMPO_ID_TXT_COLON);
+    f->txt_m10 = compo_getobj_byid(COMPO_ID_TXT_M10);
+    f->txt_m1 = compo_getobj_byid(COMPO_ID_TXT_M1);
+    f->txt_h_suffix = compo_getobj_byid(COMPO_ID_TXT_H_SUFFIX);
+    f->txt_min_suffix = compo_getobj_byid(COMPO_ID_TXT_MIN_SUFFIX);
     f->txt_am = compo_getobj_byid(COMPO_ID_TXT_AM);
     f->txt_pm = compo_getobj_byid(COMPO_ID_TXT_PM);
     f->txt_no = compo_getobj_byid(COMPO_ID_TXT_NO);
@@ -999,11 +860,35 @@ compo_form_t *func_new_time_form_create(void)
     (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_HOUR_DOWN);
     (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_MIN_UP);
     (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_MIN_DOWN);
-    (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_H10);
-    (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_H1);
-    (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_COLON);
-    (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_M10);
-    (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_M1);
+
+    (void)new_time_txt_create(frm, COMPO_ID_TXT_H10, 2,
+                              NEW_TIME_CLOCK_TR_H10_X, NEW_TIME_CLOCK_TR_Y,
+                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H,
+                              NEW_TIME_COLOR_OFF, true);
+    (void)new_time_txt_create(frm, COMPO_ID_TXT_H1, 2,
+                              NEW_TIME_CLOCK_TR_H1_X, NEW_TIME_CLOCK_TR_Y,
+                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H,
+                              NEW_TIME_COLOR_OFF, true);
+    (void)new_time_txt_create(frm, COMPO_ID_TXT_COLON, 2,
+                              NEW_TIME_CLOCK_TR_COLON_X, NEW_TIME_CLOCK_TR_Y,
+                              NEW_TIME_COLON_W, NEW_TIME_COLON_H,
+                              NEW_TIME_COLOR_OFF, true);
+    (void)new_time_txt_create(frm, COMPO_ID_TXT_M10, 2,
+                              NEW_TIME_CLOCK_TR_M10_X, NEW_TIME_CLOCK_TR_Y,
+                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H,
+                              NEW_TIME_COLOR_OFF, true);
+    (void)new_time_txt_create(frm, COMPO_ID_TXT_M1, 2,
+                              NEW_TIME_CLOCK_TR_M1_X, NEW_TIME_CLOCK_TR_Y,
+                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H,
+                              NEW_TIME_COLOR_OFF, true);
+    (void)new_time_txt_create(frm, COMPO_ID_TXT_H_SUFFIX, 4,
+                              NEW_TIME_SUFFIX_H_TR_X, NEW_TIME_SUFFIX_TR_Y,
+                              HOME_TIMEING_HM_W, HOME_TIMEING_HM_H,
+                              NEW_TIME_COLOR_OFF, true);
+    (void)new_time_txt_create(frm, COMPO_ID_TXT_MIN_SUFFIX, 8,
+                              NEW_TIME_SUFFIX_MIN_TR_X, NEW_TIME_SUFFIX_TR_Y,
+                              HOME_TIMEING_MINM_W, HOME_TIMEING_MINM_H,
+                              NEW_TIME_COLOR_OFF, true);
 
     (void)new_time_shape_create(frm, COMPO_ID_SHAPE_AM,
                                 NEW_TIME_AMPM_COL_X, NEW_TIME_AM_Y,
@@ -1022,8 +907,6 @@ compo_form_t *func_new_time_form_create(void)
                                 NEW_TIME_BTN_W, NEW_TIME_BTN_H,
                                 NEW_TIME_COLOR_SEL, NEW_TIME_BTN_RADIUS);
 
-    (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_H_SUFFIX);
-    (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_MIN_SUFFIX);
     (void)new_time_txt_create(frm, COMPO_ID_TXT_AM, 4,
                               NEW_TIME_AMPM_COL_X, NEW_TIME_AM_Y,
                               NEW_TIME_AMPM_W, NEW_TIME_AMPM_H,
@@ -1160,23 +1043,10 @@ static void func_new_time_process(void)
             new_time_arrows_apply(f);
             home_gpu_wait_idle();
             elunchbox_te_block_flag = 0;
-            f->load_stage = NEW_TIME_LOAD_DIGITS_H;
+            f->load_stage = NEW_TIME_LOAD_CLOCK;
             break;
-        case NEW_TIME_LOAD_DIGITS_H:
-            elunchbox_te_block_flag = 1;
-            home_gpu_wait_idle();
-            new_time_digits_apply_hour(f);
-            home_gpu_wait_idle();
-            elunchbox_te_block_flag = 0;
-            f->load_stage = NEW_TIME_LOAD_DIGITS_M;
-            break;
-        case NEW_TIME_LOAD_DIGITS_M:
-            elunchbox_te_block_flag = 1;
-            home_gpu_wait_idle();
-            new_time_digits_apply_min(f);
-            new_time_suffix_apply(f);
-            home_gpu_wait_idle();
-            elunchbox_te_block_flag = 0;
+        case NEW_TIME_LOAD_CLOCK:
+            new_time_clock_apply(f);
             f->load_stage = NEW_TIME_LOAD_TEXT;
             break;
         case NEW_TIME_LOAD_TEXT:
@@ -1254,7 +1124,6 @@ void func_new_time_enter(void)
     new_time_res_up_ready = false;
     new_time_res_down_ready = false;
     new_time_font_ready = false;
-    home_ui_digit_pool_reset();
     home_ui_shared_status_init();
     WDT_CLR();
     home_gpu_wait_idle();

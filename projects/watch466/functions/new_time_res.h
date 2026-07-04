@@ -37,14 +37,26 @@
 #define NEW_TIME_NEW_UP_H                 11
 #define NEW_TIME_NEW_UP_RAM_SIZE          382
 
+#ifndef NEW_TIME_BOX_W
 #define NEW_TIME_BOX_W                   75
+#endif
+#ifndef NEW_TIME_BOX_H
 #define NEW_TIME_BOX_H                   63
+#endif
 
+#ifndef NEW_TIME_BTN_W
 #define NEW_TIME_BTN_W                   101
+#endif
+#ifndef NEW_TIME_BTN_H
 #define NEW_TIME_BTN_H                   26
+#endif
 
+#ifndef NEW_TIME_AMPM_W
 #define NEW_TIME_AMPM_W                  40
+#endif
+#ifndef NEW_TIME_AMPM_H
 #define NEW_TIME_AMPM_H                  24
+#endif
 
 #define NEW_TIME_ARROW_W                 17
 #define NEW_TIME_ARROW_H                 11
