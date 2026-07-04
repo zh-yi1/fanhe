@@ -187,6 +187,7 @@ static bool elunchbox_pwr_need_fresh_press; /* 关机松手后须新一次按下
 static bool elunchbox_pwr_intentional_wake; /* manual_off 下允许 gui_wakeup */
 static bool elunchbox_manual_wake_pending; /* 浅睡内检测到长按，退出 sleep 后再亮屏 */
 static bool elunchbox_boot_power_sent;
+static bool elunchbox_pwr_hw_off;       /* 协议/BLE 关机已向加热模块发 PowerSwitch=OFF */
 static s32 elunchbox_guioff_sleep_delay = -1L;
 static u8 elunchbox_guioff_sleep_mode;
 static u32 elunchbox_idle_tmr;          /* 100ms 单位，独立于 sys_cb.guioff_delay */
@@ -434,6 +435,47 @@ static void elunchbox_pwr_manual_shutdown(void)
     printf("elunchbox: TCH5 long -> manual off (low power sleep)\n");
 }
 
+void elunchbox_pwr_ble_switch(bool on)
+{
+#if FUNC_LUNCHBOX_UART_EN
+    if (on) {
+        if (!elunchbox_pwr_gui_off && !sys_cb.gui_sleep_sta && !elunchbox_pwr_is_manual_off()) {
+            printf("elunchbox: BLE power on ignored (already on)\n");
+            return;
+        }
+        elunchbox_pwr_intentional_wake = elunchbox_pwr_is_manual_off();
+        elunchbox_pwr_gui_wake_reason("ble power on");
+        elunchbox_pwr_intentional_wake = false;
+    } else {
+        if ((elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) || elunchbox_pwr_is_manual_off()) {
+            printf("elunchbox: BLE power off ignored (already off)\n");
+            return;
+        }
+#if USER_PANEL_LED
+        panel_led_all_off();
+        panel_led_set_switch_latched(false);
+#endif
+        lunchbox_keep_warm_stop();
+        lunchbox_heat_stop();
+        lunchbox_power_off();
+#if FUNC_RESERVATION_UI_EN
+        func_reservation_on_manual_shutdown();
+#endif
+        elunchbox_boot_power_sent = false;
+        elunchbox_pwr_hw_off = true;
+        elunchbox_pwr_gui_off = true;
+        elunchbox_pwr_manual_off = false;
+        sys_cb.gui_need_wakeup = 0;
+        elunchbox_guioff_sleep_delay = 0;
+        gui_sleep(true);
+        lunchbox_uart_suspend();
+        printf("elunchbox: BLE power off (keep BLE link)\n");
+    }
+#else
+    (void)on;
+#endif
+}
+
 static bool elunchbox_is_guioff(void);
 
 void elunchbox_guioff_sleep_post_wake(bool key_wake)
@@ -561,10 +603,11 @@ static void elunchbox_screen_wake(void)
     pt8028_set_home_msg_block(1);
 #endif
 #if FUNC_LUNCHBOX_UART_EN
-    if (was_manual) {
+    if (was_manual || elunchbox_pwr_hw_off) {
         lunchbox_uart_resume();
         lunchbox_power_on();
         elunchbox_boot_power_sent = true;
+        elunchbox_pwr_hw_off = false;
     }
 #endif
 #if ELUNCHBOX_PANEL_EN

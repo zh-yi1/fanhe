@@ -422,6 +422,29 @@ u16 lb_dp_encode_bool(u8 *buf, u8 dpid, u8 val)
     return lb_dp_encode(buf, dpid, LB_DP_TYPE_BOOL, &val, 1);
 }
 
+/** @brief 扫描 DataPoint 缓冲区，查找 bool/enum 型 dpid 的首字节值 */
+bool lb_dp_scan_bool(const u8 *data, u16 len, u8 dpid, u8 *val)
+{
+    u16 off = 0;
+
+    while (off + 4 <= len) {
+        u8  id      = data[off];
+        u16 val_len = ((u16)data[off + 2] << 8) | data[off + 3];
+
+        if (off + 4 + val_len > len) {
+            break;
+        }
+        if (id == dpid && val_len >= 1) {
+            if (val) {
+                *val = data[off + 4];
+            }
+            return true;
+        }
+        off += 4 + val_len;
+    }
+    return false;
+}
+
 /** @brief 编码 enum 型 DataPoint */
 u16 lb_dp_encode_enum(u8 *buf, u8 dpid, u8 val)
 {
@@ -1295,6 +1318,10 @@ static u8 lb_handler_control(lb_rx_frame_t *rx)
     }
 
     lunchbox_uart_send_response(LB_CMD_CONTROL, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
+
+#if ELUNCHBOX_PANEL_EN
+    lunchbox_control_apply_power_switch(rx->data, rx->data_len);
+#endif
 
     // 属性变化后主动上报 APP
     lunchbox_report_all_attrs();

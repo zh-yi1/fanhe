@@ -251,6 +251,8 @@ void elunchbox_pwr_gui_off_activate(void);
 bool elunchbox_is_device_powered(void);
 void elunchbox_pwr_gui_wake(void);
 void elunchbox_pwr_gui_wake_reason(const char *reason);
+/** 蓝牙 0x04 总开关：关=息屏+加热模块断电(保持 BLE)；开=唤醒+上电 */
+void elunchbox_pwr_ble_switch(bool on);
 /** manual_off 时仅允许 intentional wake 调用 gui_wakeup */
 bool elunchbox_pwr_manual_off_gui_wake_ok(void);
 void elunchbox_manual_off_sleep_poll(void);

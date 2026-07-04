@@ -283,9 +283,7 @@ static void new_home_status_icons_apply(f_new_home_t *f)
     }
     home_ui_shared_status_init();
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f->pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(f->pic_bt, true);
+        home_ui_shared_status_refresh_bt(f->pic_bt);
     }
     if (f->pic_lock != NULL && gui_set_ram_check(home_ui_shared_status_lock_ram, __func__)) {
         compo_picturebox_set_ram(f->pic_lock, home_ui_shared_status_lock_ram);
@@ -357,6 +355,7 @@ static void new_home_status_refresh(f_new_home_t *f)
     home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
     /* 预约提交回 Home 时 RTC 秒未必变化，跑马灯须每帧检查 */
     new_home_res_marquee_refresh(f);
+    home_ui_shared_status_refresh_bt(f->pic_bt);
 }
 
 #if ELUNCHBOX_PANEL_EN

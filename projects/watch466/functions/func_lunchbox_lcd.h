@@ -113,5 +113,10 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out);
 void lb_heat_autostart_set(bool en);
 bool lb_heat_autostart_consume(void);
 
+#if ELUNCHBOX_PANEL_EN
+/** @brief 解析 0x04 控制帧中的总开关 DP，执行面板关/开机 */
+void lunchbox_control_apply_power_switch(const u8 *data, u16 len);
+#endif
+
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_LCD_H

@@ -322,6 +322,49 @@ void home_ui_shared_status_init(void)
     home_ui_shared_status_inited = true;
 }
 
+bool home_ui_shared_ble_linked(void)
+{
+#if LE_EN
+    if (ble_is_connected()) {
+        return true;
+    }
+    return ble_is_connect();
+#else
+    return false;
+#endif
+}
+
+void home_ui_shared_status_refresh_bt(compo_picturebox_t *pic)
+{
+    static bool last_vis = false;
+    static bool last_inited;
+    bool vis;
+
+    if (pic == NULL) {
+        return;
+    }
+    home_ui_shared_status_init();
+    if (!gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
+        return;
+    }
+    vis = home_ui_shared_ble_linked();
+    if (!last_inited || vis != last_vis) {
+        printf("elunchbox: bt icon %s (linked=%u)\n", vis ? "show" : "hide", vis ? 1u : 0u);
+        last_vis = vis;
+        last_inited = true;
+    }
+    compo_picturebox_set_ram(pic, home_ui_shared_status_bt_ram);
+    compo_picturebox_set_size(pic, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
+    compo_picturebox_set_visible(pic, vis);
+}
+
+void home_ui_shared_ble_link_notify(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    func_home_gui_mark_dirty();
+#endif
+}
+
 void home_ui_shared_dash_init(void)
 {
     if (home_ui_shared_dash_inited) {

@@ -397,4 +397,17 @@ void lunchbox_ble_on_connected(void)
     lb_ble_presets_pending = true;
 }
 
+#if ELUNCHBOX_PANEL_EN
+/** @brief 0x04 控制帧含总开关时，驱动面板关机/开机（桥模式与本地模式共用） */
+void lunchbox_control_apply_power_switch(const u8 *data, u16 len)
+{
+    u8 sw;
+
+    if (!lb_dp_scan_bool(data, len, LB_DPID_POWER_SWITCH, &sw)) {
+        return;
+    }
+    elunchbox_pwr_ble_switch(sw != 0);
+}
+#endif
+
 #endif // FUNC_LUNCHBOX_UART_EN

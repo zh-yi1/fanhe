@@ -707,7 +707,7 @@ void func_heat_panel_status_refresh(struct f_heat_t_ *f_heat)
     if (g_hp.pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         compo_picturebox_set_ram(g_hp.pic_bt, home_ui_shared_status_bt_ram);
         compo_picturebox_set_size(g_hp.pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(g_hp.pic_bt, true);
+        home_ui_shared_status_refresh_bt(g_hp.pic_bt);
     }
     home_ui_shared_status_bind_bat(g_hp.pic_bat);
 }

@@ -779,10 +779,8 @@ static void new_time_status_refresh(f_new_time_t *f)
     }
 #if ELUNCHBOX_PANEL_EN
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f->pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
         compo_picturebox_set_pos(f->pic_bt, NEW_TIME_STATUS_BT_X, NEW_TIME_STATUS_Y);
-        compo_picturebox_set_visible(f->pic_bt, true);
+        home_ui_shared_status_refresh_bt(f->pic_bt);
     }
     if (f->pic_bat != NULL) {
         compo_picturebox_set_pos(f->pic_bat, NEW_TIME_STATUS_BAT_X, NEW_TIME_STATUS_Y);
@@ -1238,6 +1236,7 @@ static void func_new_time_process(void)
     if (!elunchbox_ui_is_live()) {
         return;
     }
+    new_time_status_refresh(f);
 #endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_time_keys_poll(f);

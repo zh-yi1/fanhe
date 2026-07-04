@@ -412,9 +412,7 @@ static void new_heat_status_icons_apply(f_new_heat_t *f)
     home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
     home_ui_shared_status_init();
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f->pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(f->pic_bt, true);
+        home_ui_shared_status_refresh_bt(f->pic_bt);
     }
     if (f->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         home_ui_shared_battery_attach_pic(f->pic_bat);
@@ -1208,6 +1206,7 @@ static void func_new_heat_process(void)
         f->display_pending = false;
     }
     home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
+    home_ui_shared_status_refresh_bt(f->pic_bt);
 #endif
     func_process();
 #if ELUNCHBOX_PANEL_EN

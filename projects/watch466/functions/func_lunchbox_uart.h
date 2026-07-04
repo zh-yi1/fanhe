@@ -382,6 +382,9 @@ void lunchbox_time_sync(u32 unix_time);
  */
 u32 lb_get_unix_time(void);
 
+/** @brief 扫描 DataPoint 缓冲区，查找指定 dpid 的 bool/enum 首字节 */
+bool lb_dp_scan_bool(const u8 *data, u16 len, u8 dpid, u8 *val);
+
 /** @brief 加热自然结束后自动开启保温 (模式5, 140°F, 至低电关机) */
 void lunchbox_keep_warm_start(void);
 
