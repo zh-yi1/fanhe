@@ -2,6 +2,7 @@
 #include "func.h"
 #include "new_home_icon_res.h"
 #include "new_heat_res.h"
+#include "home_top_time_txt.h"
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
 #include "home_ui_ram.h"
@@ -22,6 +23,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Run tools/gen_new_heat_icons.py then Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 新加热设置页（320×240 白底）：
  *   顶栏：蓝牙 + 电量 + 模式名称（Chicken / Pasta）
@@ -39,23 +45,23 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_HEAT_STATUS_RIGHT_MARGIN      10
 #define NEW_HEAT_STATUS_GAP               6
 
-#define NEW_HEAT_MODE_TITLE_Y             38
+#define NEW_HEAT_MODE_TITLE_Y             20
 #define NEW_HEAT_MODE_TITLE_H             36
 #define NEW_HEAT_MODE_TITLE_W             120
 
-#define NEW_HEAT_TEMP_LABEL_Y             58
+#define NEW_HEAT_TEMP_LABEL_Y             52
 #define NEW_HEAT_TEMP_SLIDER_Y            82
 #define NEW_HEAT_TEMP_SCALE_Y             100
 
-#define NEW_HEAT_TIME_LABEL_Y             142
+#define NEW_HEAT_TIME_LABEL_Y             137
 #define NEW_HEAT_TIME_SLIDER_Y            166
 #define NEW_HEAT_TIME_SCALE_Y             184
 
-#define NEW_HEAT_LABEL_X                  20
+#define NEW_HEAT_LABEL_X                  95
 #define NEW_HEAT_BADGE_TXT_W              80
 
 #define NEW_HEAT_BADGE_X                  ((s16)(GUI_SCREEN_WIDTH - NEW_HEAT_STATUS_RIGHT_MARGIN - NEW_HEAT_BADGE_W / 2))
-#define NEW_HEAT_BADGE_TXT_X              ((s16)(NEW_HEAT_BADGE_X - (NEW_HEAT_BADGE_TXT_W - NEW_HEAT_BADGE_W) / 2))
+#define NEW_HEAT_BADGE_TXT_X              ((s16)(NEW_HEAT_BADGE_X - (NEW_HEAT_BADGE_TXT_W - NEW_HEAT_BADGE_W) / 2 +12))
 #define NEW_HEAT_SLIDER_SLOT_X            ((s16)((GUI_SCREEN_WIDTH - NEW_HEAT_SLIDER_W) / 2))
 
 #define NEW_HEAT_COLOR_LABEL              0x0AD8
@@ -70,6 +76,7 @@ extern volatile u8 elunchbox_te_block_flag;
 
 enum {
     COMPO_ID_SHAPE_BG = 1,
+    COMPO_ID_TXT_TOP_TIME,
     COMPO_ID_TXT_MODE_TITLE,
     COMPO_ID_PIC_BT,
     COMPO_ID_PIC_BAT,
@@ -98,10 +105,13 @@ typedef struct {
     u8 focus;
     u8 temp_idx;
     u8 time_idx;
+    u8 last_top_min;
+    u8 last_top_sec;
     bool display_pending;
 #if ELUNCHBOX_PANEL_EN
     bool key_ready;
 #endif
+    home_top_time_txt_t top_time;
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_bat;
     compo_picturebox_t *pic_temp_track;
@@ -399,11 +409,10 @@ static void new_heat_status_icons_apply(f_new_heat_t *f)
     if (f == NULL) {
         return;
     }
+    home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
     home_ui_shared_status_init();
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f->pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(f->pic_bt, true);
+        home_ui_shared_status_refresh_bt(f->pic_bt);
     }
     if (f->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         home_ui_shared_battery_attach_pic(f->pic_bat);
@@ -544,6 +553,40 @@ static void new_heat_badges_apply(f_new_heat_t *f)
 #define NEW_HEAT_GPU_SETTLE_FRAMES      5
 
 #if ELUNCHBOX_PANEL_EN
+static bool new_heat_font_ready;
+
+static void new_heat_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_heat_font_apply_once(f_new_heat_t *f)
+{
+    u8 i;
+
+    if (new_heat_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_heat_font_bind_txt(f->txt_mode_title);
+    new_heat_font_bind_txt(f->txt_temp_label);
+    new_heat_font_bind_txt(f->txt_time_label);
+    new_heat_font_bind_txt(f->txt_temp_val);
+    new_heat_font_bind_txt(f->txt_time_val);
+    for (i = 0; i < NEW_HEAT_TEMP_CNT; i++) {
+        WDT_CLR();
+        new_heat_font_bind_txt(f->txt_temp_scale[i]);
+    }
+    for (i = 0; i < 3; i++) {
+        WDT_CLR();
+        new_heat_font_bind_txt(f->txt_time_scale[i]);
+    }
+    new_heat_font_ready = true;
+}
+
 static void new_heat_text_apply_main(f_new_heat_t *f);
 static void new_heat_text_apply_scales(f_new_heat_t *f);
 #endif
@@ -560,6 +603,7 @@ static void new_heat_text_apply(f_new_heat_t *f)
     }
 
 #if ELUNCHBOX_PANEL_EN
+    new_heat_font_apply_once(f);
     new_heat_text_apply_main(f);
     new_heat_text_apply_scales(f);
     return;
@@ -795,6 +839,10 @@ static void new_heat_bind_objects(f_new_heat_t *f)
 {
     u8 i;
 
+    if (f == NULL) {
+        return;
+    }
+    home_top_time_txt_bind(&f->top_time, COMPO_ID_TXT_TOP_TIME);
     f->pic_bt = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_BT);
     f->pic_bat = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_BAT);
     f->txt_mode_title = (compo_textbox_t *)compo_getobj_byid(COMPO_ID_TXT_MODE_TITLE);
@@ -944,7 +992,7 @@ static compo_textbox_t *new_heat_txt_create(compo_form_t *frm, u16 id, u32 font_
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
 #else
-    compo_textbox_set_font(txt, font_addr);
+    compo_textbox_set_font(txt, font_addr ? font_addr : NEW_HEAT_FONT);
     compo_textbox_set_autosize(txt, true);
     compo_textbox_set_align_center(txt, center);
 #endif
@@ -963,6 +1011,8 @@ compo_form_t *func_new_heat_form_create(void)
 
     new_heat_white_bg_create(frm);
 
+    home_top_time_txt_create(frm, COMPO_ID_TXT_TOP_TIME);
+
     bat_x = (s16)(GUI_SCREEN_WIDTH - NEW_HEAT_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
     bt_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - NEW_HEAT_STATUS_GAP - NEW_HOME_BT_W / 2);
 
@@ -975,16 +1025,16 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
 
     /* 模式名称标题：显示 Chicken / Pasta（从模式页进入时），默认隐藏 */
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_MODE_TITLE, UI_BUF_0FONT_FONT_ASC_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_MODE_TITLE, NEW_HEAT_FONT,
                               GUI_SCREEN_CENTER_X, NEW_HEAT_MODE_TITLE_Y,
                               COLOR_BLACK, true);
     compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_HEAT_MODE_TITLE_Y,
                                NEW_HEAT_MODE_TITLE_W, NEW_HEAT_MODE_TITLE_H);
 
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_LABEL, UI_BUF_0FONT_FONT_ASC_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_LABEL, NEW_HEAT_FONT,
                               NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
     compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, 300, 30);
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_LABEL, UI_BUF_0FONT_FONT_ASC_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_LABEL, NEW_HEAT_FONT,
                               NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
     compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y, 300, 30);
 
@@ -996,10 +1046,10 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_pos(pic, NEW_HEAT_BADGE_X, NEW_HEAT_TIME_LABEL_Y);
     compo_picturebox_set_size(pic, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
 
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_VAL, NEW_HEAT_FONT,
                               NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_ON_BADGE, true);
     compo_textbox_set_location(txt, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_BADGE_TXT_W, NEW_HEAT_BADGE_H);
-    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_VAL, UI_BUF_0FONT_FONT_ASC_12_BIN,
+    txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_VAL, NEW_HEAT_FONT,
                               NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_OFF_BADGE, true);
     compo_textbox_set_location(txt, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_BADGE_TXT_W, NEW_HEAT_BADGE_H);
 
@@ -1020,13 +1070,13 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_size(pic, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H);
 
     for (u8 i = 0; i < NEW_HEAT_TEMP_CNT; i++) {
-        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_SCALE0 + i, UI_BUF_0FONT_FONT_ASC_12_BIN,
+        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_SCALE0 + i, NEW_HEAT_FONT,
                             NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SCALE_Y,
                             NEW_HEAT_COLOR_SCALE, true);
         compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SCALE_Y, 85, 40);
     }
     for (u8 j = 0; j < 3; j++) {
-        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_SCALE0 + j, UI_BUF_0FONT_FONT_ASC_12_BIN,
+        txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_SCALE0 + j, NEW_HEAT_FONT,
                             NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SCALE_Y,
                             NEW_HEAT_COLOR_SCALE, true);
         compo_textbox_set_location(txt, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TIME_SCALE_Y, 140, 40);
@@ -1072,8 +1122,6 @@ static void new_heat_keys_poll(f_new_heat_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
     new_heat_pt8028_keys_process(f);
 }
 #endif
@@ -1150,8 +1198,6 @@ static void func_new_heat_process(void)
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
         (void)pt8028_take_press_tch();
         f->key_ready = true;
         return;
@@ -1163,14 +1209,22 @@ static void func_new_heat_process(void)
         new_heat_ui_refresh(f);
         f->display_pending = false;
     }
-#if USER_PT8028_KEY
+    home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
+    home_ui_shared_status_refresh_bt(f->pic_bt);
+#endif
+    func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_heat_keys_poll(f);
 #endif
-#else
+#if !ELUNCHBOX_PANEL_EN
     new_heat_text_apply(f);
     new_heat_status_refresh(f);
 #endif
-    func_process();
 }
 
 void func_new_heat_enter(void)
@@ -1201,7 +1255,10 @@ void func_new_heat_enter(void)
     f->focus = NEW_HEAT_FOCUS_TEMP;
     f->temp_idx = g_new_heat_temp_idx;
     f->time_idx = g_new_heat_time_idx;
+    f->last_top_min = 0xff;
+    f->last_top_sec = 0xff;
 #if ELUNCHBOX_PANEL_EN
+    new_heat_font_ready = false;
     f->key_ready = false;
     f->display_pending = true;
     home_ui_digit_pool_reset();

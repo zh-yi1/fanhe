@@ -10,6 +10,9 @@ void new_home_top_time_create(compo_form_t *frm, u32 placeholder,
 void new_home_top_time_bind(home_top_time_ui_t *ui, u16 id_h10, u16 id_h1, u16 id_colon,
                             u16 id_m10, u16 id_m1, u16 id_ampm);
 bool new_home_top_time_refresh(home_top_time_ui_t *ui, tm_t *tm);
+/* RTC 分/秒变化时刷新；last_min/last_sec 初值建议 0xff */
+bool new_home_top_time_tick(home_top_time_ui_t *ui, u8 *last_min, u8 *last_sec);
+void new_home_top_time_force(home_top_time_ui_t *ui, u8 *last_min, u8 *last_sec);
 void new_home_top_time_gpu_detach(home_top_time_ui_t *ui);
 
 #endif

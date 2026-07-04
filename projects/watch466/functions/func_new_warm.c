@@ -2,6 +2,7 @@
 #include "func.h"
 #include "new_heat_res.h"
 #include "new_home_icon_res.h"
+#include "home_top_time_txt.h"
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
 #include "home_ui_ram.h"
@@ -21,6 +22,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #ifndef UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN
 #error "Run tools/gen_new_heat_icons.py then Output/bin/prebuild.bat"
 #endif
+
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_WARM_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
 
 /*
  * 保温页 — 效果图 WARM
@@ -50,6 +56,7 @@ extern volatile u8 elunchbox_te_block_flag;
 
 enum {
     COMPO_ID_SHAPE_BG = 1,
+    COMPO_ID_TXT_TOP_TIME,
     COMPO_ID_TXT_TITLE,
     COMPO_ID_PIC_BT,
     COMPO_ID_PIC_BAT,
@@ -64,9 +71,12 @@ typedef struct {
     u32 start_tick;
     bool heating;
     bool display_pending;
+    u8 last_top_min;
+    u8 last_top_sec;
 #if ELUNCHBOX_PANEL_EN
     bool key_ready;
 #endif
+    home_top_time_txt_t top_time;
     u8 last_progress_idx;
     u32 last_elapsed_min;
     compo_picturebox_t *pic_bt;
@@ -278,19 +288,24 @@ static compo_picturebox_t *new_warm_pic_create_hidden(compo_form_t *frm, u16 id)
     return pic;
 }
 
-static compo_textbox_t *new_warm_txt_create(compo_form_t *frm, u16 id, s16 x, s16 y,
-                                           u16 w, u16 h, u16 color, bool center)
+static compo_textbox_t *new_warm_txt_create(compo_form_t *frm, u16 id, u32 font_addr,
+                                            s16 x, s16 y, u16 color, bool center)
 {
     compo_textbox_t *txt = compo_textbox_create(frm, 24);
 
     compo_setid(txt, id);
     compo_textbox_set_wholewrap(txt, false);
+#if ELUNCHBOX_PANEL_EN
+    /* 禁用 autosize → 后续 compo_textbox_set() 不读字体 Flash，避免 C281 */
     compo_textbox_set_autosize(txt, false);
+    compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, font_addr ? font_addr : NEW_WARM_FONT);
+    compo_textbox_set_autosize(txt, true);
     compo_textbox_set_align_center(txt, center);
+#endif
     compo_textbox_set_pos(txt, x, y);
     compo_textbox_set_forecolor(txt, color);
-    compo_textbox_set_location(txt, x, y, w, h);
-    compo_textbox_set_visible(txt, false);
     return txt;
 }
 
@@ -434,6 +449,30 @@ static void new_warm_progress_apply(f_new_warm_t *f, u8 idx)
     f->last_progress_idx = idx;
 }
 
+#if ELUNCHBOX_PANEL_EN
+static bool new_warm_font_ready;
+
+static void new_warm_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_WARM_FONT);
+    }
+}
+
+static void new_warm_font_apply_once(f_new_warm_t *f)
+{
+    if (new_warm_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_warm_font_bind_txt(f->txt_title);
+    new_warm_font_bind_txt(f->txt_elapsed);
+    new_warm_font_bind_txt(f->txt_elapsed_lbl);
+    new_warm_font_ready = true;
+}
+#endif
+
 static void new_warm_text_apply(f_new_warm_t *f)
 {
     char buf[32];
@@ -442,6 +481,11 @@ static void new_warm_text_apply(f_new_warm_t *f)
     if (f == NULL) {
         return;
     }
+
+#if ELUNCHBOX_PANEL_EN
+    new_warm_font_apply_once(f);
+#endif
+
     elapsed_min = new_warm_elapsed_min(f);
     new_warm_format_elapsed(buf, elapsed_min);
 
@@ -464,9 +508,7 @@ static void new_warm_status_refresh(f_new_warm_t *f)
     }
 #if ELUNCHBOX_PANEL_EN
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f->pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(f->pic_bt, true);
+        home_ui_shared_status_refresh_bt(f->pic_bt);
     }
     if (f->pic_bat != NULL) {
         home_ui_shared_battery_attach_pic(f->pic_bat);
@@ -487,6 +529,7 @@ static void new_warm_bind_objects(f_new_warm_t *f)
     if (f == NULL) {
         return;
     }
+    home_top_time_txt_bind(&f->top_time, COMPO_ID_TXT_TOP_TIME);
     f->txt_title = compo_getobj_byid(COMPO_ID_TXT_TITLE);
     f->pic_bt = compo_getobj_byid(COMPO_ID_PIC_BT);
     f->pic_bat = compo_getobj_byid(COMPO_ID_PIC_BAT);
@@ -521,6 +564,29 @@ static void new_warm_heating_stop(void)
 #endif
 }
 
+#if ELUNCHBOX_PANEL_EN
+/** @brief 已在保温页时 BLE 再次下发保温参数：重启 UART 保温任务 */
+void func_new_warm_ble_restart(void)
+{
+    f_new_warm_t *f;
+
+    if (func_cb.sta != FUNC_NEW_WARM || func_cb.f_cb == NULL) {
+        return;
+    }
+    f = (f_new_warm_t *)func_cb.f_cb;
+    new_warm_heating_stop();
+    f->heating = false;
+    f->start_tick = tick_get();
+    f->last_progress_idx = 0xff;
+    f->last_elapsed_min = 0;
+#if LB_BRIDGE_MODE
+    lb_heat_uart_remote_set(true);
+#endif
+    new_warm_heating_start(f);
+    printf("new_warm_ble_restart: ok\n");
+}
+#endif
+
 static void new_warm_ui_apply_visual(f_new_warm_t *f)
 {
     u32 elapsed_min;
@@ -529,6 +595,10 @@ static void new_warm_ui_apply_visual(f_new_warm_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    new_warm_font_apply_once(f);
+#endif
+    home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
     new_warm_title_txt_show(f->txt_title);
     new_warm_status_refresh(f);
 
@@ -587,11 +657,13 @@ compo_form_t *func_new_warm_form_create(void)
 
     new_warm_bg_create(frm);
 
-    txt = new_warm_txt_create(frm, COMPO_ID_TXT_TITLE,
+    home_top_time_txt_create(frm, COMPO_ID_TXT_TOP_TIME);
+
+    txt = new_warm_txt_create(frm, COMPO_ID_TXT_TITLE, NEW_WARM_FONT,
                               GUI_SCREEN_CENTER_X, NEW_WARM_TITLE_Y,
-                              NEW_WARM_TITLE_W, NEW_WARM_TITLE_H,
                               NEW_WARM_COLOR_TITLE, true);
-    compo_textbox_set_visible(txt, false);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_WARM_TITLE_Y,
+                               NEW_WARM_TITLE_W, NEW_WARM_TITLE_H);
 
     bat_x = (s16)(GUI_SCREEN_WIDTH - NEW_WARM_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
     bt_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - NEW_WARM_STATUS_GAP - NEW_HOME_BT_W / 2);
@@ -608,12 +680,14 @@ compo_form_t *func_new_warm_form_create(void)
     (void)new_warm_pic_create_hidden(frm, COMPO_ID_PIC_PROGRESS);
     (void)new_warm_pic_create_hidden(frm, COMPO_ID_PIC_POINT);
 
-    (void)new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED,
-                              GUI_SCREEN_CENTER_X, NEW_WARM_TIME_Y, 220, 36,
-                              NEW_WARM_COLOR_VALUE, true);
-    (void)new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED_LBL,
-                              GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y, 280, 40,
-                              NEW_WARM_COLOR_LABEL, true);
+    txt = new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED, NEW_WARM_FONT,
+                               GUI_SCREEN_CENTER_X, NEW_WARM_TIME_Y,
+                               NEW_WARM_COLOR_VALUE, true);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_WARM_TIME_Y, 220, 36);
+    txt = new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED_LBL, NEW_WARM_FONT,
+                               GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y,
+                               NEW_WARM_COLOR_LABEL, true);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y, 280, 40);
 
     return frm;
 }
@@ -681,7 +755,6 @@ static void func_new_warm_process(void)
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
         if (f->display_pending) {
-            printf("nw_p0 ui_apply\n");
             home_gpu_wait_idle();
             WDT_CLR();
             new_warm_ui_apply(f);
@@ -690,15 +763,7 @@ static void func_new_warm_process(void)
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        {
-            u8 stale = pt8028_take_press_tch();
-
-            if (stale != 0xff) {
-                printf("nw_p1 stale tch=%u consumed\n", stale);
-            }
-        }
+        (void)pt8028_take_press_tch();
         f->key_ready = true;
         return;
     }
@@ -715,6 +780,8 @@ static void func_new_warm_process(void)
     if (elapsed_min != f->last_elapsed_min) {
         new_warm_text_apply(f);
     }
+
+    home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_warm_pt8028_keys_process(f);
@@ -745,6 +812,12 @@ void func_new_warm_enter(void)
     f = (f_new_warm_t *)func_cb.f_cb;
     f->last_progress_idx = 0xff;
     f->last_elapsed_min = 0xffffffff;
+    f->last_top_min = 0xff;
+    f->last_top_sec = 0xff;
+
+#if ELUNCHBOX_PANEL_EN
+    new_warm_font_ready = false;
+#endif
 
     func_cb.frm_main = func_new_warm_form_create();
     new_warm_bind_objects(f);

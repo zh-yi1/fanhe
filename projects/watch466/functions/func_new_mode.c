@@ -29,6 +29,11 @@ extern u8 g_new_heat_proto_mode;
 #error "Run tools/gen_new_mode_icons.py then Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 模式页 — 列表：Delay / Chicken / Pasta / Warm
  *   模式键：循环选中；确认键：进入对应功能
@@ -37,7 +42,7 @@ extern u8 g_new_heat_proto_mode;
 #define NEW_MODE_STATUS_Y                 20
 #define NEW_MODE_STATUS_RIGHT_MARGIN      10
 #define NEW_MODE_STATUS_GAP               6
-#define NEW_MODE_TITLE_Y                  18
+#define NEW_MODE_TITLE_Y                  15
 #define NEW_MODE_TITLE_W                  120
 #define NEW_MODE_TITLE_H                  36
 
@@ -45,7 +50,7 @@ extern u8 g_new_heat_proto_mode;
 #define NEW_MODE_PANEL_W                  280
 #define NEW_MODE_PANEL_H                  188
 
-#define NEW_MODE_ROW_FIRST_Y              68
+#define NEW_MODE_ROW_FIRST_Y              73
 #define NEW_MODE_ROW_GAP                  42
 #define NEW_MODE_ICON_X                   36
 #define NEW_MODE_LABEL_GAP                12
@@ -112,6 +117,34 @@ typedef struct {
     compo_textbox_t *txt_title;
     compo_textbox_t *txt_label[NEW_MODE_ITEM_CNT];
 } f_new_mode_t;
+
+#if ELUNCHBOX_PANEL_EN
+static bool new_mode_font_ready;
+
+static void new_mode_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_mode_font_apply_once(f_new_mode_t *f)
+{
+    u8 i;
+
+    if (new_mode_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_mode_font_bind_txt(f->txt_title);
+    for (i = 0; i < NEW_MODE_ITEM_CNT; i++) {
+        WDT_CLR();
+        new_mode_font_bind_txt(f->txt_label[i]);
+    }
+    new_mode_font_ready = true;
+}
+#endif
 
 static const char * const tbl_new_mode_label[NEW_MODE_ITEM_CNT] = {
     "Order",
@@ -395,6 +428,8 @@ static compo_textbox_t *new_mode_txt_create(compo_form_t *frm, u16 id, u16 buf_s
 #if ELUNCHBOX_PANEL_EN
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, NEW_HEAT_FONT);
 #endif
     compo_textbox_set_pos(txt, x, y);
     compo_textbox_set_forecolor(txt, color);
@@ -561,9 +596,7 @@ static void new_mode_status_refresh(f_new_mode_t *f)
     }
 #if ELUNCHBOX_PANEL_EN
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f->pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(f->pic_bt, true);
+        home_ui_shared_status_refresh_bt(f->pic_bt);
     }
     if (f->pic_bat != NULL && gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         home_ui_shared_battery_attach_pic(f->pic_bat);
@@ -662,7 +695,9 @@ static void new_mode_list_apply(f_new_mode_t *f)
     if (f == NULL) {
         return;
     }
-    printf("nm_list_apply sel=%u\n", f->sel);
+#if ELUNCHBOX_PANEL_EN
+    new_mode_font_apply_once(f);
+#endif
     new_mode_list_apply_rows(f, 0, (u8)(NEW_MODE_ITEM_CNT - 1), true, true);
 }
 
@@ -671,6 +706,10 @@ static void new_mode_ui_refresh(f_new_mode_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+    WDT_CLR();
+#endif
     new_mode_list_apply(f);
     f->display_pending = false;
 }
@@ -685,7 +724,6 @@ static void new_mode_sel_next(f_new_mode_t *f)
     prev = f->sel;
     f->sel = (u8)((f->sel + 1) % NEW_MODE_ITEM_CNT);
 #if ELUNCHBOX_PANEL_EN
-    printf("nm_sel %u->%u\n", prev, f->sel);
     new_mode_sel_apply_delta(f, prev, f->sel);
 #else
     f->display_pending = true;
@@ -818,7 +856,6 @@ static void new_mode_pt8028_keys_process(f_new_mode_t *f)
     if (press_tch == 0xff) {
         return;
     }
-    printf("nm_key press tch=%u\n", press_tch);
     if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
         elunchbox_user_activity_reset();
     }
@@ -826,25 +863,20 @@ static void new_mode_pt8028_keys_process(f_new_mode_t *f)
         return;
     }
     if (press_tch == PT8028_KEY_TCH3) {
-        printf("nm_key TCH3 mode\n");
         new_mode_sel_next(f);
     } else if (press_tch == PT8028_KEY_TCH4) {
-        printf("nm_key TCH4 confirm\n");
         new_mode_confirm(f);
     } else if (press_tch == PT8028_KEY_TCH5) {
-        printf("nm_key TCH5 power\n");
         new_mode_power_key();
     }
 }
 
-/* 须在 func_process() 之前调用：func.c 内也会 take_press_tch，顺序反了会丢键 */
+/* 须在 func_process() 之后调用：统一由 func.c 扫键，此处只 take 处理 */
 static void new_mode_keys_poll(f_new_mode_t *f)
 {
     if (f == NULL || !f->key_ready) {
         return;
     }
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
     new_mode_pt8028_keys_process(f);
 }
 #endif
@@ -906,34 +938,22 @@ static void func_new_mode_process(void)
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
         if (f->display_pending) {
-            printf("nm_p0 ui_apply\n");
             home_gpu_wait_idle();
             WDT_CLR();
             new_mode_list_apply(f);
             f->display_pending = false;
         }
-        printf("nm_p1 first_frame te_block=%u\n", elunchbox_te_block_flag);
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        /* release_clear 清 press_emitted，若 TCH4 仍按住，下一帧 key_scan 会重新 emit_press。
-         * 此处主动扫一次 + take 消费这个残留按下，避免循环等待阻塞 GUI 线程。 */
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
         {
             u8 stale = pt8028_take_press_tch();
 
-            if (stale != 0xff) {
-                printf("nm_p1 stale tch=%u consumed\n", stale);
-                /* 处理初始化期间按下的 TCH3（模式/下一项），
-                   TCH4/TCH5 是进入本页的导航键，不处理以免误跳转 */
-                if (stale == PT8028_KEY_TCH3) {
-                    new_mode_sel_next(f);
-                }
+            if (stale != 0xff && stale == PT8028_KEY_TCH3) {
+                new_mode_sel_next(f);
             }
         }
         f->key_ready = true;
-        printf("nm_p3 key_ready=1\n");
         return;
     }
 #endif
@@ -941,9 +961,6 @@ static void func_new_mode_process(void)
     if (f->display_pending) {
         new_mode_ui_refresh(f);
     }
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_mode_keys_poll(f);
-#endif
 #if !ELUNCHBOX_PANEL_EN
     tm = rtc_clock_get();
     if (f->last_top_min != tm.min || f->last_top_sec != tm.sec) {
@@ -953,6 +970,14 @@ static void func_new_mode_process(void)
     }
 #endif
     func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    new_mode_keys_poll(f);
+#endif
 }
 
 void func_new_mode_enter(void)
@@ -980,6 +1005,7 @@ void func_new_mode_enter(void)
     f = (f_new_mode_t *)func_cb.f_cb;
     f->sel = NEW_MODE_ITEM_DELAY;
 #if ELUNCHBOX_PANEL_EN
+    new_mode_font_ready = false;
     f->key_ready = false;
     new_mode_arrow_ram_ready = false;
 #endif

@@ -15,6 +15,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #include "port_pt8028_key.h"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 #ifndef VERINFO_VERSION_STR
 #define VERINFO_VERSION_STR               "3E 610317-V1.0"
 #endif
@@ -28,8 +33,8 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_VERINFO_STATUS_Y               20
 #define NEW_VERINFO_STATUS_RIGHT_MARGIN    10
 #define NEW_VERINFO_STATUS_GAP             6
-#define NEW_VERINFO_TITLE_X                36
-#define NEW_VERINFO_TITLE_Y                22
+#define NEW_VERINFO_TITLE_X                10
+#define NEW_VERINFO_TITLE_Y                5
 #define NEW_VERINFO_TITLE_W                200
 #define NEW_VERINFO_TITLE_H                36
 #define NEW_VERINFO_VERSION_Y              GUI_SCREEN_CENTER_Y
@@ -64,6 +69,30 @@ static void new_verinfo_title_txt_prepare(compo_textbox_t *txt);
 static void new_verinfo_title_txt_show(compo_textbox_t *txt);
 static void new_verinfo_version_txt_prepare(compo_textbox_t *txt);
 static void new_verinfo_version_txt_show(compo_textbox_t *txt);
+
+#if ELUNCHBOX_PANEL_EN
+static bool new_verinfo_font_ready;
+
+static void new_verinfo_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_verinfo_font_apply_once(f_new_verinfo_t *f)
+{
+    if (new_verinfo_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_verinfo_font_bind_txt(f->txt_title);
+    WDT_CLR();
+    new_verinfo_font_bind_txt(f->txt_version);
+    new_verinfo_font_ready = true;
+}
+#endif
 
 #if ELUNCHBOX_PANEL_EN
 static compo_picturebox_t *new_verinfo_pic_create_hidden(compo_form_t *frm, u16 id)
@@ -110,6 +139,8 @@ static compo_textbox_t *new_verinfo_txt_create(compo_form_t *frm, u16 id, u16 bu
 #if ELUNCHBOX_PANEL_EN
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, NEW_HEAT_FONT);
 #endif
     compo_textbox_set_align_center(txt, center);
     compo_textbox_set_pos(txt, x, y);
@@ -241,9 +272,7 @@ static void new_verinfo_status_refresh(f_new_verinfo_t *f)
     }
 #if ELUNCHBOX_PANEL_EN
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f->pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(f->pic_bt, true);
+        home_ui_shared_status_refresh_bt(f->pic_bt);
     }
     if (f->pic_bat != NULL) {
         home_ui_shared_battery_attach_pic(f->pic_bat);
@@ -283,6 +312,7 @@ static void new_verinfo_text_apply(f_new_verinfo_t *f)
     if (f == NULL) {
         return;
     }
+    new_verinfo_font_apply_once(f);
     new_verinfo_title_txt_show(f->txt_title);
     new_verinfo_version_txt_show(f->txt_version);
 }
@@ -360,8 +390,6 @@ static void new_verinfo_keys_poll(f_new_verinfo_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
     new_verinfo_pt8028_keys_process(f);
 }
 #endif
@@ -426,15 +454,7 @@ static void func_new_verinfo_process(void)
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        {
-            u8 stale = pt8028_take_press_tch();
-
-            if (stale != 0xff) {
-                printf("nv_p stale tch=%u\n", stale);
-            }
-        }
+        (void)pt8028_take_press_tch();
         if (!f->display_pending && !f->text_pending) {
             f->key_ready = true;
         }
@@ -447,10 +467,15 @@ static void func_new_verinfo_process(void)
         f->display_pending = false;
     }
 
+    func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_verinfo_keys_poll(f);
 #endif
-    func_process();
 }
 
 void func_new_verinfo_enter(void)
@@ -475,6 +500,7 @@ void func_new_verinfo_enter(void)
     func_cb.f_cb = func_zalloc(sizeof(f_new_verinfo_t));
     f = (f_new_verinfo_t *)func_cb.f_cb;
 #if ELUNCHBOX_PANEL_EN
+    new_verinfo_font_ready = false;
     f->key_ready = false;
     f->text_pending = false;
 #endif

@@ -6,6 +6,7 @@
 #include "home_ui_shared.h"
 #include "home_icon_res.h"
 #include "new_home_icon_res.h"
+#include "home_top_time_txt.h"
 #include "home_ui_ram.h"
 #include "home_ui_gpu_detach.h"
 
@@ -29,6 +30,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Missing new_show.bin in ui/new_ui"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 #define HEAT_PANEL_STATUS_Y             20
 #define HEAT_PANEL_STATUS_RIGHT_MARGIN  10
 #define HEAT_PANEL_STATUS_GAP           6
@@ -36,13 +42,13 @@ extern volatile u8 elunchbox_te_block_flag;
 #define HEAT_PANEL_COLOR_VALUE          0x2BF4
 #define HEAT_PANEL_COLOR_LABEL          0x0AD8
 
-#define HEAT_PANEL_REMAIN_Y             115
-#define HEAT_PANEL_REMAIN_LBL_Y         140
-#define HEAT_PANEL_SHOW_Y               215
+#define HEAT_PANEL_REMAIN_Y             100
+#define HEAT_PANEL_REMAIN_LBL_Y         130
+#define HEAT_PANEL_SHOW_Y               212
 #define HEAT_PANEL_TEMP_X               72
 #define HEAT_PANEL_DUR_X                248
-#define HEAT_PANEL_VAL_Y                196
-#define HEAT_PANEL_LBL_Y                218
+#define HEAT_PANEL_VAL_Y                200
+#define HEAT_PANEL_LBL_Y                220
 
 #define HEAT_PANEL_ARC_CX               (GUI_SCREEN_WIDTH / 2)
 #define HEAT_PANEL_ARC_CY               95
@@ -50,6 +56,7 @@ extern volatile u8 elunchbox_te_block_flag;
 
 enum {
     HEAT_PANEL_ID_BG = 1,
+    HEAT_PANEL_ID_TXT_TOP_TIME,
     HEAT_PANEL_ID_PROGRESS_BG,
     HEAT_PANEL_ID_PROGRESS,
     HEAT_PANEL_ID_POINT,
@@ -65,6 +72,9 @@ enum {
 };
 
 typedef struct {
+    home_top_time_txt_t top_time;
+    u8 last_top_min;
+    u8 last_top_sec;
     compo_picturebox_t *pic_progress_bg;
     compo_picturebox_t *pic_progress;
     compo_picturebox_t *pic_point;
@@ -83,6 +93,7 @@ typedef struct {
     bool show_ready;
     bool track_ready;
     bool ui_ready;
+    bool font_ready;
 } heat_panel_ui_t;
 
 static const u16 tbl_progress_w[NEW_HEAT_PROGRESS_CNT] = {
@@ -501,6 +512,30 @@ static void heat_panel_display_on_info(const heat_display_info_t *info)
     func_heat_panel_process(f_heat);
 }
 
+static void heat_panel_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void heat_panel_font_apply_once(void)
+{
+    if (g_hp.font_ready) {
+        return;
+    }
+
+    WDT_CLR();
+    heat_panel_font_bind_txt(g_hp.txt_remain);
+    heat_panel_font_bind_txt(g_hp.txt_remain_lbl);
+    heat_panel_font_bind_txt(g_hp.txt_temp);
+    heat_panel_font_bind_txt(g_hp.txt_temp_lbl);
+    WDT_CLR();
+    heat_panel_font_bind_txt(g_hp.txt_dur);
+    heat_panel_font_bind_txt(g_hp.txt_dur_lbl);
+    g_hp.font_ready = true;
+}
+
 static void heat_panel_text_apply(const void *f_heat)
 {
     char buf[32];
@@ -511,6 +546,7 @@ static void heat_panel_text_apply(const void *f_heat)
     if (f_heat == NULL) {
         return;
     }
+    heat_panel_font_apply_once();
     total_min = heat_panel_total_min(func_heat_panel_get_set_hour(f_heat),
                                      func_heat_panel_get_set_min(f_heat));
     if (func_heat_panel_get_live_ready(f_heat)) {
@@ -572,6 +608,11 @@ compo_form_t *func_heat_panel_form_create(void)
 
     heat_panel_white_bg(frm);
 
+    home_top_time_txt_create(frm, HEAT_PANEL_ID_TXT_TOP_TIME);
+    home_top_time_txt_bind(&g_hp.top_time, HEAT_PANEL_ID_TXT_TOP_TIME);
+    g_hp.last_top_min = 0xff;
+    g_hp.last_top_sec = 0xff;
+
     /* 状态图标 */
     bat_x = (s16)(GUI_SCREEN_WIDTH - HEAT_PANEL_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
     bt_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - HEAT_PANEL_STATUS_GAP - NEW_HOME_BT_W / 2);
@@ -608,7 +649,7 @@ compo_form_t *func_heat_panel_form_create(void)
     g_hp.txt_remain_lbl = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_REMAIN_LBL,
                                          GUI_SCREEN_CENTER_X, HEAT_PANEL_REMAIN_LBL_Y,
                                          HEAT_PANEL_COLOR_LABEL, true);
-    compo_textbox_set_location(g_hp.txt_remain_lbl, GUI_SCREEN_CENTER_X, HEAT_PANEL_REMAIN_LBL_Y, 260, 38);
+    compo_textbox_set_location(g_hp.txt_remain_lbl, GUI_SCREEN_CENTER_X, HEAT_PANEL_REMAIN_LBL_Y, 280, 42);
 
     g_hp.txt_temp = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_TEMP,
                                    HEAT_PANEL_TEMP_X, HEAT_PANEL_VAL_Y,
@@ -618,7 +659,7 @@ compo_form_t *func_heat_panel_form_create(void)
     g_hp.txt_temp_lbl = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_TEMP_LBL,
                                        HEAT_PANEL_TEMP_X, HEAT_PANEL_LBL_Y,
                                        HEAT_PANEL_COLOR_LABEL, true);
-    compo_textbox_set_location(g_hp.txt_temp_lbl, HEAT_PANEL_TEMP_X, HEAT_PANEL_LBL_Y, 120, 26);
+    compo_textbox_set_location(g_hp.txt_temp_lbl, HEAT_PANEL_TEMP_X, HEAT_PANEL_LBL_Y, 160, 50);
 
     g_hp.txt_dur = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_DUR,
                                   HEAT_PANEL_DUR_X, HEAT_PANEL_VAL_Y,
@@ -628,7 +669,7 @@ compo_form_t *func_heat_panel_form_create(void)
     g_hp.txt_dur_lbl = heat_panel_txt(frm, HEAT_PANEL_ID_TXT_DUR_LBL,
                                       HEAT_PANEL_DUR_X, HEAT_PANEL_LBL_Y,
                                       HEAT_PANEL_COLOR_LABEL, true);
-    compo_textbox_set_location(g_hp.txt_dur_lbl, HEAT_PANEL_DUR_X, HEAT_PANEL_LBL_Y, 120, 26);
+    compo_textbox_set_location(g_hp.txt_dur_lbl, HEAT_PANEL_DUR_X, HEAT_PANEL_LBL_Y, 200, 50);
 
     g_hp.ui_ready = true;
 
@@ -661,11 +702,12 @@ void func_heat_panel_mark_dirty(struct f_heat_t_ *f_heat)
 void func_heat_panel_status_refresh(struct f_heat_t_ *f_heat)
 {
     (void)f_heat;
+    home_top_time_txt_tick(&g_hp.top_time, &g_hp.last_top_min, &g_hp.last_top_sec);
     home_ui_shared_status_init();
     if (g_hp.pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         compo_picturebox_set_ram(g_hp.pic_bt, home_ui_shared_status_bt_ram);
         compo_picturebox_set_size(g_hp.pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(g_hp.pic_bt, true);
+        home_ui_shared_status_refresh_bt(g_hp.pic_bt);
     }
     home_ui_shared_status_bind_bat(g_hp.pic_bat);
 }

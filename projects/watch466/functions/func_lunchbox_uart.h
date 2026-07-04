@@ -382,6 +382,9 @@ void lunchbox_time_sync(u32 unix_time);
  */
 u32 lb_get_unix_time(void);
 
+/** @brief 扫描 DataPoint 缓冲区，查找指定 dpid 的 bool/enum 首字节 */
+bool lb_dp_scan_bool(const u8 *data, u16 len, u8 dpid, u8 *val);
+
 /** @brief 加热自然结束后自动开启保温 (模式5, 140°F, 至低电关机) */
 void lunchbox_keep_warm_start(void);
 
@@ -492,6 +495,9 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out);
 /** @brief 新加热页设置完成后自动开始加热 (由 func_new_heat 设置, func_heat 消费) */
 void lb_heat_autostart_set(bool en);
 bool lb_heat_autostart_consume(void);
+/** @brief BLE 桥模式已转发 UART 时，func_heat 跳过重复 lunchbox_heat_start */
+void lb_heat_uart_remote_set(bool en);
+bool lb_heat_uart_remote_consume(void);
 
 //-----------------------------------------------------------------------------
 // 协议翻译层 (BLE ↔ UART)

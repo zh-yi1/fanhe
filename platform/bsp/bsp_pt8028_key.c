@@ -1205,6 +1205,17 @@ u8 pt8028_get_led_tch(void)
 {
     u8 tch;
 
+#if ELUNCHBOX_PANEL_EN
+    if (pt8028_cb.press_emitted && pt8028_cb.session_tch <= PT8028_KEY_TCH7) {
+        tch = pt8028_cb.session_tch;
+        if (tch <= PT8028_KEY_TCH6) {
+            return tch;
+        }
+        if (tch == PT8028_KEY_TCH7) {
+            return PT8028_KEY_TCH7;
+        }
+    }
+#endif
     if (!pt8028_is_pressed()) {
         return PT8028_KEY_NONE;
     }
@@ -1457,6 +1468,15 @@ u8 pt8028_take_home_action(void)
 }
 
 AT(.com_text.bsp.pt8028)
+u8 pt8028_peek_press_tch(void)
+{
+    if (!pt8028_cb.press_pending) {
+        return 0xff;
+    }
+    return pt8028_cb.session_tch;
+}
+
+AT(.com_text.bsp.pt8028)
 u8 pt8028_take_press_tch(void)
 {
     u8 tch;
@@ -1578,6 +1598,26 @@ void pt8028_pwr_long_consume(void)
     pt8028_cb.pwr_long_pending = 0;
     pt8028_cb.pwr_boot_mode = 0;
     pt8028_cb.press_tick = tick_get();
+}
+
+AT(.text.bsp.pt8028)
+void pt8028_pwr_manual_off_arm(void)
+{
+    pt8028_lines_t ln;
+
+    pt8028_gpio_bcd_ensure();
+    ln = pt8028_read_lines();
+    pt8028_cb.press_active = 0;
+    pt8028_cb.release_done = 1;
+    pt8028_cb.press_emitted = 0;
+    pt8028_cb.press_tick = tick_get();
+    pt8028_cb.pwr_long_fired = 0;
+    pt8028_cb.pwr_long_pending = 0;
+    pt8028_cb.pwr_boot_mode = 0;
+    pt8028_cb.session_tch = 0xff;
+    pt8028_cb.press_bcd = 0xff;
+    pt8028_cb.last_out_flag = ln.out_flag;
+    pt8028_release_clear();
 }
 
 AT(.text.bsp.pt8028)

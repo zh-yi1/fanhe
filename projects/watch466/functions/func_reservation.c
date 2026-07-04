@@ -1847,7 +1847,7 @@ void func_reservation_poll(void)
                 /* 自动息屏(非手动关机)：唤醒并跳转到加热界面 */
                 if (!elunchbox_pwr_is_manual_off()
                     && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
-                    elunchbox_pwr_gui_wake();
+                    elunchbox_pwr_gui_wake_reason("reservation heat");
                 }
                 if (func_cb.sta != FUNC_NEW_HEAT) {
                     func_res_allow_switch = 1;

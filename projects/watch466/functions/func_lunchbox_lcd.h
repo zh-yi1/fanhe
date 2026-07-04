@@ -41,6 +41,9 @@ void lunchbox_keep_warm_start(void);
 /** @brief 停止保温 */
 void lunchbox_keep_warm_stop(void);
 
+/** @brief BLE/0x04 跳转保温页前设置温度档位 (0~6)，0xff 表示用默认 140°F */
+void lunchbox_keep_warm_set_temp_idx(u8 temp_idx);
+
 /** @brief 当前是否处于保温状态 */
 bool lunchbox_keep_warm_is_active(void);
 
@@ -112,6 +115,25 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out);
 
 void lb_heat_autostart_set(bool en);
 bool lb_heat_autostart_consume(void);
+/** @brief BLE 桥模式已转发 UART 时，func_heat 跳过重复 lunchbox_heat_start */
+void lb_heat_uart_remote_set(bool en);
+bool lb_heat_uart_remote_consume(void);
+
+/** @brief 协议温度档位 → 华氏度 (0=40°C ~ 6=100°C) */
+u16 lunchbox_temp_idx_to_f(u8 idx);
+
+#if ELUNCHBOX_PANEL_EN
+/** @brief 更新本地模式预设 (0x0a / 桥模式 BLE 侧同步) */
+void lunchbox_mode_preset_local_set(u8 mode, u8 temp_idx, u8 duration_min);
+/** @brief 解析 0x04 控制帧中的总开关 DP，执行面板关/开机 */
+void lunchbox_control_apply_power_switch(const u8 *data, u16 len);
+/** @brief 解析 0x04 控制帧中的加热 DP，跳转 func_heat_panel 并同步参数 */
+void lunchbox_control_apply_heat(const u8 *data, u16 len);
+/** @brief 解析 0x04 控制帧中的保温模式，跳转 func_new_warm 并同步参数 */
+void lunchbox_control_apply_warm(const u8 *data, u16 len);
+/** @brief 0x04 控制帧面板侧统一入口（开关机 + 加热/保温页） */
+void lunchbox_control_apply_panel(const u8 *data, u16 len);
+#endif
 
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_LCD_H

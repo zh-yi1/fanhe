@@ -21,6 +21,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Run tools/gen_new_setup_icons.py then Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 语言页 — 与模式/设置页同款白底卡片
  *   顶栏：LANGUAGE + 蓝牙/电量（无返回图标）
@@ -30,7 +35,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_LANG_STATUS_Y                  20
 #define NEW_LANG_STATUS_RIGHT_MARGIN       10
 #define NEW_LANG_STATUS_GAP                6
-#define NEW_LANG_TITLE_Y                   22
+#define NEW_LANG_TITLE_Y                   15
 #define NEW_LANG_TITLE_W                   160
 #define NEW_LANG_TITLE_H                   36
 
@@ -41,7 +46,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_LANG_ROW_FIRST_Y               68
 #define NEW_LANG_ROW_GAP                   42
 #define NEW_LANG_LABEL_X                   48
-#define NEW_LANG_ARROW_X                   298
+#define NEW_LANG_ARROW_X                   290
 #define NEW_LANG_LABEL_H                   36
 #define NEW_LANG_LABEL_W                   ((s16)(NEW_LANG_ARROW_X - NEW_SETUP_ARROW_W / 2 - 10 - NEW_LANG_LABEL_X))
 
@@ -97,6 +102,31 @@ static const char * const tbl_new_lang_label[NEW_LANG_ITEM_CNT] = {
 
 #if ELUNCHBOX_PANEL_EN
 static bool new_lang_arrow_ram_ready;
+static bool new_lang_font_ready;
+
+static void new_lang_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_lang_font_apply_once(f_new_lang_t *f)
+{
+    u8 i;
+
+    if (new_lang_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_lang_font_bind_txt(f->txt_title);
+    for (i = 0; i < NEW_LANG_ITEM_CNT; i++) {
+        WDT_CLR();
+        new_lang_font_bind_txt(f->txt_label[i]);
+    }
+    new_lang_font_ready = true;
+}
 #endif
 
 static s16 new_lang_row_y(u8 row)
@@ -286,6 +316,8 @@ static compo_textbox_t *new_lang_txt_create(compo_form_t *frm, u16 id, u16 buf_s
 #if ELUNCHBOX_PANEL_EN
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, NEW_HEAT_FONT);
 #endif
     compo_textbox_set_pos(txt, x, y);
     compo_textbox_set_forecolor(txt, color);
@@ -473,9 +505,7 @@ static void new_lang_status_refresh(f_new_lang_t *f)
     }
 #if ELUNCHBOX_PANEL_EN
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f->pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(f->pic_bt, true);
+        home_ui_shared_status_refresh_bt(f->pic_bt);
     }
     if (f->pic_bat != NULL) {
         home_ui_shared_battery_attach_pic(f->pic_bat);
@@ -546,6 +576,9 @@ static void new_lang_list_apply(f_new_lang_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    new_lang_font_apply_once(f);
+#endif
     if (f->txt_title != NULL) {
         new_lang_title_txt_show(f->txt_title);
     }
@@ -569,6 +602,7 @@ static void new_lang_text_apply(f_new_lang_t *f)
     if (f == NULL) {
         return;
     }
+    new_lang_font_apply_once(f);
     if (f->txt_title != NULL) {
         new_lang_title_txt_show(f->txt_title);
     }
@@ -587,6 +621,10 @@ static void new_lang_ui_refresh(f_new_lang_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+    WDT_CLR();
+#endif
     new_lang_list_apply(f);
     f->display_pending = false;
 }
@@ -706,8 +744,6 @@ static void new_lang_keys_poll(f_new_lang_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
     new_lang_pt8028_keys_process(f);
 }
 #endif
@@ -778,15 +814,7 @@ static void func_new_language_process(void)
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        {
-            u8 stale = pt8028_take_press_tch();
-
-            if (stale != 0xff) {
-                printf("nl_p stale tch=%u\n", stale);
-            }
-        }
+        (void)pt8028_take_press_tch();
         if (!f->display_pending && !f->text_pending) {
             f->key_ready = true;
         }
@@ -798,10 +826,15 @@ static void func_new_language_process(void)
         new_lang_ui_refresh(f);
     }
 
+    func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_lang_keys_poll(f);
 #endif
-    func_process();
 }
 
 void func_new_language_enter(void)
@@ -830,6 +863,7 @@ void func_new_language_enter(void)
         f->sel = sys_cb.lang_id;
     }
 #if ELUNCHBOX_PANEL_EN
+    new_lang_font_ready = false;
     f->key_ready = false;
     f->text_pending = false;
     new_lang_arrow_ram_ready = false;

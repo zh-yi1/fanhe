@@ -24,6 +24,12 @@ void home_ui_shared_status_lock_preload(void);
 void home_ui_shared_status_init(void);
 void home_ui_shared_dash_init(void);
 
+/** BLE 是否已连接（GATT 链路） */
+bool home_ui_shared_ble_linked(void);
+/** 刷新右上角蓝牙图标显隐（连接/断开后须调用） */
+void home_ui_shared_status_refresh_bt(compo_picturebox_t *pic);
+void home_ui_shared_ble_link_notify(void);
+
 /** 上电预载 dl4 到 bat_ram（不依赖 UART DP） */
 void home_ui_shared_battery_boot_init(void);
 

@@ -607,9 +607,9 @@
 #define PT8028_KEY_DEBOUNCE_SCANS       1           //保留兼容；释放沿不再依赖此值
 #define PT8028_KEY_LATCH_MS             80          //保留，兼容旧配置
 #if ELUNCHBOX_PANEL_EN
-#define PT8028_KEY_DEBUG                1           //边沿/按键日志经 pt8028_log_flush 主线程输出
+#define PT8028_KEY_DEBUG                0           //1=边沿/按键 UART 日志(阻塞 GUI，仅调试)
 #else
-#define PT8028_KEY_DEBUG                1           //边沿/按键日志经 pt8028_log_flush 输出
+#define PT8028_KEY_DEBUG                0
 #endif
 #define PT8028_GPIO_MONITOR_EN          0           //1=主循环打印 GPIO(易刷屏/卡死，默认关)
 #if ELUNCHBOX_PANEL_EN

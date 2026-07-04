@@ -257,6 +257,40 @@ bool new_home_top_time_refresh(home_top_time_ui_t *ui, tm_t *tm)
     return true;
 }
 
+bool new_home_top_time_tick(home_top_time_ui_t *ui, u8 *last_min, u8 *last_sec)
+{
+    tm_t tm;
+
+    if (ui == NULL || last_min == NULL || last_sec == NULL) {
+        return false;
+    }
+    tm = rtc_clock_get();
+    if (*last_min == tm.min && *last_sec == tm.sec) {
+        return false;
+    }
+    *last_min = tm.min;
+    *last_sec = tm.sec;
+    return new_home_top_time_refresh(ui, &tm);
+}
+
+void new_home_top_time_force(home_top_time_ui_t *ui, u8 *last_min, u8 *last_sec)
+{
+    tm_t tm;
+
+    if (ui == NULL) {
+        return;
+    }
+    tm = rtc_clock_get();
+    if (last_min != NULL) {
+        *last_min = tm.min;
+    }
+    if (last_sec != NULL) {
+        *last_sec = tm.sec;
+    }
+    ui->last_key = 0xffff;
+    new_home_top_time_refresh(ui, &tm);
+}
+
 void new_home_top_time_gpu_detach(home_top_time_ui_t *ui)
 {
     home_top_time_gpu_detach(ui);

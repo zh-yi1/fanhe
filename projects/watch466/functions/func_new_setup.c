@@ -20,6 +20,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Run tools/gen_new_setup_icons.py then Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 设置页 — 效果图 SETUP
  *   顶栏：SETUP 标题 + 蓝牙/电量
@@ -29,7 +34,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_SETUP_STATUS_Y                 20
 #define NEW_SETUP_STATUS_RIGHT_MARGIN      10
 #define NEW_SETUP_STATUS_GAP               6
-#define NEW_SETUP_TITLE_Y                  22
+#define NEW_SETUP_TITLE_Y                  15
 #define NEW_SETUP_TITLE_W                  120
 #define NEW_SETUP_TITLE_H                  36
 
@@ -41,7 +46,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_SETUP_ROW_GAP                  42
 #define NEW_SETUP_ICON_X                   36
 #define NEW_SETUP_LABEL_GAP                12
-#define NEW_SETUP_ARROW_X                  298
+#define NEW_SETUP_ARROW_X                  290
 #define NEW_SETUP_LABEL_X                  (NEW_SETUP_ICON_X + NEW_SETUP_ICON_W / 2 + NEW_SETUP_LABEL_GAP)
 #define NEW_SETUP_LABEL_H                  36
 #define NEW_SETUP_LABEL_W                  ((s16)(NEW_SETUP_ARROW_X - NEW_SETUP_ARROW_W / 2 - 10 - NEW_SETUP_LABEL_X))
@@ -107,6 +112,31 @@ static const u8 tbl_new_setup_target[NEW_SETUP_ITEM_CNT] = {
 
 #if ELUNCHBOX_PANEL_EN
 static bool new_setup_arrow_ram_ready;
+static bool new_setup_font_ready;
+
+static void new_setup_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_setup_font_apply_once(f_new_setup_t *f)
+{
+    u8 i;
+
+    if (new_setup_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_setup_font_bind_txt(f->txt_title);
+    for (i = 0; i < NEW_SETUP_ITEM_CNT; i++) {
+        WDT_CLR();
+        new_setup_font_bind_txt(f->txt_label[i]);
+    }
+    new_setup_font_ready = true;
+}
 #endif
 
 static s16 new_setup_row_y(u8 row)
@@ -374,6 +404,8 @@ static compo_textbox_t *new_setup_txt_create(compo_form_t *frm, u16 id, u16 buf_
 #if ELUNCHBOX_PANEL_EN
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, NEW_HEAT_FONT);
 #endif
     compo_textbox_set_pos(txt, x, y);
     compo_textbox_set_forecolor(txt, color);
@@ -544,9 +576,7 @@ static void new_setup_status_refresh(f_new_setup_t *f)
     }
 #if ELUNCHBOX_PANEL_EN
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(f->pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        compo_picturebox_set_visible(f->pic_bt, true);
+        home_ui_shared_status_refresh_bt(f->pic_bt);
     }
     if (f->pic_bat != NULL) {
         home_ui_shared_battery_attach_pic(f->pic_bat);
@@ -627,6 +657,9 @@ static void new_setup_list_apply(f_new_setup_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    new_setup_font_apply_once(f);
+#endif
     new_setup_list_apply_rows(f, 0, (u8)(NEW_SETUP_ITEM_CNT - 1), true, true);
 }
 
@@ -648,6 +681,7 @@ static void new_setup_text_apply(f_new_setup_t *f)
     if (f == NULL) {
         return;
     }
+    new_setup_font_apply_once(f);
     if (f->txt_title != NULL) {
         new_setup_title_txt_show(f->txt_title);
     }
@@ -666,6 +700,10 @@ static void new_setup_ui_refresh(f_new_setup_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+    WDT_CLR();
+#endif
     new_setup_list_apply(f);
     f->display_pending = false;
 }
@@ -783,8 +821,6 @@ static void new_setup_keys_poll(f_new_setup_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
     new_setup_pt8028_keys_process(f);
 }
 #endif
@@ -855,15 +891,7 @@ static void func_new_setup_process(void)
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        {
-            u8 stale = pt8028_take_press_tch();
-
-            if (stale != 0xff) {
-                printf("ns_p stale tch=%u\n", stale);
-            }
-        }
+        (void)pt8028_take_press_tch();
         if (!f->display_pending && !f->text_pending) {
             f->key_ready = true;
         }
@@ -875,10 +903,15 @@ static void func_new_setup_process(void)
         new_setup_ui_refresh(f);
     }
 
+    func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     new_setup_keys_poll(f);
 #endif
-    func_process();
 }
 
 void func_new_setup_enter(void)
@@ -904,6 +937,7 @@ void func_new_setup_enter(void)
     func_cb.f_cb = func_zalloc(sizeof(f_new_setup_t));
     f = (f_new_setup_t *)func_cb.f_cb;
 #if ELUNCHBOX_PANEL_EN
+    new_setup_font_ready = false;
     f->key_ready = false;
     f->text_pending = false;
     new_setup_arrow_ram_ready = false;

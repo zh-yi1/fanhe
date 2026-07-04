@@ -241,13 +241,26 @@ extern u8 func_res_allow_switch;
 void func_elunchbox_switch_to_reservation(void);
 void func_elunchbox_res_key_poll(void);
 void func_elunchbox_switch_to_heat(void);
+/** BLE 0x04 加热指令：直达 func_heat_panel（参数已由 lb_mode_to_heat_set 预设） */
+void func_elunchbox_switch_to_heat_panel(void);
+/** BLE 0x04 保温指令：跳转 func_new_warm */
+void func_elunchbox_switch_to_warm_panel(void);
+void func_heat_ble_remote_restart(void);
+void func_new_warm_ble_restart(void);
 void func_heat_key_poll(void);
 bool func_heat_ui_is_heating(void);
 bool elunchbox_pwr_gui_off_is_on(void);
+bool elunchbox_ui_is_live(void);
 bool elunchbox_pwr_is_manual_off(void);
+bool elunchbox_pwr_manual_off_wake_pressing(void);
 void elunchbox_pwr_gui_off_activate(void);
 bool elunchbox_is_device_powered(void);
 void elunchbox_pwr_gui_wake(void);
+void elunchbox_pwr_gui_wake_reason(const char *reason);
+/** 蓝牙 0x04 总开关：关=息屏+加热模块断电(保持 BLE)；开=唤醒+上电 */
+void elunchbox_pwr_ble_switch(bool on);
+/** manual_off 时仅允许 intentional wake 调用 gui_wakeup */
+bool elunchbox_pwr_manual_off_gui_wake_ok(void);
 void elunchbox_manual_off_sleep_poll(void);
 bool elunchbox_manual_wake_pending_take(void);
 bool elunchbox_manual_wake_pending_peek(void);

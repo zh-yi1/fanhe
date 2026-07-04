@@ -791,18 +791,18 @@ bool sleep_process(is_sleep_func is_sleep)
 //    printf("%s->%d,%d\n", __func__, sys_cb.gui_need_wakeup, sys_cb.gui_sleep_sta);
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
-        if (elunchbox_heating_blocks_idle()) {
-            elunchbox_pwr_gui_wake();
-            reset_sleep_delay_all();
-            return false;
-        }
         sys_cb.gui_need_wakeup = 0;
 #if ELUNCHBOX_PANEL_EN
-        /* 手动长按关机：不进 sfunc_sleep(0.9V 下 PT8028 读键不可靠)，
-         * 由 func_process 主循环全电压轮询 TCH5 长按唤醒。 */
+        /* 手动长按关机：不进浅睡，主循环全电压轮询 TCH5 长按 3s 唤醒 */
         if (elunchbox_pwr_is_manual_off()) {
             reset_sleep_delay();
             reset_pwroff_delay();
+            return false;
+        }
+        if (elunchbox_heating_blocks_idle()) {
+            printf("elunchbox: sleep_process heating auto wake (not manual_off)\n");
+            elunchbox_pwr_gui_wake_reason("sleep_process heating");
+            reset_sleep_delay_all();
             return false;
         }
 #endif
@@ -835,6 +835,8 @@ bool sleep_process(is_sleep_func is_sleep)
     } else
 #endif
     if (sys_cb.gui_need_wakeup && sys_cb.gui_sleep_sta) {
+        printf("elunchbox: sleep_process gui_need_wakeup=1 manual=%u\n",
+               elunchbox_pwr_is_manual_off() ? 1u : 0u);
         gui_wakeup();                   //按键亮屏
         reset_sleep_delay_all();
         sys_cb.gui_need_wakeup = 0;
@@ -876,7 +878,9 @@ bool sleep_process(is_sleep_func is_sleep)
     }
     /* 已息屏但加热仍进行：自动亮回，不进浅睡 */
     if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta && elunchbox_heating_blocks_idle()) {
-        elunchbox_pwr_gui_wake();
+        printf("elunchbox: sleep_process guioff heating wake manual=%u\n",
+               elunchbox_pwr_is_manual_off() ? 1u : 0u);
+        elunchbox_pwr_gui_wake_reason("sleep_process guioff_heating");
         reset_sleep_delay_all();
         return false;
     }
