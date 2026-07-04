@@ -720,15 +720,15 @@ static void new_lang_pt8028_keys_process(f_new_lang_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
+    if (func_key_lock_press_take_poll()) {
+        return;
+    }
     press_tch = pt8028_take_press_tch();
     if (press_tch == 0xff) {
         return;
     }
     if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
         elunchbox_user_activity_reset();
-    }
-    if (func_key_lock_filter_tch(press_tch)) {
-        return;
     }
     if (press_tch == PT8028_KEY_TCH3) {
         new_lang_sel_next(f);

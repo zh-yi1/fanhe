@@ -17,6 +17,7 @@
  * 1. 长按锁键 3s → 锁定 + LED5 亮 + 显示锁图标；满 3s 自动消失，之后不再自发弹出
  * 2. 锁定态除电源键(TCH5)外无效；用户按任意其它物理键 → 弹出锁图标，3s 后消失
  * 3. 锁定态长按锁键 3s → 解锁 + LED5 灭 + 解锁图标 1.5s 后消失
+ * 全页面统一：func_key_lock_press_take_poll / func_key_lock_poll / func_key_lock_ku_blocked
  */
 
 typedef enum {
@@ -261,6 +262,25 @@ void func_key_lock_on_form_destroy(void)
     home_ui_lock_overlay_reset();
 }
 
+bool func_key_lock_press_take_poll(void)
+{
+    u8 press_tch;
+
+    if (!key_lock_active) {
+        return false;
+    }
+    press_tch = pt8028_peek_press_tch();
+    if (press_tch > PT8028_KEY_TCH7 || press_tch == PT8028_KEY_TCH5) {
+        return false;
+    }
+    press_tch = pt8028_take_press_tch();
+    if (press_tch > PT8028_KEY_TCH7) {
+        return false;
+    }
+    (void)func_key_lock_filter_tch(press_tch);
+    return true;
+}
+
 bool func_key_lock_filter_tch(u8 tch)
 {
     if (!key_lock_active) {
@@ -360,6 +380,7 @@ static void func_key_lock_lp_poll(void)
 
 void func_key_lock_poll(void)
 {
+    (void)func_key_lock_press_take_poll();
     func_key_lock_lp_poll();
     func_key_lock_heat_auto_poll();
     func_key_lock_active_press_poll();

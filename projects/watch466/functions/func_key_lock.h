@@ -22,6 +22,8 @@
 bool func_key_lock_is_active(void);
 bool func_key_lock_show_status_icon(bool page_local_locked);
 void func_key_lock_poll(void);
+/** 锁定态吞掉非电源键按下（全页面统一入口）；true=已消费 */
+bool func_key_lock_press_take_poll(void);
 bool func_key_lock_filter_tch(u8 tch);
 bool func_key_lock_ku_blocked(u16 msg);
 void func_key_lock_on_page_change(void);
@@ -42,6 +44,7 @@ static inline bool func_key_lock_show_status_icon(bool page_local_locked)
     return false;
 }
 static inline void func_key_lock_poll(void) {}
+static inline bool func_key_lock_press_take_poll(void) { return false; }
 static inline bool func_key_lock_filter_tch(u8 tch) { (void)tch; return false; }
 static inline bool func_key_lock_ku_blocked(u16 msg) { (void)msg; return false; }
 static inline void func_key_lock_on_page_change(void) {}

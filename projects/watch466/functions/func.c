@@ -1054,6 +1054,11 @@ void func_process(void)
                 gui_process();
             }
         }
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        if (func_key_lock_hint_is_on()) {
+            func_key_lock_overlay_to_front();
+        }
+#endif
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
         func_elunchbox_res_key_poll();
 #endif
@@ -1908,6 +1913,11 @@ static bool func_clock_subui_active(void)
 //func common message process
 void func_message(size_msg_t msg)
 {
+#if ELUNCHBOX_PANEL_EN && USER_PT8028_KEY
+    if (func_key_lock_ku_blocked(msg)) {
+        return;
+    }
+#endif
     switch (msg) {
     case MSG_CTP_SHORT_LEFT:
         if (func_cb.sta == FUNC_CLOCK) {

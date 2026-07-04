@@ -1083,15 +1083,15 @@ static void new_time_pt8028_keys_process(f_new_time_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
+    if (func_key_lock_press_take_poll()) {
+        return;
+    }
     press_tch = pt8028_take_press_tch();
     if (press_tch == 0xff) {
         return;
     }
     if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
         elunchbox_user_activity_reset();
-    }
-    if (func_key_lock_filter_tch(press_tch)) {
-        return;
     }
     if (press_tch == PT8028_KEY_TCH1) {
         new_time_value_inc(f);
