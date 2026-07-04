@@ -147,15 +147,133 @@ static const s16 tbl_progress_tip_y[NEW_HEAT_PROGRESS_CNT] = {
 static heat_panel_ui_t g_hp;
 static struct f_heat_t_ *g_hp_f_heat;
 static bool g_hp_track_ram_valid;
+static bool g_hp_live_seen_positive;
 
-/* 内存布局（互不重叠，全部 set_ram，无 Flash DMA）：
- *   heat_bg union → 灰色轨道（.disp）
- *   icon_runtime  → 蓝色弧
- *   colon_ram     → 圆点
- *   show_ram BSS  → show 条（24KB，仅此一块额外 BSS） */
+/* 内存布局（单缓冲合成，无 Flash、无动态分配）：
+ *   heat_bg → 灰轨 + 蓝弧 CPU 合成后一次 set_ram
+ *   colon_ram → 圆点
+ *   show_ram BSS → show 条 */
 static u8 heat_panel_show_ram[NEW_HEAT_SHOW_RAM_SIZE];
-#define HEAT_PANEL_ARC_RAM          ((u8 *)home_ui_shared_icon_runtime)
-#define HEAT_PANEL_ARC_RAM_CAP      ((u32)(HOME_UI_SHARED_TAB_CNT * NEW_HOME_TAB_RAM_SIZE))
+
+#define HEAT_PANEL_OVERLAY_SKIP565      0xFFFF
+#define HEAT_PANEL_OVERLAY_ROW_MAX      192
+
+static void heat_panel_blit_overlay(u8 *dst, u16 tw, u16 th,
+                                    u32 overlay_addr, u16 ow, u16 oh,
+                                    s16 overlay_ax, s16 overlay_ay,
+                                    s16 bg_ax, s16 bg_ay)
+{
+    s16 dx0;
+    s16 dy0;
+    u16 y;
+    u16 row_bytes;
+    u8 row_buf[HEAT_PANEL_OVERLAY_ROW_MAX * 2];
+
+    if (ow == 0 || oh == 0 || ow > HEAT_PANEL_OVERLAY_ROW_MAX) {
+        return;
+    }
+
+    dx0 = (overlay_ax - (s16)(ow / 2)) - (bg_ax - (s16)(tw / 2));
+    dy0 = (overlay_ay - (s16)(oh / 2)) - (bg_ay - (s16)(th / 2));
+    row_bytes = (u16)(ow * 2);
+
+    for (y = 0; y < oh; y++) {
+        s16 dy = dy0 + (s16)y;
+        u16 x;
+
+        if (dy < 0 || dy >= (s16)th) {
+            continue;
+        }
+        os_spiflash_read(row_buf, overlay_addr + 8 + (u32)y * ow * 2, row_bytes);
+        for (x = 0; x < ow; x++) {
+            s16 dx = dx0 + (s16)x;
+            u16 c;
+            u32 di;
+
+            if (dx < 0 || dx >= (s16)tw) {
+                continue;
+            }
+            c = (u16)row_buf[x * 2] | ((u16)row_buf[x * 2 + 1] << 8);
+            if (c == HEAT_PANEL_OVERLAY_SKIP565) {
+                continue;
+            }
+            di = 8 + ((u32)dy * tw + (u32)dx) * 2;
+            if (di + 1 >= NEW_HEAT_NEW_PROGRESS_BG_RAM_SIZE) {
+                continue;
+            }
+            dst[di] = row_buf[x * 2];
+            dst[di + 1] = row_buf[x * 2 + 1];
+        }
+        WDT_CLR();
+    }
+}
+
+/* 前向声明 */
+static u8 heat_panel_clamp_progress_idx(u8 idx);
+static u32 heat_panel_progress_addr(u8 idx);
+
+static bool heat_panel_progress_composite_apply(u8 idx)
+{
+    u8 step;
+    u16 tw;
+    u16 th;
+    u16 ow;
+    u16 oh;
+
+    if (g_hp.pic_progress_bg == NULL) {
+        return false;
+    }
+
+    idx = heat_panel_clamp_progress_idx(idx);
+    step = idx - 1;
+    ow = tbl_progress_w[step];
+    oh = tbl_progress_h[step];
+
+    home_gpu_wait_idle();
+    os_spiflash_read(home_ui_heat_bg_ram, UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN,
+                     UI_LEN_NEW_UI_NEW_PROGRESS_BG_BIN);
+    WDT_CLR();
+    if (!gui_set_ram_check(home_ui_heat_bg_ram, __func__)) {
+        return false;
+    }
+    tw = GET_LE16(&home_ui_heat_bg_ram[4]);
+    th = GET_LE16(&home_ui_heat_bg_ram[6]);
+
+    if (ow > 0 && oh > 0) {
+        heat_panel_blit_overlay(home_ui_heat_bg_ram, tw, th,
+                                heat_panel_progress_addr(idx), ow, oh,
+                                tbl_progress_ax[step], tbl_progress_ay[step],
+                                NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X,
+                                NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y);
+    }
+
+    home_gpu_wait_idle();
+    compo_picturebox_set_ram(g_hp.pic_progress_bg, home_ui_heat_bg_ram);
+    compo_picturebox_set_size(g_hp.pic_progress_bg, NEW_HEAT_NEW_PROGRESS_BG_W,
+                              NEW_HEAT_NEW_PROGRESS_BG_H);
+    compo_picturebox_set_pos(g_hp.pic_progress_bg,
+                              NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X,
+                              NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y);
+    compo_picturebox_set_visible(g_hp.pic_progress_bg, true);
+    if (g_hp.pic_progress != NULL) {
+        compo_picturebox_set_visible(g_hp.pic_progress, false);
+        compo_picturebox_set_ram(g_hp.pic_progress, NULL);
+    }
+    if (g_hp.pic_point != NULL && g_hp.pic_point->img != NULL) {
+        widget_set_top(g_hp.pic_point->img, true);
+    }
+    g_hp.track_ready = true;
+    g_hp_track_ram_valid = false;
+    return true;
+}
+
+static void heat_panel_arc_detach(void)
+{
+    if (g_hp.pic_progress != NULL) {
+        compo_picturebox_set_visible(g_hp.pic_progress, false);
+        compo_picturebox_set_ram(g_hp.pic_progress, NULL);
+    }
+}
 
 static bool heat_panel_gpu_ram_bind(compo_picturebox_t *pic, u32 addr, u32 len,
                                     u8 *ram, u32 cap, u16 w, u16 h, s16 x, s16 y)
@@ -296,6 +414,7 @@ static void heat_panel_point_pos(u8 idx, s16 *x, s16 *y)
 {
     u8 step;
 
+    /* 圆点跟蓝弧同一帧 TIP：满弧(idx=13)在远 CCW 端，空弧(idx=1)回到轨道起点(右下) */
     step = heat_panel_clamp_progress_idx(idx) - 1;
     *x = tbl_progress_tip_x[step];
     *y = tbl_progress_tip_y[step];
@@ -310,7 +429,6 @@ static void heat_panel_point_bind(u8 progress_idx)
         printf("point_bind: skip pic=NULL\n");
         return;
     }
-    /* idx=1 无蓝弧，圆点仍在轨道最低端；idx>=2 跟随蓝弧尖 */
     heat_panel_point_pos(progress_idx, &px, &py);
     if (!heat_panel_gpu_ram_bind(g_hp.pic_point, UI_BUF_NEW_UI_NEW_POINT_BIN,
                                   UI_LEN_NEW_UI_NEW_POINT_BIN,
@@ -320,74 +438,21 @@ static void heat_panel_point_bind(u8 progress_idx)
     }
 }
 
-static void heat_panel_track_apply(void)
-{
-    if (g_hp.track_ready || g_hp.pic_progress_bg == NULL) {
-        printf("track_apply: skip (ready=%d bg=%p)\n", g_hp.track_ready, g_hp.pic_progress_bg);
-        return;
-    }
-    if (!heat_panel_gpu_ram_bind(g_hp.pic_progress_bg, UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN,
-                                  UI_LEN_NEW_UI_NEW_PROGRESS_BG_BIN,
-                                  home_ui_heat_bg_ram, sizeof(home_ui_heat_bg_ram),
-                                  NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H,
-                                  NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X,
-                                  NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y)) {
-        printf("track_apply: fail\n");
-        return;
-    }
-    printf("track_apply: done\n");
-    g_hp.track_ready = true;
-    g_hp_track_ram_valid = true;
-}
-
-static void heat_panel_progress_overlay_apply(u8 idx)
-{
-    u8 step;
-    u16 pw;
-    u16 ph;
-
-    idx = heat_panel_clamp_progress_idx(idx);
-    step = idx - 1;
-    pw = tbl_progress_w[step];
-    ph = tbl_progress_h[step];
-    if (pw == 0 || ph == 0) {
-        home_gpu_wait_idle();
-        compo_picturebox_set_visible(g_hp.pic_progress, false);
-        return;
-    }
-    printf("progress_overlay: idx=%u pw=%u ph=%u\n", idx, pw, ph);
-    {
-        u32 addr = heat_panel_progress_addr(idx);
-        u32 len = heat_panel_progress_len(idx);
-
-        if (len <= HEAT_PANEL_ARC_RAM_CAP &&
-            heat_panel_gpu_ram_bind(g_hp.pic_progress, addr, len,
-                                    HEAT_PANEL_ARC_RAM, HEAT_PANEL_ARC_RAM_CAP,
-                                    pw, ph, tbl_progress_ax[step], tbl_progress_ay[step])) {
-            return;
-        }
-        home_ui_pic_set_flash(g_hp.pic_progress, addr, pw, ph);
-        compo_picturebox_set_size(g_hp.pic_progress, pw, ph);
-        compo_picturebox_set_pos(g_hp.pic_progress, tbl_progress_ax[step], tbl_progress_ay[step]);
-        compo_picturebox_set_visible(g_hp.pic_progress, true);
-    }
-}
-
 static void heat_panel_progress_apply(u8 idx)
 {
-    if (g_hp.pic_progress == NULL || idx == 0) {
-        printf("progress_apply: skip pic=%p idx=%u\n", g_hp.pic_progress, idx);
+    if (g_hp.pic_progress_bg == NULL || idx == 0) {
+        printf("progress_apply: skip bg=%p idx=%u\n", g_hp.pic_progress_bg, idx);
         return;
     }
     if (idx == g_hp.last_progress_idx) {
-            return;
+        return;
     }
-    printf("progress_apply: track_apply (idx=%u)\n", idx);
-    heat_panel_track_apply();
-    printf("progress_apply: idx=%u\n", idx);
-    heat_panel_progress_overlay_apply(idx);
+    printf("progress_apply: composite idx=%u\n", idx);
+    if (!heat_panel_progress_composite_apply(idx)) {
+        printf("progress_apply: composite fail idx=%u\n", idx);
+        return;
+    }
     g_hp.last_progress_idx = idx;
-    printf("progress_apply: point_bind idx=%u\n", idx);
     heat_panel_point_bind(idx);
     printf("progress_apply: done idx=%u\n", idx);
 }
@@ -417,31 +482,88 @@ static u16 heat_panel_target_temp_f(u8 temp_idx)
     return tbl_heat_temp_preset[temp_idx];
 }
 
-static u16 heat_panel_total_min(u8 set_hour, u8 set_min)
-{
-    return (u16)set_hour * 60 + set_min;
-}
-
 static u8 heat_panel_calc_progress_idx(u16 total_min, u32 remain_min)
 {
-    u32 elapsed;
-
     if (total_min == 0) {
         total_min = 1;
     }
     if (remain_min > total_min) {
         remain_min = total_min;
     }
-    elapsed = total_min - remain_min;
-    if (elapsed == 0) {
-        /* 初始：仅灰色轨道，new_progress_1 为空帧 */
+    /* 倒计时：remain=total→idx=13 满蓝弧；remain→0→idx=1 无蓝弧；蓝弧从远 CCW 端缩回 */
+    if (remain_min == 0) {
         return 1;
     }
-    if (elapsed >= total_min) {
-        return NEW_HEAT_PROGRESS_CNT;
+    return (u8)(1 + (remain_min * (NEW_HEAT_PROGRESS_CNT - 1) + total_min - 1) / total_min);
+}
+
+/* 由 func_heat.c 提供的状态读取 */
+extern u8 func_heat_panel_get_ui_state(const void *f);
+extern u8 func_heat_panel_get_set_hour(const void *f);
+extern u8 func_heat_panel_get_set_min(const void *f);
+extern u8 func_heat_panel_get_live_ready(const void *f);
+extern u32 func_heat_panel_get_remain_min(const void *f);
+extern u32 func_heat_panel_get_total_sec(const void *f);
+extern u32 func_heat_panel_get_start_tick(const void *f);
+
+static u16 heat_panel_total_min(const void *f_heat)
+{
+    u16 total_min;
+    u32 total_sec;
+
+    total_min = (u16)(func_heat_panel_get_set_hour(f_heat) * 60
+                      + func_heat_panel_get_set_min(f_heat));
+    if (total_min > 0) {
+        return total_min;
     }
-    /* elapsed 1..total-1 → idx 2..12，满圈为 13 */
-    return (u8)(1 + (elapsed * (NEW_HEAT_PROGRESS_CNT - 1)) / total_min);
+    total_sec = func_heat_panel_get_total_sec(f_heat);
+    if (total_sec > 0) {
+        total_min = (u16)(total_sec / 60);
+        if (total_min == 0) {
+            total_min = 1;
+        }
+        return total_min;
+    }
+    return 1;
+}
+
+/* 蓝弧进度用本地计时（heat_start_tick），避免设备首包 remain 偏小导致开局非满弧 */
+static u32 heat_panel_arc_remain_min(const void *f_heat)
+{
+    u16 total_min;
+    u32 total_sec;
+    u32 start_tick;
+    u32 elapsed_ms;
+    u32 remain_sec;
+
+    total_min = heat_panel_total_min(f_heat);
+    total_sec = func_heat_panel_get_total_sec(f_heat);
+    start_tick = func_heat_panel_get_start_tick(f_heat);
+    if (start_tick == 0 || total_sec == 0) {
+        return total_min;
+    }
+    elapsed_ms = tick_get() - start_tick;
+    if (elapsed_ms >= total_sec * 1000UL) {
+        return 0;
+    }
+    remain_sec = total_sec - elapsed_ms / 1000UL;
+    if (remain_sec == 0) {
+        return 0;
+    }
+    return (remain_sec + 59U) / 60U;
+}
+
+static u8 heat_panel_progress_idx_resolve(const void *f_heat)
+{
+    u16 total_min;
+    u32 remain_min;
+
+    total_min = heat_panel_total_min(f_heat);
+    remain_min = heat_panel_arc_remain_min(f_heat);
+    if (remain_min > total_min) {
+        remain_min = total_min;
+    }
+    return heat_panel_calc_progress_idx(total_min, remain_min);
 }
 
 static void heat_panel_format_remain(char *buf, u32 remain_min)
@@ -473,12 +595,7 @@ static void heat_panel_format_temp(char *buf, u16 temp_f)
 }
 
 /* 由 func_heat.c 提供的状态读取 */
-extern u8 func_heat_panel_get_ui_state(const void *f);
-extern u8 func_heat_panel_get_set_hour(const void *f);
-extern u8 func_heat_panel_get_set_min(const void *f);
 extern u8 func_heat_panel_get_temp_idx(const void *f);
-extern u32 func_heat_panel_get_remain_min(const void *f);
-extern bool func_heat_panel_get_live_ready(const void *f);
 extern u16 func_heat_panel_get_live_temp_f(const void *f);
 extern bool func_heat_panel_is_heating(const void *f);
 extern void func_heat_panel_set_live(struct f_heat_t_ *f_heat, u32 remain_min, u16 temp_f);
@@ -499,6 +616,13 @@ static void heat_panel_display_on_info(const heat_display_info_t *info)
     }
     f_heat = g_hp_f_heat;
     if (!func_heat_panel_is_heating(f_heat)) {
+        return;
+    }
+
+    if (info->remain_min > 0) {
+        g_hp_live_seen_positive = true;
+    } else if (!g_hp_live_seen_positive) {
+        /* 开局常见上一轮 remain=0 残留，勿把满弧刷成空弧 */
         return;
     }
 
@@ -547,10 +671,12 @@ static void heat_panel_text_apply(const void *f_heat)
         return;
     }
     heat_panel_font_apply_once();
-    total_min = heat_panel_total_min(func_heat_panel_get_set_hour(f_heat),
-                                     func_heat_panel_get_set_min(f_heat));
+    total_min = heat_panel_total_min(f_heat);
     if (func_heat_panel_get_live_ready(f_heat)) {
         remain_min = func_heat_panel_get_remain_min(f_heat);
+        if (remain_min > total_min) {
+            remain_min = total_min;
+        }
         temp_f = func_heat_panel_get_live_temp_f(f_heat);
     } else {
         remain_min = total_min;
@@ -680,6 +806,7 @@ compo_form_t *func_heat_panel_form_create(void)
 void func_heat_panel_bind(struct f_heat_t_ *f_heat)
 {
     g_hp_f_heat = f_heat;
+    g_hp_live_seen_positive = false;
     home_ui_shared_battery_attach_pic(g_hp.pic_bat);
     heat_display_register(heat_panel_display_on_info);
     if (f_heat != NULL && func_heat_panel_is_heating(f_heat)) {
@@ -697,6 +824,7 @@ void func_heat_panel_mark_dirty(struct f_heat_t_ *f_heat)
     g_hp.text_pending = true;
     g_hp.last_remain_min = 0xffffffff;
     g_hp.last_progress_idx = 0xff;
+    g_hp_live_seen_positive = false;
 }
 
 void func_heat_panel_status_refresh(struct f_heat_t_ *f_heat)
@@ -722,14 +850,16 @@ void func_heat_panel_process(struct f_heat_t_ *f_heat)
         return;
     }
 
-    total_min = heat_panel_total_min(func_heat_panel_get_set_hour(f_heat),
-                                   func_heat_panel_get_set_min(f_heat));
+    total_min = heat_panel_total_min(f_heat);
+    progress_idx = heat_panel_progress_idx_resolve(f_heat);
     if (func_heat_panel_get_live_ready(f_heat)) {
         remain_min = func_heat_panel_get_remain_min(f_heat);
+        if (remain_min > total_min) {
+            remain_min = total_min;
+        }
     } else {
-        remain_min = total_min;
+        remain_min = heat_panel_arc_remain_min(f_heat);
     }
-    progress_idx = heat_panel_calc_progress_idx(total_min, remain_min);
 
     heat_panel_progress_apply(progress_idx);
 
@@ -756,24 +886,28 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
     home_ui_shared_status_init();
     func_heat_panel_status_refresh(f_heat);
     printf("heat_panel_enter: status_refresh done\n");
-    heat_panel_track_apply();
-    printf("heat_panel_enter: track_apply done\n");
 
-    u32 total_min, remain_min;
+    u32 total_min, remain_min, arc_remain_min;
     u8 progress_idx;
-    total_min = heat_panel_total_min(func_heat_panel_get_set_hour(f_heat),
-                                     func_heat_panel_get_set_min(f_heat));
+    total_min = heat_panel_total_min(f_heat);
+    arc_remain_min = heat_panel_arc_remain_min(f_heat);
     if (func_heat_panel_get_live_ready(f_heat)) {
         remain_min = func_heat_panel_get_remain_min(f_heat);
+        if (remain_min > total_min) {
+            remain_min = total_min;
+        }
     } else {
         remain_min = total_min;
     }
-    progress_idx = heat_panel_calc_progress_idx(total_min, remain_min);
-    printf("heat_panel_enter: total=%u remain=%u idx=%u\n", total_min, remain_min, progress_idx);
+    progress_idx = heat_panel_progress_idx_resolve(f_heat);
+    printf("heat_panel_enter: total=%u arc_remain=%u uart_remain=%u idx=%u live=%d\n",
+           total_min, arc_remain_min, remain_min, progress_idx,
+           func_heat_panel_get_live_ready(f_heat));
     g_hp.last_progress_idx = 0xff;
     heat_panel_progress_apply(progress_idx);
     printf("heat_panel_enter: progress_apply done (idx=%u)\n", progress_idx);
 
+    home_gpu_wait_idle();
     heat_panel_show_apply();
     printf("heat_panel_enter: show_apply done\n");
 
@@ -783,11 +917,12 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
 void func_heat_panel_exit_to_warm(void)
 {
     g_hp_f_heat = NULL;
+    heat_panel_arc_detach();
     g_hp.track_ready = false;
     g_hp.show_ready = false;
     g_hp.last_progress_idx = 0xff;
     g_hp.ui_ready = false;
-    /* 保留 g_hp_track_ram_valid 与 home_ui_heat_bg_ram，保温页复用灰轨 */
+    /* 灰轨为 Flash；heat_bg 曾用于蓝弧，保温页 enter 会重载灰轨 RAM */
     memset(&g_hp, 0, sizeof(g_hp));
 }
 
@@ -815,6 +950,7 @@ void func_heat_panel_exit(void)
         pics[n++] = g_hp.pic_bt;
     }
     home_ui_gpu_pics_detach(pics, n);
+    heat_panel_arc_detach();
     g_hp.track_ready = false;
     g_hp.show_ready = false;
     g_hp.last_progress_idx = 0xff;

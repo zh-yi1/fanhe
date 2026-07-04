@@ -1357,6 +1357,26 @@ u32 func_heat_panel_get_remain_min(const void *f)
     return f_heat->heat_live_remain_min;
 }
 
+u32 func_heat_panel_get_total_sec(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return 0;
+    }
+    return f_heat->heat_total_sec;
+}
+
+u32 func_heat_panel_get_start_tick(const void *f)
+{
+    const f_heat_t *f_heat = (const f_heat_t *)f;
+
+    if (f_heat == NULL) {
+        return 0;
+    }
+    return f_heat->heat_start_tick;
+}
+
 bool func_heat_panel_get_live_ready(const void *f)
 {
     const f_heat_t *f_heat = (const f_heat_t *)f;
