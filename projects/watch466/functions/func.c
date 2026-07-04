@@ -485,7 +485,10 @@ static void elunchbox_pwr_manual_shutdown(void)
     bt_disconnect(0);   // 断开经典蓝牙
     bt_scan_disable();
 #endif
-    /* 手动关机不挂起串口，保留 UART1 RX 以便充电模块发来的数据能唤醒屏幕 */
+    /* 手动关机不挂起串口，保留 UART1 RX 以便充电模块发来的数据能唤醒屏幕；禁止 TX */
+#if FUNC_LUNCHBOX_UART_EN
+    lb_uart_tx_block(true);
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_pwr_long_consume();
     /* 不阻塞等待松手(会卡住主循环数秒)；先清按键态，由 need_fresh_press 门禁唤醒 */
@@ -673,6 +676,7 @@ static void elunchbox_screen_wake(void)
 #endif
 #if FUNC_LUNCHBOX_UART_EN
     if (was_manual || elunchbox_pwr_hw_off) {
+        lb_uart_tx_block(false);  /* 恢复 UART TX */
         lunchbox_uart_resume();
         lunchbox_power_on();
         elunchbox_boot_power_sent = true;
