@@ -356,10 +356,7 @@ static void elunchbox_pwr_manual_shutdown(void)
     bt_disconnect(0);   // 断开经典蓝牙
     bt_scan_disable();
 #endif
-#if FUNC_LUNCHBOX_UART_EN
-    lunchbox_uart_suspend();
-#endif
-
+    /* 手动关机不挂起串口，保留 UART1 RX 以便充电模块发来的数据能唤醒屏幕 */
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_pwr_long_consume();
     /* 等松手：否则同一长按会在 3s 后再次 pending → 立刻亮屏 */
@@ -702,6 +699,15 @@ void func_process(void)
 #else
         reset_sleep_delay();
         reset_pwroff_delay();
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+        /* 手动关机不挂起串口，轮询接收充电模块发来的数据 */
+        lunchbox_uart_process();
+        if (heat_display_charge_wake_pending()) {
+            printf("elunchbox: charge DP wakes screen from manual off\n");
+            elunchbox_pwr_gui_wake();
+            return;
+        }
 #endif
         return;
     }

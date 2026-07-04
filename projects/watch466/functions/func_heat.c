@@ -1187,7 +1187,7 @@ void func_heat_exit(void)
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.sta == FUNC_NEW_WARM) {
         func_heat_panel_exit_to_warm();
-    } else if (func_cb.sta != FUNC_HOME) {
+    } else if (func_cb.sta != FUNC_HOME) {  //加了这个判断if (func_cb.sta != FUNC_HOME)
         /* 切 HOME 时不在此处做 GPU detach：
          * func_heat_panel_exit() 中的 os_gui_draw_force() 会强制渲染锁键
          * overlay，而 overlay 缓冲区在后续 func_exit() 中才被释放，导致
@@ -1200,7 +1200,7 @@ void func_heat_exit(void)
     (void)f_heat;
 #endif
     home_ui_shared_battery_detach_pic();
-    if (func_cb.sta != FUNC_NEW_WARM && func_cb.sta != FUNC_HOME) {
+    if (func_cb.sta != FUNC_NEW_WARM && func_cb.sta != FUNC_HOME) { //加了func_cb.sta != FUNC_HOME
         heat_display_unregister();
     }
 #if FUNC_LUNCHBOX_UART_EN

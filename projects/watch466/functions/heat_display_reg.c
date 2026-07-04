@@ -5,6 +5,7 @@
 static heat_display_cb_t heat_display_cb;
 static heat_display_info_t heat_display_last;
 static bool heat_display_has_last;
+static bool heat_display_charge_pending;  /* 充电中状态唤醒标志 */
 
 static void heat_display_notify(void)
 {
@@ -138,7 +139,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
     bool got_remain = false;
     bool got_temp = false;
     bool got_enable = false;
+    bool got_charge = false;
     bool heating = false;
+    u8 charge_val = 0;
 
     while (off + 4 <= len) {
         u8  dpid    = data[off];
@@ -172,6 +175,13 @@ void heat_display_feed_dp(u8 *data, u16 len)
                 printf("[LCD_REG] feed_dp: HEAT_ENABLE=%u (heating=%d)\n", val[0], heating);
             }
             break;
+        case LB_DPID_CHARGE_STATUS:
+            if (val_len >= 1) {
+                charge_val = val[0];
+                got_charge = true;
+                printf("[LCD_REG] feed_dp: CHARGE_STATUS=%u\n", charge_val);
+            }
+            break;
         default:
             break;
         }
@@ -202,4 +212,18 @@ void heat_display_feed_dp(u8 *data, u16 len)
             heat_display_show(last.remain_min, temp_f);
         }
     }
+
+    /* 充电中：通知 LCD 唤醒屏幕显示充电图标 */
+    if (got_charge && charge_val == 1) {
+        printf("[LCD_REG] feed_dp: charging, notify LCD\n");
+        heat_display_notify();
+        heat_display_charge_pending = true;  /* 主循环可用此标志唤醒息屏 */
+    }
+}
+
+bool heat_display_charge_wake_pending(void)
+{
+    bool pending = heat_display_charge_pending;
+    heat_display_charge_pending = false;
+    return pending;
 }

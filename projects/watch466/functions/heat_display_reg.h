@@ -62,4 +62,7 @@ bool heat_display_heating_active(void);
  */
 void heat_display_feed_dp(u8 *data, u16 len);
 
+/** 查询是否收到充电中状态(charge_status==1)，调用后自动清除 */
+bool heat_display_charge_wake_pending(void);
+
 #endif
