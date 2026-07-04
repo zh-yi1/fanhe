@@ -28,6 +28,7 @@ extern volatile u8 elunchbox_te_block_flag;
 
 /*
  * 时间设置页 — 浅色底；时钟数字/冒号/H/Min 用 textbox（无 bitmap 黑底）
+ * PT8028：TCH4 确认 | TCH5 开关 | TCH2/TCH6 减/加 | TCH3 模式(AM/PM/NO·YES)
  */
 #define NEW_TIME_COLON_W                   8
 #define NEW_TIME_COLON_H                   36
@@ -337,14 +338,28 @@ static void new_time_clock_digit_show(compo_textbox_t *txt, u8 digit,
                                       s16 tr_x, s16 tr_y, u16 color)
 {
     char buf[2];
+    widget_text_t *widget;
 
     if (txt == NULL || digit > 9) {
         return;
     }
     buf[0] = (char)('0' + digit);
     buf[1] = '\0';
+    widget = txt->txt;
     new_time_txt_pos_tr(txt, tr_x, tr_y, NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H);
-    new_time_label_show(txt, buf, color);
+    compo_textbox_set_align_center(txt, true);
+    if (widget != NULL) {
+        widget_set_align_center(widget, true);
+        widget_text_set_ellipsis(widget, false);
+    }
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autosize(txt, false);
+    compo_textbox_set_forecolor(txt, color);
+    compo_textbox_set(txt, buf);
+    compo_textbox_set_visible(txt, true);
+    if (widget != NULL) {
+        widget_set_top(widget, true);
+    }
 }
 
 #if ELUNCHBOX_PANEL_EN
@@ -417,12 +432,23 @@ static void new_time_title_show(compo_textbox_t *txt)
 
 static void new_time_label_show(compo_textbox_t *txt, const char *label, u16 color)
 {
+    widget_text_t *widget;
+
     if (txt == NULL) {
         return;
     }
+    widget = txt->txt;
     compo_textbox_set_forecolor(txt, color);
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autosize(txt, false);
+    if (widget != NULL) {
+        widget_text_set_ellipsis(widget, false);
+    }
     compo_textbox_set(txt, label);
     compo_textbox_set_visible(txt, true);
+    if (widget != NULL) {
+        widget_set_top(widget, true);
+    }
 }
 
 static void new_time_shapes_apply(f_new_time_t *f)
@@ -661,11 +687,11 @@ static void new_time_value_inc(f_new_time_t *f)
     switch (f->focus) {
     case NEW_TIME_FOCUS_HOUR:
         f->disp_h = (u8)(f->disp_h % 12) + 1;
-        new_time_digits_apply(f);
+        new_time_focus_refresh(f);
         break;
     case NEW_TIME_FOCUS_MIN:
         f->min = (u8)((f->min + 1) % 60);
-        new_time_digits_apply(f);
+        new_time_focus_refresh(f);
         break;
     default:
         break;
@@ -680,11 +706,11 @@ static void new_time_value_dec(f_new_time_t *f)
     switch (f->focus) {
     case NEW_TIME_FOCUS_HOUR:
         f->disp_h = (f->disp_h == 1) ? 12 : (u8)(f->disp_h - 1);
-        new_time_digits_apply(f);
+        new_time_focus_refresh(f);
         break;
     case NEW_TIME_FOCUS_MIN:
         f->min = (u8)((f->min + 59) % 60);
-        new_time_digits_apply(f);
+        new_time_focus_refresh(f);
         break;
     default:
         break;
@@ -945,7 +971,7 @@ static void new_time_pt8028_keys_process(f_new_time_t *f)
     if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
         elunchbox_user_activity_reset();
     }
-    if (press_tch == PT8028_KEY_TCH1) {
+    if (press_tch == PT8028_KEY_TCH6) {
         new_time_value_inc(f);
     } else if (press_tch == PT8028_KEY_TCH2) {
         new_time_value_dec(f);
