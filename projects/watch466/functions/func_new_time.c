@@ -326,15 +326,18 @@ static void new_time_parse_rtc(u8 *disp_h, u8 *min, bool *is_pm)
 
     *is_pm = (hour >= 12);
     *disp_h = (u8)(hour % 12);
+    if (*disp_h == 0) {
+        *disp_h = 12;
+    }
     *min = tm.min;
 }
 
 static u8 new_time_to_hour24(u8 disp_h, bool is_pm)
 {
     if (is_pm) {
-        return (disp_h == 0) ? 12 : (u8)(disp_h + 12);
+        return (disp_h == 12) ? 12 : (u8)(disp_h + 12);
     }
-    return disp_h;
+    return (disp_h == 12) ? 0 : disp_h;
 }
 
 static void new_time_save_rtc(f_new_time_t *f)
@@ -825,7 +828,7 @@ static void new_time_value_inc(f_new_time_t *f)
     }
     switch (f->focus) {
     case NEW_TIME_FOCUS_HOUR:
-        f->disp_h = (u8)((f->disp_h + 1) % 12);
+        f->disp_h = (u8)(f->disp_h % 12) + 1;
         new_time_digits_apply(f);
         break;
     case NEW_TIME_FOCUS_MIN:
@@ -844,7 +847,7 @@ static void new_time_value_dec(f_new_time_t *f)
     }
     switch (f->focus) {
     case NEW_TIME_FOCUS_HOUR:
-        f->disp_h = (u8)((f->disp_h + 11) % 12);
+        f->disp_h = (f->disp_h == 1) ? 12 : (u8)(f->disp_h - 1);
         new_time_digits_apply(f);
         break;
     case NEW_TIME_FOCUS_MIN:
