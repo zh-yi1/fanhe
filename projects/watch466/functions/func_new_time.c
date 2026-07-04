@@ -31,9 +31,8 @@ extern volatile u8 elunchbox_te_block_flag;
  * PT8028：TCH4 确认 | TCH5 开关 | TCH2/TCH6 减/加 | TCH3 模式(AM/PM/NO·YES)
  */
 #define NEW_TIME_COLON_W                   8
-#define NEW_TIME_COLON_H                   36
 #define NEW_TIME_CLOCK_TXT_W               24
-#define NEW_TIME_CLOCK_TXT_H               36
+#define NEW_TIME_DIGIT_GAP                 NEW_TIME_SX(4)
 
 #define NEW_TIME_REF_W                     466
 #define NEW_TIME_REF_H                     466
@@ -45,7 +44,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIME_STATUS_RIGHT_MARGIN       10
 #define NEW_TIME_STATUS_GAP                6
 #define NEW_TIME_TITLE_LEFT                28
-#define NEW_TIME_TITLE_Y                   22
+#define NEW_TIME_TITLE_Y                   15
 #define NEW_TIME_TITLE_H                   36
 #define NEW_TIME_TITLE_TOP                 (NEW_TIME_TITLE_Y - NEW_TIME_TITLE_H / 2)
 #define NEW_TIME_DIVIDER_Y                 44
@@ -56,7 +55,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIME_AMPM_COL_X                270
 #define NEW_TIME_BOX_Y                     118
 #define NEW_TIME_BOX_W                     78
-#define NEW_TIME_BOX_H                     44
+#define NEW_TIME_BOX_H                     75
 #define NEW_TIME_BOX_RADIUS                8
 #define NEW_TIME_ARROW_UP_Y                71
 #define NEW_TIME_ARROW_DOWN_Y              165
@@ -71,12 +70,15 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIME_AMPM_W                    48
 #define NEW_TIME_AMPM_H                    28
 #define NEW_TIME_TITLE_W                   (NEW_TIME_STATUS_BT_X - HOME_STATUS_BT_W / 2 - NEW_TIME_STATUS_GAP - NEW_TIME_TITLE_LEFT)
+#define NEW_TIME_PANEL_Y                   142
+#define NEW_TIME_PANEL_W                   280
+#define NEW_TIME_PANEL_H                   210
 #else
 #define NEW_TIME_STATUS_Y                  NEW_TIME_SY(48)
 #define NEW_TIME_STATUS_RIGHT_MARGIN       NEW_TIME_SX(24)
 #define NEW_TIME_STATUS_GAP                NEW_TIME_SX(10)
 #define NEW_TIME_TITLE_LEFT                NEW_TIME_SX(58)
-#define NEW_TIME_TITLE_Y                   NEW_TIME_SY(48)
+#define NEW_TIME_TITLE_Y                   NEW_TIME_SY(42)
 #define NEW_TIME_TITLE_H                   NEW_TIME_SY(36)
 #define NEW_TIME_TITLE_TOP                 (NEW_TIME_TITLE_Y - NEW_TIME_TITLE_H / 2)
 #define NEW_TIME_DIVIDER_Y                 NEW_TIME_SY(90)
@@ -87,7 +89,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIME_AMPM_COL_X                NEW_TIME_SX(396)
 #define NEW_TIME_BOX_Y                     NEW_TIME_SY(210)
 #define NEW_TIME_BOX_W                     NEW_TIME_SX(96)
-#define NEW_TIME_BOX_H                     NEW_TIME_SY(78)
+#define NEW_TIME_BOX_H                     NEW_TIME_SY(92)
 #define NEW_TIME_BOX_RADIUS                NEW_TIME_SX(8)
 #define NEW_TIME_ARROW_UP_Y                NEW_TIME_SY(118)
 #define NEW_TIME_ARROW_DOWN_Y              NEW_TIME_SY(302)
@@ -102,14 +104,10 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIME_AMPM_W                    NEW_TIME_SX(56)
 #define NEW_TIME_AMPM_H                    NEW_TIME_SY(32)
 #define NEW_TIME_TITLE_W                   NEW_TIME_SX(220)
+#define NEW_TIME_PANEL_Y                   NEW_TIME_SY(144)
+#define NEW_TIME_PANEL_W                   NEW_TIME_SX(280)
+#define NEW_TIME_PANEL_H                   NEW_TIME_SY(240)
 #endif
-
-#define NEW_TIME_CLOCK_TR_Y                ((s16)((s32)101 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
-#define NEW_TIME_CLOCK_TR_H10_X            ((s16)((s32)65 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define NEW_TIME_CLOCK_TR_H1_X             ((s16)((s32)90 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define NEW_TIME_CLOCK_TR_COLON_X          ((s16)((s32)125 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define NEW_TIME_CLOCK_TR_M10_X            ((s16)((s32)165 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define NEW_TIME_CLOCK_TR_M1_X             ((s16)((s32)190 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 
 #define NEW_TIME_SUFFIX_TR_Y               ((s16)((s32)130 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
 #define NEW_TIME_SUFFIX_H_TR_X             ((s16)((s32)100 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
@@ -119,9 +117,6 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIME_STATUS_BT_X               (NEW_TIME_STATUS_BAT_X - HOME_STATUS_BAT_W / 2 - NEW_TIME_STATUS_GAP - NEW_HOME_BT_W / 2)
 
 #define NEW_TIME_PANEL_BG                  0xEF5D
-#define NEW_TIME_PANEL_Y                   132
-#define NEW_TIME_PANEL_W                   280
-#define NEW_TIME_PANEL_H                   188
 #define NEW_TIME_COLOR_TITLE               COLOR_BLACK
 #define NEW_TIME_COLOR_ON                  COLOR_WHITE
 #define NEW_TIME_COLOR_OFF                 COLOR_BLACK
@@ -324,18 +319,23 @@ static void new_time_pic_pos_tr(compo_picturebox_t *pic, s16 tr_x, s16 tr_y, u16
     compo_picturebox_set_pos(pic, tr_x - (s16)(w / 2), tr_y + (s16)(h / 2));
 }
 
-static void new_time_txt_pos_tr(compo_textbox_t *txt, s16 tr_x, s16 tr_y, s16 w, s16 h)
+static void new_time_txt_pos_center(compo_textbox_t *txt, s16 cx, s16 cy, s16 w, s16 h)
 {
     if (txt == NULL) {
         return;
     }
-    compo_textbox_set_location(txt, (s16)(tr_x - w / 2), (s16)(tr_y + h / 2), w, h);
+    compo_textbox_set_location(txt, cx, cy, w, h);
+}
+
+static s16 new_time_digit_pair_offset(void)
+{
+    return (s16)((NEW_TIME_CLOCK_TXT_W + NEW_TIME_DIGIT_GAP) / 2);
 }
 
 static void new_time_label_show(compo_textbox_t *txt, const char *label, u16 color);
 
 static void new_time_clock_digit_show(compo_textbox_t *txt, u8 digit,
-                                      s16 tr_x, s16 tr_y, u16 color)
+                                      s16 center_x, s16 center_y, u16 color)
 {
     char buf[2];
     widget_text_t *widget;
@@ -346,7 +346,8 @@ static void new_time_clock_digit_show(compo_textbox_t *txt, u8 digit,
     buf[0] = (char)('0' + digit);
     buf[1] = '\0';
     widget = txt->txt;
-    new_time_txt_pos_tr(txt, tr_x, tr_y, NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H);
+    new_time_txt_pos_center(txt, center_x, center_y,
+                            NEW_TIME_CLOCK_TXT_W, NEW_TIME_BOX_H);
     compo_textbox_set_align_center(txt, true);
     if (widget != NULL) {
         widget_set_align_center(widget, true);
@@ -438,6 +439,10 @@ static void new_time_label_show(compo_textbox_t *txt, const char *label, u16 col
         return;
     }
     widget = txt->txt;
+    compo_textbox_set_align_center(txt, true);
+    if (widget != NULL) {
+        widget_set_align_center(widget, true);
+    }
     compo_textbox_set_forecolor(txt, color);
     compo_textbox_set_wholewrap(txt, false);
     compo_textbox_set_autosize(txt, false);
@@ -589,18 +594,26 @@ static void new_time_clock_apply(f_new_time_t *f)
     hour_color = (f->focus == NEW_TIME_FOCUS_HOUR) ? NEW_TIME_COLOR_ON : NEW_TIME_COLOR_OFF;
     min_color = (f->focus == NEW_TIME_FOCUS_MIN) ? NEW_TIME_COLOR_ON : NEW_TIME_COLOR_OFF;
 
-    new_time_clock_digit_show(f->txt_h10, h10, NEW_TIME_CLOCK_TR_H10_X, NEW_TIME_CLOCK_TR_Y, hour_color);
-    new_time_clock_digit_show(f->txt_h1, h1, NEW_TIME_CLOCK_TR_H1_X, NEW_TIME_CLOCK_TR_Y, hour_color);
-    new_time_txt_pos_tr(f->txt_colon, NEW_TIME_CLOCK_TR_COLON_X, NEW_TIME_CLOCK_TR_Y,
-                        NEW_TIME_COLON_W, NEW_TIME_COLON_H);
-    new_time_label_show(f->txt_colon, ":", NEW_TIME_COLOR_OFF);
-    new_time_clock_digit_show(f->txt_m10, m10, NEW_TIME_CLOCK_TR_M10_X, NEW_TIME_CLOCK_TR_Y, min_color);
-    new_time_clock_digit_show(f->txt_m1, m1, NEW_TIME_CLOCK_TR_M1_X, NEW_TIME_CLOCK_TR_Y, min_color);
-    new_time_txt_pos_tr(f->txt_h_suffix, NEW_TIME_SUFFIX_H_TR_X, NEW_TIME_SUFFIX_TR_Y,
-                        HOME_TIMEING_HM_W, HOME_TIMEING_HM_H);
+    {
+        s16 pair_off = new_time_digit_pair_offset();
+
+        new_time_clock_digit_show(f->txt_h10, h10,
+                                  (s16)(NEW_TIME_HOUR_COL_X - pair_off), NEW_TIME_BOX_Y, hour_color);
+        new_time_clock_digit_show(f->txt_h1, h1,
+                                  (s16)(NEW_TIME_HOUR_COL_X + pair_off), NEW_TIME_BOX_Y, hour_color);
+        new_time_txt_pos_center(f->txt_colon, NEW_TIME_COLON_X, NEW_TIME_BOX_Y,
+                                NEW_TIME_COLON_W, NEW_TIME_BOX_H);
+        new_time_label_show(f->txt_colon, ":", NEW_TIME_COLOR_OFF);
+        new_time_clock_digit_show(f->txt_m10, m10,
+                                  (s16)(NEW_TIME_MIN_COL_X - pair_off), NEW_TIME_BOX_Y, min_color);
+        new_time_clock_digit_show(f->txt_m1, m1,
+                                  (s16)(NEW_TIME_MIN_COL_X + pair_off), NEW_TIME_BOX_Y, min_color);
+    }
+    new_time_txt_pos_center(f->txt_h_suffix, NEW_TIME_SUFFIX_H_TR_X, NEW_TIME_SUFFIX_TR_Y,
+                            HOME_TIMEING_HM_W, HOME_TIMEING_HM_H);
     new_time_label_show(f->txt_h_suffix, "H", NEW_TIME_COLOR_OFF);
-    new_time_txt_pos_tr(f->txt_min_suffix, NEW_TIME_SUFFIX_MIN_TR_X, NEW_TIME_SUFFIX_TR_Y,
-                        HOME_TIMEING_MINM_W, HOME_TIMEING_MINM_H);
+    new_time_txt_pos_center(f->txt_min_suffix, NEW_TIME_SUFFIX_MIN_TR_X, NEW_TIME_SUFFIX_TR_Y,
+                            HOME_TIMEING_MINM_W, HOME_TIMEING_MINM_H);
     new_time_label_show(f->txt_min_suffix, "min", NEW_TIME_COLOR_OFF);
 }
 
@@ -888,24 +901,24 @@ compo_form_t *func_new_time_form_create(void)
     (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_MIN_DOWN);
 
     (void)new_time_txt_create(frm, COMPO_ID_TXT_H10, 2,
-                              NEW_TIME_CLOCK_TR_H10_X, NEW_TIME_CLOCK_TR_Y,
-                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H,
+                              NEW_TIME_HOUR_COL_X, NEW_TIME_BOX_Y,
+                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_BOX_H,
                               NEW_TIME_COLOR_OFF, true);
     (void)new_time_txt_create(frm, COMPO_ID_TXT_H1, 2,
-                              NEW_TIME_CLOCK_TR_H1_X, NEW_TIME_CLOCK_TR_Y,
-                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H,
+                              NEW_TIME_HOUR_COL_X, NEW_TIME_BOX_Y,
+                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_BOX_H,
                               NEW_TIME_COLOR_OFF, true);
     (void)new_time_txt_create(frm, COMPO_ID_TXT_COLON, 2,
-                              NEW_TIME_CLOCK_TR_COLON_X, NEW_TIME_CLOCK_TR_Y,
-                              NEW_TIME_COLON_W, NEW_TIME_COLON_H,
+                              NEW_TIME_COLON_X, NEW_TIME_BOX_Y,
+                              NEW_TIME_COLON_W, NEW_TIME_BOX_H,
                               NEW_TIME_COLOR_OFF, true);
     (void)new_time_txt_create(frm, COMPO_ID_TXT_M10, 2,
-                              NEW_TIME_CLOCK_TR_M10_X, NEW_TIME_CLOCK_TR_Y,
-                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H,
+                              NEW_TIME_MIN_COL_X, NEW_TIME_BOX_Y,
+                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_BOX_H,
                               NEW_TIME_COLOR_OFF, true);
     (void)new_time_txt_create(frm, COMPO_ID_TXT_M1, 2,
-                              NEW_TIME_CLOCK_TR_M1_X, NEW_TIME_CLOCK_TR_Y,
-                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_CLOCK_TXT_H,
+                              NEW_TIME_MIN_COL_X, NEW_TIME_BOX_Y,
+                              NEW_TIME_CLOCK_TXT_W, NEW_TIME_BOX_H,
                               NEW_TIME_COLOR_OFF, true);
     (void)new_time_txt_create(frm, COMPO_ID_TXT_H_SUFFIX, 4,
                               NEW_TIME_SUFFIX_H_TR_X, NEW_TIME_SUFFIX_TR_Y,
