@@ -23,6 +23,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Run tools/gen_new_heat_icons.py then Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_WARM_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 保温页 — 效果图 WARM
  *   顶栏：蓝牙 + 电量 + 标题 WARM
@@ -283,19 +288,24 @@ static compo_picturebox_t *new_warm_pic_create_hidden(compo_form_t *frm, u16 id)
     return pic;
 }
 
-static compo_textbox_t *new_warm_txt_create(compo_form_t *frm, u16 id, s16 x, s16 y,
-                                           u16 w, u16 h, u16 color, bool center)
+static compo_textbox_t *new_warm_txt_create(compo_form_t *frm, u16 id, u32 font_addr,
+                                            s16 x, s16 y, u16 color, bool center)
 {
     compo_textbox_t *txt = compo_textbox_create(frm, 24);
 
     compo_setid(txt, id);
     compo_textbox_set_wholewrap(txt, false);
+#if ELUNCHBOX_PANEL_EN
+    /* 禁用 autosize → 后续 compo_textbox_set() 不读字体 Flash，避免 C281 */
     compo_textbox_set_autosize(txt, false);
+    compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, font_addr ? font_addr : NEW_WARM_FONT);
+    compo_textbox_set_autosize(txt, true);
     compo_textbox_set_align_center(txt, center);
+#endif
     compo_textbox_set_pos(txt, x, y);
     compo_textbox_set_forecolor(txt, color);
-    compo_textbox_set_location(txt, x, y, w, h);
-    compo_textbox_set_visible(txt, false);
     return txt;
 }
 
@@ -439,6 +449,30 @@ static void new_warm_progress_apply(f_new_warm_t *f, u8 idx)
     f->last_progress_idx = idx;
 }
 
+#if ELUNCHBOX_PANEL_EN
+static bool new_warm_font_ready;
+
+static void new_warm_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_WARM_FONT);
+    }
+}
+
+static void new_warm_font_apply_once(f_new_warm_t *f)
+{
+    if (new_warm_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_warm_font_bind_txt(f->txt_title);
+    new_warm_font_bind_txt(f->txt_elapsed);
+    new_warm_font_bind_txt(f->txt_elapsed_lbl);
+    new_warm_font_ready = true;
+}
+#endif
+
 static void new_warm_text_apply(f_new_warm_t *f)
 {
     char buf[32];
@@ -447,6 +481,11 @@ static void new_warm_text_apply(f_new_warm_t *f)
     if (f == NULL) {
         return;
     }
+
+#if ELUNCHBOX_PANEL_EN
+    new_warm_font_apply_once(f);
+#endif
+
     elapsed_min = new_warm_elapsed_min(f);
     new_warm_format_elapsed(buf, elapsed_min);
 
@@ -556,6 +595,9 @@ static void new_warm_ui_apply_visual(f_new_warm_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    new_warm_font_apply_once(f);
+#endif
     home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
     new_warm_title_txt_show(f->txt_title);
     new_warm_status_refresh(f);
@@ -617,11 +659,11 @@ compo_form_t *func_new_warm_form_create(void)
 
     home_top_time_txt_create(frm, COMPO_ID_TXT_TOP_TIME);
 
-    txt = new_warm_txt_create(frm, COMPO_ID_TXT_TITLE,
+    txt = new_warm_txt_create(frm, COMPO_ID_TXT_TITLE, NEW_WARM_FONT,
                               GUI_SCREEN_CENTER_X, NEW_WARM_TITLE_Y,
-                              NEW_WARM_TITLE_W, NEW_WARM_TITLE_H,
                               NEW_WARM_COLOR_TITLE, true);
-    compo_textbox_set_visible(txt, false);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_WARM_TITLE_Y,
+                               NEW_WARM_TITLE_W, NEW_WARM_TITLE_H);
 
     bat_x = (s16)(GUI_SCREEN_WIDTH - NEW_WARM_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
     bt_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - NEW_WARM_STATUS_GAP - NEW_HOME_BT_W / 2);
@@ -638,12 +680,14 @@ compo_form_t *func_new_warm_form_create(void)
     (void)new_warm_pic_create_hidden(frm, COMPO_ID_PIC_PROGRESS);
     (void)new_warm_pic_create_hidden(frm, COMPO_ID_PIC_POINT);
 
-    (void)new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED,
-                              GUI_SCREEN_CENTER_X, NEW_WARM_TIME_Y, 220, 36,
-                              NEW_WARM_COLOR_VALUE, true);
-    (void)new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED_LBL,
-                              GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y, 280, 40,
-                              NEW_WARM_COLOR_LABEL, true);
+    txt = new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED, NEW_WARM_FONT,
+                               GUI_SCREEN_CENTER_X, NEW_WARM_TIME_Y,
+                               NEW_WARM_COLOR_VALUE, true);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_WARM_TIME_Y, 220, 36);
+    txt = new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED_LBL, NEW_WARM_FONT,
+                               GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y,
+                               NEW_WARM_COLOR_LABEL, true);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y, 280, 40);
 
     return frm;
 }
@@ -770,6 +814,10 @@ void func_new_warm_enter(void)
     f->last_elapsed_min = 0xffffffff;
     f->last_top_min = 0xff;
     f->last_top_sec = 0xff;
+
+#if ELUNCHBOX_PANEL_EN
+    new_warm_font_ready = false;
+#endif
 
     func_cb.frm_main = func_new_warm_form_create();
     new_warm_bind_objects(f);
