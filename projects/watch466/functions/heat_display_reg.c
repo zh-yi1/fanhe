@@ -1,14 +1,27 @@
 #include "include.h"
 #include "heat_display_reg.h"
 #include "func_lunchbox_uart.h"
+#include "func.h"
 
 static heat_display_cb_t heat_display_cb;
 static heat_display_info_t heat_display_last;
 static bool heat_display_has_last;
 static bool heat_display_charge_pending;  /* 充电中状态唤醒标志 */
 
+static bool heat_display_ui_ok(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    return elunchbox_ui_is_live() && is_gpu_init();
+#else
+    return true;
+#endif
+}
+
 static void heat_display_notify(void)
 {
+    if (!heat_display_ui_ok()) {
+        return;
+    }
     if (heat_display_cb != NULL) {
         heat_display_cb(&heat_display_last);
     }
@@ -133,6 +146,9 @@ static u16 heat_display_temp_idx_to_f(u8 idx)
  */
 void heat_display_feed_dp(u8 *data, u16 len)
 {
+#if ELUNCHBOX_PANEL_EN
+    bool ui_ok = heat_display_ui_ok();
+#endif
     u16 off = 0;
     u32 remain_min = 0;
     u16 temp_f = 0;
@@ -158,6 +174,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
                 remain_min = ((u32)val[0] << 24) | ((u32)val[1] << 16)
                          | ((u32)val[2] << 8) | val[3];
                 got_remain = true;
+#if ELUNCHBOX_PANEL_EN
+                if (ui_ok)
+#endif
                 printf("[LCD_REG] feed_dp: REMAIN_TIME=%u min\n", remain_min);
             }
             break;
@@ -165,6 +184,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
             if (val_len >= 1) {
                 temp_f = heat_display_temp_idx_to_f(val[0]);
                 got_temp = true;
+#if ELUNCHBOX_PANEL_EN
+                if (ui_ok)
+#endif
                 printf("[LCD_REG] feed_dp: HEAT_TEMP idx=%u -> %u F\n", val[0], temp_f);
             }
             break;
@@ -172,6 +194,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
             if (val_len >= 1) {
                 heating = (val[0] != 0);
                 got_enable = true;
+#if ELUNCHBOX_PANEL_EN
+                if (ui_ok)
+#endif
                 printf("[LCD_REG] feed_dp: HEAT_ENABLE=%u (heating=%d)\n", val[0], heating);
             }
             break;
@@ -179,6 +204,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
             if (val_len >= 1) {
                 charge_val = val[0];
                 got_charge = true;
+#if ELUNCHBOX_PANEL_EN
+                if (ui_ok)
+#endif
                 printf("[LCD_REG] feed_dp: CHARGE_STATUS=%u\n", charge_val);
             }
             break;
@@ -187,6 +215,19 @@ void heat_display_feed_dp(u8 *data, u16 len)
         }
         off += 4 + val_len;
     }
+
+    /* 手动关机/息屏：仅更新缓存与充电唤醒标志，不触发 UI 回调 */
+#if ELUNCHBOX_PANEL_EN
+    if (!ui_ok) {
+        if (got_enable && !heating && heat_display_has_last) {
+            heat_display_last.remain_min = 0;
+        }
+        if (got_charge && charge_val == 1) {
+            heat_display_charge_pending = true;
+        }
+        return;
+    }
+#endif
 
     /* 加热已停止：清零 remain，让 heat_display_heating_active() 返回 false，避免阻止息屏/误唤醒 */
     if (got_enable && !heating) {

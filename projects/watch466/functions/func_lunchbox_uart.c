@@ -221,9 +221,12 @@ static bool lb_frame_parse(void)
 #if FUNC_LUNCHBOX_UART_EN
     if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.data && rx.data_len > 0) {
         lb_heating_sync_from_dp(rx.data, rx.data_len);
-        //printf("Trigger==>heat_display_feed_dp:%d\n",__LINE__);
         heat_display_feed_dp(rx.data, rx.data_len);
-        home_ui_shared_battery_feed_dp(rx.data, rx.data_len);
+#if ELUNCHBOX_PANEL_EN
+        if (elunchbox_ui_is_live()) {
+            home_ui_shared_battery_feed_dp(rx.data, rx.data_len);
+        }
+#endif
     }
 #endif
 
@@ -1332,6 +1335,11 @@ static u8 lb_handler_control(lb_rx_frame_t *rx)
     lunchbox_uart_send_response(LB_CMD_CONTROL, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
 
 #if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+    lunchbox_control_apply_panel(rx->data, rx->data_len);
+#else
     lunchbox_control_apply_panel(rx->data, rx->data_len);
 #endif
 
@@ -1340,9 +1348,13 @@ static u8 lb_handler_control(lb_rx_frame_t *rx)
 
     // 同步推送 LCD 显示 (加热页/预约页可实时看到模式/温度/时长变化)
     if (rx->data && rx->data_len > 0) {
+#if ELUNCHBOX_PANEL_EN
+        if (elunchbox_ui_is_live()) {
+#endif
         heat_display_feed_dp(rx->data, rx->data_len);
 #if ELUNCHBOX_PANEL_EN
         home_ui_shared_battery_feed_dp(rx->data, rx->data_len);
+        }
 #endif
     }
     return LB_ERR_SUCCESS;

@@ -363,6 +363,11 @@ bool elunchbox_pwr_gui_off_is_on(void)
 
 bool elunchbox_ui_is_live(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_is_manual_off()) {
+        return false;
+    }
+#endif
     return !sys_cb.gui_sleep_sta && !elunchbox_pwr_gui_off;
 }
 
@@ -444,6 +449,12 @@ bool elunchbox_pwr_manual_off_gui_wake_ok(void)
 #endif
 }
 
+static void elunchbox_pwr_shutdown_yield(void)
+{
+    WDT_CLR();
+    co_timer_pro(false);
+}
+
 static void elunchbox_pwr_manual_shutdown(void)
 {
     if (elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) {
@@ -453,7 +464,16 @@ static void elunchbox_pwr_manual_shutdown(void)
     panel_led_all_off();
     panel_led_set_switch_latched(false);
 #endif
+    elunchbox_boot_power_sent = false;
+    /* 先设 manual_off，阻止后续 UART/BLE 回调访问 UI */
+    elunchbox_pwr_manual_off = true;
+    elunchbox_pwr_wake_armed = false;
+    elunchbox_pwr_gui_off = true;
+    sys_cb.gui_need_wakeup = 0;
+    elunchbox_guioff_sleep_delay = 0;
 #if FUNC_LUNCHBOX_UART_EN
+    heat_display_unregister();
+    lb_uart_tx_block(true);
     lunchbox_keep_warm_stop();
     lunchbox_heat_stop();
     lunchbox_power_off();
@@ -461,27 +481,24 @@ static void elunchbox_pwr_manual_shutdown(void)
 #if FUNC_RESERVATION_UI_EN
     func_reservation_on_manual_shutdown();
 #endif
-    elunchbox_boot_power_sent = false;
-    /* 先设 manual_off，阻止 gui_sleep / ble_disconnect 回调 */
-    elunchbox_pwr_manual_off = true;
-    elunchbox_pwr_wake_armed = false;
-    elunchbox_pwr_gui_off = true;
-    sys_cb.gui_need_wakeup = 0;
-    elunchbox_guioff_sleep_delay = 0;
-#if FUNC_LUNCHBOX_UART_EN
-    /* 不掉 GPU 电则 UART 无需挂起；仅阻止 TX 以防误发指令 */
-    lb_uart_tx_block(true);
+#if ELUNCHBOX_PANEL_EN
+    home_ui_shared_battery_detach_pic();
+#if USER_PT8028_KEY
+    func_key_lock_on_form_destroy();
 #endif
-    /* gui_sleep(false): 只关屏+lcd/tft，不掉 GPU 电，避免 gpu_exit 导致 TLSF 堆损坏 */
+#endif
     gui_sleep(false);
+    elunchbox_pwr_shutdown_yield();
 
 #if LE_EN
     ble_disconnect();   // 断开BLE连接 (连接保持则射频周期性活跃，功耗极高)
+    elunchbox_pwr_shutdown_yield();
     ble_adv_dis();
 #endif
 #if BT_BACKSTAGE_EN
     bt_disconnect(0);   // 断开经典蓝牙
     bt_scan_disable();
+    elunchbox_pwr_shutdown_yield();
 #endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_pwr_long_consume();
@@ -494,6 +511,7 @@ static void elunchbox_pwr_manual_shutdown(void)
         elunchbox_pwr_key_dbg("shutdown already released");
     }
     pt8028_set_home_msg_block(0);
+    func_home_drain_stale_key_msgs();
     elunchbox_pwr_wake_armed = true;
     elunchbox_pwr_need_fresh_press = true;
 #endif
@@ -505,6 +523,12 @@ void elunchbox_pwr_ble_switch(bool on)
 {
 #if FUNC_LUNCHBOX_UART_EN
     if (on) {
+#if ELUNCHBOX_PANEL_EN
+        if (elunchbox_pwr_is_manual_off()) {
+            printf("elunchbox: power on ignored (manual off, TCH5 3s to wake)\n");
+            return;
+        }
+#endif
         if (!elunchbox_pwr_gui_off && !sys_cb.gui_sleep_sta && !elunchbox_pwr_is_manual_off()) {
             printf("elunchbox: BLE power on ignored (already on)\n");
             return;
@@ -992,6 +1016,8 @@ void func_process(void)
             return;
         }
 #endif
+        co_timer_pro(false);
+        WDT_CLR();
         return;
     }
 #endif
@@ -1430,6 +1456,9 @@ void func_switch_to(u8 sta, u16 switch_mode)
         return;
     }
 #endif
+    if (elunchbox_pwr_is_manual_off()) {
+        return;
+    }
     if (sys_cb.flag_swithing) {
         return;
     }

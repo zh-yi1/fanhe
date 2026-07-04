@@ -1,5 +1,6 @@
 #include "include.h"
 #include "home_ui_shared.h"
+#include "func.h"
 #if FUNC_LUNCHBOX_UART_EN
 #include "func_lunchbox_uart.h"
 #endif
@@ -222,6 +223,11 @@ void home_ui_shared_battery_feed_dp(u8 *data, u16 len)
 
     home_bat_level = bat;
     home_bat_charge = chg;
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live() || !is_gpu_init()) {
+        return;
+    }
+#endif
     home_ui_shared_battery_reload();
 }
 

@@ -466,6 +466,11 @@ static void func_new_reservation_message(size_msg_t msg)
     if (sys_cb.flag_swithing) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
     if (func_key_lock_ku_blocked(msg)) {
         return;
     }
@@ -496,10 +501,21 @@ static void func_new_reservation_process(void)
         func_process();
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (f->display_pending && elunchbox_ui_is_live()) {
+        new_res_ui_refresh(f);
+    }
+#else
     if (f->display_pending) {
         new_res_ui_refresh(f);
     }
+#endif
     func_process();
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_ui_is_live()) {
+        return;
+    }
+#endif
 }
 
 void func_new_reservation_enter(void)
