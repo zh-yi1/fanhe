@@ -26,6 +26,10 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Missing w0m.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_HOME_WCM_BIN
+#error "Missing wcm.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
+#endif
+
 #ifndef UI_BUF_0FONT_FONT_TEST_BIN
 #error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
 #endif
@@ -34,8 +38,11 @@ extern volatile u8 elunchbox_te_block_flag;
 /*
  * 时间设置页 — 布局与 func_timeing.c 一致（466 设计稿缩放 + 320×240 时钟右上角锚点）
  *   顶栏：TIME（左对齐）+ 蓝牙/电量，无返回图标
- *   时/分列 + AM/PM + NO/YES；新 UI 资源（白底/浅灰框、new 箭头与分 digit）
+ *   时/分列 + AM/PM + NO/YES；白底/浅灰框；数字时钟区图标/排版与 func_timeing.c 一致（HOME w0m/wcm）
  */
+#define NEW_TIME_COLON_W                   5
+#define NEW_TIME_COLON_H                   29
+
 #define NEW_TIME_REF_W                     466
 #define NEW_TIME_REF_H                     466
 #define NEW_TIME_SX(v)                     ((s16)((s32)(v) * GUI_SCREEN_WIDTH / NEW_TIME_REF_W))
@@ -273,50 +280,24 @@ static const char *new_time_stage_name(u8 stage)
 }
 #endif
 
-static const u32 tbl_new_time_hour_digit_addr[10] = {
+static const u32 tbl_new_time_digit_addr[10] = {
     UI_BUF_HOME_W0M_BIN, UI_BUF_HOME_W1M_BIN, UI_BUF_HOME_W2M_BIN, UI_BUF_HOME_W3M_BIN,
     UI_BUF_HOME_W4M_BIN, UI_BUF_HOME_W5M_BIN, UI_BUF_HOME_W6M_BIN, UI_BUF_HOME_W7M_BIN,
     UI_BUF_HOME_W8M_BIN, UI_BUF_HOME_W9M_BIN,
 };
 
-static const u16 tbl_new_time_hour_digit_len[10] = {
+static const u16 tbl_new_time_digit_len[10] = {
     UI_LEN_HOME_W0M_BIN, UI_LEN_HOME_W1M_BIN, UI_LEN_HOME_W2M_BIN, UI_LEN_HOME_W3M_BIN,
     UI_LEN_HOME_W4M_BIN, UI_LEN_HOME_W5M_BIN, UI_LEN_HOME_W6M_BIN, UI_LEN_HOME_W7M_BIN,
     UI_LEN_HOME_W8M_BIN, UI_LEN_HOME_W9M_BIN,
 };
 
-static const u16 tbl_new_time_hour_digit_w[10] = {
+static const u16 tbl_new_time_digit_w[10] = {
     20, 5, 20, 19, 20, 20, 21, 19, 20, 20,
 };
 
-static const u16 tbl_new_time_hour_digit_h[10] = {
+static const u16 tbl_new_time_digit_h[10] = {
     34, 32, 34, 34, 32, 34, 34, 33, 34, 34,
-};
-
-static const u32 tbl_new_time_min_digit_addr[10] = {
-    UI_BUF_NEW_UI_NEW_0M_BIN, UI_BUF_NEW_UI_NEW_1M_BIN, UI_BUF_NEW_UI_NEW_2M_BIN,
-    UI_BUF_NEW_UI_NEW_3M_BIN, UI_BUF_NEW_UI_NEW_4M_BIN, UI_BUF_NEW_UI_NEW_5M_BIN,
-    UI_BUF_NEW_UI_NEW_6M_BIN, UI_BUF_NEW_UI_NEW_7M_BIN, UI_BUF_NEW_UI_NEW_8M_BIN,
-    UI_BUF_NEW_UI_NEW_9M_BIN,
-};
-
-static const u16 tbl_new_time_min_digit_len[10] = {
-    UI_LEN_NEW_UI_NEW_0M_BIN, UI_LEN_NEW_UI_NEW_1M_BIN, UI_LEN_NEW_UI_NEW_2M_BIN,
-    UI_LEN_NEW_UI_NEW_3M_BIN, UI_LEN_NEW_UI_NEW_4M_BIN, UI_LEN_NEW_UI_NEW_5M_BIN,
-    UI_LEN_NEW_UI_NEW_6M_BIN, UI_LEN_NEW_UI_NEW_7M_BIN, UI_LEN_NEW_UI_NEW_8M_BIN,
-    UI_LEN_NEW_UI_NEW_9M_BIN,
-};
-
-static const u16 tbl_new_time_min_digit_w[10] = {
-    HOME_TOP_TIME_0M_W, HOME_TOP_TIME_1M_W, HOME_TOP_TIME_2M_W, HOME_TOP_TIME_3M_W,
-    HOME_TOP_TIME_4M_W, HOME_TOP_TIME_5M_W, HOME_TOP_TIME_6M_W, HOME_TOP_TIME_7M_W,
-    HOME_TOP_TIME_8M_W, HOME_TOP_TIME_9M_W,
-};
-
-static const u16 tbl_new_time_min_digit_h[10] = {
-    HOME_TOP_TIME_0M_H, HOME_TOP_TIME_1M_H, HOME_TOP_TIME_2M_H, HOME_TOP_TIME_3M_H,
-    HOME_TOP_TIME_4M_H, HOME_TOP_TIME_5M_H, HOME_TOP_TIME_6M_H, HOME_TOP_TIME_7M_H,
-    HOME_TOP_TIME_8M_H, HOME_TOP_TIME_9M_H,
 };
 
 static void new_time_parse_rtc(u8 *disp_h, u8 *min, bool *is_pm)
@@ -461,8 +442,8 @@ static bool new_time_gpu_ram_bind(u8 *ram, u16 buf_size, u32 addr, u16 len,
     return true;
 }
 
-static bool new_time_load_hour_digit(u8 slot, u8 digit, compo_picturebox_t *pic,
-                                     s16 tr_x, s16 tr_y)
+static bool new_time_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic,
+                                s16 tr_x, s16 tr_y)
 {
     u16 w;
     u16 h;
@@ -470,31 +451,11 @@ static bool new_time_load_hour_digit(u8 slot, u8 digit, compo_picturebox_t *pic,
     if (digit > 9 || slot >= NEW_TIME_DIGIT_SLOTS || pic == NULL) {
         return false;
     }
-    w = tbl_new_time_hour_digit_w[digit];
-    h = tbl_new_time_hour_digit_h[digit];
+    w = tbl_new_time_digit_w[digit];
+    h = tbl_new_time_digit_h[digit];
     if (!new_time_gpu_ram_bind(home_ui_digit_ram[slot], HOME_DIGIT_RAM_MAX_SIZE,
-                               tbl_new_time_hour_digit_addr[digit],
-                               tbl_new_time_hour_digit_len[digit], pic, w, h)) {
-        return false;
-    }
-    new_time_clock_digit_pos_tr(pic, w, h, tr_x, tr_y);
-    return true;
-}
-
-static bool new_time_load_min_digit(u8 slot, u8 digit, compo_picturebox_t *pic,
-                                    s16 tr_x, s16 tr_y)
-{
-    u16 w;
-    u16 h;
-
-    if (digit > 9 || slot >= NEW_TIME_DIGIT_SLOTS || pic == NULL) {
-        return false;
-    }
-    w = tbl_new_time_min_digit_w[digit];
-    h = tbl_new_time_min_digit_h[digit];
-    if (!new_time_gpu_ram_bind(home_ui_digit_ram[slot], HOME_DIGIT_RAM_MAX_SIZE,
-                               tbl_new_time_min_digit_addr[digit],
-                               tbl_new_time_min_digit_len[digit], pic, w, h)) {
+                               tbl_new_time_digit_addr[digit],
+                               tbl_new_time_digit_len[digit], pic, w, h)) {
         return false;
     }
     new_time_clock_digit_pos_tr(pic, w, h, tr_x, tr_y);
@@ -680,23 +641,16 @@ static void new_time_digits_apply_hour(f_new_time_t *f)
     h1 = (u8)(f->disp_h % 10);
 
 #if ELUNCHBOX_PANEL_EN
-    if (f->focus == NEW_TIME_FOCUS_HOUR) {
-        (void)new_time_load_hour_digit(0, h10, f->pic_h10,
-                                       NEW_TIME_CLOCK_TR_H10_X, NEW_TIME_CLOCK_TR_Y);
-        (void)new_time_load_hour_digit(1, h1, f->pic_h1,
-                                       NEW_TIME_CLOCK_TR_H1_X, NEW_TIME_CLOCK_TR_Y);
-    } else {
-        (void)new_time_load_min_digit(0, h10, f->pic_h10,
-                                      NEW_TIME_CLOCK_TR_H10_X, NEW_TIME_CLOCK_TR_Y);
-        (void)new_time_load_min_digit(1, h1, f->pic_h1,
-                                      NEW_TIME_CLOCK_TR_H1_X, NEW_TIME_CLOCK_TR_Y);
-    }
+    (void)new_time_load_digit(0, h10, f->pic_h10,
+                              NEW_TIME_CLOCK_TR_H10_X, NEW_TIME_CLOCK_TR_Y);
+    (void)new_time_load_digit(1, h1, f->pic_h1,
+                              NEW_TIME_CLOCK_TR_H1_X, NEW_TIME_CLOCK_TR_Y);
     if (f->pic_colon != NULL) {
         if (new_time_gpu_ram_bind(home_ui_colon_ram, HOME_COLON_RAM_SIZE,
-                                  UI_BUF_NEW_UI_NEW_COLONM_BIN, UI_LEN_NEW_UI_NEW_COLONM_BIN,
-                                  f->pic_colon, HOME_TOP_TIME_COLONM_W, HOME_TOP_TIME_COLONM_H)) {
+                                  UI_BUF_HOME_WCM_BIN, UI_LEN_HOME_WCM_BIN,
+                                  f->pic_colon, NEW_TIME_COLON_W, NEW_TIME_COLON_H)) {
             new_time_pic_pos_tr(f->pic_colon, NEW_TIME_CLOCK_TR_COLON_X, NEW_TIME_CLOCK_TR_Y,
-                                HOME_TOP_TIME_COLONM_W, HOME_TOP_TIME_COLONM_H);
+                                NEW_TIME_COLON_W, NEW_TIME_COLON_H);
         }
     }
 #endif
@@ -714,17 +668,10 @@ static void new_time_digits_apply_min(f_new_time_t *f)
     m1 = (u8)(f->min % 10);
 
 #if ELUNCHBOX_PANEL_EN
-    if (f->focus == NEW_TIME_FOCUS_MIN) {
-        (void)new_time_load_hour_digit(2, m10, f->pic_m10,
-                                       NEW_TIME_CLOCK_TR_M10_X, NEW_TIME_CLOCK_TR_Y);
-        (void)new_time_load_hour_digit(3, m1, f->pic_m1,
-                                       NEW_TIME_CLOCK_TR_M1_X, NEW_TIME_CLOCK_TR_Y);
-    } else {
-        (void)new_time_load_min_digit(2, m10, f->pic_m10,
-                                      NEW_TIME_CLOCK_TR_M10_X, NEW_TIME_CLOCK_TR_Y);
-        (void)new_time_load_min_digit(3, m1, f->pic_m1,
-                                      NEW_TIME_CLOCK_TR_M1_X, NEW_TIME_CLOCK_TR_Y);
-    }
+    (void)new_time_load_digit(2, m10, f->pic_m10,
+                              NEW_TIME_CLOCK_TR_M10_X, NEW_TIME_CLOCK_TR_Y);
+    (void)new_time_load_digit(3, m1, f->pic_m1,
+                              NEW_TIME_CLOCK_TR_M1_X, NEW_TIME_CLOCK_TR_Y);
 #endif
 }
 
