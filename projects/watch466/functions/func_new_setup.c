@@ -20,6 +20,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Run tools/gen_new_setup_icons.py then Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 设置页 — 效果图 SETUP
  *   顶栏：SETUP 标题 + 蓝牙/电量
@@ -107,6 +112,31 @@ static const u8 tbl_new_setup_target[NEW_SETUP_ITEM_CNT] = {
 
 #if ELUNCHBOX_PANEL_EN
 static bool new_setup_arrow_ram_ready;
+static bool new_setup_font_ready;
+
+static void new_setup_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_setup_font_apply_once(f_new_setup_t *f)
+{
+    u8 i;
+
+    if (new_setup_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_setup_font_bind_txt(f->txt_title);
+    for (i = 0; i < NEW_SETUP_ITEM_CNT; i++) {
+        WDT_CLR();
+        new_setup_font_bind_txt(f->txt_label[i]);
+    }
+    new_setup_font_ready = true;
+}
 #endif
 
 static s16 new_setup_row_y(u8 row)
@@ -374,6 +404,8 @@ static compo_textbox_t *new_setup_txt_create(compo_form_t *frm, u16 id, u16 buf_
 #if ELUNCHBOX_PANEL_EN
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, NEW_HEAT_FONT);
 #endif
     compo_textbox_set_pos(txt, x, y);
     compo_textbox_set_forecolor(txt, color);
@@ -627,6 +659,9 @@ static void new_setup_list_apply(f_new_setup_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    new_setup_font_apply_once(f);
+#endif
     new_setup_list_apply_rows(f, 0, (u8)(NEW_SETUP_ITEM_CNT - 1), true, true);
 }
 
@@ -648,6 +683,7 @@ static void new_setup_text_apply(f_new_setup_t *f)
     if (f == NULL) {
         return;
     }
+    new_setup_font_apply_once(f);
     if (f->txt_title != NULL) {
         new_setup_title_txt_show(f->txt_title);
     }
@@ -666,6 +702,10 @@ static void new_setup_ui_refresh(f_new_setup_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+    WDT_CLR();
+#endif
     new_setup_list_apply(f);
     f->display_pending = false;
 }
@@ -904,6 +944,7 @@ void func_new_setup_enter(void)
     func_cb.f_cb = func_zalloc(sizeof(f_new_setup_t));
     f = (f_new_setup_t *)func_cb.f_cb;
 #if ELUNCHBOX_PANEL_EN
+    new_setup_font_ready = false;
     f->key_ready = false;
     f->text_pending = false;
     new_setup_arrow_ram_ready = false;
