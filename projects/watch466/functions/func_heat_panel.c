@@ -29,6 +29,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Missing new_show.bin in ui/new_ui"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 #define HEAT_PANEL_STATUS_Y             20
 #define HEAT_PANEL_STATUS_RIGHT_MARGIN  10
 #define HEAT_PANEL_STATUS_GAP           6
@@ -83,6 +88,7 @@ typedef struct {
     bool show_ready;
     bool track_ready;
     bool ui_ready;
+    bool font_ready;
 } heat_panel_ui_t;
 
 static const u16 tbl_progress_w[NEW_HEAT_PROGRESS_CNT] = {
@@ -501,6 +507,30 @@ static void heat_panel_display_on_info(const heat_display_info_t *info)
     func_heat_panel_process(f_heat);
 }
 
+static void heat_panel_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void heat_panel_font_apply_once(void)
+{
+    if (g_hp.font_ready) {
+        return;
+    }
+
+    WDT_CLR();
+    heat_panel_font_bind_txt(g_hp.txt_remain);
+    heat_panel_font_bind_txt(g_hp.txt_remain_lbl);
+    heat_panel_font_bind_txt(g_hp.txt_temp);
+    heat_panel_font_bind_txt(g_hp.txt_temp_lbl);
+    WDT_CLR();
+    heat_panel_font_bind_txt(g_hp.txt_dur);
+    heat_panel_font_bind_txt(g_hp.txt_dur_lbl);
+    g_hp.font_ready = true;
+}
+
 static void heat_panel_text_apply(const void *f_heat)
 {
     char buf[32];
@@ -511,6 +541,7 @@ static void heat_panel_text_apply(const void *f_heat)
     if (f_heat == NULL) {
         return;
     }
+    heat_panel_font_apply_once();
     total_min = heat_panel_total_min(func_heat_panel_get_set_hour(f_heat),
                                      func_heat_panel_get_set_min(f_heat));
     if (func_heat_panel_get_live_ready(f_heat)) {
