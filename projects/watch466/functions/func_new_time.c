@@ -30,6 +30,14 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Missing wcm.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_HOME_HM_BIN
+#error "Missing Hm.bin: run tools/gen_home_icons.py + prebuild.bat"
+#endif
+
+#ifndef UI_BUF_HOME_MINM_BIN
+#error "Missing Minm.bin: run tools/gen_home_icons.py + prebuild.bat"
+#endif
+
 #ifndef UI_BUF_0FONT_FONT_TEST_BIN
 #error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
 #endif
@@ -171,8 +179,8 @@ enum {
     COMPO_ID_SHAPE_PM,
     COMPO_ID_SHAPE_NO,
     COMPO_ID_SHAPE_YES,
-    COMPO_ID_TXT_H_SUFFIX,
-    COMPO_ID_TXT_MIN_SUFFIX,
+    COMPO_ID_PIC_H_SUFFIX,
+    COMPO_ID_PIC_MIN_SUFFIX,
     COMPO_ID_TXT_AM,
     COMPO_ID_TXT_PM,
     COMPO_ID_TXT_NO,
@@ -219,8 +227,8 @@ typedef struct {
     compo_picturebox_t *pic_m10;
     compo_picturebox_t *pic_m1;
     compo_textbox_t *txt_title;
-    compo_textbox_t *txt_h_suffix;
-    compo_textbox_t *txt_min_suffix;
+    compo_picturebox_t *pic_h_suffix;
+    compo_picturebox_t *pic_min_suffix;
     compo_textbox_t *txt_am;
     compo_textbox_t *txt_pm;
     compo_textbox_t *txt_no;
@@ -231,6 +239,8 @@ typedef struct {
 /* 仅箭头用小缓冲；数字/冒号复用 home_ui_digit_ram / home_ui_colon_ram（页间互斥） */
 static u8 new_time_arrow_up_ram[NEW_TIME_NEW_UP_RAM_SIZE];
 static u8 new_time_arrow_down_ram[NEW_TIME_NEW_DOWN_RAM_SIZE];
+static u8 new_time_hm_ram[HOME_TIMEING_SUFFIX_RAM_MAX_SIZE];
+static u8 new_time_minm_ram[HOME_TIMEING_SUFFIX_RAM_MAX_SIZE];
 static bool new_time_res_up_ready;
 static bool new_time_res_down_ready;
 static bool new_time_font_ready;
@@ -250,10 +260,6 @@ static void new_time_font_apply_once(f_new_time_t *f)
 
     WDT_CLR();
     new_time_font_bind_txt(f->txt_title);
-    WDT_CLR();
-    new_time_font_bind_txt(f->txt_h_suffix);
-    WDT_CLR();
-    new_time_font_bind_txt(f->txt_min_suffix);
     WDT_CLR();
     new_time_font_bind_txt(f->txt_am);
     WDT_CLR();
@@ -675,6 +681,27 @@ static void new_time_digits_apply_min(f_new_time_t *f)
 #endif
 }
 
+static void new_time_suffix_apply(f_new_time_t *f)
+{
+    if (f == NULL) {
+        return;
+    }
+#if ELUNCHBOX_PANEL_EN
+    if (new_time_gpu_ram_bind(new_time_hm_ram, HOME_TIMEING_SUFFIX_RAM_MAX_SIZE,
+                              UI_BUF_HOME_HM_BIN, UI_LEN_HOME_HM_BIN,
+                              f->pic_h_suffix, HOME_TIMEING_HM_W, HOME_TIMEING_HM_H)) {
+        new_time_pic_pos_tr(f->pic_h_suffix, NEW_TIME_SUFFIX_H_TR_X, NEW_TIME_SUFFIX_TR_Y,
+                            HOME_TIMEING_HM_W, HOME_TIMEING_HM_H);
+    }
+    if (new_time_gpu_ram_bind(new_time_minm_ram, HOME_TIMEING_SUFFIX_RAM_MAX_SIZE,
+                              UI_BUF_HOME_MINM_BIN, UI_LEN_HOME_MINM_BIN,
+                              f->pic_min_suffix, HOME_TIMEING_MINM_W, HOME_TIMEING_MINM_H)) {
+        new_time_pic_pos_tr(f->pic_min_suffix, NEW_TIME_SUFFIX_MIN_TR_X, NEW_TIME_SUFFIX_TR_Y,
+                            HOME_TIMEING_MINM_W, HOME_TIMEING_MINM_H);
+    }
+#endif
+}
+
 static void new_time_digits_apply(f_new_time_t *f)
 {
     if (f == NULL) {
@@ -685,6 +712,7 @@ static void new_time_digits_apply(f_new_time_t *f)
     home_gpu_wait_idle();
     new_time_digits_apply_hour(f);
     new_time_digits_apply_min(f);
+    new_time_suffix_apply(f);
     home_gpu_wait_idle();
     elunchbox_te_block_flag = 0;
 #endif
@@ -699,12 +727,6 @@ static void new_time_text_apply(f_new_time_t *f)
     new_time_font_apply_once(f);
 #endif
     new_time_title_show(f->txt_title);
-    new_time_txt_pos_tr(f->txt_h_suffix, NEW_TIME_SUFFIX_H_TR_X, NEW_TIME_SUFFIX_TR_Y, 16, 16);
-    new_time_label_show(f->txt_h_suffix, "H",
-                         (f->focus == NEW_TIME_FOCUS_HOUR) ? NEW_TIME_COLOR_ON : NEW_TIME_COLOR_OFF);
-    new_time_txt_pos_tr(f->txt_min_suffix, NEW_TIME_SUFFIX_MIN_TR_X, NEW_TIME_SUFFIX_TR_Y, 32, 16);
-    new_time_label_show(f->txt_min_suffix, "min",
-                         (f->focus == NEW_TIME_FOCUS_MIN) ? NEW_TIME_COLOR_ON : NEW_TIME_COLOR_OFF);
     new_time_label_show(f->txt_am, "AM", f->is_pm ? NEW_TIME_COLOR_OFF : NEW_TIME_COLOR_ON);
     new_time_label_show(f->txt_pm, "PM", f->is_pm ? NEW_TIME_COLOR_ON : NEW_TIME_COLOR_OFF);
     if (f->focus == NEW_TIME_FOCUS_BOTTOM && f->bottom_sel == 0) {
@@ -924,8 +946,8 @@ static void new_time_bind_objects(f_new_time_t *f)
     f->pic_colon = compo_getobj_byid(COMPO_ID_PIC_COLON);
     f->pic_m10 = compo_getobj_byid(COMPO_ID_PIC_M10);
     f->pic_m1 = compo_getobj_byid(COMPO_ID_PIC_M1);
-    f->txt_h_suffix = compo_getobj_byid(COMPO_ID_TXT_H_SUFFIX);
-    f->txt_min_suffix = compo_getobj_byid(COMPO_ID_TXT_MIN_SUFFIX);
+    f->pic_h_suffix = compo_getobj_byid(COMPO_ID_PIC_H_SUFFIX);
+    f->pic_min_suffix = compo_getobj_byid(COMPO_ID_PIC_MIN_SUFFIX);
     f->txt_am = compo_getobj_byid(COMPO_ID_TXT_AM);
     f->txt_pm = compo_getobj_byid(COMPO_ID_TXT_PM);
     f->txt_no = compo_getobj_byid(COMPO_ID_TXT_NO);
@@ -996,12 +1018,8 @@ compo_form_t *func_new_time_form_create(void)
                                 NEW_TIME_BTN_W, NEW_TIME_BTN_H,
                                 NEW_TIME_COLOR_SEL, NEW_TIME_BTN_RADIUS);
 
-    (void)new_time_txt_create(frm, COMPO_ID_TXT_H_SUFFIX, 4,
-                              NEW_TIME_SUFFIX_H_TR_X, NEW_TIME_SUFFIX_TR_Y, 16, 16,
-                              NEW_TIME_COLOR_ON, true);
-    (void)new_time_txt_create(frm, COMPO_ID_TXT_MIN_SUFFIX, 8,
-                              NEW_TIME_SUFFIX_MIN_TR_X, NEW_TIME_SUFFIX_TR_Y, 32, 16,
-                              NEW_TIME_COLOR_OFF, true);
+    (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_H_SUFFIX);
+    (void)new_time_pic_create_hidden(frm, COMPO_ID_PIC_MIN_SUFFIX);
     (void)new_time_txt_create(frm, COMPO_ID_TXT_AM, 4,
                               NEW_TIME_AMPM_COL_X, NEW_TIME_AM_Y,
                               NEW_TIME_AMPM_W, NEW_TIME_AMPM_H,
@@ -1152,6 +1170,7 @@ static void func_new_time_process(void)
             elunchbox_te_block_flag = 1;
             home_gpu_wait_idle();
             new_time_digits_apply_min(f);
+            new_time_suffix_apply(f);
             home_gpu_wait_idle();
             elunchbox_te_block_flag = 0;
             f->load_stage = NEW_TIME_LOAD_TEXT;
