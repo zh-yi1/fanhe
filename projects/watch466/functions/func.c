@@ -830,7 +830,8 @@ static void func_elunchbox_guioff_wake_poll(void)
             } else if (tick_check_expire(hold_start, PT8028_PWR_LONG_MS)) {
                 hold_start = 0;
                 hold_log_once = 0;
-                elunchbox_pwr_gui_wake_reason("guioff_poll 3s hold");
+                /* 只设标志，由调用方统一唤醒，与充电唤醒行为完全一致 */
+                elunchbox_manual_wake_pending = true;
             }
         } else {
             if (hold_start != 0) {
@@ -866,7 +867,8 @@ static void func_elunchbox_pwr_long_poll(void)
     if (elunchbox_is_guioff()) {
         if (elunchbox_pwr_is_manual_off()) {
             if (elunchbox_manual_off_wake_ready()) {
-                elunchbox_pwr_gui_wake_reason("pwr_long_poll manual");
+                /* 只设标志，由调用方统一唤醒 */
+                elunchbox_manual_wake_pending = true;
             } else {
                 printf("elunchbox: pwr_long_pending wake blocked (!wake_ready)\n");
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -978,6 +980,12 @@ void func_process(void)
         lunchbox_uart_process();
         if (heat_display_charge_wake_pending()) {
             printf("elunchbox: charge DP wakes screen from manual off\n");
+            elunchbox_pwr_gui_wake();
+            return;
+        }
+        /* TCH5 长按唤醒 — 与充电唤醒完全相同的调用方式 */
+        if (elunchbox_manual_wake_pending_take()) {
+            printf("elunchbox: TCH5 3s hold wakes screen from manual off\n");
             elunchbox_pwr_gui_wake();
             return;
         }
@@ -1103,6 +1111,7 @@ void func_process(void)
     if (elunchbox_pwr_pending_auto_shutdown) {
         elunchbox_pwr_pending_auto_shutdown = false;
         elunchbox_pwr_manual_shutdown();
+        return;  /* GPU 已掉电，跳过后续处理；下轮 func_process 进入 manual_off 轮询 */
     }
 #endif
 #if ELUNCHBOX_KEEP_AWAKE && ELUNCHBOX_PANEL_EN

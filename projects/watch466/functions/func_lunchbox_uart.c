@@ -69,6 +69,7 @@ u8  lb_pending_ble_cmd[256];
 u8  lb_handler_product_info(lb_rx_frame_t *rx);
 
 bool lb_uart_suspended;              /* 手动关机时 UART1 已关闭 */
+static u32 lb_uart_saved_con;        /* suspend 前保存的 UART1CON 值，resume 时恢复 */
 bool lb_uart_tx_blocked;             /* 手动关机时阻止所有 UART TX */
 lb_device_info_t lb_dev_info;
 // OTA 升级状态机 → 已移至 func_lunchbox_ota.c
@@ -1574,6 +1575,7 @@ void lunchbox_uart_suspend(void)
     if (lb_uart_suspended) {
         return;
     }
+    lb_uart_saved_con = UART1CON;   /* 保存配置，resume 时恢复 */
     UART1CON = 0;
     bsp_uart1_rxclr();
     lb_rx_idx = 0;
@@ -1585,7 +1587,7 @@ void lunchbox_uart_resume(void)
     if (!lb_uart_suspended) {
         return;
     }
-    lunchbox_uart_init(LB_BAUD);
+    UART1CON = lb_uart_saved_con;   /* 恢复硬件，不重新 init（保留 cmd_handler/dev_info 等） */
     lb_uart_suspended = false;
 }
 
