@@ -202,3 +202,17 @@ void home_top_time_txt_keep_visible(home_top_time_txt_t *ui)
     compo_textbox_set(ui->txt, buf);
 #endif
 }
+
+void home_top_time_txt_bring_front(home_top_time_txt_t *ui)
+{
+    widget_text_t *widget;
+
+    if (ui == NULL || ui->txt == NULL || ui->last_key == 0xffff) {
+        return;
+    }
+    compo_textbox_set_visible(ui->txt, true);
+    widget = ui->txt->txt;
+    if (widget != NULL) {
+        widget_set_top(widget, true);
+    }
+}

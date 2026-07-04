@@ -28,6 +28,8 @@ typedef struct f_new_home_t_ {
 #if ELUNCHBOX_PANEL_EN
     u8 display_stage;
     u8 pending_switch_sta;   /* 0=无；确认键延后到 process 末再切页（勿在扫键路径 switch） */
+    u8 tab_gpu_applied;        /* 0xff=Tab GPU 未初始化 */
+    bool tab_repaint_pending;  /* 模式键切换 Tab，延后到 process 中刷新 */
 #endif
 } f_new_home_t;
 

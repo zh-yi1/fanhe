@@ -15,5 +15,6 @@ bool home_top_time_txt_refresh(home_top_time_txt_t *ui, tm_t *tm);
 bool home_top_time_txt_tick(home_top_time_txt_t *ui, u8 *last_min, u8 *last_sec);
 void home_top_time_txt_force(home_top_time_txt_t *ui, u8 *last_min, u8 *last_sec);
 void home_top_time_txt_keep_visible(home_top_time_txt_t *ui);
+void home_top_time_txt_bring_front(home_top_time_txt_t *ui);
 
 #endif
