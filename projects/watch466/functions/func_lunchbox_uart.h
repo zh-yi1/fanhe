@@ -278,6 +278,10 @@ void lunchbox_uart_resume(void);
  */
 void lunchbox_uart_process(void);
 
+/** 手动关机期间阻止所有 UART TX；参数 true=阻塞 false=恢复 */
+void lb_uart_tx_block(bool block);
+bool lb_uart_tx_is_blocked(void);
+
 /**
  * @brief 发送请求/命令帧（同步模式下主机侧使用，err_flag 固定为成功）
  *

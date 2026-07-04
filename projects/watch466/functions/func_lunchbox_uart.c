@@ -68,7 +68,9 @@ u32  lb_product_info_pend_tick = 0;   // 0x01 查询开始等待的时刻(tick),
 u8  lb_pending_ble_cmd[256];
 u8  lb_handler_product_info(lb_rx_frame_t *rx);
 
-bool lb_uart_suspended;              // 手动关机时 UART1 已关闭
+bool lb_uart_suspended;              /* 手动关机时 UART1 已关闭 */
+static u32 lb_uart_saved_con;        /* suspend 前保存的 UART1CON 值，resume 时恢复 */
+bool lb_uart_tx_blocked;             /* 手动关机时阻止所有 UART TX */
 lb_device_info_t lb_dev_info;
 // OTA 升级状态机 → 已移至 func_lunchbox_ota.c
 // 桥模式 CRC32 变量 → 已移至 func_lunchbox_bridge.c
@@ -350,6 +352,9 @@ static void lb_timeout_check(void)
  */
 static void lb_send_frame(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
 {
+    if (lb_uart_tx_blocked) {
+        return;  /* 手动关机期间禁止 UART TX */
+    }
     u16 off = 0;
     lb_tx_buf[off++] = (u8)(LB_FRAME_HEADER >> 8);  // 0x55
     lb_tx_buf[off++] = (u8)LB_FRAME_HEADER;          // 0xaa
@@ -930,6 +935,9 @@ void lb_heating_sync_from_dp(u8 *data, u16 len)
  */
 void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
 {
+    if (lb_uart_tx_blocked) {
+        return;  /* 手动关机期间禁止 UART TX */
+    }
     u8 buf[LB_TXBUF_SIZE];
     u16 off = 0;
     static u8 s_uart_msg_flag = 0;
@@ -1567,6 +1575,7 @@ void lunchbox_uart_suspend(void)
     if (lb_uart_suspended) {
         return;
     }
+    lb_uart_saved_con = UART1CON;   /* 保存配置，resume 时恢复 */
     UART1CON = 0;
     bsp_uart1_rxclr();
     lb_rx_idx = 0;
@@ -1578,7 +1587,7 @@ void lunchbox_uart_resume(void)
     if (!lb_uart_suspended) {
         return;
     }
-    lunchbox_uart_init(LB_BAUD);
+    UART1CON = lb_uart_saved_con;   /* 恢复硬件，不重新 init（保留 cmd_handler/dev_info 等） */
     lb_uart_suspended = false;
 }
 
@@ -1645,6 +1654,17 @@ void lunchbox_uart_process(void)
 
     // 加热模块 OTA 状态机轮询 (超时检测/重试/继续发送)
     heat_ota_process();
+}
+
+void lb_uart_tx_block(bool block)
+{
+    lb_uart_tx_blocked = block;
+    printf("lb_uart: TX %s\n", block ? "blocked (manual off)" : "unblocked");
+}
+
+bool lb_uart_tx_is_blocked(void)
+{
+    return lb_uart_tx_blocked;
 }
 
 //-----------------------------------------------------------------------------
