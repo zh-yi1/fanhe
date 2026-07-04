@@ -44,7 +44,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_HEAT_STATUS_RIGHT_MARGIN      10
 #define NEW_HEAT_STATUS_GAP               6
 
-#define NEW_HEAT_MODE_TITLE_Y             38
+#define NEW_HEAT_MODE_TITLE_Y             20
 #define NEW_HEAT_MODE_TITLE_H             36
 #define NEW_HEAT_MODE_TITLE_W             120
 
