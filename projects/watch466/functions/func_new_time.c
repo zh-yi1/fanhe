@@ -25,6 +25,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #error "Missing w0m.bin: run tools/convert_ui_home.bat + Output/bin/prebuild.bat"
 #endif
 
+#ifndef UI_BUF_0FONT_FONT_TEST_BIN
+#error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
+#endif
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+
 /*
  * 时间设置页 — 效果图 TIME
  *   顶栏：TIME（左对齐）+ 蓝牙/电量，无返回图标
@@ -169,6 +174,37 @@ static u8 new_time_arrow_up_ram[NEW_TIME_NEW_UP_RAM_SIZE];
 static u8 new_time_arrow_down_ram[NEW_TIME_NEW_DOWN_RAM_SIZE];
 static bool new_time_res_up_ready;
 static bool new_time_res_down_ready;
+static bool new_time_font_ready;
+
+static void new_time_font_bind_txt(compo_textbox_t *txt)
+{
+    if (txt != NULL) {
+        compo_textbox_set_font(txt, NEW_HEAT_FONT);
+    }
+}
+
+static void new_time_font_apply_once(f_new_time_t *f)
+{
+    if (new_time_font_ready || f == NULL) {
+        return;
+    }
+
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_title);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_h_suffix);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_min_suffix);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_am);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_pm);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_no);
+    WDT_CLR();
+    new_time_font_bind_txt(f->txt_yes);
+    new_time_font_ready = true;
+}
 
 static const char *new_time_stage_name(u8 stage)
 {
@@ -386,6 +422,8 @@ static compo_textbox_t *new_time_txt_create(compo_form_t *frm, u16 id, u16 buf_s
 #if ELUNCHBOX_PANEL_EN
     compo_textbox_set_autosize(txt, false);
     compo_textbox_set_visible(txt, false);
+#else
+    compo_textbox_set_font(txt, NEW_HEAT_FONT);
 #endif
     compo_textbox_set_align_center(txt, center);
     compo_textbox_set_pos(txt, x, y);
@@ -615,6 +653,9 @@ static void new_time_text_apply(f_new_time_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    new_time_font_apply_once(f);
+#endif
     new_time_title_show(f->txt_title);
     new_time_label_show(f->txt_h_suffix, "H",
                          (f->focus == NEW_TIME_FOCUS_HOUR) ? NEW_TIME_COLOR_ON : NEW_TIME_COLOR_OFF);
@@ -1145,6 +1186,7 @@ void func_new_time_enter(void)
 #if ELUNCHBOX_PANEL_EN
     new_time_res_up_ready = false;
     new_time_res_down_ready = false;
+    new_time_font_ready = false;
     home_ui_digit_pool_reset();
     home_ui_shared_status_init();
     WDT_CLR();
