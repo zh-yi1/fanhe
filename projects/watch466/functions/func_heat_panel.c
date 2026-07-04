@@ -6,6 +6,7 @@
 #include "home_ui_shared.h"
 #include "home_icon_res.h"
 #include "new_home_icon_res.h"
+#include "home_top_time_txt.h"
 #include "home_ui_ram.h"
 #include "home_ui_gpu_detach.h"
 
@@ -55,6 +56,7 @@ extern volatile u8 elunchbox_te_block_flag;
 
 enum {
     HEAT_PANEL_ID_BG = 1,
+    HEAT_PANEL_ID_TXT_TOP_TIME,
     HEAT_PANEL_ID_PROGRESS_BG,
     HEAT_PANEL_ID_PROGRESS,
     HEAT_PANEL_ID_POINT,
@@ -70,6 +72,9 @@ enum {
 };
 
 typedef struct {
+    home_top_time_txt_t top_time;
+    u8 last_top_min;
+    u8 last_top_sec;
     compo_picturebox_t *pic_progress_bg;
     compo_picturebox_t *pic_progress;
     compo_picturebox_t *pic_point;
@@ -603,6 +608,11 @@ compo_form_t *func_heat_panel_form_create(void)
 
     heat_panel_white_bg(frm);
 
+    home_top_time_txt_create(frm, HEAT_PANEL_ID_TXT_TOP_TIME);
+    home_top_time_txt_bind(&g_hp.top_time, HEAT_PANEL_ID_TXT_TOP_TIME);
+    g_hp.last_top_min = 0xff;
+    g_hp.last_top_sec = 0xff;
+
     /* 状态图标 */
     bat_x = (s16)(GUI_SCREEN_WIDTH - HEAT_PANEL_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
     bt_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - HEAT_PANEL_STATUS_GAP - NEW_HOME_BT_W / 2);
@@ -692,6 +702,7 @@ void func_heat_panel_mark_dirty(struct f_heat_t_ *f_heat)
 void func_heat_panel_status_refresh(struct f_heat_t_ *f_heat)
 {
     (void)f_heat;
+    home_top_time_txt_tick(&g_hp.top_time, &g_hp.last_top_min, &g_hp.last_top_sec);
     home_ui_shared_status_init();
     if (g_hp.pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         compo_picturebox_set_ram(g_hp.pic_bt, home_ui_shared_status_bt_ram);

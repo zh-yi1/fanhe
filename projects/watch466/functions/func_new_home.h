@@ -1,7 +1,7 @@
 #ifndef _FUNC_NEW_HOME_H
 #define _FUNC_NEW_HOME_H
 
-#include "home_top_time.h"
+#include "home_top_time_txt.h"
 
 /* 新主页底部 Tab 枚举 */
 enum {
@@ -16,7 +16,7 @@ typedef struct f_new_home_t_ {
     u8 last_top_sec;
     bool screen_locked;
     u8 cur_tab;                         /* 当前选中的 Tab (NEW_HOME_TAB_xxx) */
-    home_top_time_ui_t top_time;
+    home_top_time_txt_t top_time;
     compo_picturebox_t *pic_logo;
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_lock;

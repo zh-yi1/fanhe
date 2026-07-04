@@ -1,7 +1,7 @@
 #include "include.h"
 #include "func.h"
 #include "func_new_home.h"
-#include "new_home_top_time.h"
+#include "home_top_time_txt.h"
 #include "new_home_icon_res.h"
 #include "new_home_tab_res.h"
 #include "home_ui_shared.h"
@@ -43,12 +43,7 @@
 
 enum {
     COMPO_ID_SHAPE_BG = 1,
-    COMPO_ID_PIC_TOP_TIME_H10,
-    COMPO_ID_PIC_TOP_TIME_H1,
-    COMPO_ID_PIC_TOP_TIME_COLON,
-    COMPO_ID_PIC_TOP_TIME_M10,
-    COMPO_ID_PIC_TOP_TIME_M1,
-    COMPO_ID_PIC_TOP_TIME_AMPM,
+    COMPO_ID_TXT_TOP_TIME,
     COMPO_ID_PIC_LOGO,
     COMPO_ID_PIC_BT,
     COMPO_ID_PIC_LOCK,
@@ -268,10 +263,7 @@ static void new_home_bind_objects(f_new_home_t *f)
     f->pic_tab_mode = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_TAB_MODE);
     f->pic_tab_setup = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_TAB_SETUP);
     f->txt_res_marquee = (compo_textbox_t *)compo_getobj_byid(COMPO_ID_TXT_RES_MARQUEE);
-    new_home_top_time_bind(&f->top_time,
-                           COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
-                           COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
-                           COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
+    home_top_time_txt_bind(&f->top_time, COMPO_ID_TXT_TOP_TIME);
 }
 
 static void new_home_res_marquee_refresh(f_new_home_t *f)
@@ -292,17 +284,10 @@ static void new_home_res_marquee_refresh(f_new_home_t *f)
 
 static void new_home_status_refresh(f_new_home_t *f)
 {
-    tm_t tm;
-
     if (func_cb.sta != FUNC_HOME || sys_cb.flag_swithing || f == NULL) {
         return;
     }
-    tm = rtc_clock_get();
-    if (f->last_top_min != tm.min || f->last_top_sec != tm.sec) {
-        f->last_top_min = tm.min;
-        f->last_top_sec = tm.sec;
-        new_home_top_time_refresh(&f->top_time, &tm);
-    }
+    home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
     /* 预约提交回 Home 时 RTC 秒未必变化，跑马灯须每帧检查 */
     new_home_res_marquee_refresh(f);
 }
@@ -327,11 +312,7 @@ void func_home_force_ui_refresh_after_wake(void)
     new_home_tab_apply(f);
 
     {
-        tm_t tm = rtc_clock_get();
-        f->last_top_min = tm.min;
-        f->last_top_sec = tm.sec;
-        f->top_time.last_key = 0xffff;
-        new_home_top_time_refresh(&f->top_time, &tm);
+        home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
     }
     new_home_res_marquee_refresh(f);
     func_home_gui_mark_dirty();
@@ -351,10 +332,7 @@ compo_form_t *func_home_form_create(void)
 
     new_home_white_bg_create(frm);
 
-    new_home_top_time_create(frm, UI_BUF_ICON_ACTIVITY_BIN,
-                             COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
-                             COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,
-                             COMPO_ID_PIC_TOP_TIME_M1, COMPO_ID_PIC_TOP_TIME_AMPM);
+    home_top_time_txt_create(frm, COMPO_ID_TXT_TOP_TIME);
 
     bat_x = (s16)(GUI_SCREEN_WIDTH - NEW_HOME_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
     lock_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - NEW_HOME_STATUS_GAP - HOME_STATUS_LOCK_W / 2);
@@ -429,7 +407,6 @@ void func_home_gpu_detach_before_leave(f_new_home_t *f)
 
     /* light detach：完整 detach 会长时间 wait_idle → gui thread miss */
     WDT_CLR();
-    home_top_time_gpu_detach_light(&f->top_time);
 
     if (f->pic_bt) pics[n++] = f->pic_bt;
     if (f->pic_lock) pics[n++] = f->pic_lock;
@@ -611,12 +588,7 @@ void func_home_process(void)
             new_home_status_icons_apply(f);
             new_home_logo_apply(f);
             new_home_tab_apply(f);
-            {
-                tm_t tm = rtc_clock_get();
-                f->last_top_min = tm.min;
-                f->last_top_sec = tm.sec;
-                new_home_top_time_refresh(&f->top_time, &tm);
-            }
+            home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
             new_home_res_marquee_refresh(f);
             f->display_stage = 0;
             func_home_gui_mark_dirty();
@@ -706,12 +678,7 @@ void func_home_enter(void)
     new_home_status_icons_apply(f);
     new_home_logo_apply(f);
     new_home_tab_apply(f);
-    {
-        tm_t tm = rtc_clock_get();
-        f->last_top_min = tm.min;
-        f->last_top_sec = tm.sec;
-        new_home_top_time_refresh(&f->top_time, &tm);
-    }
+    home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
     new_home_res_marquee_refresh(f);
 #endif
 

@@ -7,7 +7,7 @@
 /* 左上 RTC：0m..9m + colonm + AMm/PMm（ui/home -> ui.bin -> set_ram） */
 #if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
 #define HOME_TOP_TIME_X                   12
-#define HOME_TOP_TIME_Y                   20
+#define HOME_TOP_TIME_Y                   2
 #else
 #define HOME_TOP_TIME_REF_W               466
 #define HOME_TOP_TIME_REF_H               466

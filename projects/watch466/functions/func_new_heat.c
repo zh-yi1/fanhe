@@ -2,6 +2,7 @@
 #include "func.h"
 #include "new_home_icon_res.h"
 #include "new_heat_res.h"
+#include "home_top_time_txt.h"
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
 #include "home_ui_ram.h"
@@ -75,6 +76,7 @@ extern volatile u8 elunchbox_te_block_flag;
 
 enum {
     COMPO_ID_SHAPE_BG = 1,
+    COMPO_ID_TXT_TOP_TIME,
     COMPO_ID_TXT_MODE_TITLE,
     COMPO_ID_PIC_BT,
     COMPO_ID_PIC_BAT,
@@ -103,10 +105,13 @@ typedef struct {
     u8 focus;
     u8 temp_idx;
     u8 time_idx;
+    u8 last_top_min;
+    u8 last_top_sec;
     bool display_pending;
 #if ELUNCHBOX_PANEL_EN
     bool key_ready;
 #endif
+    home_top_time_txt_t top_time;
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_bat;
     compo_picturebox_t *pic_temp_track;
@@ -404,6 +409,7 @@ static void new_heat_status_icons_apply(f_new_heat_t *f)
     if (f == NULL) {
         return;
     }
+    home_top_time_txt_force(&f->top_time, &f->last_top_min, &f->last_top_sec);
     home_ui_shared_status_init();
     if (f->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         compo_picturebox_set_ram(f->pic_bt, home_ui_shared_status_bt_ram);
@@ -835,6 +841,10 @@ static void new_heat_bind_objects(f_new_heat_t *f)
 {
     u8 i;
 
+    if (f == NULL) {
+        return;
+    }
+    home_top_time_txt_bind(&f->top_time, COMPO_ID_TXT_TOP_TIME);
     f->pic_bt = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_BT);
     f->pic_bat = (compo_picturebox_t *)compo_getobj_byid(COMPO_ID_PIC_BAT);
     f->txt_mode_title = (compo_textbox_t *)compo_getobj_byid(COMPO_ID_TXT_MODE_TITLE);
@@ -1001,6 +1011,8 @@ compo_form_t *func_new_heat_form_create(void)
     s16 bt_x;
 
     new_heat_white_bg_create(frm);
+
+    home_top_time_txt_create(frm, COMPO_ID_TXT_TOP_TIME);
 
     bat_x = (s16)(GUI_SCREEN_WIDTH - NEW_HEAT_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2);
     bt_x = (s16)(bat_x - NEW_HOME_BAT_W / 2 - NEW_HEAT_STATUS_GAP - NEW_HOME_BT_W / 2);
@@ -1195,6 +1207,7 @@ static void func_new_heat_process(void)
         new_heat_ui_refresh(f);
         f->display_pending = false;
     }
+    home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
 #endif
     func_process();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -1234,6 +1247,8 @@ void func_new_heat_enter(void)
     f->focus = NEW_HEAT_FOCUS_TEMP;
     f->temp_idx = g_new_heat_temp_idx;
     f->time_idx = g_new_heat_time_idx;
+    f->last_top_min = 0xff;
+    f->last_top_sec = 0xff;
 #if ELUNCHBOX_PANEL_EN
     new_heat_font_ready = false;
     f->key_ready = false;
