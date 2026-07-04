@@ -462,22 +462,18 @@ static void elunchbox_pwr_manual_shutdown(void)
     func_reservation_on_manual_shutdown();
 #endif
     elunchbox_boot_power_sent = false;
-    /* 先设 manual_off，阻止 gui_sleep / ble_disconnect 回调访问已掉电 GPU */
+    /* 先设 manual_off，阻止 gui_sleep / ble_disconnect 回调 */
     elunchbox_pwr_manual_off = true;
     elunchbox_pwr_wake_armed = false;
     elunchbox_pwr_gui_off = true;
     sys_cb.gui_need_wakeup = 0;
     elunchbox_guioff_sleep_delay = 0;
-    /* GPU 掉电前先挂起 UART，防止 RX 中断在掉电过程中破坏堆内存 */
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_uart_suspend();
-#endif
-    gui_sleep(true);
-    /* 立即恢复 UART 硬件以便接收充电模块数据唤醒屏幕，但禁止 TX */
-#if FUNC_LUNCHBOX_UART_EN
-    lunchbox_uart_resume();
+    /* 不掉 GPU 电则 UART 无需挂起；仅阻止 TX 以防误发指令 */
     lb_uart_tx_block(true);
 #endif
+    /* gui_sleep(false): 只关屏+lcd/tft，不掉 GPU 电，避免 gpu_exit 导致 TLSF 堆损坏 */
+    gui_sleep(false);
 
 #if LE_EN
     ble_disconnect();   // 断开BLE连接 (连接保持则射频周期性活跃，功耗极高)
@@ -674,7 +670,7 @@ static void elunchbox_screen_wake(void)
 #endif
 #if FUNC_LUNCHBOX_UART_EN
     if (was_manual || elunchbox_pwr_hw_off) {
-        lb_uart_tx_block(false);  /* 恢复 UART TX（硬件已在关机时恢复，这里只解封） */
+        lb_uart_tx_block(false);  /* 解封 UART TX */
         lunchbox_power_on();
         elunchbox_boot_power_sent = true;
         elunchbox_pwr_hw_off = false;
@@ -830,7 +826,7 @@ static void func_elunchbox_guioff_wake_poll(void)
             } else if (tick_check_expire(hold_start, PT8028_PWR_LONG_MS)) {
                 hold_start = 0;
                 hold_log_once = 0;
-                /* 只设标志，由调用方统一唤醒，与充电唤醒行为完全一致 */
+                /* 只设标志，由调用方统一唤醒 */
                 elunchbox_manual_wake_pending = true;
             }
         } else {
@@ -1124,7 +1120,6 @@ void func_process(void)
     if (elunchbox_pwr_pending_auto_shutdown) {
         elunchbox_pwr_pending_auto_shutdown = false;
         elunchbox_pwr_manual_shutdown();
-        return;  /* GPU 已掉电，跳过后续处理；下轮 func_process 进入 manual_off 轮询 */
     }
 #endif
 #if ELUNCHBOX_KEEP_AWAKE && ELUNCHBOX_PANEL_EN

@@ -1587,7 +1587,7 @@ void lunchbox_uart_resume(void)
     if (!lb_uart_suspended) {
         return;
     }
-    UART1CON = lb_uart_saved_con;   /* 恢复硬件，不重新 init（保留 cmd_handler/dev_info 等） */
+    lunchbox_uart_init(LB_BAUD);
     lb_uart_suspended = false;
 }
 
