@@ -783,23 +783,28 @@ static void func_heat_power_key(f_heat_t *f_heat)
 {
     if (f_heat->ui_state == HEAT_UI_HEATING) {
         func_heat_countdown_stop();
+        /* 先注销 LCD 回调再发停止指令，防止 UART RX 在页面切换期间
+           触发 func_heat_display_on_info 访问已销毁的 panel widget */
+        heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();
 #endif
         func_heat_led_sync(false);
         func_heat_reset_setup(f_heat);
-        func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        /* 不调 func_switch_to：设 sta 让 while 循环退出，
+           由 func_exit() 的安全路径清理 form 和锁键 overlay */
+        func_cb.sta = FUNC_HOME;
         return;
     }
 
     if (f_heat->ui_state == HEAT_UI_FINISHED) {
-        func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        func_cb.sta = FUNC_HOME;
         return;
     }
 
     switch (f_heat->focus) {
     case HEAT_FOCUS_HOUR:
-        func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        func_cb.sta = FUNC_HOME;
         break;
 
     case HEAT_FOCUS_MIN:
@@ -1182,14 +1187,20 @@ void func_heat_exit(void)
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.sta == FUNC_NEW_WARM) {
         func_heat_panel_exit_to_warm();
-    } else {
+    } else if (func_cb.sta != FUNC_HOME) {
+        /* 切 HOME 时不在此处做 GPU detach：
+         * func_heat_panel_exit() 中的 os_gui_draw_force() 会强制渲染锁键
+         * overlay，而 overlay 缓冲区在后续 func_exit() 中才被释放，导致
+         * GPU 仍持有对已释放内存的引用 → C241 崩溃。
+         * GPU 资源交由 func_exit() 的 compo_form_destroy() + compos_init()
+         * 统一清理（与 FUNC_NEW_HEAT 行为一致）。 */
         func_heat_panel_exit();
     }
 #else
     (void)f_heat;
 #endif
     home_ui_shared_battery_detach_pic();
-    if (func_cb.sta != FUNC_NEW_WARM) {
+    if (func_cb.sta != FUNC_NEW_WARM && func_cb.sta != FUNC_HOME) {
         heat_display_unregister();
     }
 #if FUNC_LUNCHBOX_UART_EN

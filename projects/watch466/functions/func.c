@@ -1857,14 +1857,18 @@ void func_enter(void)
     reset_sleep_delay_all();
 #endif
     reset_pwroff_delay();
+    printf("enter: chk1\n");
     func_cb.mp3_res_play = mp3_res_play;
     func_cb.set_vol_callback = NULL;
+    printf("enter: chk2\n");
 //    bsp_clr_mute_sta();
 //    sys_cb.voice_evt_brk_en = 1;    //播放提示音时，快速响应事件。
     AMPLIFIER_SEL_D();
+    printf("enter: chk3 before key_lock\n");
 #if ELUNCHBOX_PANEL_EN
     func_key_lock_on_page_change();
 #endif
+    printf("enter: done\n");
 }
 
 AT(.text.func)
@@ -1881,13 +1885,15 @@ void func_exit(void)
     //销毁窗体
     if (func_cb.frm_main != NULL) {
 #if ELUNCHBOX_PANEL_EN
-        func_key_lock_on_form_destroy();
         printf("exit: destroy form\n");
         if (elunchbox_te_block_flag) {
             elunchbox_te_block_flag = 0;
         }
+        /* 必须先等 GPU 空闲再释放锁键 overlay 的 ab_malloc 缓冲区，
+           否则 GPU 仍在渲染 overlay → 访问已释放内存 → 卡死 → WDT reset */
         home_gpu_wait_idle();
         printf("exit: wait1 done\n");
+        func_key_lock_on_form_destroy();
 #endif
         compo_form_destroy(func_cb.frm_main);
 #if ELUNCHBOX_PANEL_EN
@@ -1974,7 +1980,10 @@ void func_run(void)
                 task_stack_push(func_cb.sta);
                 latest_task_add(func_cb.sta);
                 func_entry = tbl_func_entry[i].func;
+                WDT_CLR();
+                printf("run: call func_entry=%p\n", func_entry);
                 func_entry();
+                printf("run: func_entry returned\n");
                 break;
             }
         }

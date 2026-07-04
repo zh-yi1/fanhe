@@ -2,6 +2,7 @@
 #define _FUNC_KEY_LOCK_H
 
 #include "include.h"
+#include "home_ui_lock_overlay.h"
 
 #if ELUNCHBOX_PANEL_EN
 

@@ -677,6 +677,8 @@ void func_home_enter(void)
 {
     f_new_home_t *f;
 
+    printf("home_enter: start\n");
+
 #if ELUNCHBOX_PANEL_EN
     if (sys_cb.gui_sleep_sta) {
         gui_wakeup();
@@ -688,8 +690,11 @@ void func_home_enter(void)
     pt8028_release_clear();
 #endif
 
+    printf("home_enter: before zalloc\n");
     func_cb.f_cb = func_zalloc(sizeof(f_new_home_t));
+    printf("home_enter: before form_create\n");
     func_cb.frm_main = func_home_form_create();
+    printf("home_enter: form_create done, frm=%p\n", func_cb.frm_main);
     f = (f_new_home_t *)func_cb.f_cb;
     f->screen_locked = false;
     f->cur_tab = NEW_HOME_TAB_HEAT;    /* 默认选中 Heat Tab */
@@ -698,7 +703,9 @@ void func_home_enter(void)
 #if ELUNCHBOX_PANEL_EN
     home_ui_shared_battery_attach_pic(f->pic_bat);
 #endif
+    printf("home_enter: before lock_icon_prepare\n");
     new_home_lock_icon_prepare(f);
+    printf("home_enter: lock_icon_prepare done\n");
 
 #if ELUNCHBOX_PANEL_EN
     f->display_stage = 1;
@@ -754,10 +761,13 @@ void func_home(void)
     pt8028_set_home_msg_block(1);
     pt8028_release_clear();
 #endif
+    printf("func_home: enter start\n");
     func_home_enter();
+    printf("func_home: enter done, entering loop\n");
     while (func_cb.sta == FUNC_HOME) {
         func_home_process();
         func_home_message(msg_dequeue());
     }
+    printf("func_home: loop exit\n");
     func_home_exit();
 }

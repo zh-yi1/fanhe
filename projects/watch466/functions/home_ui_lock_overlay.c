@@ -5,6 +5,7 @@
 #include "home_ui_shared.h"
 #include "home_ui_ram.h"
 #include "new_heat_res.h"
+#include "home_ui_gpu_detach.h"
 
 #if ELUNCHBOX_PANEL_EN
 
@@ -30,9 +31,14 @@ static compo_shape_t *lock_overlay_dim;
 static compo_picturebox_t *lock_overlay_pic;
 static bool lock_overlay_visible;
 
-/* 复用 heat_bg（Home 等页未用），勿 +21KB BSS 导致启动失败 */
-#define lock_overlay_ram                home_ui_heat_bg_ram
-#define HOME_UI_LOCK_OVERLAY_RAM_CAP      NEW_HEAT_NEW_PROGRESS_BG_RAM_SIZE
+/*
+ * 独立动态缓冲区，避免与 home_ui_digit_ram（共用 union 的 heat_bg）冲突。
+ * 新加热页/模式页/预约页等使用 digit 槽位时，锁屏 overlay 加载图标会覆盖
+ * digit 数据，导致 GPU 渲染损坏图片 → 资源 halt C245。
+ * 此处用 ab_malloc 懒分配，无 BSS 增长；分配失败则仅显示半透明遮罩无图标。
+ */
+#define HOME_UI_LOCK_OVERLAY_RAM_SIZE    22000   /* unlock 图标 21208 bytes + margin */
+static u8 *lock_overlay_ram_ptr;
 
 static compo_picturebox_t *home_ui_lock_overlay_pic_create_hidden(compo_form_t *frm, u16 id)
 {
@@ -58,6 +64,12 @@ static void home_ui_lock_overlay_destroy(void)
 
 static void home_ui_lock_overlay_bring_front_internal(void)
 {
+    /* form 已被 func_switch_to 销毁（compo pool reset），指针悬空 → 安全复位 */
+    if (lock_overlay_frm != NULL && lock_overlay_frm != func_cb.frm_main) {
+        home_ui_lock_overlay_reset();
+        lock_overlay_visible = false;
+        return;
+    }
     if (lock_overlay_dim != NULL && lock_overlay_dim->rect != NULL) {
         widget_set_top(lock_overlay_dim->rect, true);
     }
@@ -119,12 +131,20 @@ static bool home_ui_lock_overlay_load_icon(bool unlock_icon, u16 *out_w, u16 *ou
         *out_h = NEW_UI_LOCK_H;
     }
 
-    if (len == 0 || len > HOME_UI_LOCK_OVERLAY_RAM_CAP) {
+    if (len == 0 || len > HOME_UI_LOCK_OVERLAY_RAM_SIZE) {
         return false;
     }
 
-    os_spiflash_read(lock_overlay_ram, addr, len);
-    return gui_set_ram_check(lock_overlay_ram, __func__);
+    /* 懒分配独立缓冲区（首次使用时），避免与 home_ui_digit_ram 共用 union */
+    if (lock_overlay_ram_ptr == NULL) {
+        lock_overlay_ram_ptr = (u8 *)ab_malloc(HOME_UI_LOCK_OVERLAY_RAM_SIZE);
+    }
+    if (lock_overlay_ram_ptr == NULL) {
+        return false;
+    }
+
+    os_spiflash_read(lock_overlay_ram_ptr, addr, len);
+    return gui_set_ram_check(lock_overlay_ram_ptr, __func__);
 }
 
 void home_ui_lock_overlay_prepare(compo_form_t *frm)
@@ -143,12 +163,35 @@ void home_ui_lock_overlay_bring_front(void)
 
 void home_ui_lock_overlay_reset(void)
 {
+    /* 释放 ab_malloc 缓冲区前，先解除 picturebox 对它的引用。
+       这样 compo_form_destroy(pool reset) 时 widget 数据不再指向
+       已释放内存，避免新 form 创建时 GPU 检测到资源冲突 → C241。
+       不使用 home_ui_gpu_pic_detach（含 os_gui_draw_force），
+       因为在 func_exit 上下文中会额外触发 GPU 渲染导致副作用。 */
+    if (lock_overlay_pic != NULL) {
+        compo_picturebox_set_visible(lock_overlay_pic, false);
+        compo_picturebox_set_ram(lock_overlay_pic, NULL);
+    }
+    if (lock_overlay_ram_ptr != NULL) {
+        ab_free(lock_overlay_ram_ptr);
+        lock_overlay_ram_ptr = NULL;
+    }
     home_ui_lock_overlay_destroy();
+}
+
+bool home_ui_lock_overlay_is_visible(void)
+{
+    return lock_overlay_visible;
 }
 
 void home_ui_lock_overlay_hide(void)
 {
     lock_overlay_visible = false;
+    /* form 已被 func_switch_to 销毁，指针悬空 → 安全复位（含 ab_free） */
+    if (lock_overlay_frm != NULL && lock_overlay_frm != func_cb.frm_main) {
+        home_ui_lock_overlay_reset();
+        return;
+    }
     if (lock_overlay_dim != NULL) {
         compo_shape_set_visible(lock_overlay_dim, false);
     }
@@ -198,7 +241,7 @@ void home_ui_lock_overlay_show(bool unlock_icon)
     }
 
     compo_shape_set_visible(lock_overlay_dim, true);
-    compo_picturebox_set_ram(lock_overlay_pic, lock_overlay_ram);
+    compo_picturebox_set_ram(lock_overlay_pic, lock_overlay_ram_ptr);
     compo_picturebox_set_pos(lock_overlay_pic, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y);
     compo_picturebox_set_size(lock_overlay_pic, icon_w, icon_h);
     compo_picturebox_set_visible(lock_overlay_pic, true);

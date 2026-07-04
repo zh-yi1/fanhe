@@ -32,7 +32,7 @@ void home_ui_gpu_pic_detach(compo_picturebox_t *pic)
     }
 #endif
     home_gpu_wait_idle();
-    os_gui_draw_force();
+    os_gui_draw_force();  // ← 强制 GPU 渲染一帧！
     home_gpu_wait_idle();
     compo_picturebox_set_visible(pic, false);
     compo_picturebox_set(pic, 0);
@@ -53,7 +53,7 @@ void home_ui_gpu_pics_detach(compo_picturebox_t * const *pics, u8 cnt)
     }
     home_gpu_wait_idle();
     for (i = 0; i < cnt; i++) {
-        home_ui_gpu_pic_detach(pics[i]);
+        home_ui_gpu_pic_detach(pics[i]);  // 清理 5 个加热面板 picturebox
     }
     home_gpu_wait_idle();
 }
