@@ -508,7 +508,7 @@ static void heat_panel_point_bind(u8 progress_idx)
         printf("point_bind: fail idx=%u tip=(%d,%d)\n", progress_idx, px, py);
         return;
     }
-    if (g_hp.pic_point->img != NULL) {
+    if (g_hp.pic_point->img != NULL && !func_key_lock_hint_is_on()) {
         widget_set_top(g_hp.pic_point->img, true);
     }
 }
@@ -948,13 +948,7 @@ void func_heat_panel_process(struct f_heat_t_ *f_heat)
     func_heat_panel_status_refresh(f_heat);
 
 #if ELUNCHBOX_PANEL_EN
-    /* 加热中：30s 自动锁屏（HEAT_AUTO_LOCK_MS），锁图标 3s 后消失（KEY_LOCK_HINT_MS） */
-    if (func_heat_panel_is_heating(f_heat)) {
-        func_key_lock_poll();
-        if (func_key_lock_hint_is_on()) {
-            func_key_lock_overlay_to_front();
-        }
-    } else {
+    if (!func_heat_panel_is_heating(f_heat)) {
         func_key_lock_on_heating_stop();
     }
 #endif

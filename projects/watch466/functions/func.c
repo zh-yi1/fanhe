@@ -1076,9 +1076,6 @@ void func_process(void)
             panel_led_scan();
         }
 #endif
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-        func_key_lock_poll();
-#endif
         if (func_cb.frm_main != NULL) {
             compo_update();
             if (gui_do_refresh) {
@@ -1086,9 +1083,7 @@ void func_process(void)
             }
         }
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-        if (func_key_lock_hint_is_on()) {
-            func_key_lock_overlay_to_front();
-        }
+        func_key_lock_poll();
 #endif
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
         func_elunchbox_res_key_poll();

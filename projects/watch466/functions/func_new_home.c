@@ -698,9 +698,6 @@ void func_home_process(void)
         return;
     }
     home_top_time_txt_bring_front(&f->top_time);
-    if (func_key_lock_hint_is_on()) {
-        func_key_lock_overlay_to_front();
-    }
     func_home_pending_switch_exec(f);
 #endif
 }

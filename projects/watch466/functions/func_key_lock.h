@@ -18,6 +18,9 @@
 #ifndef HEAT_AUTO_LOCK_MS
 #define HEAT_AUTO_LOCK_MS               30000       //加热开始后自动锁屏(ms)
 #endif
+#ifndef KEY_LOCK_HINT_QUIET_MS
+#define KEY_LOCK_HINT_QUIET_MS          300         //同一次按键多路径去重(ms)
+#endif
 
 bool func_key_lock_is_active(void);
 bool func_key_lock_show_status_icon(bool page_local_locked);
