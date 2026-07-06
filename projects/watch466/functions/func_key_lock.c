@@ -15,7 +15,7 @@
 /*
  * 按键锁定需求：
  * 1. 长按锁键 3s → 锁定 + LED5 亮 + 显示锁图标；满 3s 自动消失，之后不再自发弹出
- * 2. 锁定态除电源键(TCH5)外无效；用户按任意其它物理键 → 弹出锁图标，3s 后消失
+ * 2. 锁定态除电源键(TCH5)外无效；锁图标仅锁定/解锁时显示一次（3s），之后按键不再重显
  * 3. 锁定态长按锁键 3s → 解锁 + LED5 灭 + 解锁图标 1.5s 后消失
  * 全页面统一：func_key_lock_press_take_poll / func_key_lock_poll / func_key_lock_ku_blocked
  */
@@ -34,6 +34,7 @@ static u8 key_lock_hint_min_polls;
 static u8 key_lock_lp_tch;
 static u32 key_lock_lp_tick;
 static bool key_lock_lp_wait_rel;
+static bool key_lock_hint_suppress;
 static u32 key_lock_heat_arm_tick;
 static u8 key_lock_press_edge_tch;
 static bool key_lock_ignore_ku_left_once;
@@ -81,6 +82,7 @@ static void func_key_lock_hint_show(key_lock_hint_mode_t mode, bool force)
     }
     key_lock_hint_mode = mode;
     key_lock_hint_on = true;
+    key_lock_hint_suppress = false;
     key_lock_hint_show_tick = tick_get();
     key_lock_hint_min_polls = 3;
     home_ui_lock_overlay_show(mode == KEY_LOCK_HINT_UNLOCK);
@@ -95,7 +97,7 @@ static void func_key_lock_hint_show(key_lock_hint_mode_t mode, bool force)
 
 static void func_key_lock_hint_user_key(void)
 {
-    if (!key_lock_active || key_lock_lp_wait_rel) {
+    if (!key_lock_active || key_lock_lp_wait_rel || key_lock_hint_suppress) {
         return;
     }
     /* 图标已显示时不重置计时，避免同一次按键按下/抬起/多路径重复触发 */
@@ -111,6 +113,7 @@ static void func_key_lock_hint_hide(void)
         return;
     }
     key_lock_hint_on = false;
+    key_lock_hint_suppress = true;
     key_lock_hint_mode = KEY_LOCK_HINT_NONE;
     key_lock_hint_show_tick = 0;
     key_lock_hint_min_polls = 0;
