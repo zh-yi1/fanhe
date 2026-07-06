@@ -755,9 +755,19 @@ static void func_new_warm_process(void)
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
         if (f->display_pending) {
-            home_gpu_wait_idle();
-            WDT_CLR();
-            new_warm_ui_apply(f);
+            /* 首帧: 先 TE block 阻止新帧，等 GPU（快速），再绑进度条/指针 */
+            {
+                u8 was_blocked = elunchbox_te_block_flag;
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 1;
+                }
+                home_gpu_wait_idle();
+                WDT_CLR();
+                new_warm_ui_apply(f);
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 0;
+                }
+            }
             f->display_pending = false;
         }
         func_process();
@@ -803,7 +813,9 @@ void func_new_warm_enter(void)
 
 #if ELUNCHBOX_PANEL_EN
     WDT_CLR();
-    elunchbox_te_block_flag = 1;
+    if (!elunchbox_te_block_flag) {
+        elunchbox_te_block_flag = 1;
+    }
 #endif
 
     msg_queue_detach(NEW_WARM_MSG_POWER, 0);

@@ -878,9 +878,19 @@ static void func_new_setup_process(void)
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
         if (f->display_pending) {
-            home_gpu_wait_idle();
-            WDT_CLR();
-            new_setup_icons_apply(f);
+            /* 首帧: 先 TE block 阻止新帧，等 GPU（快速），再绑图标/箭头 */
+            {
+                u8 was_blocked = elunchbox_te_block_flag;
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 1;
+                }
+                home_gpu_wait_idle();
+                WDT_CLR();
+                new_setup_icons_apply(f);
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 0;
+                }
+            }
             f->display_pending = false;
             f->text_pending = true;
         } else if (f->text_pending) {

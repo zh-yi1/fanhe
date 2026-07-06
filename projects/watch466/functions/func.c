@@ -2227,27 +2227,34 @@ void func_exit(void)
     if (func_cb.frm_main != NULL) {
 #if ELUNCHBOX_PANEL_EN
         printf("exit: destroy form\n");
-        if (elunchbox_te_block_flag) {
-            elunchbox_te_block_flag = 0;
-        }
-        /* 必须先等 GPU 空闲再释放锁键 overlay 的 ab_malloc 缓冲区，
-           否则 GPU 仍在渲染 overlay → 访问已释放内存 → 卡死 → WDT reset */
-        home_gpu_wait_idle();
-        printf("exit: wait1 done\n");
-        func_key_lock_on_form_destroy();
+        /* TE block 保持到 destroy+compos_init 完成，阻止 TE ISR 触发新帧，
+         * 让 home_gpu_wait_idle 快速返回（GPU 空闲无新帧），减少 tmr thread miss */
+        {
+            u8 was_blocked = elunchbox_te_block_flag;
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 1;
+            }
+            /* 等当前帧完成（最多一帧时间），之后 GPU 空闲 */
+            home_gpu_wait_idle();
+            printf("exit: wait1 done\n");
+            func_key_lock_on_form_destroy();
 #endif
-        compo_form_destroy(func_cb.frm_main);
+            compo_form_destroy(func_cb.frm_main);
 #if ELUNCHBOX_PANEL_EN
-        printf("exit: destroyed\n");
-        if (!warm_from_heat) {
-            home_gpu_wait_idle();
-            printf("exit: wait2 done\n");
-        }
-        compos_init();
-        printf("exit: compos_init done\n");
-        if (!warm_from_heat) {
-            home_gpu_wait_idle();
-            printf("exit: wait3 done\n");
+            printf("exit: destroyed\n");
+            if (!warm_from_heat) {
+                home_gpu_wait_idle();
+                printf("exit: wait2 done\n");
+            }
+            compos_init();
+            printf("exit: compos_init done\n");
+            if (!warm_from_heat) {
+                home_gpu_wait_idle();
+                printf("exit: wait3 done\n");
+            }
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 0;
+            }
         }
 #endif
     }

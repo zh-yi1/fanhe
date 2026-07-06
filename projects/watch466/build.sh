@@ -98,11 +98,14 @@ SOURCES=(
     functions/func.c functions/func_activity.c functions/func_ble_gatts.c
     functions/func_key_lock.c functions/home_ui_lock_overlay.c
     functions/func_bt.c functions/func_charge.c functions/func_compo_select.c
-    functions/func_compo_select_sub.c functions/func_debug_info.c functions/func_heat.c
+    functions/func_compo_select_sub.c functions/func_debug_info.c functions/func_heat.c functions/func_heat_panel.c
     functions/heat_display_reg.c functions/func_home.c functions/func_new_home.c
     functions/new_home_top_time.c functions/home_ui_shared.c functions/home_tab_label.c
-    functions/home_top_time.c functions/home_ui_ram.c functions/home_ui_gpu_detach.c
-    functions/func_lunchbox_uart.c functions/func_mode.c functions/func_reservation.c
+    functions/home_top_time.c functions/home_top_time_txt.c functions/home_ui_ram.c functions/home_ui_gpu_detach.c
+    functions/func_lunchbox_uart.c functions/func_lunchbox_lcd.c
+    functions/func_lunchbox_ble.c functions/func_lunchbox_bridge.c
+    functions/func_lunchbox_ota.c functions/func_lunchbox_uart_heat.c
+    functions/func_mode.c functions/func_reservation.c
     functions/func_setup.c functions/func_timeing.c functions/func_languageing.c
     functions/func_verinfo.c
     functions/func_new_heat.c functions/func_new_warm.c functions/func_new_mode.c
@@ -268,7 +271,6 @@ SOURCES=(
     "${PLATFORM_DIR}/gui/components/compo_shape.c"
     "${PLATFORM_DIR}/gui/components/compo_stacklist.c"
     "${PLATFORM_DIR}/gui/components/compo_textbox.c"
-    "${PLATFORM_DIR}/gui/components/compo_video.c"
     "${PLATFORM_DIR}/gui/components/compo_windmill.c"
     "${PLATFORM_DIR}/gui/components/component_func.c"
     "${PLATFORM_DIR}/gui/components/components.c"
@@ -448,8 +450,6 @@ do_link() {
             obj_files+=("$obj")
         fi
     done
-
-    obj_files+=("${OBJ_DIR}/ram.o")
 
     info "  链接 ${#obj_files[@]} 个对象文件..."
 

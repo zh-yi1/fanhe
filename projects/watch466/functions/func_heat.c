@@ -825,9 +825,19 @@ void func_heat_ble_remote_restart(void)
 
     func_heat_led_sync(true);
     func_heat_panel_mark_dirty(f_heat);
-    elunchbox_te_block_flag = 1;
-    func_heat_panel_enter(f_heat);
-    elunchbox_te_block_flag = 0;
+    {
+        u8 was_blocked = elunchbox_te_block_flag;
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 1;
+        }
+        home_gpu_wait_idle();
+        WDT_CLR();
+        func_heat_panel_enter(f_heat);
+        home_gpu_wait_idle();
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 0;
+        }
+    }
     printf("heat_ble_remote_restart: mode=%u %uh%um temp_idx=%u\n",
            f_heat->proto_mode, f_heat->set_hour, f_heat->set_min, f_heat->temp_idx);
 }
@@ -1219,11 +1229,20 @@ void func_heat_enter(void)
         return;
     }
 
-    elunchbox_te_block_flag = 1;
-    func_heat_panel_enter(f_heat);
     home_gpu_wait_idle();
     WDT_CLR();
-    elunchbox_te_block_flag = 0;
+    {
+        u8 was_blocked = elunchbox_te_block_flag;
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 1;
+        }
+        func_heat_panel_enter(f_heat);
+        home_gpu_wait_idle();
+        WDT_CLR();
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 0;
+        }
+    }
     printf("heat_enter: panel enter done\n");
 #else
     home_top_time_bind(&f_heat->top_time, COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
@@ -1442,7 +1461,9 @@ void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
 #endif
-    elunchbox_te_block_flag = 1;
+    if (!elunchbox_te_block_flag) {
+        elunchbox_te_block_flag = 1;
+    }
     func_cb.sta = FUNC_NEW_WARM;
 }
 #endif

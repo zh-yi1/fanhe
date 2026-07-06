@@ -275,5 +275,7 @@
         <add key="bt_rf_pwrdec" value="0" />
         <add key="ft_rf_param_en" value="True" />
         <add key="bt_rf_param_en" value="False" />
+        <add key="huart_dump_en" value="False" />
+        <add key="huart_dump_sel" value="1" />
     </appSettings>
 </configuration>

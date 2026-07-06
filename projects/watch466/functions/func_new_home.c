@@ -10,6 +10,10 @@
 #include "func_reservation.h"
 #include "func_key_lock.h"
 
+#if ELUNCHBOX_PANEL_EN
+extern volatile u8 elunchbox_te_block_flag;
+#endif
+
 #if USER_PANEL_LED
 #include "port_panel_led.h"
 #endif
@@ -376,10 +380,22 @@ void func_home_force_ui_refresh_after_wake(void)
     f->tab_repaint_pending = false;
     new_home_tab_ram_sel_reset();
 
-    new_home_status_icons_apply(f);
-    new_home_logo_apply(f);
-    new_home_tab_apply(f);
-    new_home_top_time_restore(f);
+    /* 唤醒后绑定所有 picturebox：先 TE block 阻止新帧，再等 GPU（快速），再绑定 */
+    {
+        u8 was_blocked = elunchbox_te_block_flag;
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 1;
+        }
+        home_gpu_wait_idle();
+        WDT_CLR();
+        new_home_status_icons_apply(f);
+        new_home_logo_apply(f);
+        new_home_tab_apply(f);
+        new_home_top_time_restore(f);
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 0;
+        }
+    }
 
     new_home_res_marquee_refresh(f);
     func_home_gui_mark_dirty();
@@ -652,11 +668,38 @@ void func_home_process(void)
     if (f != NULL && f->display_stage != 0) {
         WDT_CLR();
         if (f->display_stage == 1) {
-            new_home_status_icons_apply(f);
-            new_home_logo_apply(f);
-            new_home_tab_apply(f);
-            new_home_top_time_restore(f);
-            new_home_res_marquee_refresh(f);
+            /* 首帧阶段1: 先 TE block 阻止新帧，等 GPU（快速），再绑状态图标 + logo */
+            {
+                u8 was_blocked = elunchbox_te_block_flag;
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 1;
+                }
+                home_gpu_wait_idle();
+                WDT_CLR();
+                new_home_status_icons_apply(f);
+                new_home_logo_apply(f);
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 0;
+                }
+            }
+            f->display_stage = 2;
+            func_home_gui_mark_dirty();
+        } else if (f->display_stage == 2) {
+            /* 首帧阶段2: 先 TE block，等 GPU，再绑 tab + 时间 + 滚动字 */
+            {
+                u8 was_blocked = elunchbox_te_block_flag;
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 1;
+                }
+                home_gpu_wait_idle();
+                WDT_CLR();
+                new_home_tab_apply(f);
+                new_home_top_time_restore(f);
+                new_home_res_marquee_refresh(f);
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 0;
+                }
+            }
             f->display_stage = 0;
             func_home_gui_mark_dirty();
             tft_bglight_force_on();

@@ -1184,12 +1184,22 @@ static void func_new_heat_process(void)
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
         if (f->display_pending) {
-            home_gpu_wait_idle();
-            WDT_CLR();
-            new_heat_status_icons_apply(f);
-            new_heat_tracks_apply(f);
-            new_heat_badges_apply(f);
-            new_heat_text_apply(f);
+            /* 首帧: 先 TE block 阻止新帧，等 GPU（快速），再绑定状态图标+滑轨+刻度+文字 */
+            {
+                u8 was_blocked = elunchbox_te_block_flag;
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 1;
+                }
+                home_gpu_wait_idle();
+                WDT_CLR();
+                new_heat_status_icons_apply(f);
+                new_heat_tracks_apply(f);
+                new_heat_badges_apply(f);
+                new_heat_text_apply(f);
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 0;
+                }
+            }
             f->display_pending = false;
         }
         func_process();
@@ -1203,7 +1213,21 @@ static void func_new_heat_process(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (f->display_pending) {
-        new_heat_ui_refresh(f);
+        /* TE block 包裹 UI 刷新，避免内部 6 次 new_heat_pic_apply 各做一次
+         * home_gpu_wait_idle（每次最多 ~16ms），合计减少 ~80ms 自旋等待 */
+        {
+            u8 was_blocked = elunchbox_te_block_flag;
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 1;
+            }
+            home_gpu_wait_idle();
+            WDT_CLR();
+            new_heat_ui_refresh(f);
+            home_gpu_wait_idle();
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 0;
+            }
+        }
         f->display_pending = false;
     }
     home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);

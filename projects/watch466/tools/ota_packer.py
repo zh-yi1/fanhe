@@ -1,41 +1,54 @@
 #!/usr/bin/env python3
 """
-OTA 固件打包工具 — 蓝牙饭盒
-===========================
-根据蓝牙通讯协议 v1.0.8 和 MCU 通信协议 v1.0.7，将固件文件打包为 OTA 升级帧文件。
+OTA 固件打包工具 — 蓝牙饭盒 (BLEDebug 专用)
+==============================================
+按照蓝牙通讯协议 v1.0.8 §5，将固件文件打包为 BLE OTA 升级帧文件 (.ota)，
+可直接通过 BLEDebug 工具逐帧发送。
 
 支持两种目标设备:
-  mcu  — 主单片机 (.fot 文件), 使用 BLE 协议 OTA 通道 (CMD 0x0C/0x0D/0x0E)
-  heat — 加热模块 (.bin 文件), 使用 MCU/UART 协议 OTA 通道 (CMD 0x04)
+  mcu  — 主单片机 (.fot 文件), target=0x01
+  heat — 加热模块 (.bin 文件), target=0x02
+
+两者均使用 BLE OTA 协议 (CMD 0x0C/0x0D/0x0E)，
+数据区包含 256 字节 BIN 包头 (magic=0x11223344, CRC32/MPEG-2)。
 
 用法:
-  # 打包主单片机固件 (BLE 通道)
-  python ota_packer.py mcu --input firmware.fot --output firmware_mcu.ota
+  # 打包主单片机固件
+  python ota_packer.py mcu --input test_ota.fot
 
-  # 打包加热模块固件 (UART 通道), 指定版本号
-  python ota_packer.py heat --input firmware.bin --output firmware_heat.ota --version 0x00010000
+  # 打包加热模块固件
+  python ota_packer.py heat --input otah_Project_v005.bin
 
-  # 加热模块, 附带复位到 Boot 的指令帧
-  python ota_packer.py heat --input firmware.bin --output firmware_heat.ota --version 1.0.0 --reset
+  # 指定版本号
+  python ota_packer.py heat --input fw.bin --version 1.0.0
 
-  # 查看打包结果摘要 (不输出文件)
-  python ota_packer.py heat --input firmware.bin --dry-run
+  # 解析已有的 .ota 文件
+  python ota_packer.py parse --input output.ota
 
-版本号格式:
-  --version 接受三种格式:
-    - 十六进制: 0x00010000
-    - 十进制整数: 65536
-    - 点分格式: 1.0.0  (转换为 major<<24 | minor<<16 | patch)
+输出目录 (默认):
+  MCU  → Output/bin/ota_dog/mcu_ota/
+  Heat → Output/bin/ota_dog/heat_ota/
 """
 
 import struct
 import argparse
 import sys
 import os
-from typing import Tuple, List, Optional
+from typing import List, Optional
 
 # ============================================================
-# 协议常量
+# 路径配置
+# ============================================================
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(SCRIPT_DIR)  # watch466/
+OTA_DOG_DIR = os.path.join(PROJECT_DIR, 'Output', 'bin', 'ota_dog')
+DEFAULT_OUTPUT_DIR = {
+    'mcu':  os.path.join(OTA_DOG_DIR, 'mcu_ota'),
+    'heat': os.path.join(OTA_DOG_DIR, 'heat_ota'),
+}
+
+# ============================================================
+# 协议常量 (蓝牙通讯协议 v1.0.8)
 # ============================================================
 
 FRAME_HEAD = b'\x55\xAA'
@@ -43,43 +56,33 @@ PROTO_VERSION = 0x00
 MSG_FLAG = 0x00
 ERR_OK = 0x00
 
-# BLE OTA 命令字 (蓝牙通讯协议 v1.0.8 §5)
-CMD_OTA_START = 0x0C   # 升级启动
-CMD_OTA_DATA  = 0x0D   # 升级包传输
-CMD_OTA_END   = 0x0E   # 升级结束
+# BLE OTA 命令字 (§5)
+CMD_OTA_START = 0x0C   # 升级启动 §5.1
+CMD_OTA_DATA  = 0x0D   # 升级包传输 §5.2
+CMD_OTA_END   = 0x0E   # 升级结束 §5.3
 
-# MCU/UART OTA 命令字 (MCU 通信协议 v1.0.7 §5.1)
-CMD_MCU_OTA   = 0x04   # 升级包开始/传输/结束 (三合一)
-
-# 目标设备标识 (BLE 协议)
-TARGET_MAIN_MCU   = 0x01
-TARGET_HEAT_MODULE = 0x02
+# 目标设备标识
+TARGET_MAIN_MCU    = 0x01  # 主单片机
+TARGET_HEAT_MODULE = 0x02  # 加热模块
 
 # OTA 分包参数
-CHUNK_SIZE = 128       # 默认每包数据字节数
+CHUNK_SIZE = 128       # 每包数据字节数
 ALIGNMENT  = 16        # 每包数据长度必须能被 16 整除
 
-# MCU BIN 文件头 (MCU 通信协议 §5.1 备注2)
+# BIN 文件头 (MCU 通信协议 §5.1 备注2)
 BIN_HEADER_SIZE = 256
 BIN_MAGIC       = 0x11223344
 BIN_PADDING_BYTE = 0xFF
 
-# MCU 协议特殊偏移量
-OFFSET_START = 0x00000000
-OFFSET_END   = 0xFFFFFFFF
-
-# CRC 类型
-CRC_STANDARD = 'standard'  # 标准 CRC32 (reflected, Ethernet)
-CRC_MPEG2    = 'mpeg2'     # CRC32/MPEG-2 (non-reflected)
-
 # ============================================================
-# CRC32 计算
+# CRC32/MPEG-2 (非反射)
 # ============================================================
 
 def crc32_mpeg2(data: bytes) -> int:
     """
-    CRC32/MPEG-2 (非反射).
+    CRC32/MPEG-2 (non-reflected).
     多项式: 0x04C11DB7, 初始值: 0xFFFFFFFF, 终值 XOR: 0x00000000
+    与 MCU 通信协议 §5.1 要求一致。
     """
     polynomial = 0x04C11DB7
     crc = 0xFFFFFFFF
@@ -95,7 +98,7 @@ def crc32_mpeg2(data: bytes) -> int:
 
 
 def crc32_standard(data: bytes) -> int:
-    """标准 CRC32 (Ethernet/zip, 反射)"""
+    """标准 CRC32 (Ethernet/zlib, 反射) — 仅供参考"""
     import binascii
     return binascii.crc32(data) & 0xFFFFFFFF
 
@@ -109,11 +112,11 @@ def calc_checksum(data: bytes) -> int:
     return sum(data) & 0xFF
 
 
-def build_frame(command: int, payload: bytes = b'', error: int = ERR_OK) -> bytes:
+def build_frame(command: int, payload: bytes = b'') -> bytes:
     """
-    构建完整协议帧.
+    构建完整 BLE 协议帧.
 
-    帧结构 (蓝牙通讯协议 v1.0.8 §2.1 / MCU 通信协议 v1.0.7 §2.1):
+    帧结构 (蓝牙通讯协议 v1.0.8 §2.1):
       帧头(2B) + 版本(1B) + 消息标志(1B) + 命令字(1B) + 错误标志(1B)
       + 数据长度(2B, 大端) + 数据(可变) + 校验和(1B)
     """
@@ -121,7 +124,7 @@ def build_frame(command: int, payload: bytes = b'', error: int = ERR_OK) -> byte
                        PROTO_VERSION,
                        MSG_FLAG,
                        command,
-                       error,
+                       ERR_OK,
                        len(payload))
     frame = FRAME_HEAD + body + payload
     checksum = calc_checksum(frame)
@@ -131,7 +134,7 @@ def build_frame(command: int, payload: bytes = b'', error: int = ERR_OK) -> byte
 def chunk_firmware(data: bytes, chunk_size: int = CHUNK_SIZE,
                    alignment: int = ALIGNMENT) -> List[bytes]:
     """
-    将固件数据按指定大小分包，每包补齐到 alignment 的整数倍.
+    将数据按指定大小分包，每包补齐到 alignment 的整数倍.
     最后一个包不足 alignment 时补 0x00.
     """
     chunks = []
@@ -145,60 +148,14 @@ def chunk_firmware(data: bytes, chunk_size: int = CHUNK_SIZE,
 
 
 # ============================================================
-# BLE OTA 打包器 — 主单片机 (.fot → OTA 帧)
+# BIN 包头构建
 # ============================================================
 
-def pack_mcu_ble(firmware: bytes) -> List[bytes]:
+def build_bin_header(firmware: bytes, version: int) -> bytes:
     """
-    将主单片机固件 (.fot) 打包为 BLE OTA 升级帧.
+    构建 256 字节 BIN 包头 (MCU 通信协议 §5.1 备注2).
 
-    生成帧序列:
-      1. 启动帧 (0x0C): target=0x01 + firmware_size(4B BE)
-      2. 数据帧 (0x0D): target=0x01 + offset(4B BE) + chunk (128B, 16B 对齐) × N
-      3. 结束帧 (0x0E): target=0x01
-
-    参考: 蓝牙通讯协议 v1.0.8 §5.1-5.3
-
-    Args:
-        firmware: 原始固件二进制数据
-
-    Returns:
-        协议帧列表 (每个元素为一个完整帧的 bytes)
-    """
-    frames = []
-    fw_size = len(firmware)
-
-    # --- 1. 升级启动帧 (CMD 0x0C) ---
-    # 数据: 目标设备标识(1B) + 固件字节数(4B, 大端)
-    start_payload = struct.pack('>BI', TARGET_MAIN_MCU, fw_size)
-    frames.append(build_frame(CMD_OTA_START, start_payload))
-
-    # --- 2. 升级数据帧 (CMD 0x0D) ---
-    chunks = chunk_firmware(firmware)
-    for i, chunk in enumerate(chunks):
-        offset = i * CHUNK_SIZE
-        # 数据: 目标设备标识(1B) + offset(4B, 大端) + 固件数据块
-        data_payload = struct.pack('>BI', TARGET_MAIN_MCU, offset) + chunk
-        frames.append(build_frame(CMD_OTA_DATA, data_payload))
-
-    # --- 3. 升级结束帧 (CMD 0x0E) ---
-    # 数据: 目标设备标识(1B)
-    end_payload = struct.pack('>B', TARGET_MAIN_MCU)
-    frames.append(build_frame(CMD_OTA_END, end_payload))
-
-    return frames
-
-
-# ============================================================
-# MCU/UART OTA 打包器 — 加热模块 (.bin → OTA 帧)
-# ============================================================
-
-def build_bin_header(firmware: bytes, version: int,
-                     crc_type: str = CRC_MPEG2) -> bytes:
-    """
-    构建 MCU 协议 BIN 文件的 256 字节头部.
-
-    头部结构 (MCU 通信协议 v1.0.7 §5.1 备注2):
+    头部结构:
       字节 0-3:   Magic 0x11223344
       字节 4-7:   固件版本号 (大端)
       字节 8-11:  固件内容总长度 (不含头部, 大端)
@@ -206,84 +163,67 @@ def build_bin_header(firmware: bytes, version: int,
       字节 16-255: 填充 0xFF
 
     Args:
-        firmware: 原始固件二进制
+        firmware: 原始固件二进制 (不含头部)
         version: 32-bit 版本号
-        crc_type: CRC 算法类型
 
     Returns:
         256 字节头部
     """
     fw_len = len(firmware)
-    crc_func = crc32_mpeg2 if crc_type == CRC_MPEG2 else crc32_standard
-    crc_val = crc_func(firmware)
+    crc_val = crc32_mpeg2(firmware)
 
     header = struct.pack('>IIII', BIN_MAGIC, version, fw_len, crc_val)
     header += bytes([BIN_PADDING_BYTE] * (BIN_HEADER_SIZE - len(header)))
     return header
 
 
-def pack_heat_uart(firmware: bytes, version: int,
-                   add_reset: bool = False,
-                   crc_type: str = CRC_MPEG2) -> List[bytes]:
+# ============================================================
+# BLE OTA 打包 (mcu 和 heat 共用)
+# ============================================================
+
+def pack_ble_ota(firmware: bytes, version: int, target: int) -> List[bytes]:
     """
-    将加热模块固件 (.bin) 打包为 MCU/UART OTA 升级帧.
+    将固件打包为 BLE OTA 升级帧 (蓝牙通讯协议 v1.0.8 §5).
 
-    处理流程:
-      1. 检测/构建 256 字节 BIN 头部
-      2. (可选) 复位到 Boot 帧: offset=0xFFFFFFFF
-      3. 数据帧: offset(4B BE) + chunk (128B, 16B 对齐) × N
-      4. 结束校验帧: offset=0xFFFFFFFF + CRC32(4B)
-
-    参考: MCU 通信协议 v1.0.7 §5.1
+    流程:
+      1. 构建 256 字节 BIN 包头 (magic + version + fw_len + CRC32/MPEG-2)
+      2. 包头 + 固件 → 完整 BIN 数据
+      3. BIN 数据按 128 字节分包 (16 字节对齐)
+      4. 生成帧序列: START(0x0C) + DATA(0x0D)×N + END(0x0E)
 
     Args:
-        firmware: 原始固件二进制数据 (不含头部, 或已含头部)
+        firmware: 原始固件二进制数据 (不含 BIN 包头)
         version: 32-bit 版本号
-        add_reset: 是否在最前面添加复位到 Boot 的指令帧
-        crc_type: CRC 算法类型
+        target: 目标设备标识 (0x01=主单片机, 0x02=加热模块)
 
     Returns:
-        协议帧列表
+        协议帧列表 (每个元素为一个完整帧的 bytes)
     """
     frames = []
 
-    # --- 检查是否已有 BIN 头部 ---
-    if len(firmware) >= 4 and struct.unpack('>I', firmware[:4])[0] == BIN_MAGIC:
-        bin_data = firmware  # 已有头部, 直接使用
-        print(f"[info] 检测到 BIN 头部已存在 (magic=0x{BIN_MAGIC:08X}), 跳过头部生成")
-    else:
-        header = build_bin_header(firmware, version, crc_type)
-        crc_func = crc32_mpeg2 if crc_type == CRC_MPEG2 else crc32_standard
-        fw_crc = crc_func(firmware)
-        print(f"[info] BIN 头部:")
-        print(f"        Magic:    0x{BIN_MAGIC:08X}")
-        print(f"        Version:  0x{version:08X}")
-        print(f"        Fw Length: {len(firmware)} bytes (0x{len(firmware):08X})")
-        print(f"        Fw CRC32:  0x{fw_crc:08X}")
-        bin_data = header + firmware
+    # --- 1. 构建完整 BIN 数据 (256B 包头 + 固件) ---
+    header = build_bin_header(firmware, version)
+    bin_data = header + firmware
+    total_size = len(bin_data)
 
-    # --- 可选: 复位到 Boot 帧 ---
-    # 当 MCU 处于 App 模式时, offset=0xFFFFFFFF 触发复位进入 Boot 模式
-    if add_reset:
-        reset_payload = struct.pack('>I', OFFSET_END)
-        frames.append(build_frame(CMD_MCU_OTA, reset_payload))
-        print(f"[info] 已添加复位到 Boot 帧 (offset=0xFFFFFFFF, 无 CRC)")
+    # --- 2. 升级启动帧 (CMD 0x0C) ---
+    # 数据: 目标设备标识(1B) + 固件总字节数(4B, 大端)
+    start_payload = struct.pack('>BI', target, total_size)
+    frames.append(build_frame(CMD_OTA_START, start_payload))
 
-    # --- 数据帧 (CMD 0x04) ---
+    # --- 3. 升级数据帧 (CMD 0x0D) ---
+    # 数据: 目标设备标识(1B) + offset(4B, 大端) + 数据块
     chunks = chunk_firmware(bin_data)
     for i, chunk in enumerate(chunks):
         offset = i * CHUNK_SIZE
-        # 数据: offset(4B, 大端) + 固件数据块
-        data_payload = struct.pack('>I', offset) + chunk
-        frames.append(build_frame(CMD_MCU_OTA, data_payload))
+        data_payload = struct.pack('>BI', target, offset) + chunk
+        frames.append(build_frame(CMD_OTA_DATA, data_payload))
 
-    # --- 结束校验帧 (CMD 0x04, offset=0xFFFFFFFF + CRC32) ---
-    crc_func = crc32_mpeg2 if crc_type == CRC_MPEG2 else crc32_standard
-    bin_crc = crc_func(bin_data)
-    end_payload = struct.pack('>II', OFFSET_END, bin_crc)
-    frames.append(build_frame(CMD_MCU_OTA, end_payload))
+    # --- 4. 升级结束帧 (CMD 0x0E) ---
+    # 数据: 目标设备标识(1B)
+    end_payload = struct.pack('>B', target)
+    frames.append(build_frame(CMD_OTA_END, end_payload))
 
-    print(f"[info] 完整 BIN CRC32: 0x{bin_crc:08X} (覆盖头部+固件)")
     return frames
 
 
@@ -301,6 +241,7 @@ def parse_version(ver_str: str) -> int:
       - 点分:     "1.0.0"      → 0x01000000 (major<<24 | minor<<16 | patch)
       - 点分短:   "1.0"         → 0x01000000
       - 单数字:   "1"           → 0x01000000
+      - ASCII:    "v005"        → 0x76303035
     """
     ver_str = ver_str.strip()
 
@@ -308,13 +249,18 @@ def parse_version(ver_str: str) -> int:
     if ver_str.lower().startswith('0x'):
         return int(ver_str, 16)
 
+    # ASCII 字符串 (如 "v005")
+    if not all(c.isdigit() or c == '.' for c in ver_str):
+        b = ver_str.encode('ascii', errors='replace')
+        b = b.ljust(4, b'\x00')[:4]
+        return struct.unpack('>I', b)[0]
+
     # 点分格式
     if '.' in ver_str:
         parts = ver_str.split('.')
         if len(parts) > 3:
             raise ValueError(f"版本号最多 3 段: major.minor.patch, 实际: {ver_str}")
         nums = [int(p) for p in parts]
-        # 补齐到 3 段
         while len(nums) < 3:
             nums.append(0)
         if any(n < 0 or n > 255 for n in nums):
@@ -326,13 +272,20 @@ def parse_version(ver_str: str) -> int:
 
 
 # ============================================================
-# 帧信息输出
+# 帧描述
 # ============================================================
 
-def describe_frame(frame: bytes) -> str:
-    """单帧可读描述"""
-    if len(frame) < 8:
-        return f"[ERR] 帧过短: {len(frame)}B"
+CMD_NAMES = {
+    CMD_OTA_START: 'START(0x0C)',
+    CMD_OTA_DATA:  'DATA (0x0D)',
+    CMD_OTA_END:   'END  (0x0E)',
+}
+
+
+def describe_frame(frame: bytes, idx: int) -> str:
+    """单帧描述"""
+    if len(frame) < 9:
+        return f"[{idx:4d}] [ERR] 帧过短: {len(frame)}B"
 
     cmd = frame[4]
     data_len = struct.unpack('>H', frame[6:8])[0]
@@ -340,44 +293,103 @@ def describe_frame(frame: bytes) -> str:
     checksum = frame[-1]
     expected = calc_checksum(frame[:-1])
 
-    cmd_names = {
-        CMD_OTA_START: '升级启动(0x0C)',
-        CMD_OTA_DATA:  '升级数据(0x0D)',
-        CMD_OTA_END:   '升级结束(0x0E)',
-        CMD_MCU_OTA:   'MCU OTA(0x04)',
-    }
-    cmd_name = cmd_names.get(cmd, f'未知(0x{cmd:02X})')
+    cmd_name = CMD_NAMES.get(cmd, f'UNKN(0x{cmd:02X})')
+    ck = "OK" if checksum == expected else f"FAIL(expected 0x{expected:02X})"
 
-    ck_status = "✓" if checksum == expected else f"✗(期望0x{expected:02X})"
-
-    return (f"  cmd={cmd_name} | data_len={data_len}B | "
-            f"frame_len={total_len}B | checksum=0x{checksum:02X} {ck_status}")
+    return (f"[{idx:4d}] cmd={cmd_name}  dlen={data_len:4d}B  "
+            f"frame={total_len:4d}B  checksum=0x{checksum:02X} {ck}")
 
 
-def print_summary(frames: List[bytes], output_path: Optional[str] = None):
+def print_summary(frames: List[bytes], output_path: str,
+                  fw_size: int, version: int, target: int):
     """打印打包摘要"""
     total_size = sum(len(f) for f in frames)
+    target_names = {TARGET_MAIN_MCU: '主单片机 (target=0x01)',
+                    TARGET_HEAT_MODULE: '加热模块 (target=0x02)'}
+    target_name = target_names.get(target, f'未知(0x{target:02X})')
+
+    num_data = len(frames) - 2  # 减去 START 和 END
+    bad_frames = sum(1 for f in frames if f[-1] != calc_checksum(f[:-1]))
+
     print(f"\n{'='*60}")
     print(f"OTA 打包完成")
     print(f"{'='*60}")
-    print(f"  总帧数:   {len(frames)}")
-    print(f"  总字节:   {total_size} bytes ({total_size/1024:.1f} KB)")
+    print(f"  目标设备:   {target_name}")
+    print(f"  固件版本:   0x{version:08X}")
+    print(f"  原始固件:   {fw_size} bytes ({fw_size/1024:.1f} KB)")
+    print(f"  BIN 包头:   {BIN_HEADER_SIZE} bytes")
+    print(f"  打包大小:   {total_size} bytes ({total_size/1024:.1f} KB)")
+    print(f"  总帧数:     {len(frames)} (1 START + {num_data} DATA + 1 END)")
+    print(f"  帧校验:     {'全部通过' if bad_frames == 0 else f'{bad_frames} 帧失败!'}")
 
-    # 统计数据帧
-    data_frames = [f for f in frames if f[4] in (CMD_OTA_DATA, CMD_MCU_OTA)]
-    payload_sizes = [struct.unpack('>H', f[6:8])[0] for f in data_frames]
-    # 排除最后一帧 (offset=0xFFFFFFFF 的结束校验帧)
-    actual_data_frames = data_frames[:-1] if len(data_frames) > 1 else data_frames
-    if payload_sizes:
-        firmware_total = sum(struct.unpack('>H', f[6:8])[0] for f in actual_data_frames)
-        print(f"  有效数据: {firmware_total} bytes ({firmware_total/1024:.1f} KB)")
+    # 帧列表: 前3帧 + 后2帧
+    print(f"\n帧列表 (前3 + 后2):")
+    for i in range(min(3, len(frames))):
+        print(f"  {describe_frame(frames[i], i)}")
+    if len(frames) > 5:
+        print(f"  ... 省略 {len(frames) - 5} 帧 ...")
+    for i in range(max(3, len(frames) - 2), len(frames)):
+        print(f"  {describe_frame(frames[i], i)}")
 
-    print(f"\n帧列表:")
+    print(f"\n输出文件: {output_path}")
+
+
+# ============================================================
+# OTA 文件解析器
+# ============================================================
+
+def parse_ota_file(filepath: str) -> List[bytes]:
+    """
+    解析已有的 .ota 文件, 按帧边界拆分.
+    返回帧列表.
+    """
+    with open(filepath, 'rb') as f:
+        data = f.read()
+
+    frames = []
+    pos = 0
+    while pos < len(data):
+        if pos + 9 > len(data):
+            print(f"[警告] 位置 {pos}: 剩余 {len(data)-pos} 字节不足以构成完整帧, 停止解析")
+            break
+
+        if data[pos:pos+2] != FRAME_HEAD:
+            print(f"[错误] 位置 {pos}: 帧头不匹配 (期望 0x55AA, 实际 "
+                  f"0x{data[pos]:02X}{data[pos+1]:02X}), 停止解析")
+            break
+
+        cmd = data[pos + 4]
+        data_len = struct.unpack('>H', data[pos+6:pos+8])[0]
+        frame_total = 9 + data_len
+
+        if pos + frame_total > len(data):
+            print(f"[错误] 位置 {pos}: 帧长度 {frame_total} 超出文件范围, 停止解析")
+            break
+
+        frame = data[pos:pos + frame_total]
+        frames.append(frame)
+        pos += frame_total
+
+    return frames
+
+
+def cmd_parse(args):
+    """解析 .ota 文件"""
+    frames = parse_ota_file(args.input)
+    if not frames:
+        print("[错误] 未能解析任何帧")
+        return
+
+    print(f"解析 {args.input}: 共 {len(frames)} 帧, "
+          f"{sum(len(f) for f in frames)} bytes\n")
     for i, f in enumerate(frames):
-        print(f"  [{i:4d}] {describe_frame(f)}")
-
-    if output_path:
-        print(f"\n输出文件: {output_path}")
+        cmd = f[4]
+        dlen = struct.unpack('>H', f[6:8])[0]
+        cs = f[-1]
+        expected = calc_checksum(f[:-1])
+        ok = "OK" if cs == expected else f"FAIL(expected 0x{expected:02X})"
+        print(f"[{i:4d}] cmd=0x{cmd:02X}  dlen={dlen:3d}B  "
+              f"frame={len(f):3d}B  checksum=0x{cs:02X} {ok}")
 
 
 # ============================================================
@@ -386,54 +398,68 @@ def print_summary(frames: List[bytes], output_path: Optional[str] = None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='OTA 固件打包工具 — 蓝牙饭盒',
+        description='OTA 固件打包工具 — 蓝牙饭盒 (BLEDebug 专用)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  # 打包主单片机固件 (.fot), BLE OTA 通道
-  python ota_packer.py mcu --input firmware.fot --output firmware_mcu.ota
+  # 打包主单片机固件 (.fot) → BLE OTA
+  python ota_packer.py mcu --input test_ota.fot
 
-  # 打包加热模块固件 (.bin), UART OTA 通道
-  python ota_packer.py heat --input firmware.bin --output firmware_heat.ota --version 1.0.0
+  # 打包加热模块固件 (.bin) → BLE OTA
+  python ota_packer.py heat --input otah_Project_v005.bin
 
-  # 加热模块, 附带复位帧
-  python ota_packer.py heat --input firmware.bin --output fw.ota --version 0x00010001 --reset
+  # 指定版本号
+  python ota_packer.py mcu --input fw.fot --version 1.0.0
+  python ota_packer.py heat --input fw.bin --version 0x76303035
 
-  # 仅预览, 不输出文件
-  python ota_packer.py mcu --input firmware.fot --dry-run
+  # 指定输出路径
+  python ota_packer.py mcu --input fw.fot -o /path/to/output.ota
+
+  # 解析已有的 .ota 文件
+  python ota_packer.py parse --input output.ota
         """)
 
     sub = parser.add_subparsers(dest='target', help='目标设备类型')
 
     # --- mcu 子命令 ---
-    mcu_parser = sub.add_parser('mcu', help='主单片机 (.fot) — BLE OTA 协议')
+    mcu_parser = sub.add_parser('mcu', help='主单片机 (.fot) — target=0x01, BLE OTA')
     mcu_parser.add_argument('--input', '-i', required=True,
                             help='输入固件文件路径 (.fot)')
     mcu_parser.add_argument('--output', '-o', default=None,
-                            help='输出 OTA 文件路径 (默认: <input>.ota)')
-    mcu_parser.add_argument('--dry-run', '-n', action='store_true',
-                            help='仅预览, 不写入文件')
+                            help='输出 .ota 文件路径 (默认: mcu_ota/<basename>.ota)')
+    mcu_parser.add_argument('--version', '-v', default='0x00000001',
+                            help='固件版本号 (默认: 0x00000001)')
 
     # --- heat 子命令 ---
-    heat_parser = sub.add_parser('heat', help='加热模块 (.bin) — MCU/UART OTA 协议')
+    heat_parser = sub.add_parser('heat', help='加热模块 (.bin) — target=0x02, BLE OTA')
     heat_parser.add_argument('--input', '-i', required=True,
                              help='输入固件文件路径 (.bin)')
     heat_parser.add_argument('--output', '-o', default=None,
-                             help='输出 OTA 文件路径 (默认: <input>.ota)')
+                             help='输出 .ota 文件路径 (默认: heat_ota/<basename>.ota)')
     heat_parser.add_argument('--version', '-v', default='0x00000001',
-                             help='固件版本号 (hex: 0x..., 点分: 1.0.0, 十进制: 65536)')
-    heat_parser.add_argument('--reset', '-r', action='store_true',
-                             help='在升级前添加复位到 Boot 的指令帧')
-    heat_parser.add_argument('--crc', choices=[CRC_STANDARD, CRC_MPEG2],
-                             default=CRC_MPEG2,
-                             help='CRC 算法 (默认: mpeg2)')
-    heat_parser.add_argument('--dry-run', '-n', action='store_true',
-                             help='仅预览, 不写入文件')
+                             help='固件版本号 (默认: 0x00000001)')
+
+    # --- parse 子命令 ---
+    parse_parser = sub.add_parser('parse', help='解析已有的 .ota 文件')
+    parse_parser.add_argument('--input', '-i', required=True,
+                              help='输入的 .ota 文件路径')
 
     args = parser.parse_args()
 
     if not args.target:
         parser.print_help()
+        sys.exit(1)
+
+    # --- parse 子命令 ---
+    if args.target == 'parse':
+        cmd_parse(args)
+        return
+
+    # --- 解析版本号 ---
+    try:
+        version = parse_version(args.version)
+    except ValueError as e:
+        print(f"[错误] 版本号解析失败: {e}")
         sys.exit(1)
 
     # --- 读取输入文件 ---
@@ -449,115 +475,41 @@ def main():
         print("[错误] 固件文件为空")
         sys.exit(1)
 
+    # --- 确定目标 ---
+    if args.target == 'mcu':
+        target = TARGET_MAIN_MCU
+    else:
+        target = TARGET_HEAT_MODULE
+
     print(f"[info] 读取固件: {input_path}")
     print(f"       文件大小: {len(firmware)} bytes ({len(firmware)/1024:.1f} KB)")
+    print(f"       版本号:   0x{version:08X}")
+    print(f"       目标设备: {'主单片机 (0x01)' if target == TARGET_MAIN_MCU else '加热模块 (0x02)'}")
+    print(f"       协议:     BLE OTA (0x0C/0x0D/0x0E)")
+    print(f"       CRC32:    0x{crc32_mpeg2(firmware):08X} (MPEG-2)")
+
+    # --- 打包 ---
+    frames = pack_ble_ota(firmware, version, target)
 
     # --- 输出路径 ---
     output_path = args.output
-    if not output_path and not args.dry_run:
-        base = os.path.splitext(input_path)[0]
-        output_path = base + '.ota'
+    if not output_path:
+        out_dir = DEFAULT_OUTPUT_DIR[args.target]
+        os.makedirs(out_dir, exist_ok=True)
+        base = os.path.splitext(os.path.basename(input_path))[0]
+        output_path = os.path.join(out_dir, base + '.ota')
 
-    # --- 打包 ---
-    if args.target == 'mcu':
-        print(f"[info] 目标: 主单片机 (BLE OTA 通道, 0x0C/0x0D/0x0E)")
-        frames = pack_mcu_ble(firmware)
-    else:  # heat
-        version = parse_version(args.version)
-        print(f"[info] 目标: 加热模块 (MCU/UART OTA 通道, CMD 0x04)")
-        print(f"       版本号: 0x{version:08X}")
-        print(f"       CRC:    {args.crc}")
-        print(f"       复位帧: {'是' if args.reset else '否'}")
-        frames = pack_heat_uart(firmware, version,
-                                add_reset=args.reset,
-                                crc_type=args.crc)
+    # --- 写入 .ota 文件 ---
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    ota_data = b''.join(frames)
+    with open(output_path, 'wb') as f:
+        f.write(ota_data)
 
-    # --- 输出 ---
-    print_summary(frames, output_path if not args.dry_run else None)
+    # --- 打印摘要 ---
+    print_summary(frames, output_path, len(firmware), version, target)
 
-    if not args.dry_run:
-        ota_data = b''.join(frames)
-        with open(output_path, 'wb') as f:
-            f.write(ota_data)
-        print(f"[完成] OTA 文件已写入: {output_path}")
-        print(f"       可使用 parse 模式查看文件内容:")
-        print(f"       python ota_packer.py parse --input {output_path}")
-
-
-# ============================================================
-# 辅助: OTA 文件解析器
-# ============================================================
-
-def parse_ota_file(filepath: str) -> List[bytes]:
-    """
-    解析已有的 .ota 文件, 按帧边界拆分.
-    返回帧列表.
-    """
-    with open(filepath, 'rb') as f:
-        data = f.read()
-
-    frames = []
-    pos = 0
-    while pos < len(data):
-        # 最小帧: 2(头) + 1(ver) + 1(flag) + 1(cmd) + 1(err) + 2(len) + 0(data) + 1(cs) = 9
-        if pos + 9 > len(data):
-            print(f"[警告] 位置 {pos}: 剩余 {len(data)-pos} 字节不足以构成完整帧, 停止解析")
-            break
-
-        # 检查帧头
-        if data[pos:pos+2] != FRAME_HEAD:
-            print(f"[错误] 位置 {pos}: 帧头不匹配 (期望 0x55AA, 实际 "
-                  f"0x{data[pos]:02X}{data[pos+1]:02X}), 停止解析")
-            break
-
-        cmd = data[pos + 4]
-        data_len = struct.unpack('>H', data[pos+6:pos+8])[0]
-        frame_total = 9 + data_len  # 头(2) + ver(1) + flag(1) + cmd(1) + err(1) + dlen(2) + data + cs(1)
-
-        if pos + frame_total > len(data):
-            print(f"[错误] 位置 {pos}: 帧长度 {frame_total} 超出文件范围, 停止解析")
-            break
-
-        frame = data[pos:pos + frame_total]
-        frames.append(frame)
-        pos += frame_total
-
-    return frames
-
-
-# ============================================================
-# 扩展 CLI: parse 子命令 + 主入口
-# ============================================================
-
-def _parse_main():
-    """OTA 文件解析入口 (通过 parse 子命令调用)"""
-    parser = argparse.ArgumentParser(
-        description='解析 .ota 文件并打印每帧信息',
-        add_help=False)
-    parser.add_argument('--input', '-i', required=True,
-                        help='输入的 .ota 文件路径')
-    args, _ = parser.parse_known_args()
-
-    frames = parse_ota_file(args.input)
-    if not frames:
-        print("[错误] 未能解析任何帧")
-        return
-
-    print(f"解析 {args.input}: 共 {len(frames)} 帧, "
-          f"{sum(len(f) for f in frames)} bytes\n")
-    for i, f in enumerate(frames):
-        cmd = f[4]
-        dlen = struct.unpack('>H', f[6:8])[0]
-        cs = f[-1]
-        expected = calc_checksum(f[:-1])
-        ok = "✓" if cs == expected else f"✗(期望0x{expected:02X})"
-        print(f"[{i:4d}] cmd=0x{cmd:02X}  dlen={dlen:3d}B  "
-              f"frame={len(f):3d}B  checksum=0x{cs:02X} {ok}")
+    print(f"\n[完成] 可打开 BLEDebug → 加载 {output_path} → 逐帧发送。")
 
 
 if __name__ == '__main__':
-    # 支持 parse 子命令 (hack: 在 argparse 处理前检查)
-    if len(sys.argv) > 1 and sys.argv[1] == 'parse':
-        _parse_main()
-    else:
-        main()
+    main()
