@@ -1043,6 +1043,15 @@ static void new_heat_power_key(f_new_heat_t *f)
     func_cb.sta = FUNC_HOME;
 }
 
+/* 模式键：跳转到模式选择页 */
+static void new_heat_mode_key(void)
+{
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    func_switch_to(FUNC_NEW_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
 /* 定期刷新状态栏（蓝牙、电量电池图标按原始逻辑显示） */
 #if !ELUNCHBOX_PANEL_EN
 static void new_heat_status_refresh(f_new_heat_t *f)
@@ -1196,6 +1205,8 @@ static void new_heat_pt8028_keys_process(f_new_heat_t *f)
         new_heat_value_dec(f);
     } else if (press_tch == PT8028_KEY_TCH6) {
         new_heat_value_inc(f);
+    } else if (press_tch == PT8028_KEY_TCH3) {
+        new_heat_mode_key();
     }
 }
 
@@ -1232,6 +1243,7 @@ static void func_new_heat_message(size_msg_t msg)
     case KU_BACK:
     case KU_VOL_UP:
     case KU_VOL_DOWN:
+    case KU_MODE:
     case KEY_RIGHT | KEY_SHORT_UP:
         return;
     default:
@@ -1250,6 +1262,9 @@ static void func_new_heat_message(size_msg_t msg)
         break;
     case KEY_RIGHT | KEY_SHORT_UP:  /* NEW_HEAT_MSG_POWER = 电源/返回键 */
         new_heat_power_key(f);
+        break;
+    case KU_MODE:       /* 模式键：跳转到模式页 */
+        new_heat_mode_key();
         break;
     default:
         func_message(msg);

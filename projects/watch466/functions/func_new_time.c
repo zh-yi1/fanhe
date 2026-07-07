@@ -706,6 +706,15 @@ static void new_time_value_inc(f_new_time_t *f)
         f->min = (u8)((f->min + 1) % 60);
         new_time_focus_refresh(f);
         break;
+    case NEW_TIME_FOCUS_AMPM:
+        f->is_pm = !f->is_pm;
+        new_time_shapes_apply(f);
+        new_time_text_apply(f);
+        break;
+    case NEW_TIME_FOCUS_BOTTOM:
+        f->bottom_sel = (u8)((f->bottom_sel + 1) & 1);
+        new_time_focus_refresh(f);
+        break;
     default:
         break;
     }
@@ -723,6 +732,15 @@ static void new_time_value_dec(f_new_time_t *f)
         break;
     case NEW_TIME_FOCUS_MIN:
         f->min = (u8)((f->min + 59) % 60);
+        new_time_focus_refresh(f);
+        break;
+    case NEW_TIME_FOCUS_AMPM:
+        f->is_pm = !f->is_pm;
+        new_time_shapes_apply(f);
+        new_time_text_apply(f);
+        break;
+    case NEW_TIME_FOCUS_BOTTOM:
+        f->bottom_sel = (u8)((f->bottom_sel + 1) & 1);
         new_time_focus_refresh(f);
         break;
     default:
@@ -760,22 +778,12 @@ static void new_time_ok_key(f_new_time_t *f)
 
 static void new_time_mode_key(f_new_time_t *f)
 {
-    if (f == NULL) {
+    (void)f;
+    /* 模式键：跳转到模式选择页 */
+    if (sys_cb.flag_swithing) {
         return;
     }
-    switch (f->focus) {
-    case NEW_TIME_FOCUS_AMPM:
-        f->is_pm = !f->is_pm;
-        new_time_shapes_apply(f);
-        new_time_text_apply(f);
-        break;
-    case NEW_TIME_FOCUS_BOTTOM:
-        f->bottom_sel = (u8)((f->bottom_sel + 1) & 1);
-        new_time_focus_refresh(f);
-        break;
-    default:
-        break;
-    }
+    func_switch_to(FUNC_NEW_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
 static void new_time_power_key(f_new_time_t *f)

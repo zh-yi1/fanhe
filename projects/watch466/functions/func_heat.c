@@ -1136,7 +1136,15 @@ static void func_heat_message(size_msg_t msg)
         break;
 
     case KU_MODE:
+#if ELUNCHBOX_PANEL_EN
+        /* 模式键：跳转到模式选择页 */
+        if (!sys_cb.flag_swithing) {
+            func_switch_to(FUNC_NEW_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
         break;
+#else
+        break;
+#endif
 
     default:
         func_message(msg);

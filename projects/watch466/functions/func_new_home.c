@@ -529,10 +529,27 @@ void func_home_mode_key(void)
         return;
     }
 #endif
-    /* 模式键：只更新索引，重绘延后到 process（避免 Flash/GPU 阻塞扫键） */
-    f->cur_tab++;
-    if (f->cur_tab >= NEW_HOME_TAB_CNT) {
-        f->cur_tab = 0;
+    /* 模式键：跳转到模式选择页 */
+    func_switch_to(FUNC_NEW_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
+/* 加减键：切换首页 tab */
+static void new_home_tab_cycle(f_new_home_t *f, s8 dir)
+{
+    if (f == NULL) {
+        return;
+    }
+    if (dir > 0) {
+        f->cur_tab++;
+        if (f->cur_tab >= NEW_HOME_TAB_CNT) {
+            f->cur_tab = 0;
+        }
+    } else {
+        if (f->cur_tab == 0) {
+            f->cur_tab = NEW_HOME_TAB_CNT - 1;
+        } else {
+            f->cur_tab--;
+        }
     }
 #if ELUNCHBOX_PANEL_EN
     f->tab_repaint_pending = true;
@@ -633,6 +650,10 @@ void new_home_pt8028_keys_process(f_new_home_t *f)
         func_home_confirm_key();
     } else if (press_tch == PT8028_KEY_TCH4) {
         func_home_confirm_key();
+    } else if (press_tch == PT8028_KEY_TCH2) {
+        new_home_tab_cycle(f, -1);
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        new_home_tab_cycle(f, +1);
     }
 }
 

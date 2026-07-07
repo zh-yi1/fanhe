@@ -2093,9 +2093,9 @@ void func_message(size_msg_t msg)
 
     case KU_MODE:
 #if ELUNCHBOX_PANEL_EN
-            if (func_cb.sta == FUNC_HOME) {
-                break;
-            }
+            /* 面板端：所有新 UI 页面模式键统一跳转到模式选择页 */
+            func_switch_to(FUNC_NEW_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            break;
 #endif
             if (func_cb.sta == FUNC_HOME) {
                 func_home_mode_key();

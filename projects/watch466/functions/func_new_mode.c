@@ -730,6 +730,22 @@ static void new_mode_sel_next(f_new_mode_t *f)
 #endif
 }
 
+static void new_mode_sel_prev(f_new_mode_t *f)
+{
+    u8 prev;
+
+    if (f == NULL) {
+        return;
+    }
+    prev = f->sel;
+    f->sel = (f->sel == 0) ? (u8)(NEW_MODE_ITEM_CNT - 1) : (u8)(f->sel - 1);
+#if ELUNCHBOX_PANEL_EN
+    new_mode_sel_apply_delta(f, prev, f->sel);
+#else
+    f->display_pending = true;
+#endif
+}
+
 static void new_mode_confirm(f_new_mode_t *f)
 {
     if (f == NULL || sys_cb.flag_swithing) {
@@ -863,11 +879,15 @@ static void new_mode_pt8028_keys_process(f_new_mode_t *f)
         elunchbox_user_activity_reset();
     }
     if (press_tch == PT8028_KEY_TCH3) {
-        new_mode_sel_next(f);
+        /* 已经在模式页，模式键不做任何操作 */
     } else if (press_tch == PT8028_KEY_TCH4) {
         new_mode_confirm(f);
     } else if (press_tch == PT8028_KEY_TCH5) {
         new_mode_power_key();
+    } else if (press_tch == PT8028_KEY_TCH2) {
+        new_mode_sel_prev(f);
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        new_mode_sel_next(f);
     }
 }
 
@@ -901,6 +921,8 @@ static void func_new_mode_message(size_msg_t msg)
     switch (msg) {
     case KU_MODE:
     case KU_BACK:
+    case KU_VOL_UP:
+    case KU_VOL_DOWN:
     case KEY_RIGHT | KEY_SHORT_UP:
         return;
     default:
@@ -909,13 +931,19 @@ static void func_new_mode_message(size_msg_t msg)
 #endif
     switch (msg) {
     case KU_MODE:
-        new_mode_sel_next(f);
+        /* 已经在模式页，模式键不做任何操作 */
         break;
     case KU_BACK:
         new_mode_confirm(f);
         break;
     case KEY_RIGHT | KEY_SHORT_UP:
         new_mode_power_key();
+        break;
+    case KU_VOL_UP:
+        new_mode_sel_next(f);
+        break;
+    case KU_VOL_DOWN:
+        new_mode_sel_prev(f);
         break;
     default:
         func_message(msg);
@@ -946,13 +974,7 @@ static void func_new_mode_process(void)
         func_process();
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
-        {
-            u8 stale = pt8028_take_press_tch();
-
-            if (stale != 0xff && stale == PT8028_KEY_TCH3) {
-                new_mode_sel_next(f);
-            }
-        }
+        (void)pt8028_take_press_tch();
         f->key_ready = true;
         return;
     }

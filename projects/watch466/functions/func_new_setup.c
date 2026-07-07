@@ -724,6 +724,22 @@ static void new_setup_sel_next(f_new_setup_t *f)
 #endif
 }
 
+static void new_setup_sel_prev(f_new_setup_t *f)
+{
+    u8 prev;
+
+    if (f == NULL) {
+        return;
+    }
+    prev = f->sel;
+    f->sel = (f->sel == 0) ? (u8)(NEW_SETUP_ITEM_CNT - 1) : (u8)(f->sel - 1);
+#if ELUNCHBOX_PANEL_EN
+    new_setup_sel_apply_delta(f, prev, f->sel);
+#else
+    f->display_pending = true;
+#endif
+}
+
 static void new_setup_confirm(f_new_setup_t *f)
 {
     if (f == NULL || sys_cb.flag_swithing || f->sel >= NEW_SETUP_ITEM_CNT) {
@@ -738,6 +754,15 @@ static void new_setup_power_key(void)
         return;
     }
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
+/* 模式键：跳转到模式选择页 */
+static void new_setup_mode_key(void)
+{
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    func_switch_to(FUNC_NEW_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
 compo_form_t *func_new_setup_form_create(void)
@@ -808,11 +833,15 @@ static void new_setup_pt8028_keys_process(f_new_setup_t *f)
         elunchbox_user_activity_reset();
     }
     if (press_tch == PT8028_KEY_TCH3) {
-        new_setup_sel_next(f);
+        new_setup_mode_key();
     } else if (press_tch == PT8028_KEY_TCH4) {
         new_setup_confirm(f);
     } else if (press_tch == PT8028_KEY_TCH5) {
         new_setup_power_key();
+    } else if (press_tch == PT8028_KEY_TCH2) {
+        new_setup_sel_prev(f);
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        new_setup_sel_next(f);
     }
 }
 
@@ -844,6 +873,8 @@ static void func_new_setup_message(size_msg_t msg)
     switch (msg) {
     case KU_MODE:
     case KU_BACK:
+    case KU_VOL_UP:
+    case KU_VOL_DOWN:
     case KEY_RIGHT | KEY_SHORT_UP:
         return;
     default:
@@ -852,13 +883,19 @@ static void func_new_setup_message(size_msg_t msg)
 #endif
     switch (msg) {
     case KU_MODE:
-        new_setup_sel_next(f);
+        new_setup_mode_key();
         break;
     case KU_BACK:
         new_setup_confirm(f);
         break;
     case KEY_RIGHT | KEY_SHORT_UP:
         new_setup_power_key();
+        break;
+    case KU_VOL_UP:
+        new_setup_sel_next(f);
+        break;
+    case KU_VOL_DOWN:
+        new_setup_sel_prev(f);
         break;
     default:
         func_message(msg);
