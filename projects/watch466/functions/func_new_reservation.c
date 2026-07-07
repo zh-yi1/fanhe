@@ -110,6 +110,9 @@ static void new_res_font_apply_once(f_new_reservation_t *f)
     new_res_font_bind_txt(f->txt_colon[0]);
     new_res_font_bind_txt(f->txt_colon[1]);
     new_res_font_ready = true;
+
+    /* 方式 3：覆盖标题 "Set Time(Heating Finish Time)" 为 14px 字体 */
+    compo_textbox_set_font(f->txt_title, UI_BUF_0FONT_FONT_TEST_14_BIN);
 }
 #endif
 
