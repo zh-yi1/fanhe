@@ -470,6 +470,9 @@ static void new_warm_font_apply_once(f_new_warm_t *f)
     new_warm_font_bind_txt(f->txt_elapsed);
     new_warm_font_bind_txt(f->txt_elapsed_lbl);
     new_warm_font_ready = true;
+
+    /* 方式 3：覆盖 "Total Warm Time" 标签为 14px 字体 */
+    compo_textbox_set_font(f->txt_elapsed_lbl, UI_BUF_0FONT_FONT_TEST_14_BIN);
 }
 #endif
 
