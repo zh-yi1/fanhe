@@ -202,6 +202,10 @@ void func_elunchbox_switch_to_warm_panel(void)
         func_new_warm_ble_restart();
         return;
     }
+    if (func_cb.sta == FUNC_HEAT && func_cb.f_cb != NULL) {
+        func_elunchbox_enter_warm_from_heat();
+        return;
+    }
     elunchbox_ble_pending_sta = FUNC_NEW_WARM;
     printf("elunchbox: warm panel pending (cur_sta=%u switching=%u)\n",
            func_cb.sta, sys_cb.flag_swithing ? 1u : 0u);

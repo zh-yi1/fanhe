@@ -1433,11 +1433,43 @@ void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
     if (!f->heat_live_ready || f->heat_live_remain_min != 0) {
         return;
     }
+    func_elunchbox_enter_warm_from_heat();
+}
+
+void func_elunchbox_enter_warm_from_heat(void)
+{
+    f_heat_t *f;
+
+#if !ELUNCHBOX_PANEL_EN
+    func_heat_countdown_stop();
+    func_mode_keep_warm_enter();
+    return;
+#endif
+
+    if (func_cb.sta == FUNC_NEW_WARM) {
+        return;
+    }
+    if (func_cb.sta != FUNC_HEAT || func_cb.f_cb == NULL) {
+        func_elunchbox_switch_to_warm_panel();
+        return;
+    }
+
+    f = (f_heat_t *)func_cb.f_cb;
+    if (f->ui_state != HEAT_UI_HEATING) {
+        return;
+    }
+
+    printf("heat_finish -> warm panel\n");
     func_heat_countdown_stop();
     f->ui_state = HEAT_UI_FINISHED;
     f->screen_locked = false;
     func_heat_led_sync(false);
     heat_display_unregister();
+#if FUNC_LUNCHBOX_UART_EN
+    if (!lunchbox_keep_warm_is_active()) {
+        lunchbox_keep_warm_start();
+    }
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     func_key_lock_on_heating_stop();
     func_home_drain_stale_key_msgs();
