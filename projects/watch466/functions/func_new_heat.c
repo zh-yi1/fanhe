@@ -449,6 +449,54 @@ static void new_heat_point_apply(compo_picturebox_t *pic, u8 idx, u8 max_idx, u1
                        new_heat_point_x(idx, max_idx, track_w), y);
 }
 
+/* 圆点图已在 RAM：加减键只改位置，勿重复读 Flash */
+static void new_heat_point_repos(compo_picturebox_t *pic, u8 idx, u8 max_idx,
+                                 u16 track_w, s16 y, bool visible)
+{
+    if (pic == NULL) {
+        return;
+    }
+    if (!visible) {
+        compo_picturebox_set_visible(pic, false);
+        return;
+    }
+    compo_picturebox_set_pos(pic, new_heat_point_x(idx, max_idx, track_w), y);
+    compo_picturebox_set_visible(pic, true);
+}
+
+static void new_heat_temp_track_apply(f_new_heat_t *f);
+static void new_heat_time_track_apply(f_new_heat_t *f);
+
+static void new_heat_slider_focus_apply(f_new_heat_t *f)
+{
+    char buf[24];
+
+    if (f == NULL) {
+        return;
+    }
+    elunchbox_te_block_flag = 1;
+    if (f->focus == NEW_HEAT_FOCUS_TEMP) {
+        new_heat_temp_track_apply(f);
+        new_heat_point_repos(f->pic_temp_point, f->temp_idx, NEW_HEAT_TEMP_CNT - 1,
+                             new_heat_temp_track_w(f->temp_idx), NEW_HEAT_TEMP_SLIDER_Y,
+                             true);
+        if (f->txt_temp_val != NULL) {
+            new_heat_format_temp(buf, tbl_new_heat_temp_f[f->temp_idx]);
+            compo_textbox_set(f->txt_temp_val, buf);
+        }
+    } else {
+        new_heat_time_track_apply(f);
+        new_heat_point_repos(f->pic_time_point, f->time_idx, NEW_HEAT_TIME_CNT - 1,
+                             new_heat_time_track_w(f->time_idx), NEW_HEAT_TIME_SLIDER_Y,
+                             true);
+        if (f->txt_time_val != NULL) {
+            new_heat_format_duration(buf, tbl_new_heat_time_min[f->time_idx]);
+            compo_textbox_set(f->txt_time_val, buf);
+        }
+    }
+    elunchbox_te_block_flag = 0;
+}
+
 static void new_heat_temp_track_apply(f_new_heat_t *f)
 {
     if (f == NULL) {
@@ -1240,56 +1288,35 @@ static void func_new_heat_process(void)
         f->key_ready = true;
         return;
     }
+
+    /* 先扫键再刷新：避免 SPI/GPU 阻塞期间按键被积压；同帧尽量合并连按 */
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (elunchbox_ui_is_live()) {
+        u8 k;
+
+        for (k = 0; k < 4; k++) {
+            u8 t_before = f->temp_idx;
+            u8 tm_before = f->time_idx;
+
+            pt8028_gpio_ensure_periodic();
+            pt8028_key_scan();
+            new_heat_keys_poll(f);
+            if (f->temp_idx == t_before && f->time_idx == tm_before) {
+                break;
+            }
+        }
+    }
 #endif
 
-#if ELUNCHBOX_PANEL_EN
     if (f->display_pending) {
+        bool slider_refreshed = false;
+
         WDT_CLR();
 
         if (f->slider_only_pending) {
-            /* 加减键：只更新 track 图片+位置+文字，跳过 badge/point/scales 的 flash 重读。
-               整体在 te_block 保护下完成 SPI flash 读取。 */
-            home_gpu_wait_idle();           /* 排净残留 GPU DMA */
-            elunchbox_te_block_flag = 1;
-
-            new_heat_temp_track_apply(f);   /* SPI flash 读（track 图片随索引变） */
-            new_heat_time_track_apply(f);   /* SPI flash 读 */
-            WDT_CLR();
-
-            /* 圆点：图片不变，只移位置（纯 RAM） */
-            {
-                u16 tw = new_heat_temp_track_w(f->temp_idx);
-                if (f->pic_temp_point != NULL) {
-                    compo_picturebox_set_pos(f->pic_temp_point,
-                        new_heat_point_x(f->temp_idx, NEW_HEAT_TEMP_CNT - 1, tw),
-                        NEW_HEAT_TEMP_SLIDER_Y);
-                    compo_picturebox_set_visible(f->pic_temp_point,
-                        f->focus == NEW_HEAT_FOCUS_TEMP);
-                }
-                if (f->pic_time_point != NULL) {
-                    compo_picturebox_set_pos(f->pic_time_point,
-                        new_heat_point_x(f->time_idx, NEW_HEAT_TIME_CNT - 1,
-                                         new_heat_time_track_w(f->time_idx)),
-                        NEW_HEAT_TIME_SLIDER_Y);
-                    compo_picturebox_set_visible(f->pic_time_point,
-                        f->focus == NEW_HEAT_FOCUS_TIME);
-                }
-            }
-            WDT_CLR();
-
-            /* Badge 文字：纯 RAM 更新 */
-            if (f->txt_temp_val != NULL) {
-                char buf[24];
-                new_heat_format_temp(buf, tbl_new_heat_temp_f[f->temp_idx]);
-                compo_textbox_set(f->txt_temp_val, buf);
-            }
-            if (f->txt_time_val != NULL) {
-                char buf[24];
-                new_heat_format_duration(buf, tbl_new_heat_time_min[f->time_idx]);
-                compo_textbox_set(f->txt_time_val, buf);
-            }
-
-            elunchbox_te_block_flag = 0;
+            /* 加减键：只刷新当前焦点滑条，勿 wait_idle（易 gui thread miss） */
+            new_heat_slider_focus_apply(f);
+            slider_refreshed = true;
         } else {
             /* 焦点切换(确认/返回键)：完整 UI 刷新 */
             home_gpu_wait_idle();
@@ -1301,20 +1328,33 @@ static void func_new_heat_process(void)
         f->display_pending = false;
         f->slider_only_pending = false;
         WDT_CLR();
-
-        /* 非阻塞请求重绘：下一个 TE 中断会触发 os_gui_draw 完成刷新 */
         gui_widget_refresh();
-    }
-    home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
-    /* home_ui_shared_status_refresh_bt 内含 os_spiflash_read，需 te_block 保护 */
-    {
-        u8 was_blocked = elunchbox_te_block_flag;
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 1;
+
+        home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
+        /* 加减帧跳过 BT 图标 Flash 重读，减轻卡顿 */
+        if (!slider_refreshed) {
+            u8 was_blocked = elunchbox_te_block_flag;
+
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 1;
+            }
+            home_ui_shared_status_refresh_bt(f->pic_bt);
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 0;
+            }
         }
-        home_ui_shared_status_refresh_bt(f->pic_bt);
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 0;
+    } else {
+        home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
+        {
+            u8 was_blocked = elunchbox_te_block_flag;
+
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 1;
+            }
+            home_ui_shared_status_refresh_bt(f->pic_bt);
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 0;
+            }
         }
     }
 #endif
@@ -1323,9 +1363,6 @@ static void func_new_heat_process(void)
     if (!elunchbox_ui_is_live()) {
         return;
     }
-#endif
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_heat_keys_poll(f);
 #endif
 #if !ELUNCHBOX_PANEL_EN
     new_heat_text_apply(f);
