@@ -291,9 +291,9 @@ bool func_key_lock_press_take_poll(void)
     if (!key_lock_active) {
         return false;
     }
-    /* 锁定态下，无条件消费所有非电源按键，不让任何按键从队列漏出 */
+    /* 锁定态下，无条件消费所有按键，不让任何按键从队列漏出 */
     press_tch = pt8028_peek_press_tch();
-    if (press_tch > PT8028_KEY_TCH7 || press_tch == PT8028_KEY_TCH5) {
+    if (press_tch > PT8028_KEY_TCH7) {
         return false;
     }
     press_tch = pt8028_take_press_tch();
@@ -312,9 +312,7 @@ bool func_key_lock_filter_tch(u8 tch)
     if (!key_lock_active) {
         return false;
     }
-    if (tch == PT8028_KEY_TCH5) {
-        return false;
-    }
+    /* 锁定态下所有按键都过滤（包括 TCH5） */
     return true;
 }
 
