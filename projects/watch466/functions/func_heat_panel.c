@@ -733,6 +733,11 @@ static void heat_panel_font_apply_once(void)
     heat_panel_font_bind_txt(g_hp.txt_dur);
     heat_panel_font_bind_txt(g_hp.txt_dur_lbl);
     g_hp.font_ready = true;
+
+    /* 方式 3：覆盖标签为 14px 字体 */
+    compo_textbox_set_font(g_hp.txt_remain_lbl, UI_BUF_0FONT_FONT_TEST_10_BIN);
+    compo_textbox_set_font(g_hp.txt_temp_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
+    compo_textbox_set_font(g_hp.txt_dur_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
 }
 
 static void heat_panel_text_apply(const void *f_heat)
