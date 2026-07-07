@@ -130,6 +130,10 @@ static bool func_switching_fade(u16 switch_mode, bool flag_auto)
     u32 tick = tick_get();
     switch_mode = switch_mode & 0xFF;
 
+    if (frm_cur == NULL || frm_cur->page == NULL) {
+        return true;
+    }
+
     switch (switch_mode) {
     case FUNC_SWITCH_FADE_OUT:
         cur_alpha = 255;

@@ -103,7 +103,8 @@ void func_elunchbox_switch_to_reservation(void)
     home_gpu_wait_idle();
     WDT_CLR();
     func_res_allow_switch = 1;
-    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    /* 与模式页进预约一致：DIRECT 避免 FADE_OUT 在 frm 已销毁时 compo_form_set_alpha → 5142 */
+    func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
     func_res_allow_switch = 0;
 }
 
@@ -228,7 +229,7 @@ static bool elunchbox_subpage_sta(u8 sta)
 {
     return sta == FUNC_NEW_HEAT || sta == FUNC_NEW_WARM || sta == FUNC_NEW_MODE
         || sta == FUNC_NEW_SETUP || sta == FUNC_NEW_LANGUAGE || sta == FUNC_NEW_VERINFO
-        || sta == FUNC_NEW_TIME;
+        || sta == FUNC_NEW_TIME || sta == FUNC_RESERVATION;
 }
 #endif
 
@@ -238,6 +239,11 @@ void func_elunchbox_res_key_poll(void)
     if (sys_cb.flag_swithing) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (func_cb.sta == FUNC_RESERVATION && !func_new_reservation_key_ready()) {
+        return;
+    }
+#endif
     if (pt8028_take_res_key_pending()) {
         if (func_key_lock_is_active()) {
             func_key_lock_notify_blocked();

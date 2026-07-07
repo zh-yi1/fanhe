@@ -1,6 +1,7 @@
 #include "include.h"
 #include "func.h"
 #include "func_lunchbox_uart.h"
+#include "func_reservation.h"
 #include "home_icon_res.h"
 #include "home_ui_ram.h"
 #include "home_ui_shared.h"
@@ -1487,6 +1488,11 @@ void func_heat_key_poll(void)
     }
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.sta == FUNC_NEW_HEAT) {
+        return;
+    }
+#endif
+#if FUNC_RESERVATION_UI_EN
+    if (func_cb.sta == FUNC_RESERVATION && !func_new_reservation_key_ready()) {
         return;
     }
 #endif

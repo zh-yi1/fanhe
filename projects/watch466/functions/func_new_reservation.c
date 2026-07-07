@@ -68,12 +68,28 @@ enum {
     NEW_RES_FOCUS_CNT,
 };
 
+#if ELUNCHBOX_PANEL_EN
+enum {
+    NEW_RES_LOAD_FONT_TITLE = 0,
+    NEW_RES_LOAD_FONT_ROLL0,
+    NEW_RES_LOAD_FONT_ROLL1,
+    NEW_RES_LOAD_FONT_ROLL2,
+    NEW_RES_LOAD_FONT_COLON,
+    NEW_RES_LOAD_CONTENT,
+    NEW_RES_LOAD_DONE,
+};
+#endif
+
 typedef struct {
     u8 appt_hour;
     u8 appt_min;
     u8 appt_sec;
     u8 focus_col;
     bool display_pending;
+#if ELUNCHBOX_PANEL_EN
+    u8 load_stage;
+    bool key_ready;
+#endif
     compo_textbox_t *txt_title;
     compo_textbox_t *txt_roll[NEW_RES_ROLL_COLS][NEW_RES_ROLL_ROWS];
     compo_textbox_t *txt_colon[2];
@@ -295,7 +311,7 @@ static void new_res_bind_objects(f_new_reservation_t *f)
     f->txt_colon[1] = compo_getobj_byid(COMPO_ID_TXT_COLON1);
 }
 
-static void new_res_roller_apply(f_new_reservation_t *f)
+static void new_res_roller_content_apply(f_new_reservation_t *f)
 {
     char buf[8];
     u8 col;
@@ -304,10 +320,6 @@ static void new_res_roller_apply(f_new_reservation_t *f)
     if (f == NULL) {
         return;
     }
-
-#if ELUNCHBOX_PANEL_EN
-    new_res_font_apply_once(f);
-#endif
 
     if (f->txt_title != NULL) {
         widget_text_t *widget = f->txt_title->txt;
@@ -367,17 +379,31 @@ static void new_res_roller_apply(f_new_reservation_t *f)
     }
 }
 
+static void new_res_roller_apply(f_new_reservation_t *f)
+{
+#if ELUNCHBOX_PANEL_EN
+    new_res_font_apply_once(f);
+#endif
+    new_res_roller_content_apply(f);
+}
+
 static void new_res_ui_refresh(f_new_reservation_t *f)
 {
     if (f == NULL) {
         return;
     }
 #if ELUNCHBOX_PANEL_EN
+    elunchbox_te_block_flag = 1;
     home_gpu_wait_idle();
     WDT_CLR();
-#endif
+    new_res_roller_content_apply(f);
+    f->display_pending = false;
+    elunchbox_te_block_flag = 0;
+    gui_widget_refresh();
+#else
     new_res_roller_apply(f);
     f->display_pending = false;
+#endif
 }
 
 static void new_res_value_inc(f_new_reservation_t *f)
@@ -477,6 +503,11 @@ static void func_new_reservation_message(size_msg_t msg)
     if (func_key_lock_ku_blocked(msg)) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (f != NULL && !f->key_ready) {
+        return;
+    }
+#endif
     switch (msg) {
     case KU_BACK:
         new_res_ok_key(f);
@@ -499,11 +530,77 @@ static void func_new_reservation_message(size_msg_t msg)
 static void func_new_reservation_process(void)
 {
     f_new_reservation_t *f = (f_new_reservation_t *)func_cb.f_cb;
+    u8 row;
 
     if (f == NULL) {
         func_process();
         return;
     }
+
+#if ELUNCHBOX_PANEL_EN
+    if (!f->key_ready) {
+        WDT_CLR();
+        switch (f->load_stage) {
+        case NEW_RES_LOAD_FONT_TITLE:
+            new_res_font_bind_txt(f->txt_title);
+            f->load_stage = NEW_RES_LOAD_FONT_ROLL0;
+            break;
+        case NEW_RES_LOAD_FONT_ROLL0:
+            for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
+                WDT_CLR();
+                new_res_font_bind_txt(f->txt_roll[0][row]);
+            }
+            f->load_stage = NEW_RES_LOAD_FONT_ROLL1;
+            break;
+        case NEW_RES_LOAD_FONT_ROLL1:
+            for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
+                WDT_CLR();
+                new_res_font_bind_txt(f->txt_roll[1][row]);
+            }
+            f->load_stage = NEW_RES_LOAD_FONT_ROLL2;
+            break;
+        case NEW_RES_LOAD_FONT_ROLL2:
+            for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
+                WDT_CLR();
+                new_res_font_bind_txt(f->txt_roll[2][row]);
+            }
+            f->load_stage = NEW_RES_LOAD_FONT_COLON;
+            break;
+        case NEW_RES_LOAD_FONT_COLON:
+            new_res_font_bind_txt(f->txt_colon[0]);
+            new_res_font_bind_txt(f->txt_colon[1]);
+            if (f->txt_title != NULL) {
+                compo_textbox_set_font(f->txt_title, UI_BUF_0FONT_FONT_TEST_14_BIN);
+            }
+            new_res_font_ready = true;
+            f->load_stage = NEW_RES_LOAD_CONTENT;
+            break;
+        case NEW_RES_LOAD_CONTENT:
+            elunchbox_te_block_flag = 1;
+            home_gpu_wait_idle();
+            WDT_CLR();
+            new_res_roller_content_apply(f);
+            elunchbox_te_block_flag = 0;
+            gui_widget_refresh();
+            f->load_stage = NEW_RES_LOAD_DONE;
+            f->key_ready = true;
+            f->display_pending = false;
+            break;
+        default:
+            f->key_ready = true;
+            break;
+        }
+        func_process();
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        func_home_drain_stale_key_msgs();
+        pt8028_release_clear();
+        (void)pt8028_take_press_tch();
+        (void)pt8028_take_res_key_pending();
+#endif
+        return;
+    }
+#endif
+
 #if ELUNCHBOX_PANEL_EN
     if (f->display_pending && elunchbox_ui_is_live()) {
         new_res_ui_refresh(f);
@@ -521,21 +618,39 @@ static void func_new_reservation_process(void)
 #endif
 }
 
+bool func_new_reservation_key_ready(void)
+{
+#if ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
+    f_new_reservation_t *f;
+
+    if (func_cb.sta != FUNC_RESERVATION) {
+        return true;
+    }
+    f = (f_new_reservation_t *)func_cb.f_cb;
+    if (f == NULL) {
+        return false;
+    }
+    return f->key_ready;
+#else
+    return true;
+#endif
+}
+
 void func_new_reservation_enter(void)
 {
     f_new_reservation_t *f;
 
     printf("func_new_reservation_enter\n");
 
-#if ELUNCHBOX_PANEL_EN
-    new_res_font_ready = false;
-    home_gpu_wait_idle();
-    WDT_CLR();
-#endif
-
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_set_home_msg_block(1);
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
+#endif
+
+#if ELUNCHBOX_PANEL_EN
+    new_res_font_ready = false;
+    WDT_CLR();
 #endif
 
     msg_queue_detach(KU_BACK, 0);
@@ -547,23 +662,31 @@ void func_new_reservation_enter(void)
     f = (f_new_reservation_t *)func_cb.f_cb;
     func_reservation_new_ui_load_time(&f->appt_hour, &f->appt_min, &f->appt_sec);
     f->focus_col = NEW_RES_FOCUS_HOUR;
+    f->display_pending = false;
+#if ELUNCHBOX_PANEL_EN
+    f->load_stage = NEW_RES_LOAD_FONT_TITLE;
+    f->key_ready = false;
+#endif
 
     func_cb.frm_main = func_new_reservation_form_create();
+    if (func_cb.frm_main == NULL || func_cb.frm_main->page == NULL) {
+        printf("func_new_reservation_enter: bad frm\n");
+    }
     new_res_bind_objects(f);
 
-    /* 首帧由 process() 做 new_res_ui_refresh */
-    f->display_pending = true;
-
 #if ELUNCHBOX_PANEL_EN
-    home_gpu_wait_idle();
-    WDT_CLR();
     elunchbox_te_block_flag = 0;
     tft_bglight_force_on();
+    printf("func_new_reservation_enter: ok staged=1 te=0\n");
 #endif
 }
 
 void func_new_reservation_exit(void)
 {
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_set_home_msg_block(0);
+    pt8028_release_clear();
+#endif
     func_cb.last = FUNC_RESERVATION;
     printf("func_new_reservation_exit\n");
 }
