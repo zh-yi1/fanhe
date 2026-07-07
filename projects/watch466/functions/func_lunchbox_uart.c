@@ -900,6 +900,9 @@ void lb_heating_sync_from_dp(u8 *data, u16 len)
                 got_remain = true;
             }
             break;
+        case LB_DPID_CHARGE_STATUS:
+            /* 充电状态由 heat_display_feed_dp() 统一处理唤醒逻辑 */
+            break;
         default:
             break;
         }
