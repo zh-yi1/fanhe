@@ -47,7 +47,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define HEAT_PANEL_REMAIN_LBL_Y         130
 #define HEAT_PANEL_SHOW_Y               212
 #define HEAT_PANEL_TEMP_X               72
-#define HEAT_PANEL_DUR_X                248
+#define HEAT_PANEL_DUR_X                233
 #define HEAT_PANEL_VAL_Y                200
 #define HEAT_PANEL_LBL_Y                220
 
@@ -508,7 +508,7 @@ static void heat_panel_point_bind(u8 progress_idx)
         printf("point_bind: fail idx=%u tip=(%d,%d)\n", progress_idx, px, py);
         return;
     }
-    if (g_hp.pic_point->img != NULL) {
+    if (g_hp.pic_point->img != NULL && !func_key_lock_hint_is_on()) {
         widget_set_top(g_hp.pic_point->img, true);
     }
 }
@@ -697,8 +697,10 @@ static void heat_panel_display_on_info(const heat_display_info_t *info)
     if (info->remain_min > 0) {
         g_hp_live_seen_positive = true;
     } else if (!g_hp_live_seen_positive) {
-        /* 开局常见上一轮 remain=0 残留，勿把满弧刷成空弧 */
-        return;
+        /* 开局常见上一轮 remain=0 残留；加热中收到 remain=0 视为自然结束 */
+        if (!func_heat_panel_is_heating(f_heat)) {
+            return;
+        }
     }
 
     func_heat_panel_set_live(f_heat, info->remain_min, info->temp_f);
@@ -733,6 +735,11 @@ static void heat_panel_font_apply_once(void)
     heat_panel_font_bind_txt(g_hp.txt_dur);
     heat_panel_font_bind_txt(g_hp.txt_dur_lbl);
     g_hp.font_ready = true;
+
+    /* 方式 3：覆盖标签为 14px 字体 */
+    compo_textbox_set_font(g_hp.txt_remain_lbl, UI_BUF_0FONT_FONT_TEST_10_BIN);
+    compo_textbox_set_font(g_hp.txt_temp_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
+    compo_textbox_set_font(g_hp.txt_dur_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
 }
 
 static void heat_panel_text_apply(const void *f_heat)
@@ -948,13 +955,7 @@ void func_heat_panel_process(struct f_heat_t_ *f_heat)
     func_heat_panel_status_refresh(f_heat);
 
 #if ELUNCHBOX_PANEL_EN
-    /* 加热中：30s 自动锁屏（HEAT_AUTO_LOCK_MS），锁图标 3s 后消失（KEY_LOCK_HINT_MS） */
-    if (func_heat_panel_is_heating(f_heat)) {
-        func_key_lock_poll();
-        if (func_key_lock_hint_is_on()) {
-            func_key_lock_overlay_to_front();
-        }
-    } else {
+    if (!func_heat_panel_is_heating(f_heat)) {
         func_key_lock_on_heating_stop();
     }
 #endif

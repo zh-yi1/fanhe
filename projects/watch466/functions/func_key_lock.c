@@ -13,11 +13,9 @@
 #endif
 
 /*
- * 按键锁定需求：
- * 1. 长按锁键 3s → 锁定 + LED5 亮 + 显示锁图标；满 3s 自动消失，之后不再自发弹出
- * 2. 锁定态除电源键(TCH5)外无效；用户按任意其它物理键 → 弹出锁图标，3s 后消失
- * 3. 锁定态长按锁键 3s → 解锁 + LED5 灭 + 解锁图标 1.5s 后消失
- * 全页面统一：func_key_lock_press_take_poll / func_key_lock_poll / func_key_lock_ku_blocked
+ * 进入锁定（30s 自动 / 长按 3s）：LED5 亮 + 锁图标 3s → 消失后保持静默
+ * 静默后用户按其它键：锁图标 3s；长按锁键 3s 解锁：LED5 灭 + 解锁图标 1.5s
+ * 锁图标仅由 enter/exit 或 press_take 新按下触发，KU 消息路径只拦截不弹图标
  */
 
 typedef enum {
@@ -35,26 +33,24 @@ static u8 key_lock_lp_tch;
 static u32 key_lock_lp_tick;
 static bool key_lock_lp_wait_rel;
 static u32 key_lock_heat_arm_tick;
-static u8 key_lock_press_edge_tch;
 static bool key_lock_ignore_ku_left_once;
+static bool key_lock_need_key_rel;
+static u32 key_lock_hint_cooldown_tick;
+static bool key_lock_hint_gui_refresh;
+static bool key_lock_entry_hint_settled;  /* 进入锁定的首次 3s 提示已结束 */
 
-static void func_key_lock_set(bool locked);
+static void func_key_lock_enter(bool from_long_press);
+static void func_key_lock_exit(void);
 static void func_key_lock_hint_hide(void);
-static void func_key_lock_hint_show(key_lock_hint_mode_t mode, bool force);
-static void func_key_lock_hint_user_key(void);
+static void func_key_lock_hint_show(key_lock_hint_mode_t mode);
 static void func_key_lock_lp_reset(void);
+static void func_key_lock_on_locked_enter(void);
+static void func_key_lock_need_key_rel_poll(void);
 
 static void func_key_lock_lp_reset(void)
 {
     key_lock_lp_tch = PT8028_KEY_NONE;
     key_lock_lp_tick = 0;
-}
-
-static void func_key_lock_lp_toggle(void)
-{
-    func_key_lock_set(!key_lock_active);
-    key_lock_lp_wait_rel = true;
-    func_key_lock_lp_reset();
 }
 
 static u32 func_key_lock_hint_duration_ms(key_lock_hint_mode_t mode)
@@ -64,19 +60,42 @@ static u32 func_key_lock_hint_duration_ms(key_lock_hint_mode_t mode)
 
 static bool func_key_lock_hint_elapsed(u32 dur_ms)
 {
-    u32 now;
-
     if (key_lock_hint_show_tick == 0) {
         return false;
     }
-    now = tick_get();
-    return (u32)(now - key_lock_hint_show_tick) >= dur_ms;
+    return tick_check_expire(key_lock_hint_show_tick, dur_ms);
 }
 
-static void func_key_lock_hint_show(key_lock_hint_mode_t mode, bool force)
+static bool func_key_lock_hint_in_cooldown(void)
 {
-    /* 已在显示同类图标时不重置计时，避免杂散 KU/UART 事件导致 3s 永不到期 */
-    if (!force && key_lock_hint_on && key_lock_hint_mode == mode) {
+    if (key_lock_hint_cooldown_tick == 0) {
+        return false;
+    }
+    return !tick_check_expire(key_lock_hint_cooldown_tick, KEY_LOCK_HINT_QUIET_MS);
+}
+
+static void func_key_lock_on_locked_enter(void)
+{
+    key_lock_need_key_rel = true;
+    key_lock_hint_cooldown_tick = 0;
+    key_lock_entry_hint_settled = false;
+    pt8028_release_clear();
+}
+
+static void func_key_lock_need_key_rel_poll(void)
+{
+    if (!key_lock_need_key_rel) {
+        return;
+    }
+    if (pt8028_get_press_tch() == PT8028_KEY_NONE && !pt8028_is_press_active()) {
+        key_lock_need_key_rel = false;
+        key_lock_ignore_ku_left_once = true;
+    }
+}
+
+static void func_key_lock_hint_show(key_lock_hint_mode_t mode)
+{
+    if (key_lock_hint_on && key_lock_hint_mode == mode) {
         return;
     }
     key_lock_hint_mode = mode;
@@ -84,43 +103,32 @@ static void func_key_lock_hint_show(key_lock_hint_mode_t mode, bool force)
     key_lock_hint_show_tick = tick_get();
     key_lock_hint_min_polls = 3;
     home_ui_lock_overlay_show(mode == KEY_LOCK_HINT_UNLOCK);
-    func_key_lock_overlay_to_front();
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.sta == FUNC_HOME) {
         func_home_gui_mark_dirty();
     }
-    gui_widget_refresh();
 #endif
-}
-
-static void func_key_lock_hint_user_key(void)
-{
-    if (!key_lock_active || key_lock_lp_wait_rel) {
-        return;
-    }
-    /* 图标已显示时不重置计时，避免同一次按键按下/抬起/多路径重复触发 */
-    if (key_lock_hint_on && key_lock_hint_mode == KEY_LOCK_HINT_LOCK) {
-        return;
-    }
-    func_key_lock_hint_show(KEY_LOCK_HINT_LOCK, true);
 }
 
 static void func_key_lock_hint_hide(void)
 {
+    bool was_entry_lock;
+
     if (!key_lock_hint_on) {
         return;
     }
+    was_entry_lock = (key_lock_hint_mode == KEY_LOCK_HINT_LOCK && !key_lock_entry_hint_settled);
     key_lock_hint_on = false;
     key_lock_hint_mode = KEY_LOCK_HINT_NONE;
     key_lock_hint_show_tick = 0;
     key_lock_hint_min_polls = 0;
+    key_lock_hint_cooldown_tick = tick_get();
+    key_lock_hint_gui_refresh = true;
     home_ui_lock_overlay_hide();
-#if ELUNCHBOX_PANEL_EN
-    if (func_cb.sta == FUNC_HOME) {
-        func_home_gui_mark_dirty();
+    if (was_entry_lock) {
+        key_lock_entry_hint_settled = true;
+        key_lock_ignore_ku_left_once = true;
     }
-    gui_widget_refresh();
-#endif
 }
 
 static void func_key_lock_hint_expire_poll(void)
@@ -189,7 +197,7 @@ static void func_key_lock_heat_auto_poll(void)
     }
     if (tick_check_expire(key_lock_heat_arm_tick, HEAT_AUTO_LOCK_MS)) {
         key_lock_heat_arm_tick = 0;
-        func_key_lock_set(true);
+        func_key_lock_enter(false);
     }
 }
 
@@ -205,36 +213,50 @@ bool func_key_lock_show_status_icon(bool page_local_locked)
 
 void func_key_lock_notify_blocked(void)
 {
-    /* 仅表示按键被拦截；锁图标只由 func_key_lock_set / hint_user_key 弹出，
-       避免 UART/KU 杂散事件在 3s 消失后再次自动弹出。 */
 }
 
-static void func_key_lock_set(bool locked)
+static void func_key_lock_enter(bool from_long_press)
 {
-    key_lock_press_edge_tch = PT8028_KEY_NONE;
-
-    if (locked) {
-        if (key_lock_active) {
-            return;
-        }
-        key_lock_active = true;
-#if USER_PANEL_LED
-        panel_led_set_lock_latched(true);
-        panel_led_scan();
-#endif
-        func_key_lock_hint_show(KEY_LOCK_HINT_LOCK, true);
+    if (key_lock_active) {
         return;
     }
+    key_lock_active = true;
+    func_key_lock_on_locked_enter();
+#if USER_PANEL_LED
+    panel_led_set_lock_latched(true);
+    panel_led_scan();
+#endif
+    func_key_lock_hint_show(KEY_LOCK_HINT_LOCK);
+    if (from_long_press) {
+        key_lock_lp_wait_rel = true;
+        func_key_lock_lp_reset();
+    }
+}
 
+static void func_key_lock_exit(void)
+{
     if (!key_lock_active) {
         return;
     }
     key_lock_active = false;
+    key_lock_need_key_rel = false;
+    key_lock_entry_hint_settled = false;
 #if USER_PANEL_LED
     panel_led_set_lock_latched(false);
     panel_led_scan();
 #endif
-    func_key_lock_hint_show(KEY_LOCK_HINT_UNLOCK, true);
+    func_key_lock_hint_show(KEY_LOCK_HINT_UNLOCK);
+}
+
+static void func_key_lock_lp_toggle(void)
+{
+    if (key_lock_active) {
+        func_key_lock_exit();
+        key_lock_lp_wait_rel = true;
+        func_key_lock_lp_reset();
+    } else {
+        func_key_lock_enter(true);
+    }
 }
 
 bool func_key_lock_hint_is_on(void)
@@ -269,6 +291,7 @@ bool func_key_lock_press_take_poll(void)
     if (!key_lock_active) {
         return false;
     }
+    /* 锁定态下，无条件消费所有非电源按键，不让任何按键从队列漏出 */
     press_tch = pt8028_peek_press_tch();
     if (press_tch > PT8028_KEY_TCH7 || press_tch == PT8028_KEY_TCH5) {
         return false;
@@ -277,7 +300,10 @@ bool func_key_lock_press_take_poll(void)
     if (press_tch > PT8028_KEY_TCH7) {
         return false;
     }
-    (void)func_key_lock_filter_tch(press_tch);
+    /* 首次进入提示已结束后，仅真实新按下才弹锁图标 */
+    if (key_lock_entry_hint_settled && !func_key_lock_hint_in_cooldown()) {
+        func_key_lock_hint_show(KEY_LOCK_HINT_LOCK);
+    }
     return true;
 }
 
@@ -289,67 +315,19 @@ bool func_key_lock_filter_tch(u8 tch)
     if (tch == PT8028_KEY_TCH5) {
         return false;
     }
-    if (tch == PT8028_KEY_TCH0) {
-        /* 锁键短按：弹出锁图标；长按 3s 解锁由 lp_poll 处理 */
-        if (!key_lock_lp_wait_rel) {
-            func_key_lock_hint_user_key();
-        }
-        return true;
-    }
-    if (tch <= PT8028_KEY_TCH7) {
-        func_key_lock_hint_user_key();
-    }
     return true;
 }
 
 bool func_key_lock_ku_blocked(u16 msg)
 {
-    u8 usage;
-
     if (!key_lock_active) {
         return false;
     }
     if (msg == MSG_CTP_CLICK) {
         return true;
     }
-    usage = (u8)(msg & KEY_USAGE_MASK);
-    if (usage == KEY_RIGHT) {
-        return false;
-    }
-    if (usage == KEY_LEFT) {
-        if (key_lock_ignore_ku_left_once) {
-            key_lock_ignore_ku_left_once = false;
-            return true;
-        }
-        /* 锁键短按/松手：用户主动按键，弹出锁图标 */
-        func_key_lock_hint_user_key();
-    }
+    /* 锁定态下所有 KU 消息全部拦截（电源键 TCH5 走 touch 路径，不经过 KU） */
     return true;
-}
-
-static void func_key_lock_active_press_poll(void)
-{
-    u8 tch;
-
-    if (!key_lock_active || key_lock_lp_wait_rel) {
-        key_lock_press_edge_tch = PT8028_KEY_NONE;
-        return;
-    }
-
-    tch = pt8028_get_press_tch();
-    if (tch == PT8028_KEY_NONE || tch == PT8028_KEY_TCH5) {
-        key_lock_press_edge_tch = PT8028_KEY_NONE;
-        return;
-    }
-    if (tch == PT8028_KEY_TCH0 && key_lock_lp_wait_rel) {
-        key_lock_press_edge_tch = PT8028_KEY_NONE;
-        return;
-    }
-
-    if (key_lock_press_edge_tch != tch) {
-        key_lock_press_edge_tch = tch;
-        func_key_lock_hint_user_key();
-    }
 }
 
 static void func_key_lock_lp_poll(void)
@@ -380,17 +358,28 @@ static void func_key_lock_lp_poll(void)
 
 void func_key_lock_poll(void)
 {
+    func_key_lock_need_key_rel_poll();
+    func_key_lock_hint_expire_poll();
     (void)func_key_lock_press_take_poll();
     func_key_lock_lp_poll();
     func_key_lock_heat_auto_poll();
-    func_key_lock_active_press_poll();
-    func_key_lock_hint_expire_poll();
 
     if (!key_lock_hint_on && home_ui_lock_overlay_is_visible()) {
         home_ui_lock_overlay_hide();
-#if ELUNCHBOX_PANEL_EN
-        gui_widget_refresh();
-#endif
+        key_lock_hint_gui_refresh = true;
+    }
+
+    if (key_lock_hint_on && key_lock_hint_show_tick != 0) {
+        u32 max_ms = func_key_lock_hint_duration_ms(key_lock_hint_mode) + 1000;
+        if (tick_check_expire(key_lock_hint_show_tick, max_ms)) {
+            func_key_lock_hint_hide();
+        }
+    }
+
+    if (key_lock_hint_gui_refresh && func_cb.frm_main != NULL && !sys_cb.flag_swithing) {
+        key_lock_hint_gui_refresh = false;
+        compo_update();
+        gui_process();
     }
 }
 

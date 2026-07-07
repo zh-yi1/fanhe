@@ -245,6 +245,8 @@ void func_elunchbox_switch_to_heat(void);
 void func_elunchbox_switch_to_heat_panel(void);
 /** BLE 0x04 保温指令：跳转 func_new_warm */
 void func_elunchbox_switch_to_warm_panel(void);
+/** 加热面板自然结束：UART 开保温 + 切 func_new_warm */
+void func_elunchbox_enter_warm_from_heat(void);
 void func_heat_ble_remote_restart(void);
 void func_new_warm_ble_restart(void);
 void func_heat_key_poll(void);

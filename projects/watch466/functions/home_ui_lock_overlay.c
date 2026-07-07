@@ -30,6 +30,7 @@ static compo_form_t *lock_overlay_frm;
 static compo_shape_t *lock_overlay_dim;
 static compo_picturebox_t *lock_overlay_pic;
 static bool lock_overlay_visible;
+static bool lock_overlay_icon_unlock;
 
 /*
  * 独立动态缓冲区，避免与 home_ui_digit_ram（共用 union 的 heat_bg）冲突。
@@ -60,6 +61,7 @@ static void home_ui_lock_overlay_destroy(void)
     lock_overlay_pic = NULL;
     lock_overlay_frm = NULL;
     lock_overlay_visible = false;
+    lock_overlay_icon_unlock = false;
 }
 
 static void home_ui_lock_overlay_bring_front_internal(void)
@@ -144,6 +146,7 @@ static bool home_ui_lock_overlay_load_icon(bool unlock_icon, u16 *out_w, u16 *ou
     }
 
     os_spiflash_read(lock_overlay_ram_ptr, addr, len);
+    lock_overlay_icon_unlock = unlock_icon;
     return gui_set_ram_check(lock_overlay_ram_ptr, __func__);
 }
 
@@ -212,6 +215,12 @@ void home_ui_lock_overlay_show(bool unlock_icon)
 
     if (lock_overlay_frm != NULL && lock_overlay_frm != func_cb.frm_main) {
         home_ui_lock_overlay_reset();
+    }
+
+    if (lock_overlay_visible && lock_overlay_frm == func_cb.frm_main
+        && lock_overlay_icon_unlock == unlock_icon
+        && lock_overlay_dim != NULL && lock_overlay_pic != NULL) {
+        return;
     }
 
     was_blocked = elunchbox_te_block_flag;

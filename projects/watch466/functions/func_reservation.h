@@ -47,4 +47,8 @@ bool func_reservation_new_ui_go_home(void);
 /* 两阶段提交：预约时间→加热参数→串口提交 */
 void func_reservation_new_ui_do_submit(void);
 
+#if ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
+bool func_new_reservation_key_ready(void);
+#endif
+
 #endif

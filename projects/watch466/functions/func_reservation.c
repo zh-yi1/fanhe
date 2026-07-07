@@ -1782,6 +1782,9 @@ static void func_res_trigger_heating_uart_from_global(void)
     } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
         duration_min = LB_HEAT_DURATION_MAX_MIN;
     }
+    /* 设置加热参数 + 自动启动标记，使 func_heat_enter 能直接进入加热面板 */
+    lb_mode_to_heat_set(4, temp_f, (u8)(duration_min / 60), (u8)(duration_min % 60));
+    lb_heat_autostart_set(true);
     lunchbox_heat_start(4, lunchbox_temp_f_to_idx(temp_f), duration_min);
 }
 #endif
@@ -1835,9 +1838,9 @@ void func_reservation_poll(void)
 #if ELUNCHBOX_PANEL_EN
             if (func_cb.sta == FUNC_RESERVATION) {
                 func_res_trigger_heating_uart_from_global();
-                if (func_cb.sta != FUNC_NEW_HEAT) {
+                if (func_cb.sta != FUNC_HEAT) {
                     func_res_allow_switch = 1;
-                    func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+                    func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
                     func_res_allow_switch = 0;
                 }
             } else {
@@ -1849,9 +1852,9 @@ void func_reservation_poll(void)
                     && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
                     elunchbox_pwr_gui_wake_reason("reservation heat");
                 }
-                if (func_cb.sta != FUNC_NEW_HEAT) {
+                if (func_cb.sta != FUNC_HEAT) {
                     func_res_allow_switch = 1;
-                    func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+                    func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
                     func_res_allow_switch = 0;
                 }
             }
