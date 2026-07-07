@@ -586,6 +586,10 @@ static void new_heat_font_apply_once(f_new_heat_t *f)
         new_heat_font_bind_txt(f->txt_time_scale[i]);
     }
     new_heat_font_ready = true;
+
+    /* 方式 3：覆盖 "Heating Temp" / "Heating Duration" 标签为小字体 */
+    compo_textbox_set_font(f->txt_temp_label, UI_BUF_0FONT_FONT_TEST_14_BIN);
+    compo_textbox_set_font(f->txt_time_label, UI_BUF_0FONT_FONT_TEST_14_BIN);
 }
 
 static void new_heat_text_apply_main(f_new_heat_t *f);

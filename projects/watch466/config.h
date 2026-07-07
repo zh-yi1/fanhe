@@ -199,7 +199,7 @@
 #undef  SOFT_POWER_VDDIO_EN
 #define SOFT_POWER_VDDIO_EN             1           /* 硬关机保持 VDDIO，PT8028/PE1 可唤醒开机 */
 #define ELUNCHBOX_KEEP_AWAKE            1           /* 禁止深度休眠；允许 guioff 定时息屏 */
-#define ELUNCHBOX_GUIOFF_TIME_SEC       30          /* 无操作自动关机(秒)，默认 5 分钟 */
+#define ELUNCHBOX_GUIOFF_TIME_SEC       300          /* 无操作自动关机(秒)，默认 5 分钟 */
 #define ELUNCHBOX_GUIOFF_SLEEP_EN       1           /* 息屏后再进 BT 浅睡降功耗 */
 #define ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC 30          /* 息屏后延迟多少秒进浅睡 */
 #define FUNC_RESERVATION_UI_EN          1           /* 1=预约键(TCH7)可进预约页 */
