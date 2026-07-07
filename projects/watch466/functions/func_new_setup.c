@@ -842,6 +842,16 @@ static void new_setup_pt8028_keys_process(f_new_setup_t *f)
         new_setup_sel_prev(f);
     } else if (press_tch == PT8028_KEY_TCH6) {
         new_setup_sel_next(f);
+    } else if (press_tch == PT8028_KEY_TCH1) {
+        /* 加热键：跳转到加热设置页 */
+        if (!sys_cb.flag_swithing) {
+            func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
+    } else if (press_tch == PT8028_KEY_TCH7) {
+        /* 预约键：跳转到预约设置页 */
+        if (!sys_cb.flag_swithing) {
+            func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
     }
 }
 

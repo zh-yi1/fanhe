@@ -2037,8 +2037,8 @@ void func_message(size_msg_t msg)
         break;
 
     case KU_PREV:
-        if (func_cb.sta != FUNC_HEAT) {
-            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        if (func_cb.sta != FUNC_NEW_HEAT) {
+            func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         }
         break;
 
@@ -2046,7 +2046,10 @@ void func_message(size_msg_t msg)
 #if !FUNC_RESERVATION_UI_EN
         break;
 #elif ELUNCHBOX_PANEL_EN
-        /* 饭盒：预约 UI 由 pt8028_take_res_key_pending 专用入口进入 */
+        /* 预约键：跳转到预约设置页 */
+        if (func_cb.sta != FUNC_RESERVATION) {
+            func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
         break;
 #else
         if (func_cb.sta != FUNC_RESERVATION) {

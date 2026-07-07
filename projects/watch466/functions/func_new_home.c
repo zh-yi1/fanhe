@@ -646,14 +646,21 @@ void new_home_pt8028_keys_process(f_new_home_t *f)
     if (press_tch == PT8028_KEY_TCH3) {
         func_home_mode_key();
     } else if (press_tch == PT8028_KEY_TCH1) {
-        f->cur_tab = NEW_HOME_TAB_HEAT;
-        func_home_confirm_key();
+        /* 加热键：跳转到加热设置页 */
+        if (!sys_cb.flag_swithing) {
+            func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
     } else if (press_tch == PT8028_KEY_TCH4) {
         func_home_confirm_key();
     } else if (press_tch == PT8028_KEY_TCH2) {
         new_home_tab_cycle(f, -1);
     } else if (press_tch == PT8028_KEY_TCH6) {
         new_home_tab_cycle(f, +1);
+    } else if (press_tch == PT8028_KEY_TCH7) {
+        /* 预约键：跳转到预约设置页 */
+        if (!sys_cb.flag_swithing) {
+            func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
     }
 }
 

@@ -487,6 +487,13 @@ static void new_res_pt8028_keys_process(f_new_reservation_t *f)
         new_res_power_key();
     } else if (press_tch == PT8028_KEY_TCH6) {
         new_res_value_inc(f);
+    } else if (press_tch == PT8028_KEY_TCH1) {
+        /* 加热键：跳转到加热设置页 */
+        if (!sys_cb.flag_swithing) {
+            func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
+    } else if (press_tch == PT8028_KEY_TCH7) {
+        /* 已经在预约页，不做操作 */
     }
 }
 
