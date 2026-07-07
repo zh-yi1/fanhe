@@ -288,10 +288,10 @@ bool func_key_lock_press_take_poll(void)
 {
     u8 press_tch;
 
-    if (!key_lock_active || key_lock_hint_on || key_lock_need_key_rel
-        || key_lock_lp_wait_rel) {
+    if (!key_lock_active) {
         return false;
     }
+    /* 锁定态下，无条件消费所有非电源按键，不让任何按键从队列漏出 */
     press_tch = pt8028_peek_press_tch();
     if (press_tch > PT8028_KEY_TCH7 || press_tch == PT8028_KEY_TCH5) {
         return false;
@@ -320,22 +320,13 @@ bool func_key_lock_filter_tch(u8 tch)
 
 bool func_key_lock_ku_blocked(u16 msg)
 {
-    u8 usage;
-
     if (!key_lock_active) {
         return false;
     }
     if (msg == MSG_CTP_CLICK) {
         return true;
     }
-    usage = (u8)(msg & KEY_USAGE_MASK);
-    if (usage == KEY_RIGHT) {
-        return false;
-    }
-    if (usage == KEY_LEFT && key_lock_ignore_ku_left_once) {
-        key_lock_ignore_ku_left_once = false;
-    }
-    /* 只拦截按键，不弹锁图标（避免 KU 杂散消息在首次 3s 后反复弹出） */
+    /* 锁定态下所有 KU 消息全部拦截（电源键 TCH5 走 touch 路径，不经过 KU） */
     return true;
 }
 
