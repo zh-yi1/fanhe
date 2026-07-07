@@ -451,6 +451,54 @@ static void new_res_power_key(void)
     func_reservation_new_ui_go_home();
 }
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+static void new_res_mode_key(void)
+{
+    if (sys_cb.flag_swithing) {
+        return;
+    }
+    func_switch_to(FUNC_NEW_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+}
+
+static void new_res_pt8028_keys_process(f_new_reservation_t *f)
+{
+    u8 press_tch;
+
+    if (f == NULL || !f->key_ready) {
+        return;
+    }
+    if (func_key_lock_press_take_poll()) {
+        return;
+    }
+    press_tch = pt8028_take_press_tch();
+    if (press_tch == 0xff) {
+        return;
+    }
+    if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
+        elunchbox_user_activity_reset();
+    }
+    if (press_tch == PT8028_KEY_TCH2) {
+        new_res_value_dec(f);
+    } else if (press_tch == PT8028_KEY_TCH3) {
+        new_res_mode_key();
+    } else if (press_tch == PT8028_KEY_TCH4) {
+        new_res_ok_key(f);
+    } else if (press_tch == PT8028_KEY_TCH5) {
+        new_res_power_key();
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        new_res_value_inc(f);
+    }
+}
+
+static void new_res_keys_poll(f_new_reservation_t *f)
+{
+    if (f == NULL || !f->key_ready) {
+        return;
+    }
+    new_res_pt8028_keys_process(f);
+}
+#endif
+
 compo_form_t *func_new_reservation_form_create(void)
 {
     compo_form_t *frm = compo_form_create(true);
@@ -503,6 +551,19 @@ static void func_new_reservation_message(size_msg_t msg)
     if (func_key_lock_ku_blocked(msg)) {
         return;
     }
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    /* PT8028 走 new_res_pt8028_keys_process，勿重复处理消息队列 */
+    switch (msg) {
+    case KU_BACK:
+    case KU_VOL_UP:
+    case KU_VOL_DOWN:
+    case KU_MODE:
+    case KEY_RIGHT | KEY_SHORT_UP:
+        return;
+    default:
+        break;
+    }
+#endif
 #if ELUNCHBOX_PANEL_EN
     if (f != NULL && !f->key_ready) {
         return;
@@ -611,6 +672,9 @@ static void func_new_reservation_process(void)
     }
 #endif
     func_process();
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    new_res_keys_poll(f);
+#endif
 #if ELUNCHBOX_PANEL_EN
     if (!elunchbox_ui_is_live()) {
         return;
