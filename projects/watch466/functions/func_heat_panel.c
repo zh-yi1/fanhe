@@ -47,7 +47,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define HEAT_PANEL_REMAIN_LBL_Y         130
 #define HEAT_PANEL_SHOW_Y               212
 #define HEAT_PANEL_TEMP_X               72
-#define HEAT_PANEL_DUR_X                248
+#define HEAT_PANEL_DUR_X                233
 #define HEAT_PANEL_VAL_Y                200
 #define HEAT_PANEL_LBL_Y                220
 

@@ -26,7 +26,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #ifndef UI_BUF_0FONT_FONT_TEST_BIN
 #error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
 #endif
-#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
+#define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN   /* 全局统一使用 18px 字体（font_test_18.bin 覆盖） */
 
 /*
  * 新加热设置页（320×240 白底）：
