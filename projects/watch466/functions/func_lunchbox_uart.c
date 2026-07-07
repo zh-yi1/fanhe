@@ -59,6 +59,9 @@ bool lb_uart_sync_pending = false;    // 是否有同步UART请求待应答(用�
 u32  lb_synced_unix_ts = 0;           // APP 同步的权威 Unix 时间戳
 u32  lb_synced_rtccnt = 0;            // 同步时的 RTCCNT 值
 bool lb_has_ble_ts = false;           // 是否已收到过 BLE 时间同步
+u32  lb_synced_heat_unix_ts = 0;      // 加热模块同步的 Unix 时间戳
+u32  lb_synced_heat_rtccnt = 0;       // 加热模块同步时的 RTCCNT 值
+bool lb_has_heat_ts = false;          // 是否已收到过加热模块时间同步
 bool lb_ble_presets_pending = false;  // BLE 连接后等待 APP 时间戳应答再发预设
 bool lb_product_info_pending = false; // v1.0.7: 0x01 查询等待加热模块UART应答
 u8   lb_product_info_msg_flag = 0;    // 待完成 0x01 查询的 BLE msg_flag
@@ -114,6 +117,39 @@ u32 lb_get_unix_time(void)
         return lb_synced_unix_ts + (RTCCNT - lb_synced_rtccnt);
     }
     return RTCCNT + LB_RTC_UNIX_OFFSET;
+}
+
+/**
+ * @brief 获取屏幕显示时间 (优先级: APP > 加热模块 > 本地RTC)
+ *
+ * 开机时:
+ *   - 若 APP 已蓝牙连接并同步过时间 → 使用 APP 权威时间
+ *   - 若 APP 未连接但加热模块已上报时间 → 使用加热模块时间
+ *   - 若两者均未同步 → 使用本地 RTC 默认时间
+ *
+ * @return tm_t 结构体 (北京时间), 可直接用于 UI 显示
+ */
+tm_t lb_get_display_tm(void)
+{
+    u32 unix_time;
+    u32 rtccnt;
+
+    /* 优先级1: APP 通过 BLE 同步的时间 */
+    if (lb_has_ble_ts) {
+        unix_time = lb_synced_unix_ts + (RTCCNT - lb_synced_rtccnt);
+        rtccnt = unix_time - LB_RTC_UNIX_OFFSET;
+        return time_to_tm(rtccnt);
+    }
+
+    /* 优先级2: 加热模块通过 UART 上报的时间 */
+    if (lb_has_heat_ts) {
+        unix_time = lb_synced_heat_unix_ts + (RTCCNT - lb_synced_heat_rtccnt);
+        rtccnt = unix_time - LB_RTC_UNIX_OFFSET;
+        return time_to_tm(rtccnt);
+    }
+
+    /* 优先级3: 本地 RTC 默认时间 */
+    return rtc_clock_get();
 }
 
 /** @brief 检查 DataPoints 数据中是否包含按键通知 (dpid=12) */
@@ -902,6 +938,15 @@ void lb_heating_sync_from_dp(u8 *data, u16 len)
             break;
         case LB_DPID_CHARGE_STATUS:
             /* 充电状态由 heat_display_feed_dp() 统一处理唤醒逻辑 */
+            break;
+        case LB_DPID_TIME_SYNC:
+            /* 加热模块上报的时间戳: 记录后用 lb_get_display_tm() 按 APP > 加热模块 > RTC 优先级使用 */
+            if (val_len >= 4) {
+                lb_synced_heat_unix_ts = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                                       | ((u32)val[2] << 8) | val[3];
+                lb_synced_heat_rtccnt = RTCCNT;
+                lb_has_heat_ts = true;
+            }
             break;
         default:
             break;

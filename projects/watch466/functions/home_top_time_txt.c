@@ -1,5 +1,6 @@
 #include "include.h"
 #include "home_top_time_txt.h"
+#include "func_lunchbox_uart.h"
 
 #ifndef UI_BUF_0FONT_FONT_TEST_BIN
 #error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
@@ -145,7 +146,7 @@ bool home_top_time_txt_tick(home_top_time_txt_t *ui, u8 *last_min, u8 *last_sec)
     if (ui == NULL || last_min == NULL || last_sec == NULL) {
         return false;
     }
-    tm = rtc_clock_get();
+    tm = lb_get_display_tm();
     if (*last_min == tm.min && *last_sec == tm.sec) {
         return false;
     }
@@ -161,7 +162,7 @@ void home_top_time_txt_force(home_top_time_txt_t *ui, u8 *last_min, u8 *last_sec
     if (ui == NULL) {
         return;
     }
-    tm = rtc_clock_get();
+    tm = lb_get_display_tm();
     if (last_min != NULL) {
         *last_min = tm.min;
     }
@@ -183,7 +184,7 @@ void home_top_time_txt_keep_visible(home_top_time_txt_t *ui)
     }
 
     home_top_time_txt_font_once(ui);
-    tm = rtc_clock_get();
+    tm = lb_get_display_tm();
     home_top_time_txt_format(buf, sizeof(buf), &tm);
     widget = ui->txt->txt;
     compo_textbox_set_align_center(ui->txt, false);

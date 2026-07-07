@@ -386,6 +386,17 @@ void lunchbox_time_sync(u32 unix_time);
  */
 u32 lb_get_unix_time(void);
 
+/** @brief 获取屏幕显示时间 (优先级: APP > 加热模块 > 本地RTC)
+ *
+ * 开机时:
+ *   - 若 APP 已蓝牙同步过时间 → 使用 APP 权威时间
+ *   - 若 APP 未同步但加热模块已上报时间 → 使用加热模块时间
+ *   - 若两者均未同步 → 使用本地 RTC 默认时间
+ *
+ * @return tm_t 结构体 (北京时间), 可直接替代 rtc_clock_get() 用于 UI 显示
+ */
+tm_t lb_get_display_tm(void);
+
 /** @brief 扫描 DataPoint 缓冲区，查找指定 dpid 的 bool/enum 首字节 */
 bool lb_dp_scan_bool(const u8 *data, u16 len, u8 dpid, u8 *val);
 
