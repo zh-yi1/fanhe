@@ -639,6 +639,13 @@ void func_home_confirm_key(void)
         return;
     }
     printf("home confirm: tab=%u target=%u (defer)\n", f->cur_tab, target);
+    /* pt8028_release_clear 会清零 key_notify_pending，须先发送 lunchbox 按键通知 */
+    {
+        u8 lunchbox_key = pt8028_tch_to_lunchbox_key(PT8028_KEY_TCH4);
+        if (lunchbox_key != 0) {
+            lunchbox_key_notify(lunchbox_key);
+        }
+    }
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
     f->pending_switch_sta = target;

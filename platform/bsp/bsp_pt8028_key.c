@@ -1441,7 +1441,8 @@ void pt8028_release_clear(void)
     pt8028_cb.release_pending = 0;
     pt8028_cb.release_tch = 0xff;
     pt8028_cb.press_pending = 0;
-    pt8028_cb.press_emitted = 0;
+    /* press_emitted 不清零：物理按键仍可能处于按下状态，
+     * 清零会导致释放沿 fallback 路径 (pt8028_emit_press) 重复发射 key_notify */
     pt8028_cb.session_tch = 0xff;
     pt8028_cb.res_key_pending = 0;
     pt8028_cb.press_bcd = 0xff;
