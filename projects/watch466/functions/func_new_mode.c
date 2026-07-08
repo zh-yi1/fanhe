@@ -799,6 +799,10 @@ static void new_mode_power_key(void)
     if (sys_cb.flag_swithing) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    home_gpu_wait_idle();
+    WDT_CLR();
+#endif
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
