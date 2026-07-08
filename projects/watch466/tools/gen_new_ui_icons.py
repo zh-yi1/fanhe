@@ -40,6 +40,7 @@ ICON_ITEMS = [
     (("new_dl4.png", "dl4.png"), "new_dl4"),
     (("new_lock.png",), "new_lock"),
     (("new_unlock.png",), "new_unlock"),
+    (("didian.png",), "didian"),
 ]
 
 TIME_ITEMS = (
@@ -117,6 +118,7 @@ def emit_header(sizes: dict[str, tuple[int, int]]) -> None:
         "new_dl4": "NEW_HOME_BAT_DL4",
         "new_lock": "NEW_UI_LOCK",
         "new_unlock": "NEW_UI_UNLOCK",
+        "didian": "NEW_UI_DIDIAN",
     }
     for stem, prefix in key_map.items():
         if stem in sizes:

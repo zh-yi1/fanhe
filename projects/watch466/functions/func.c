@@ -7,6 +7,7 @@
 #include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
+#include "home_ui_lowbat_overlay.h"
 /* ELUNCHBOX 模式：TE block 标志声明 */
 extern volatile u8 elunchbox_te_block_flag;
 #endif
@@ -1116,6 +1117,9 @@ void func_process(void)
         }
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         func_key_lock_poll();
+#endif
+#if ELUNCHBOX_PANEL_EN
+        home_ui_lowbat_poll();
 #endif
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
         func_elunchbox_res_key_poll();
@@ -2265,6 +2269,7 @@ void func_exit(void)
         home_gpu_wait_idle();
         printf("exit: wait1 done\n");
         func_key_lock_on_form_destroy();
+        home_ui_lowbat_overlay_reset();
 #endif
         compo_form_destroy(func_cb.frm_main);
 #if ELUNCHBOX_PANEL_EN

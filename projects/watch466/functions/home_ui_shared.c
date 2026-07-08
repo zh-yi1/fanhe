@@ -231,6 +231,21 @@ void home_ui_shared_battery_feed_dp(u8 *data, u16 len)
     home_ui_shared_battery_reload();
 }
 
+u8 home_ui_shared_battery_level(void)
+{
+    return home_bat_level;
+}
+
+bool home_ui_shared_battery_is_low(void)
+{
+    return home_bat_level == 1;
+}
+
+bool home_ui_shared_battery_is_charging(void)
+{
+    return home_bat_charge != 0;
+}
+
 u32 home_ui_shared_battery_flash_addr(void)
 {
     u32 addr = 0;
@@ -284,6 +299,21 @@ void home_ui_shared_battery_feed_dp(u8 *data, u16 len)
 u32 home_ui_shared_battery_flash_addr(void)
 {
     return 0;
+}
+
+u8 home_ui_shared_battery_level(void)
+{
+    return 4;
+}
+
+bool home_ui_shared_battery_is_low(void)
+{
+    return false;
+}
+
+bool home_ui_shared_battery_is_charging(void)
+{
+    return false;
 }
 
 void home_ui_shared_status_bind_bat(compo_picturebox_t *pic)

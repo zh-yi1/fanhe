@@ -46,6 +46,11 @@ void home_ui_shared_status_bind_bat(compo_picturebox_t *pic);
 /** 当前电量图标 Flash 地址（供 reservation 等 flash 直绘路径） */
 u32 home_ui_shared_battery_flash_addr(void);
 
+/** 电量 DP：1=低(<25%) 2=中 3=高 4=满 */
+u8 home_ui_shared_battery_level(void);
+bool home_ui_shared_battery_is_low(void);
+bool home_ui_shared_battery_is_charging(void);
+
 /* Heat / Mode 中部倒计时共享 RAM（互斥使用，不增加 BSS 总量） */
 extern u8 home_ui_shared_timer_colon_ram[HEAT_WBX_RAM_SIZE];
 extern u8 home_ui_shared_timer_digit_ram[4][HEAT_B_DIGIT_RAM_MAX_SIZE];

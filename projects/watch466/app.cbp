@@ -852,6 +852,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/home_ui_lock_overlay.h" />
+		<Unit filename="functions/home_ui_lowbat_overlay.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/home_ui_lowbat_overlay.h" />
 		<Unit filename="functions/home_ui_lock_res.h" />
 		<Unit filename="functions/func_home.c">
 			<Option compilerVar="CC" />
