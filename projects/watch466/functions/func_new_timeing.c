@@ -62,50 +62,56 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_STATUS_RIGHT_MARGIN     10
 #define NEW_TIMEING_STATUS_GAP              6
 #define NEW_TIMEING_TITLE_LEFT              10
-#define NEW_TIMEING_TITLE_Y                 15
+#define NEW_TIMEING_TITLE_Y                 9
 #define NEW_TIMEING_TITLE_H                 36
-#define NEW_TIMEING_HOUR_COL_X              76
-#define NEW_TIMEING_MIN_COL_X               182
-#define NEW_TIMEING_COLON_X                 129
-#define NEW_TIMEING_BOX_Y                   118
-#define NEW_TIMEING_ARROW_UP_Y              71
-#define NEW_TIMEING_ARROW_DOWN_Y            165
-#define NEW_TIMEING_BTN_NO_X                95
-#define NEW_TIMEING_BTN_YES_X               225
-#define NEW_TIMEING_BTN_BOTTOM_Y            219
-#define NEW_TIMEING_SUFFIX_H_X              100
-#define NEW_TIMEING_SUFFIX_MIN_X            210
-#define NEW_TIMEING_SUFFIX_Y                130
 #define NEW_TIMEING_TITLE_W                 120
 #define NEW_TIMEING_PANEL_Y                 142
 #define NEW_TIMEING_PANEL_W                 280
 #define NEW_TIMEING_PANEL_H                 210
 #define NEW_TIMEING_PAGE_BG                 0xEF5D
+#define NEW_TIMEING_CONTENT_OFFSET_Y        ((s16)(-16))
+#define NEW_TIMEING_COL_HALF_SPAN           ((s16)53)
+#define NEW_TIMEING_BOX_Y                   ((s16)(NEW_TIMEING_PANEL_Y + NEW_TIMEING_CONTENT_OFFSET_Y))
+#define NEW_TIMEING_ARROW_UP_Y              ((s16)(NEW_TIMEING_BOX_Y - 47))
+#define NEW_TIMEING_ARROW_DOWN_Y            ((s16)(NEW_TIMEING_BOX_Y + 47))
+#define NEW_TIMEING_BTN_CENTER_DIST         ((s16)130)
+#define NEW_TIMEING_BTN_BOTTOM_Y            ((s16)(NEW_TIMEING_PANEL_Y + NEW_TIMEING_PANEL_H / 2 - NEW_TIME_BTN_H / 2 - 12 + NEW_TIMEING_CONTENT_OFFSET_Y))
+#define NEW_TIMEING_SUFFIX_DX_H             ((s16)24)
+#define NEW_TIMEING_SUFFIX_DX_MIN           ((s16)28)
+#define NEW_TIMEING_SUFFIX_DY               ((s16)12)
 #else
 #define NEW_TIMEING_STATUS_Y                NEW_TIMEING_SY(48)
 #define NEW_TIMEING_STATUS_RIGHT_MARGIN     NEW_TIMEING_SX(24)
 #define NEW_TIMEING_STATUS_GAP              NEW_TIMEING_SX(10)
 #define NEW_TIMEING_TITLE_LEFT              NEW_TIMEING_SX(10)
-#define NEW_TIMEING_TITLE_Y                 NEW_TIMEING_SY(42)
+#define NEW_TIMEING_TITLE_Y                 NEW_TIMEING_SY(34)
 #define NEW_TIMEING_TITLE_H                 NEW_TIMEING_SY(36)
-#define NEW_TIMEING_HOUR_COL_X              NEW_TIMEING_SX(108)
-#define NEW_TIMEING_MIN_COL_X               NEW_TIMEING_SX(268)
-#define NEW_TIMEING_COLON_X                 NEW_TIMEING_SX(188)
-#define NEW_TIMEING_BOX_Y                   NEW_TIMEING_SY(210)
-#define NEW_TIMEING_ARROW_UP_Y              NEW_TIMEING_SY(118)
-#define NEW_TIMEING_ARROW_DOWN_Y            NEW_TIMEING_SY(302)
-#define NEW_TIMEING_BTN_NO_X                NEW_TIMEING_SX(118)
-#define NEW_TIMEING_BTN_YES_X               NEW_TIMEING_SX(348)
-#define NEW_TIMEING_BTN_BOTTOM_Y            NEW_TIMEING_SY(418)
-#define NEW_TIMEING_SUFFIX_H_X              NEW_TIMEING_SX(152)
-#define NEW_TIMEING_SUFFIX_MIN_X            NEW_TIMEING_SX(312)
-#define NEW_TIMEING_SUFFIX_Y                NEW_TIMEING_SY(210)
 #define NEW_TIMEING_TITLE_W                 NEW_TIMEING_SX(220)
 #define NEW_TIMEING_PANEL_Y                 NEW_TIMEING_SY(144)
 #define NEW_TIMEING_PANEL_W                 NEW_TIMEING_SX(280)
 #define NEW_TIMEING_PANEL_H                 NEW_TIMEING_SY(240)
 #define NEW_TIMEING_PAGE_BG                 0xEF5D
+#define NEW_TIMEING_CONTENT_OFFSET_Y        NEW_TIMEING_SY(-24)
+#define NEW_TIMEING_COL_HALF_SPAN           NEW_TIMEING_SX(80)
+#define NEW_TIMEING_BOX_Y                   ((s16)(NEW_TIMEING_PANEL_Y + NEW_TIMEING_CONTENT_OFFSET_Y))
+#define NEW_TIMEING_ARROW_UP_Y              ((s16)(NEW_TIMEING_BOX_Y - NEW_TIMEING_SY(92)))
+#define NEW_TIMEING_ARROW_DOWN_Y            ((s16)(NEW_TIMEING_BOX_Y + NEW_TIMEING_SY(92)))
+#define NEW_TIMEING_BTN_CENTER_DIST         NEW_TIMEING_SX(230)
+#define NEW_TIMEING_BTN_BOTTOM_Y            ((s16)(NEW_TIMEING_PANEL_Y + NEW_TIMEING_PANEL_H / 2 - NEW_TIME_BTN_H / 2 - NEW_TIMEING_SY(16) + NEW_TIMEING_CONTENT_OFFSET_Y))
+#define NEW_TIMEING_SUFFIX_DX_H             NEW_TIMEING_SX(24)
+#define NEW_TIMEING_SUFFIX_DX_MIN           NEW_TIMEING_SX(28)
+#define NEW_TIMEING_SUFFIX_DY               NEW_TIMEING_SY(12)
 #endif
+
+/* 时/分/按钮区相对白色卡片水平居中 */
+#define NEW_TIMEING_HOUR_COL_X              ((s16)(GUI_SCREEN_CENTER_X - NEW_TIMEING_COL_HALF_SPAN))
+#define NEW_TIMEING_MIN_COL_X               ((s16)(GUI_SCREEN_CENTER_X + NEW_TIMEING_COL_HALF_SPAN))
+#define NEW_TIMEING_COLON_X                 GUI_SCREEN_CENTER_X
+#define NEW_TIMEING_BTN_NO_X                ((s16)(GUI_SCREEN_CENTER_X - NEW_TIMEING_BTN_CENTER_DIST / 2))
+#define NEW_TIMEING_BTN_YES_X               ((s16)(GUI_SCREEN_CENTER_X + NEW_TIMEING_BTN_CENTER_DIST / 2))
+#define NEW_TIMEING_SUFFIX_H_X              ((s16)(NEW_TIMEING_HOUR_COL_X + NEW_TIMEING_SUFFIX_DX_H))
+#define NEW_TIMEING_SUFFIX_MIN_X            ((s16)(NEW_TIMEING_MIN_COL_X + NEW_TIMEING_SUFFIX_DX_MIN))
+#define NEW_TIMEING_SUFFIX_Y                ((s16)(NEW_TIMEING_BOX_Y + NEW_TIMEING_SUFFIX_DY))
 
 #define NEW_TIMEING_STATUS_BAT_X            (GUI_SCREEN_WIDTH - NEW_TIMEING_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2)
 #define NEW_TIMEING_STATUS_BT_X             (NEW_TIMEING_STATUS_BAT_X - NEW_HOME_BAT_W / 2 - NEW_TIMEING_STATUS_GAP - NEW_HOME_BT_W / 2)
@@ -566,6 +572,40 @@ static void new_timeing_digits_apply(f_new_timeing_t *f)
     }
 }
 
+static void new_timeing_btn_label_show(compo_textbox_t *txt, s16 cx, s16 cy,
+                                       const char *label, u16 color)
+{
+    widget_text_t *widget;
+    rect_t rect;
+    area_t text_area;
+
+    if (txt == NULL) {
+        return;
+    }
+    widget = txt->txt;
+    compo_textbox_set_location(txt, cx, cy, NEW_TIME_BTN_W, NEW_TIME_BTN_H);
+    compo_textbox_set_align_center(txt, true);
+    if (widget != NULL) {
+        widget_set_align_center(widget, true);
+        widget_text_set_ellipsis(widget, false);
+    }
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autosize(txt, false);
+    compo_textbox_set_forecolor(txt, color);
+    compo_textbox_set(txt, label);
+    rect = widget_get_location(widget);
+    text_area = widget_text_get_area(widget);
+    if (rect.hei > text_area.hei) {
+        widget_text_set_client(widget, 0, (rect.hei - text_area.hei) >> 1);
+    } else {
+        widget_text_set_client(widget, 0, 0);
+    }
+    compo_textbox_set_visible(txt, true);
+    if (widget != NULL) {
+        widget_set_top(widget, true);
+    }
+}
+
 static void new_timeing_label_show(compo_textbox_t *txt, const char *label, u16 color)
 {
     if (txt == NULL) {
@@ -607,8 +647,10 @@ static void new_timeing_text_apply(f_new_timeing_t *f)
         no_color = NEW_TIMEING_COLOR_OFF;
         yes_color = NEW_TIMEING_COLOR_ON;
     }
-    new_timeing_label_show(f->txt_no, "NO", no_color);
-    new_timeing_label_show(f->txt_yes, "YES", yes_color);
+    new_timeing_btn_label_show(f->txt_no, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_BOTTOM_Y,
+                               "NO", no_color);
+    new_timeing_btn_label_show(f->txt_yes, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_BOTTOM_Y,
+                               "YES", yes_color);
 }
 
 static void new_timeing_status_refresh(f_new_timeing_t *f)
@@ -892,12 +934,21 @@ compo_form_t *func_new_timeing_form_create(void)
                                  NEW_TIMEING_COLOR_OFF);
     (void)new_timeing_pic_create_hidden(frm, COMPO_ID_PIC_NO_BG);
     (void)new_timeing_pic_create_hidden(frm, COMPO_ID_PIC_YES_BG);
-    (void)new_timeing_txt_create(frm, COMPO_ID_TXT_NO, 4,
-                                 NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_BOTTOM_Y,
-                                 NEW_TIME_BTN_W, NEW_TIME_BTN_H, NEW_TIMEING_COLOR_OFF);
-    (void)new_timeing_txt_create(frm, COMPO_ID_TXT_YES, 4,
-                                 NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_BOTTOM_Y,
-                                 NEW_TIME_BTN_W, NEW_TIME_BTN_H, NEW_TIMEING_COLOR_ON);
+    {
+        compo_textbox_t *txt;
+
+        txt = compo_textbox_create(frm, 4);
+        compo_setid(txt, COMPO_ID_TXT_NO);
+        compo_textbox_set_location(txt, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_BOTTOM_Y,
+                                   NEW_TIME_BTN_W, NEW_TIME_BTN_H);
+        compo_textbox_set_visible(txt, false);
+
+        txt = compo_textbox_create(frm, 4);
+        compo_setid(txt, COMPO_ID_TXT_YES);
+        compo_textbox_set_location(txt, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_BOTTOM_Y,
+                                   NEW_TIME_BTN_W, NEW_TIME_BTN_H);
+        compo_textbox_set_visible(txt, false);
+    }
     return frm;
 }
 
