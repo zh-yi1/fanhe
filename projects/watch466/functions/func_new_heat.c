@@ -1003,6 +1003,15 @@ static void new_heat_ok_key(f_new_heat_t *f)
         g_res.heat_hour = (u8)(total_min / 60);
         g_res.heat_min = (u8)(total_min % 60);
         g_res.temp_idx = f->temp_idx;
+        /* 预约时间 = 用户设定的完成时间，减去加热时长得出实际开始时间 */
+        {
+            u16 end_total_min = (u16)g_res.appt_hour * 60 + (u16)g_res.appt_min;
+            u16 start_total_min = (end_total_min >= total_min)
+                                  ? (end_total_min - total_min)
+                                  : (end_total_min + 1440 - total_min);   /* 跨天回绕 */
+            g_res.appt_hour = (u8)(start_total_min / 60);
+            g_res.appt_min = (u8)(start_total_min % 60);
+        }
         func_reservation_new_ui_do_submit();
         return;
     }
