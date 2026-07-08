@@ -47,7 +47,7 @@ extern volatile u8 elunchbox_te_block_flag;
 
 /*
  * 时间设置页 — 效果图 TIME
- *   时/分框：new_blue_bj1 / new_gray_bj1；数字 new_w* / new_b*
+ *   时/分框：new_blue_bj1 / new_gray_bj1；数字 new_b0..9（选中与否均用黑字）
  *   底部 NO/YES：new_gray_bj2 / new_blue_bj2
  *   加减键调节当前列；确认键切换焦点；电源键返回/取消
  */
@@ -233,31 +233,6 @@ static const u16 tbl_timeing_b_digit_h[10] = {
     NEW_TIMEING_NEW_B9_H,
 };
 
-static const u32 tbl_timeing_w_digit_addr[10] = {
-    UI_BUF_NEW_UI_NEW_W0_BIN, UI_BUF_NEW_UI_NEW_W1_BIN, UI_BUF_NEW_UI_NEW_W2_BIN,
-    UI_BUF_NEW_UI_NEW_W3_BIN, UI_BUF_NEW_UI_NEW_W4_BIN, UI_BUF_NEW_UI_NEW_W5_BIN,
-    UI_BUF_NEW_UI_NEW_W6_BIN, UI_BUF_NEW_UI_NEW_W7_BIN, UI_BUF_NEW_UI_NEW_W8_BIN,
-    UI_BUF_NEW_UI_NEW_W9_BIN,
-};
-static const u16 tbl_timeing_w_digit_len[10] = {
-    UI_LEN_NEW_UI_NEW_W0_BIN, UI_LEN_NEW_UI_NEW_W1_BIN, UI_LEN_NEW_UI_NEW_W2_BIN,
-    UI_LEN_NEW_UI_NEW_W3_BIN, UI_LEN_NEW_UI_NEW_W4_BIN, UI_LEN_NEW_UI_NEW_W5_BIN,
-    UI_LEN_NEW_UI_NEW_W6_BIN, UI_LEN_NEW_UI_NEW_W7_BIN, UI_LEN_NEW_UI_NEW_W8_BIN,
-    UI_LEN_NEW_UI_NEW_W9_BIN,
-};
-static const u16 tbl_timeing_w_digit_w[10] = {
-    NEW_TIMEING_NEW_W0_W, NEW_TIMEING_NEW_W1_W, NEW_TIMEING_NEW_W2_W,
-    NEW_TIMEING_NEW_W3_W, NEW_TIMEING_NEW_W4_W, NEW_TIMEING_NEW_W5_W,
-    NEW_TIMEING_NEW_W6_W, NEW_TIMEING_NEW_W7_W, NEW_TIMEING_NEW_W8_W,
-    NEW_TIMEING_NEW_W9_W,
-};
-static const u16 tbl_timeing_w_digit_h[10] = {
-    NEW_TIMEING_NEW_W0_H, NEW_TIMEING_NEW_W1_H, NEW_TIMEING_NEW_W2_H,
-    NEW_TIMEING_NEW_W3_H, NEW_TIMEING_NEW_W4_H, NEW_TIMEING_NEW_W5_H,
-    NEW_TIMEING_NEW_W6_H, NEW_TIMEING_NEW_W7_H, NEW_TIMEING_NEW_W8_H,
-    NEW_TIMEING_NEW_W9_H,
-};
-
 static void new_timeing_font_bind_txt(compo_textbox_t *txt)
 {
     if (txt != NULL) {
@@ -391,8 +366,7 @@ static s16 new_timeing_digit_pair_offset(u16 w10, u16 w1)
     return (s16)((s16)w10 / 2 + NEW_TIMEING_DIGIT_GAP + (s16)w1 / 2);
 }
 
-static bool new_timeing_load_digit(u8 slot, u8 digit, bool white_set,
-                                   compo_picturebox_t *pic)
+static bool new_timeing_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic)
 {
     u32 addr;
     u16 len;
@@ -402,17 +376,10 @@ static bool new_timeing_load_digit(u8 slot, u8 digit, bool white_set,
     if (pic == NULL || digit > 9 || slot >= HOME_UI_DIGIT_SLOTS) {
         return false;
     }
-    if (white_set) {
-        addr = tbl_timeing_w_digit_addr[digit];
-        len = tbl_timeing_w_digit_len[digit];
-        w = tbl_timeing_w_digit_w[digit];
-        h = tbl_timeing_w_digit_h[digit];
-    } else {
-        addr = tbl_timeing_b_digit_addr[digit];
-        len = tbl_timeing_b_digit_len[digit];
-        w = tbl_timeing_b_digit_w[digit];
-        h = tbl_timeing_b_digit_h[digit];
-    }
+    addr = tbl_timeing_b_digit_addr[digit];
+    len = tbl_timeing_b_digit_len[digit];
+    w = tbl_timeing_b_digit_w[digit];
+    h = tbl_timeing_b_digit_h[digit];
     if (len > NEW_TIMEING_DIGIT_RAM_SIZE || len > HOME_DIGIT_RAM_MAX_SIZE) {
         return false;
     }
@@ -420,7 +387,7 @@ static bool new_timeing_load_digit(u8 slot, u8 digit, bool white_set,
                                     addr, len, pic, w, h, 0, 0);
 }
 
-static void new_timeing_clock_digit_pos_pair(u8 d10, u8 d1, bool white_set,
+static void new_timeing_clock_digit_pos_pair(u8 d10, u8 d1,
                                              s16 center_x, s16 center_y,
                                              compo_picturebox_t *pic10,
                                              compo_picturebox_t *pic1)
@@ -431,10 +398,10 @@ static void new_timeing_clock_digit_pos_pair(u8 d10, u8 d1, bool white_set,
     u16 h1;
     s16 off;
 
-    w10 = white_set ? tbl_timeing_w_digit_w[d10] : tbl_timeing_b_digit_w[d10];
-    w1 = white_set ? tbl_timeing_w_digit_w[d1] : tbl_timeing_b_digit_w[d1];
-    h10 = white_set ? tbl_timeing_w_digit_h[d10] : tbl_timeing_b_digit_h[d10];
-    h1 = white_set ? tbl_timeing_w_digit_h[d1] : tbl_timeing_b_digit_h[d1];
+    w10 = tbl_timeing_b_digit_w[d10];
+    w1 = tbl_timeing_b_digit_w[d1];
+    h10 = tbl_timeing_b_digit_h[d10];
+    h1 = tbl_timeing_b_digit_h[d1];
     off = new_timeing_digit_pair_offset(w10, w1);
     new_timeing_pic_pos_tr(pic10, (s16)(center_x - off / 2), center_y, w10, h10);
     new_timeing_pic_pos_tr(pic1, (s16)(center_x + off / 2), center_y, w1, h1);
@@ -580,8 +547,6 @@ static void new_timeing_digits_apply(f_new_timeing_t *f)
     u8 h1;
     u8 m10;
     u8 m1;
-    bool hour_white;
-    bool min_white;
 
     if (f == NULL) {
         return;
@@ -590,18 +555,16 @@ static void new_timeing_digits_apply(f_new_timeing_t *f)
     h1 = (u8)(f->hour % 10);
     m10 = (u8)(f->min / 10);
     m1 = (u8)(f->min % 10);
-    hour_white = (f->focus == NEW_TIMEING_FOCUS_HOUR);
-    min_white = (f->focus == NEW_TIMEING_FOCUS_MIN);
 
-    if (new_timeing_load_digit(0, h10, hour_white, f->pic_h10) &&
-        new_timeing_load_digit(1, h1, hour_white, f->pic_h1)) {
-        new_timeing_clock_digit_pos_pair(h10, h1, hour_white,
+    if (new_timeing_load_digit(0, h10, f->pic_h10) &&
+        new_timeing_load_digit(1, h1, f->pic_h1)) {
+        new_timeing_clock_digit_pos_pair(h10, h1,
                                          NEW_TIMEING_HOUR_COL_X, NEW_TIMEING_BOX_Y,
                                          f->pic_h10, f->pic_h1);
     }
-    if (new_timeing_load_digit(2, m10, min_white, f->pic_m10) &&
-        new_timeing_load_digit(3, m1, min_white, f->pic_m1)) {
-        new_timeing_clock_digit_pos_pair(m10, m1, min_white,
+    if (new_timeing_load_digit(2, m10, f->pic_m10) &&
+        new_timeing_load_digit(3, m1, f->pic_m1)) {
+        new_timeing_clock_digit_pos_pair(m10, m1,
                                          NEW_TIMEING_MIN_COL_X, NEW_TIMEING_BOX_Y,
                                          f->pic_m10, f->pic_m1);
     }
