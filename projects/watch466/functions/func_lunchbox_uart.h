@@ -52,8 +52,9 @@ enum {
     LB_DPID_FAULT           = 9,        // 故障: enum, 0=正常 1=高温告警
     LB_DPID_HEAT_ENABLE     = 10,       // 是否加热: bool, 0=停止 1=加热 (v1.0.5 新增)
     LB_DPID_MCU_VERSION     = 13,       // MCU版本号: value(4B), 固件版本号 (v1.0.7 新增)
-    LB_DPID_TIME_SYNC       = 11,       // app同步时间戳: value(4B) unix时间 (仅MCU UART协议)
+    LB_DPID_TIME_SYNC       = 11,       // app同步时间戳: value(4B) unix时间 (APP→加热模块设置时间)
     LB_DPID_KEY_NOTIFY      = 12,       // 模组按键通知: enum, 0-9, MCU→加热模块通知按键按下
+    LB_DPID_RTC_TIME        = 14,       // rtc的unix时间: value(4B) unix时间 (加热模块→MCU上报设备时间, v1.0.8新增)
 };
 
 #define LB_HEAT_DURATION_MIN_MIN          60      // 加热时长下限(分钟)，UI 最低 1 小时

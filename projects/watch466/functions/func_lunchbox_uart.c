@@ -617,6 +617,12 @@ void lb_dp_dump_hex(const u8 *data, u16 data_len)
             printf(" MCUVersion=0x%08lX", (unsigned long)v);
             break;
         }
+        case LB_DPID_RTC_TIME: {     // 14: value(4B) 加热模块RTC时间 (v1.0.8新增)
+            u32 v = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                  | ((u32)val[2] << 8)  |  (u32)val[3];
+            printf(" RtcTime=%lu", (unsigned long)v);
+            break;
+        }
         default:
             printf(" DPID%d=?", dpid);
             break;
@@ -940,7 +946,16 @@ void lb_heating_sync_from_dp(u8 *data, u16 len)
             /* 充电状态由 heat_display_feed_dp() 统一处理唤醒逻辑 */
             break;
         case LB_DPID_TIME_SYNC:
-            /* 加热模块上报的时间戳: 记录后用 lb_get_display_tm() 按 APP > 加热模块 > RTC 优先级使用 */
+            /* 加热模块上报的时间戳 (dpid=11, 旧版兼容): 记录后用 lb_get_display_tm() 按 APP > 加热模块 > RTC 优先级使用 */
+            if (val_len >= 4) {
+                lb_synced_heat_unix_ts = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                                       | ((u32)val[2] << 8) | val[3];
+                lb_synced_heat_rtccnt = RTCCNT;
+                lb_has_heat_ts = true;
+            }
+            break;
+        case LB_DPID_RTC_TIME:
+            /* 加热模块上报的 RTC 时间戳 (dpid=14, v1.0.8新增): 未连蓝牙时优先显示此时间 */
             if (val_len >= 4) {
                 lb_synced_heat_unix_ts = ((u32)val[0] << 24) | ((u32)val[1] << 16)
                                        | ((u32)val[2] << 8) | val[3];
