@@ -52,7 +52,7 @@ extern volatile u8 elunchbox_te_block_flag;
  * 时间设置页 — 效果图 TIME
  *   时/分框：new_blue_bj1 / new_gray_bj1；数字 new_b0..9（空白底与当前框底色一致）
  *   底部 NO/YES：new_gray_bj2 / new_blue_bj2
- *   加减键调节当前列；确认键切换焦点；电源键返回/取消
+ *   左上角：TIME 页面标题（不显示 RTC 时钟）
  */
 #define NEW_TIMEING_REF_W                   466
 #define NEW_TIMEING_REF_H                   466
@@ -86,7 +86,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_TITLE_LEFT              NEW_TIMEING_SX(10)
 #define NEW_TIMEING_TITLE_Y                 NEW_TIMEING_SY(34)
 #define NEW_TIMEING_TITLE_H                 NEW_TIMEING_SY(36)
-#define NEW_TIMEING_TITLE_W                 NEW_TIMEING_SX(220)
+#define NEW_TIMEING_TITLE_W                 NEW_TIMEING_SX(120)
 #define NEW_TIMEING_PANEL_Y                 NEW_TIMEING_SY(144)
 #define NEW_TIMEING_PANEL_W                 NEW_TIMEING_SX(280)
 #define NEW_TIMEING_PANEL_H                 NEW_TIMEING_SY(240)

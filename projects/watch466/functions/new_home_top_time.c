@@ -90,24 +90,6 @@ static bool new_top_time_flash_to_ram(u8 *ram, u16 buf_size, u32 flash_addr, u16
     return true;
 }
 
-static void new_top_time_parse(tm_t *tm, u8 *hour12, u8 *min, bool *is_pm)
-{
-    u8 hour = tm->hour;
-
-    *is_pm = false;
-    if (hour >= 12) {
-        *is_pm = true;
-        if (hour > 12) {
-            hour -= 12;
-        }
-    }
-    if (hour == 0) {
-        hour = 12;
-    }
-    *hour12 = hour;
-    *min = tm->min;
-}
-
 static bool new_top_time_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic)
 {
     if (digit > 9 || slot >= HOME_TOP_TIME_DIGIT_SLOTS) {
@@ -126,23 +108,18 @@ static bool new_top_time_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic)
     return false;
 }
 
-static void new_top_time_layout(home_top_time_ui_t *ui, u8 hour12, u8 min, bool is_pm)
+static void new_top_time_layout(home_top_time_ui_t *ui, u8 hour, u8 min)
 {
-    u8 h10 = (u8)(hour12 / 10);
-    u8 h1 = (u8)(hour12 % 10);
+    u8 h10 = (u8)(hour / 10);
+    u8 h1 = (u8)(hour % 10);
     u8 m10 = (u8)(min / 10);
     u8 m1 = (u8)(min % 10);
-    bool show_h10 = (hour12 >= 10);
     s16 x = HOME_TOP_TIME_X;
-    u16 ampm_w = is_pm ? HOME_TOP_TIME_PMM_W : HOME_TOP_TIME_AMM_W;
-    u16 ampm_h = is_pm ? HOME_TOP_TIME_PMM_H : HOME_TOP_TIME_AMM_H;
 
-    if (show_h10) {
+    {
         s16 cx = x + (s16)(tbl_new_top_digit_w[h10] / 2);
         compo_picturebox_set_pos(ui->pic_h10, cx, HOME_TOP_TIME_Y);
         x += tbl_new_top_digit_w[h10] + HOME_TOP_TIME_ELEM_GAP;
-    } else if (ui->pic_h10 != NULL) {
-        compo_picturebox_set_visible(ui->pic_h10, false);
     }
     {
         s16 cx = x + (s16)(tbl_new_top_digit_w[h1] / 2);
@@ -162,12 +139,9 @@ static void new_top_time_layout(home_top_time_ui_t *ui, u8 hour12, u8 min, bool 
     {
         s16 cx = x + (s16)(tbl_new_top_digit_w[m1] / 2);
         compo_picturebox_set_pos(ui->pic_m1, cx, HOME_TOP_TIME_Y);
-        x += tbl_new_top_digit_w[m1] + HOME_TOP_TIME_AMPM_GAP;
     }
-    {
-        s16 cx = x + (s16)(ampm_w / 2);
-        compo_picturebox_set_pos(ui->pic_ampm, cx, HOME_TOP_TIME_Y);
-        compo_picturebox_set_size(ui->pic_ampm, ampm_w, ampm_h);
+    if (ui->pic_ampm != NULL) {
+        compo_picturebox_set_visible(ui->pic_ampm, false);
     }
 }
 
@@ -186,38 +160,32 @@ void new_home_top_time_bind(home_top_time_ui_t *ui, u16 id_h10, u16 id_h1, u16 i
 
 bool new_home_top_time_refresh(home_top_time_ui_t *ui, tm_t *tm)
 {
-    u8 hour12;
+    u8 hour;
     u8 min;
-    bool is_pm;
     u16 key;
     u8 h10;
     u8 h1;
     u8 m10;
     u8 m1;
-    bool show_h10;
 
     if (ui == NULL || tm == NULL) {
         return false;
     }
-    new_top_time_parse(tm, &hour12, &min, &is_pm);
-    key = (u16)hour12 | ((u16)min << 8) | (is_pm ? 0x8000 : 0);
+    hour = tm->hour;
+    min = tm->min;
+    key = (u16)hour | ((u16)min << 8);
     if (ui->last_key == key) {
         return false;
     }
     home_gpu_wait_idle();
     ui->last_key = key;
 
-    h10 = (u8)(hour12 / 10);
-    h1 = (u8)(hour12 % 10);
+    h10 = (u8)(hour / 10);
+    h1 = (u8)(hour % 10);
     m10 = (u8)(min / 10);
     m1 = (u8)(min % 10);
-    show_h10 = (hour12 >= 10);
 
-    if (show_h10) {
-        new_top_time_load_digit(0, h10, ui->pic_h10);
-    } else if (ui->pic_h10 != NULL) {
-        compo_picturebox_set_visible(ui->pic_h10, false);
-    }
+    new_top_time_load_digit(0, h10, ui->pic_h10);
     new_top_time_load_digit(1, h1, ui->pic_h1);
 #if NEW_TOP_TIME_USE_NEW_UI
     new_top_time_flash_to_ram(home_ui_shared_top_time_colon_ram, HOME_TOP_TIME_COLONM_RAM_SIZE,
@@ -233,28 +201,7 @@ bool new_home_top_time_refresh(home_top_time_ui_t *ui, tm_t *tm)
     }
     new_top_time_load_digit(2, m10, ui->pic_m10);
     new_top_time_load_digit(3, m1, ui->pic_m1);
-    if (is_pm) {
-#if NEW_TOP_TIME_USE_NEW_UI
-        new_top_time_flash_to_ram(home_ui_shared_top_time_ampm_ram, HOME_TOP_TIME_AMPM_RAM_MAX_SIZE,
-                                  UI_BUF_NEW_UI_NEW_PMM_BIN, UI_LEN_NEW_UI_NEW_PMM_BIN,
-                                  ui->pic_ampm);
-#else
-        new_top_time_flash_to_ram(home_ui_shared_top_time_ampm_ram, HOME_TOP_TIME_AMPM_RAM_MAX_SIZE,
-                                  UI_BUF_HOME_PMM_BIN, UI_LEN_HOME_PMM_BIN,
-                                  ui->pic_ampm);
-#endif
-    } else {
-#if NEW_TOP_TIME_USE_NEW_UI
-        new_top_time_flash_to_ram(home_ui_shared_top_time_ampm_ram, HOME_TOP_TIME_AMPM_RAM_MAX_SIZE,
-                                  UI_BUF_NEW_UI_NEW_AMM_BIN, UI_LEN_NEW_UI_NEW_AMM_BIN,
-                                  ui->pic_ampm);
-#else
-        new_top_time_flash_to_ram(home_ui_shared_top_time_ampm_ram, HOME_TOP_TIME_AMPM_RAM_MAX_SIZE,
-                                  UI_BUF_HOME_AMM_BIN, UI_LEN_HOME_AMM_BIN,
-                                  ui->pic_ampm);
-#endif
-    }
-    new_top_time_layout(ui, hour12, min, is_pm);
+    new_top_time_layout(ui, hour, min);
     return true;
 }
 
