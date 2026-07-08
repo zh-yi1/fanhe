@@ -1095,11 +1095,19 @@ static void func_new_time_process(void)
             f->load_stage = NEW_TIME_LOAD_ARROWS;
             break;
         case NEW_TIME_LOAD_ARROWS:
-            elunchbox_te_block_flag = 1;
             home_gpu_wait_idle();
-            new_time_arrows_apply(f);
-            home_gpu_wait_idle();
-            elunchbox_te_block_flag = 0;
+            WDT_CLR();
+            {
+                u8 was_blocked = elunchbox_te_block_flag;
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 1;
+                }
+                new_time_arrows_apply(f);
+                home_gpu_wait_idle();
+                if (!was_blocked) {
+                    elunchbox_te_block_flag = 0;
+                }
+            }
             f->load_stage = NEW_TIME_LOAD_CLOCK;
             break;
         case NEW_TIME_LOAD_CLOCK:

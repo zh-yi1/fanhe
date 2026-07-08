@@ -340,13 +340,13 @@ bool sfunc_sleep_proc(void)
         bsp_sensor_step_lowpwr_pro();
 
         if (wkpnd) {
-            printf(port_wakeup_str, wkpnd);
 #if ELUNCHBOX_PANEL_EN
             if (manual_off) {
-                /* 手动关机：按键唤醒 MCU 供主循环检测 3s 长按，但不亮屏 */
+                /* 手动关机：按键/PB9-UART唤醒 MCU 供主循环处理，但不亮屏 */
                 break;
             }
 #endif
+            printf(port_wakeup_str, wkpnd);
             gui_need_wkp = true;
             break;
         }
@@ -582,7 +582,7 @@ static void sfunc_sleep(void)
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_guioff_slp) {
         if (elunchbox_manual_off_slp) {
-            GPIOBDE = BIT(3);                   /* 仅日志口，UART1(PB8/PB9)掉电 */
+            GPIOBDE = BIT(3) | BIT(9);          /* PB3 日志 + PB9 UART1 RX，TX(PB8)掉电 */
         } else {
             GPIOBDE = BIT(3) | BIT(8) | BIT(9); /* PB3 日志 / PB8 PB9 UART1 */
         }
@@ -623,10 +623,9 @@ static void sfunc_sleep(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (elunchbox_manual_off_slp) {
-        /* 手动关机: 关闭非必要外设时钟，仅保留 RTC/GPIO/WDT/BT_SLEEP */
+        /* 手动关机: 关闭非必要外设时钟，保留 UART1 供充电数据 RX */
         clkgat0_bak = CLKGAT0;
         CLKGAT0 &= ~(BIT(CLKGAT0_UART0_CLK_EN)  |
-                     BIT(CLKGAT0_UART1_CLK_EN)  |
                      BIT(CLKGAT0_HSUT0_CLK_EN)  |
                      BIT(CLKGAT0_IIS_CLK_EN)    |
                      BIT(CLKGAT0_SPI0_CLK_EN)   |
@@ -635,6 +634,9 @@ static void sfunc_sleep(void)
                      BIT(CLKGAT0_TMR0_CLK_EN)   |
                      BIT(CLKGAT0_TMR1_CLK_EN)   |
                      BIT(CLKGAT0_TMR2_CLK_EN));
+        /* UART1_CLK_EN 保留: 手动关机需 RX 接收加热模块充电数据 */
+        /* 配置 PB9 (UART1 RX) 下降沿唤醒：加热模块发数据时唤醒 CPU 处理 */
+        port_wakeup_init(IO_PB9, 1, 1);
     }
 #endif
 
@@ -783,7 +785,10 @@ static void sfunc_sleep(void)
     }
 
     sleep_cb.sys_is_sleep = false;
-    printf("sleep_exit\n");
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (!elunchbox_manual_off_slp)
+#endif
+        printf("sleep_exit\n");
 }
 
 bool sleep_process(is_sleep_func is_sleep)
@@ -793,9 +798,10 @@ bool sleep_process(is_sleep_func is_sleep)
     if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
         sys_cb.gui_need_wakeup = 0;
 #if ELUNCHBOX_PANEL_EN
-        /* 手动长按关机：不进浅睡，主循环全电压轮询 TCH5 长按 3s 唤醒 */
+        /* 手动长按关机：直接进入深度休眠，sfunc_sleep() 内含 manual_off 低功耗路径 */
         if (elunchbox_pwr_is_manual_off()) {
-            reset_sleep_delay();
+            sfunc_sleep();
+            reset_sleep_delay_all();
             reset_pwroff_delay();
             return false;
         }

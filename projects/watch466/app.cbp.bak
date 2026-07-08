@@ -584,10 +584,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/gui/components/compo_textbox.h" />
-		<Unit filename="../../platform/gui/components/compo_video.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/gui/components/compo_video.h" />
 		<Unit filename="../../platform/gui/components/compo_windmill.c">
 			<Option compilerVar="CC" />
 		</Unit>

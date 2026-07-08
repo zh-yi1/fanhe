@@ -51,11 +51,24 @@ void home_ui_gpu_pics_detach(compo_picturebox_t * const *pics, u8 cnt)
     if (pics == NULL || cnt == 0) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    /* 外层包一次 TE block，避免每个 pic detach 内部重复 toggle TE block
+     * → gui thread miss */
+    u8 was_blocked = elunchbox_te_block_flag;
+    if (!was_blocked) {
+        elunchbox_te_block_flag = 1;
+    }
+#endif
     home_gpu_wait_idle();
     for (i = 0; i < cnt; i++) {
-        home_ui_gpu_pic_detach(pics[i]);  // 清理 5 个加热面板 picturebox
+        home_ui_gpu_pic_detach(pics[i]);  // 清理加热面板 picturebox
     }
     home_gpu_wait_idle();
+#if ELUNCHBOX_PANEL_EN
+    if (!was_blocked) {
+        elunchbox_te_block_flag = 0;
+    }
+#endif
 }
 
 void home_ui_gpu_pics_detach_light_flush(compo_picturebox_t * const *pics, u8 cnt)

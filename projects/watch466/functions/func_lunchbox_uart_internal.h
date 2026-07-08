@@ -48,6 +48,13 @@ extern u32  lb_synced_unix_ts;       // APP 同步的权威 Unix 时间戳
 extern u32  lb_synced_rtccnt;        // 同步时的 RTCCNT 值
 extern bool lb_has_ble_ts;           // 是否已收到过 APP 时间同步
 
+// 加热模块 UART 时间同步
+// 当加热模块通过 UART 0x01 DataPoint(dpid=11) 上报时间戳时，
+// 同时记录当时的 RTCCNT，用于 lb_get_display_tm() 优先级判断
+extern u32  lb_synced_heat_unix_ts;  // 加热模块同步的 Unix 时间戳
+extern u32  lb_synced_heat_rtccnt;   // 同步时的 RTCCNT 值
+extern bool lb_has_heat_ts;          // 是否已收到过加热模块时间同步
+
 // BLE 连接后等待 APP 时间戳应答，收到后再发送预设到加热模块
 extern bool lb_ble_presets_pending;
 

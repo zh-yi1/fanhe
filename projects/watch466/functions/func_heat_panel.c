@@ -697,15 +697,13 @@ static void heat_panel_display_on_info(const heat_display_info_t *info)
     if (info->remain_min > 0) {
         g_hp_live_seen_positive = true;
     } else if (!g_hp_live_seen_positive) {
-        /* 开局常见上一轮 remain=0 残留；加热中收到 remain=0 视为自然结束 */
-        if (!func_heat_panel_is_heating(f_heat)) {
-            return;
-        }
+        /* 开局常见上一轮 remain=0 残留；未收到正数前一律忽略，防止误触发加热完成 */
+        return;
     }
 
     func_heat_panel_set_live(f_heat, info->remain_min, info->temp_f);
 
-    if (info->remain_min == 0) {
+    if (info->remain_min == 0) {   //加热结束
         func_heat_panel_heating_finish(f_heat);
         return;
     }

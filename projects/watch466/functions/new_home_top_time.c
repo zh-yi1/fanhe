@@ -3,6 +3,7 @@
 #include "new_home_top_time.h"
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
+#include "func_lunchbox_uart.h"
 
 #if defined(UI_BUF_NEW_UI_NEW_0M_BIN)
 #define NEW_TOP_TIME_USE_NEW_UI     1
@@ -264,7 +265,7 @@ bool new_home_top_time_tick(home_top_time_ui_t *ui, u8 *last_min, u8 *last_sec)
     if (ui == NULL || last_min == NULL || last_sec == NULL) {
         return false;
     }
-    tm = rtc_clock_get();
+    tm = lb_get_display_tm();
     if (*last_min == tm.min && *last_sec == tm.sec) {
         return false;
     }
@@ -280,7 +281,7 @@ void new_home_top_time_force(home_top_time_ui_t *ui, u8 *last_min, u8 *last_sec)
     if (ui == NULL) {
         return;
     }
-    tm = rtc_clock_get();
+    tm = lb_get_display_tm();
     if (last_min != NULL) {
         *last_min = tm.min;
     }

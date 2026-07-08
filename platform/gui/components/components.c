@@ -92,9 +92,11 @@ static int compo_get_size(int type)
         compo_size = sizeof(compo_animation_t);
         break;
 
+#if VIDEO_PLAY_EN
     case COMPO_TYPE_VIDEO:
         compo_size = sizeof(compo_video_t);
         break;
+#endif
 
     case COMPO_TYPE_JPG:
         compo_size = sizeof(compo_jpg_t);
