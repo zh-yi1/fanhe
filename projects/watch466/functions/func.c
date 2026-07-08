@@ -2306,10 +2306,6 @@ void func_exit(void)
                 home_gpu_wait_idle();
                 printf("exit: wait3 done\n");
             }
-            if (!was_blocked) {
-                elunchbox_te_block_flag = 0;
-            }
-        }
 #endif
     }
     //释放FUNC控制结构体
