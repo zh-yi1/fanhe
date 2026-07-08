@@ -364,25 +364,48 @@ static void new_mode_sel_shape_create(compo_form_t *frm)
 
 static void func_new_mode_gpu_detach_before_leave(f_new_mode_t *f)
 {
+    compo_picturebox_t *pics[2 + NEW_MODE_ITEM_CNT * 2];
+    u8 n = 0;
     u8 i;
 
-    if (f == NULL) {
+    if (f == NULL || func_cb.frm_main == NULL) {
+        home_ui_shared_battery_detach_pic();
         return;
     }
     WDT_CLR();
-    home_ui_gpu_pic_detach_light(f->pic_bt);
-    home_ui_gpu_pic_detach_light(f->pic_bat);
+    if (f->pic_bt != NULL) {
+        pics[n++] = f->pic_bt;
+    }
+    if (f->pic_bat != NULL) {
+        pics[n++] = f->pic_bat;
+    }
     if (f->shape_sel != NULL) {
         compo_shape_set_visible(f->shape_sel, false);
     }
     for (i = 0; i < NEW_MODE_ITEM_CNT; i++) {
-        home_ui_gpu_pic_detach_light(f->pic_icon[i]);
-        home_ui_gpu_pic_detach_light(f->pic_arrow[i]);
+        if (f->pic_icon[i] != NULL) {
+            pics[n++] = f->pic_icon[i];
+        }
+        if (f->pic_arrow[i] != NULL) {
+            pics[n++] = f->pic_arrow[i];
+        }
+    }
+    if (n > 0) {
+        home_ui_gpu_pics_detach_light_flush(pics, n);
     }
     home_ui_shared_battery_detach_pic();
     WDT_CLR();
 }
+
+void func_new_mode_pre_leave_cleanup(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    f_new_mode_t *f = (f_new_mode_t *)func_cb.f_cb;
+
+    func_new_mode_gpu_detach_before_leave(f);
+    new_mode_arrow_ram_ready = false;
 #endif
+}
 
 #if ELUNCHBOX_PANEL_EN
 static compo_picturebox_t *new_mode_pic_create_hidden(compo_form_t *frm, u16 id)
@@ -800,7 +823,7 @@ static void new_mode_power_key(void)
         return;
     }
 #if ELUNCHBOX_PANEL_EN
-    home_gpu_wait_idle();
+    func_new_mode_pre_leave_cleanup();
     WDT_CLR();
 #endif
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
@@ -1094,13 +1117,7 @@ void func_new_mode_enter(void)
 void func_new_mode_exit(void)
 {
 #if ELUNCHBOX_PANEL_EN
-    f_new_mode_t *f = (f_new_mode_t *)func_cb.f_cb;
-
-    if (f != NULL) {
-        func_new_mode_gpu_detach_before_leave(f);
-    } else {
-        home_ui_shared_battery_detach_pic();
-    }
+    func_new_mode_pre_leave_cleanup();
 #endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_set_home_msg_block(0);
@@ -1120,3 +1137,4 @@ void func_new_mode(void)
     }
     func_new_mode_exit();
 }
+#endif  /* ELUNCHBOX_PANEL_EN — closes #if at line 354 */

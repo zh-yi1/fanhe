@@ -861,6 +861,7 @@ void func_new_warm_enter(void);
 void func_new_warm_exit(void);
 void func_new_mode_enter(void);
 void func_new_mode_exit(void);
+void func_new_mode_pre_leave_cleanup(void);
 void func_new_setup_enter(void);
 void func_new_setup_exit(void);
 void func_new_language_enter(void);
