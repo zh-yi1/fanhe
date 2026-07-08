@@ -10,45 +10,20 @@
 #define HOME_TOP_TIME_TXT_W                 120
 #define HOME_TOP_TIME_TXT_H                 36
 
-static void home_top_time_txt_parse(tm_t *tm, u8 *hour12, u8 *min, bool *is_pm)
-{
-    u8 hour = tm->hour;
-
-    *is_pm = false;
-    if (hour >= 12) {
-        *is_pm = true;
-        if (hour > 12) {
-            hour -= 12;
-        }
-    }
-    if (hour == 0) {
-        hour = 12;
-    }
-    *hour12 = hour;
-    *min = tm->min;
-}
-
 static u16 home_top_time_txt_key(tm_t *tm)
 {
-    u8 hour12;
-    u8 min;
-    bool is_pm;
-
-    home_top_time_txt_parse(tm, &hour12, &min, &is_pm);
-    return (u16)hour12 | ((u16)min << 8) | (is_pm ? 0x8000 : 0);
+    if (tm == NULL) {
+        return 0xffff;
+    }
+    return (u16)tm->hour | ((u16)tm->min << 8);
 }
 
 static void home_top_time_txt_format(char *buf, u16 buf_size, tm_t *tm)
 {
-    u8 hour12;
-    u8 min;
-    bool is_pm;
-
     if (buf == NULL || buf_size == 0 || tm == NULL) {
         return;
     }
-    home_top_time_txt_parse(tm, &hour12, &min, &is_pm);
-    snprintf(buf, buf_size, "%u:%02u%s", (unsigned)hour12, (unsigned)min, is_pm ? "PM" : "AM");
+    snprintf(buf, buf_size, "%02u:%02u", (unsigned)tm->hour, (unsigned)tm->min);
 }
 
 static void home_top_time_txt_font_once(home_top_time_txt_t *ui)

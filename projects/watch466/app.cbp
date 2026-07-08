@@ -938,7 +938,7 @@
 		<Unit filename="functions/func_new_setup.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_new_time.c">
+		<Unit filename="functions/func_new_timeing.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_new_language.c">

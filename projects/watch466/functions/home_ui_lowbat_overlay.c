@@ -1,6 +1,5 @@
 #include "include.h"
 #include "home_ui_lowbat_overlay.h"
-#include "home_ui_lowbat_overlay.h"
 #include "home_ui_lock_overlay.h"
 #include "home_ui_shared.h"
 #include "new_home_icon_res.h"

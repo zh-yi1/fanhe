@@ -47,6 +47,9 @@ static u8 home_bat_pick_icon(void)
     if (home_bat_charge == 2) {
         return HOME_BAT_ICON_DL4;
     }
+    if (home_bat_level == 0) {
+        return HOME_BAT_ICON_DL1;
+    }
     if (home_bat_level >= 1 && home_bat_level <= 4) {
         return home_bat_level;
     }
@@ -211,8 +214,8 @@ void home_ui_shared_battery_feed_dp(u8 *data, u16 len)
     if (!got_bat && !got_chg) {
         return;
     }
-    if (bat < 1 || bat > 4) {
-        bat = (bat == 0) ? 1 : 4;
+    if (bat > 4) {
+        bat = 4;
     }
     if (chg > 2) {
         chg = 0;
@@ -238,7 +241,7 @@ u8 home_ui_shared_battery_level(void)
 
 bool home_ui_shared_battery_is_low(void)
 {
-    return home_bat_level == 1;
+    return home_bat_level <= 1;
 }
 
 bool home_ui_shared_battery_is_charging(void)
