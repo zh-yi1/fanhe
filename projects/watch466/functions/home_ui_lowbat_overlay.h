@@ -5,7 +5,7 @@
 
 #if ELUNCHBOX_PANEL_EN
 
-/** 低电量(<25%)全屏提示图 didian.bin */
+/** 低电量(<25%)提示图 didian.bin：显示 5s → 隐藏 60s → 循环 */
 void home_ui_lowbat_overlay_show(void);
 void home_ui_lowbat_overlay_hide(void);
 void home_ui_lowbat_overlay_bring_front(void);
