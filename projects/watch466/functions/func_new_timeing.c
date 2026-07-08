@@ -6,7 +6,6 @@
 #include "new_home_tab_res.h"
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
-#include "home_ui_ram.h"
 #include "func_key_lock.h"
 #include "func_lunchbox_uart.h"
 
@@ -41,8 +40,11 @@ extern volatile u8 elunchbox_te_block_flag;
 #if (NEW_TIME_NEW_UP_RAM_SIZE > HEAT_WBX_RAM_SIZE)
 #error "timeing up arrow exceeds timer colon pool"
 #endif
-#if (NEW_TIME_NEW_DOWN_RAM_SIZE > HEAT_B_DIGIT_RAM_MAX_SIZE)
-#error "timeing down arrow exceeds timer digit pool"
+#if (NEW_TIME_NEW_DOWN_RAM_SIZE > HOME_TOP_TIME_AMPM_RAM_MAX_SIZE)
+#error "timeing down arrow exceeds top time ampm pool"
+#endif
+#if (NEW_TIMEING_NEW_W0_RAM_SIZE > HEAT_B_DIGIT_RAM_MAX_SIZE)
+#error "timeing digit icon exceeds timer digit pool"
 #endif
 
 /*
@@ -112,11 +114,16 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_MIN_BOX_Y               ((s16)((s32)126 * GUI_SCREEN_HEIGHT / 240))
 #endif
 
-/* 数字居中于固定背景框内 */
-#define NEW_TIMEING_HOUR_DIGIT_CX           ((s16)(NEW_TIMEING_HOUR_BOX_X + NEW_TIME_BOX_W / 2))
+/* 数字垂直居中于固定背景框内 */
 #define NEW_TIMEING_HOUR_DIGIT_CY           ((s16)(NEW_TIMEING_HOUR_BOX_Y + NEW_TIME_BOX_H / 2))
-#define NEW_TIMEING_MIN_DIGIT_CX            ((s16)(NEW_TIMEING_MIN_BOX_X + NEW_TIME_BOX_W / 2))
 #define NEW_TIMEING_MIN_DIGIT_CY            ((s16)(NEW_TIMEING_MIN_BOX_Y + NEW_TIME_BOX_H / 2))
+/* 框内十位/个位固定锚点（始终显示两位，如 00、06、23） */
+#define NEW_TIMEING_BOX_D10_CX(box_x)       ((s16)((box_x) + NEW_TIME_BOX_W / 4))
+#define NEW_TIMEING_BOX_D1_CX(box_x)        ((s16)((box_x) + (NEW_TIME_BOX_W * 3) / 4))
+#define NEW_TIMEING_HOUR_D10_CX             NEW_TIMEING_BOX_D10_CX(NEW_TIMEING_HOUR_BOX_X)
+#define NEW_TIMEING_HOUR_D1_CX              NEW_TIMEING_BOX_D1_CX(NEW_TIMEING_HOUR_BOX_X)
+#define NEW_TIMEING_MIN_D10_CX              NEW_TIMEING_BOX_D10_CX(NEW_TIMEING_MIN_BOX_X)
+#define NEW_TIMEING_MIN_D1_CX               NEW_TIMEING_BOX_D1_CX(NEW_TIMEING_MIN_BOX_X)
 
 /* 时/分/按钮区相对白色卡片水平居中 */
 #define NEW_TIMEING_HOUR_COL_X              ((s16)(GUI_SCREEN_CENTER_X - NEW_TIMEING_COL_HALF_SPAN))
@@ -208,7 +215,14 @@ typedef struct {
 #define NEW_TIMEING_NO_BTN_RAM              (home_ui_shared_icon_runtime[2])
 #define NEW_TIMEING_YES_BTN_RAM             (home_ui_shared_icon_runtime[2] + NEW_TIME_NEW_GRAY_BJ2_RAM_SIZE)
 #define NEW_TIMEING_ARROW_UP_RAM            (home_ui_shared_timer_colon_ram)
-#define NEW_TIMEING_ARROW_DOWN_RAM          (home_ui_shared_timer_digit_ram[0])
+#define NEW_TIMEING_ARROW_DOWN_RAM          (home_ui_shared_top_time_ampm_ram)
+
+enum {
+    NEW_TIMEING_DIGIT_SLOT_H10 = 0,
+    NEW_TIMEING_DIGIT_SLOT_H1,
+    NEW_TIMEING_DIGIT_SLOT_M10,
+    NEW_TIMEING_DIGIT_SLOT_M1,
+};
 
 static bool new_timeing_res_arrow_up_ready;
 static bool new_timeing_res_arrow_down_ready;
@@ -369,11 +383,6 @@ static void new_timeing_save_rtc(f_new_timeing_t *f)
 #if ELUNCHBOX_PANEL_EN
 #define NEW_TIMEING_DIGIT_BG_WHITE565       0xFFFF
 
-static s16 new_timeing_digit_pair_offset(u16 w10, u16 w1)
-{
-    return (s16)((s16)w10 / 2 + NEW_TIMEING_DIGIT_GAP + (s16)w1 / 2);
-}
-
 static u16 new_timeing_box_bg565_sample(const u8 *box_ram)
 {
     u16 w;
@@ -430,7 +439,7 @@ static bool new_timeing_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic, u
     u16 h;
     u8 *ram;
 
-    if (pic == NULL || digit > 9 || slot >= HOME_UI_DIGIT_SLOTS) {
+    if (pic == NULL || digit > 9 || slot >= 4) {
         if (pic != NULL) {
             compo_picturebox_set_visible(pic, false);
         }
@@ -440,11 +449,11 @@ static bool new_timeing_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic, u
     len = tbl_timeing_b_digit_len[digit];
     w = tbl_timeing_b_digit_w[digit];
     h = tbl_timeing_b_digit_h[digit];
-    if (len > NEW_TIMEING_DIGIT_RAM_SIZE || len > HOME_DIGIT_RAM_MAX_SIZE) {
+    if (len > HEAT_B_DIGIT_RAM_MAX_SIZE) {
         compo_picturebox_set_visible(pic, false);
         return false;
     }
-    ram = home_ui_digit_ram[slot];
+    ram = home_ui_shared_timer_digit_ram[slot];
     WDT_CLR();
     os_spiflash_read(ram, addr, len);
     if (!gui_set_ram_check(ram, __func__)) {
@@ -475,28 +484,18 @@ static void new_timeing_digit_pos_show(compo_picturebox_t *pic, u8 digit,
     }
 }
 
-static void new_timeing_column_digits_apply(u8 d10, u8 d1,
-                                            u8 slot10, u8 slot1,
-                                            compo_picturebox_t *pic10,
-                                            compo_picturebox_t *pic1,
-                                            s16 col_cx, s16 col_cy,
-                                            u16 box_bg565)
+static void new_timeing_pair_digits_apply(u8 d10, u8 d1,
+                                          u8 slot10, u8 slot1,
+                                          compo_picturebox_t *pic10,
+                                          compo_picturebox_t *pic1,
+                                          s16 d10_cx, s16 d1_cx, s16 cy,
+                                          u16 box_bg565)
 {
-    u16 w10;
-    u16 w1;
-    s16 off;
-
-    if (pic10 == NULL || pic1 == NULL) {
-        return;
-    }
-    w10 = tbl_timeing_b_digit_w[d10];
-    w1 = tbl_timeing_b_digit_w[d1];
-    off = new_timeing_digit_pair_offset(w10, w1);
     if (new_timeing_load_digit(slot10, d10, pic10, box_bg565)) {
-        new_timeing_digit_pos_show(pic10, d10, (s16)(col_cx - off / 2), col_cy);
+        new_timeing_digit_pos_show(pic10, d10, d10_cx, cy);
     }
     if (new_timeing_load_digit(slot1, d1, pic1, box_bg565)) {
-        new_timeing_digit_pos_show(pic1, d1, (s16)(col_cx + off / 2), col_cy);
+        new_timeing_digit_pos_show(pic1, d1, d1_cx, cy);
     }
 }
 
@@ -555,11 +554,11 @@ static void new_timeing_arrows_apply(f_new_timeing_t *f)
                                        NEW_TIMEING_MIN_COL_X, NEW_TIMEING_ARROW_UP_Y);
     }
     if (new_timeing_res_arrow_down_ready) {
-        (void)new_timeing_gpu_ram_bind(NEW_TIMEING_ARROW_DOWN_RAM, HEAT_B_DIGIT_RAM_MAX_SIZE,
+        (void)new_timeing_gpu_ram_bind(NEW_TIMEING_ARROW_DOWN_RAM, HOME_TOP_TIME_AMPM_RAM_MAX_SIZE,
                                        UI_BUF_NEW_UI_NEW_DOWN_BIN, UI_LEN_NEW_UI_NEW_DOWN_BIN,
                                        f->pic_hour_down, NEW_TIME_ARROW_W, NEW_TIME_ARROW_H,
                                        NEW_TIMEING_HOUR_COL_X, NEW_TIMEING_ARROW_DOWN_Y);
-        (void)new_timeing_gpu_ram_bind(NEW_TIMEING_ARROW_DOWN_RAM, HEAT_B_DIGIT_RAM_MAX_SIZE,
+        (void)new_timeing_gpu_ram_bind(NEW_TIMEING_ARROW_DOWN_RAM, HOME_TOP_TIME_AMPM_RAM_MAX_SIZE,
                                        UI_BUF_NEW_UI_NEW_DOWN_BIN, UI_LEN_NEW_UI_NEW_DOWN_BIN,
                                        f->pic_min_down, NEW_TIME_ARROW_W, NEW_TIME_ARROW_H,
                                        NEW_TIMEING_MIN_COL_X, NEW_TIMEING_ARROW_DOWN_Y);
@@ -653,12 +652,17 @@ static void new_timeing_digits_apply(f_new_timeing_t *f)
     hour_bg565 = new_timeing_box_bg565_sample(NEW_TIMEING_HOUR_BOX_RAM);
     min_bg565 = new_timeing_box_bg565_sample(NEW_TIMEING_MIN_BOX_RAM);
 
-    new_timeing_column_digits_apply(h10, h1, 0, 1, f->pic_h10, f->pic_h1,
-                                    NEW_TIMEING_HOUR_DIGIT_CX, NEW_TIMEING_HOUR_DIGIT_CY,
-                                    hour_bg565);
-    new_timeing_column_digits_apply(m10, m1, 2, 3, f->pic_m10, f->pic_m1,
-                                    NEW_TIMEING_MIN_DIGIT_CX, NEW_TIMEING_MIN_DIGIT_CY,
-                                    min_bg565);
+    /* 小时始终两位：h10=hour/10, h1=hour%10（含 00~09 前导 0） */
+    new_timeing_pair_digits_apply(h10, h1,
+                                  NEW_TIMEING_DIGIT_SLOT_H10, NEW_TIMEING_DIGIT_SLOT_H1,
+                                  f->pic_h10, f->pic_h1,
+                                  NEW_TIMEING_HOUR_D10_CX, NEW_TIMEING_HOUR_D1_CX,
+                                  NEW_TIMEING_HOUR_DIGIT_CY, hour_bg565);
+    new_timeing_pair_digits_apply(m10, m1,
+                                  NEW_TIMEING_DIGIT_SLOT_M10, NEW_TIMEING_DIGIT_SLOT_M1,
+                                  f->pic_m10, f->pic_m1,
+                                  NEW_TIMEING_MIN_D10_CX, NEW_TIMEING_MIN_D1_CX,
+                                  NEW_TIMEING_MIN_DIGIT_CY, min_bg565);
 }
 
 static void new_timeing_btn_label_show(compo_textbox_t *txt, s16 cx, s16 cy,
@@ -1215,7 +1219,6 @@ void func_new_timeing_enter(void)
 #if ELUNCHBOX_PANEL_EN
     f->load_stage = NEW_TIMEING_LOAD_STATUS;
     f->key_ready = false;
-    home_ui_digit_pool_reset();
     new_timeing_res_arrow_up_ready = false;
     new_timeing_res_arrow_down_ready = false;
     new_timeing_font_ready = false;
