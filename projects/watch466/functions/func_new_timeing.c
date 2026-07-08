@@ -47,7 +47,7 @@ extern volatile u8 elunchbox_te_block_flag;
 
 /*
  * 时间设置页 — 效果图 TIME
- *   时/分框：new_blue_bj1 / new_gray_bj1；数字 new_b0..9（选中与否均用黑字）
+ *   时/分框：new_blue_bj1 / new_gray_bj1；数字 new_b0..9（空白底与当前框底色一致）
  *   底部 NO/YES：new_gray_bj2 / new_blue_bj2
  *   加减键调节当前列；确认键切换焦点；电源键返回/取消
  */
@@ -111,6 +111,12 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_MIN_BOX_X               ((s16)((s32)213 * GUI_SCREEN_WIDTH / 320))
 #define NEW_TIMEING_MIN_BOX_Y               ((s16)((s32)126 * GUI_SCREEN_HEIGHT / 240))
 #endif
+
+/* 数字居中于固定背景框内 */
+#define NEW_TIMEING_HOUR_DIGIT_CX           ((s16)(NEW_TIMEING_HOUR_BOX_X + NEW_TIME_BOX_W / 2))
+#define NEW_TIMEING_HOUR_DIGIT_CY           ((s16)(NEW_TIMEING_HOUR_BOX_Y + NEW_TIME_BOX_H / 2))
+#define NEW_TIMEING_MIN_DIGIT_CX            ((s16)(NEW_TIMEING_MIN_BOX_X + NEW_TIME_BOX_W / 2))
+#define NEW_TIMEING_MIN_DIGIT_CY            ((s16)(NEW_TIMEING_MIN_BOX_Y + NEW_TIME_BOX_H / 2))
 
 /* 时/分/按钮区相对白色卡片水平居中 */
 #define NEW_TIMEING_HOUR_COL_X              ((s16)(GUI_SCREEN_CENTER_X - NEW_TIMEING_COL_HALF_SPAN))
@@ -361,19 +367,73 @@ static void new_timeing_save_rtc(f_new_timeing_t *f)
 }
 
 #if ELUNCHBOX_PANEL_EN
+#define NEW_TIMEING_DIGIT_BG_WHITE565       0xFFFF
+
 static s16 new_timeing_digit_pair_offset(u16 w10, u16 w1)
 {
     return (s16)((s16)w10 / 2 + NEW_TIMEING_DIGIT_GAP + (s16)w1 / 2);
 }
 
-static bool new_timeing_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic)
+static u16 new_timeing_box_bg565_sample(const u8 *box_ram)
+{
+    u16 w;
+    u16 h;
+    u32 idx;
+
+    if (box_ram == NULL) {
+        return 0xEF9F;
+    }
+    w = GET_LE16(&box_ram[4]);
+    h = GET_LE16(&box_ram[6]);
+    if (w == 0 || h == 0) {
+        return 0xEF9F;
+    }
+    idx = 8 + ((u32)(h / 2) * w + (w / 2)) * 2;
+    return GET_LE16(&box_ram[idx]);
+}
+
+static void new_timeing_digit_recolor_white_bg(u8 *ram, u16 len, u16 bg565)
+{
+    u32 magic;
+    u16 w;
+    u16 h;
+    u32 i;
+    u32 cnt;
+
+    if (ram == NULL || len < 8 || bg565 == NEW_TIMEING_DIGIT_BG_WHITE565) {
+        return;
+    }
+    magic = GET_LE32(&ram[0]);
+    w = GET_LE16(&ram[4]);
+    h = GET_LE16(&ram[6]);
+    if (magic != 0x24150 || w == 0 || h == 0) {
+        return;
+    }
+    cnt = (u32)w * h;
+    if (8 + cnt * 2 > len) {
+        return;
+    }
+    for (i = 0; i < cnt; i++) {
+        u16 *pc = (u16 *)(void *)&ram[8 + i * 2];
+
+        if (*pc == NEW_TIMEING_DIGIT_BG_WHITE565) {
+            *pc = bg565;
+        }
+    }
+}
+
+static bool new_timeing_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic, u16 box_bg565)
 {
     u32 addr;
     u16 len;
     u16 w;
     u16 h;
+    u8 *ram;
 
     if (pic == NULL || digit > 9 || slot >= HOME_UI_DIGIT_SLOTS) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
         return false;
     }
     addr = tbl_timeing_b_digit_addr[digit];
@@ -381,30 +441,63 @@ static bool new_timeing_load_digit(u8 slot, u8 digit, compo_picturebox_t *pic)
     w = tbl_timeing_b_digit_w[digit];
     h = tbl_timeing_b_digit_h[digit];
     if (len > NEW_TIMEING_DIGIT_RAM_SIZE || len > HOME_DIGIT_RAM_MAX_SIZE) {
+        compo_picturebox_set_visible(pic, false);
         return false;
     }
-    return new_timeing_gpu_ram_bind(home_ui_digit_ram[slot], HOME_DIGIT_RAM_MAX_SIZE,
-                                    addr, len, pic, w, h, 0, 0);
+    ram = home_ui_digit_ram[slot];
+    WDT_CLR();
+    os_spiflash_read(ram, addr, len);
+    if (!gui_set_ram_check(ram, __func__)) {
+        compo_picturebox_set_visible(pic, false);
+        return false;
+    }
+    new_timeing_digit_recolor_white_bg(ram, len, box_bg565);
+    compo_picturebox_set_ram(pic, ram);
+    compo_picturebox_set_size(pic, w, h);
+    compo_picturebox_set_visible(pic, true);
+    return true;
 }
 
-static void new_timeing_clock_digit_pos_pair(u8 d10, u8 d1,
-                                             s16 center_x, s16 center_y,
-                                             compo_picturebox_t *pic10,
-                                             compo_picturebox_t *pic1)
+static void new_timeing_digit_pos_show(compo_picturebox_t *pic, u8 digit,
+                                       s16 cx, s16 cy)
+{
+    u16 w;
+    u16 h;
+
+    if (pic == NULL || digit > 9) {
+        return;
+    }
+    w = tbl_timeing_b_digit_w[digit];
+    h = tbl_timeing_b_digit_h[digit];
+    new_timeing_pic_pos_tr(pic, cx, cy, w, h);
+    if (pic->img != NULL) {
+        widget_set_top(pic->img, true);
+    }
+}
+
+static void new_timeing_column_digits_apply(u8 d10, u8 d1,
+                                            u8 slot10, u8 slot1,
+                                            compo_picturebox_t *pic10,
+                                            compo_picturebox_t *pic1,
+                                            s16 col_cx, s16 col_cy,
+                                            u16 box_bg565)
 {
     u16 w10;
     u16 w1;
-    u16 h10;
-    u16 h1;
     s16 off;
 
+    if (pic10 == NULL || pic1 == NULL) {
+        return;
+    }
     w10 = tbl_timeing_b_digit_w[d10];
     w1 = tbl_timeing_b_digit_w[d1];
-    h10 = tbl_timeing_b_digit_h[d10];
-    h1 = tbl_timeing_b_digit_h[d1];
     off = new_timeing_digit_pair_offset(w10, w1);
-    new_timeing_pic_pos_tr(pic10, (s16)(center_x - off / 2), center_y, w10, h10);
-    new_timeing_pic_pos_tr(pic1, (s16)(center_x + off / 2), center_y, w1, h1);
+    if (new_timeing_load_digit(slot10, d10, pic10, box_bg565)) {
+        new_timeing_digit_pos_show(pic10, d10, (s16)(col_cx - off / 2), col_cy);
+    }
+    if (new_timeing_load_digit(slot1, d1, pic1, box_bg565)) {
+        new_timeing_digit_pos_show(pic1, d1, (s16)(col_cx + off / 2), col_cy);
+    }
 }
 
 static void new_timeing_boxes_apply(f_new_timeing_t *f)
@@ -547,6 +640,8 @@ static void new_timeing_digits_apply(f_new_timeing_t *f)
     u8 h1;
     u8 m10;
     u8 m1;
+    u16 hour_bg565;
+    u16 min_bg565;
 
     if (f == NULL) {
         return;
@@ -555,19 +650,15 @@ static void new_timeing_digits_apply(f_new_timeing_t *f)
     h1 = (u8)(f->hour % 10);
     m10 = (u8)(f->min / 10);
     m1 = (u8)(f->min % 10);
+    hour_bg565 = new_timeing_box_bg565_sample(NEW_TIMEING_HOUR_BOX_RAM);
+    min_bg565 = new_timeing_box_bg565_sample(NEW_TIMEING_MIN_BOX_RAM);
 
-    if (new_timeing_load_digit(0, h10, f->pic_h10) &&
-        new_timeing_load_digit(1, h1, f->pic_h1)) {
-        new_timeing_clock_digit_pos_pair(h10, h1,
-                                         NEW_TIMEING_HOUR_COL_X, NEW_TIMEING_BOX_Y,
-                                         f->pic_h10, f->pic_h1);
-    }
-    if (new_timeing_load_digit(2, m10, f->pic_m10) &&
-        new_timeing_load_digit(3, m1, f->pic_m1)) {
-        new_timeing_clock_digit_pos_pair(m10, m1,
-                                         NEW_TIMEING_MIN_COL_X, NEW_TIMEING_BOX_Y,
-                                         f->pic_m10, f->pic_m1);
-    }
+    new_timeing_column_digits_apply(h10, h1, 0, 1, f->pic_h10, f->pic_h1,
+                                    NEW_TIMEING_HOUR_DIGIT_CX, NEW_TIMEING_HOUR_DIGIT_CY,
+                                    hour_bg565);
+    new_timeing_column_digits_apply(m10, m1, 2, 3, f->pic_m10, f->pic_m1,
+                                    NEW_TIMEING_MIN_DIGIT_CX, NEW_TIMEING_MIN_DIGIT_CY,
+                                    min_bg565);
 }
 
 static void new_timeing_btn_label_show(compo_textbox_t *txt, s16 cx, s16 cy,
