@@ -279,6 +279,44 @@ function packBleOta(firmware, version, target) {
     return frames;
 }
 
+function packBleOtaFromBinData(binData, version, target) {
+    /**
+     * 将已含 BIN 包头的 .bin 数据打包为 BLE OTA 升级帧.
+     *
+     * 与 packBleOta 的区别: 不重新构建 BIN 包头,
+     * 直接使用 .bin 文件自带的包头 (MCU通信协议.md §5.1 备注2)。
+     *
+     * 流程:
+     *   1. BIN 数据按 128 字节分包 (16 字节对齐)
+     *   2. 生成帧序列: START(0x0C) + DATA(0x0D)×N + END(0x0E)
+     */
+    const frames = [];
+    const totalSize = binData.length;
+
+    // --- 1. 升级启动帧 (CMD 0x0C) ---
+    const startPayload = Buffer.alloc(5);
+    startPayload[0] = target;
+    startPayload.writeUInt32BE(totalSize, 1);
+    frames.push(buildFrame(CMD_OTA_START, startPayload));
+
+    // --- 2. 升级数据帧 (CMD 0x0D) ---
+    const chunks = chunkFirmware(binData);
+    for (let i = 0; i < chunks.length; i++) {
+        const offset = i * CHUNK_SIZE;
+        const dataPayload = Buffer.alloc(5 + chunks[i].length);
+        dataPayload[0] = target;
+        dataPayload.writeUInt32BE(offset, 1);
+        chunks[i].copy(dataPayload, 5);
+        frames.push(buildFrame(CMD_OTA_DATA, dataPayload));
+    }
+
+    // --- 3. 升级结束帧 (CMD 0x0E) ---
+    const endPayload = Buffer.from([target]);
+    frames.push(buildFrame(CMD_OTA_END, endPayload));
+
+    return frames;
+}
+
 // ============================================================
 // 版本号解析
 // ============================================================
@@ -479,13 +517,13 @@ function parseArgs(argv) {
     let i = 0;
     while (i < argv.length) {
         const arg = argv[i];
-        if (arg === '--input' || arg === '-i') {
+        if (arg === '--input' || arg === '-input' || arg === '-i') {
             args.input = argv[++i];
-        } else if (arg === '--output' || arg === '-o') {
+        } else if (arg === '--output' || arg === '-output' || arg === '-o') {
             args.output = argv[++i];
-        } else if (arg === '--version' || arg === '-v') {
+        } else if (arg === '--version' || arg === '-version' || arg === '-v') {
             args.version = argv[++i];
-        } else if (arg === '--help' || arg === '-h') {
+        } else if (arg === '--help' || arg === '-help' || arg === '-h') {
             args.help = true;
         } else {
             args._.push(arg);
@@ -537,25 +575,57 @@ function main() {
         process.exit(1);
     }
 
-    // --- 读取固件 ---
-    const firmware = fs.readFileSync(args.input);
-    if (firmware.length === 0) {
+    // --- 读取固件 (.bin 文件, MCU通信协议.md §5.1 备注2) ---
+    // .bin 文件格式: [256B 包头(magic=0x11223344)] + [固件内容]
+    // 加热模块厂商提供的 .bin 已包含完整包头，直接作为 BIN 数据打包。
+    const binData = fs.readFileSync(args.input);
+    if (binData.length === 0) {
         console.log('[错误] 固件文件为空');
         process.exit(1);
+    }
+
+    // --- 检测已有 BIN 包头 ---
+    // 若 .bin 文件已自带包头 (magic=0x11223344)，直接复用，不再重复构建。
+    // 若没有包头 (裸固件)，则自动构建 256B 包头。
+    const hasHeader = binData.length > 256 && binData.readUInt32BE(0) === 0x11223344;
+
+    if (hasHeader) {
+        const hdrVer = binData.readUInt32BE(4);
+        const hdrFwLen = binData.readUInt32BE(8);
+        const hdrCrc = binData.readUInt32BE(12);
+        console.log(`[info] 检测到 .bin 自带 BIN 包头 (MCU协议 §5.1 备注2)，直接复用:`);
+        console.log(`       包头版本: 0x${hdrVer.toString(16).toUpperCase().padStart(8, '0')}`);
+        console.log(`       固件长度: ${hdrFwLen} bytes (包头中记录)`);
+        console.log(`       固件 CRC:  0x${hdrCrc.toString(16).toUpperCase().padStart(8, '0')}`);
+        // 若未手动指定版本，继承包头中的版本号
+        if (!args.version) {
+            version = hdrVer;
+            console.log(`[info] 自动使用包头版本: 0x${version.toString(16).toUpperCase().padStart(8, '0')}`);
+        }
     }
 
     // --- 确定目标 ---
     const targetVal = target === 'mcu' ? TARGET_MAIN_MCU : TARGET_HEAT_MODULE;
 
-    console.log(`[info] 读取固件: ${args.input}`);
-    console.log(`       文件大小: ${firmware.length} bytes (${(firmware.length / 1024).toFixed(1)} KB)`);
+    const fwSize = hasHeader ? (binData.length - BIN_HEADER_SIZE) : binData.length;
+    console.log(`\n[info] 打包参数:`);
+    console.log(`       输入文件: ${args.input}`);
+    console.log(`       BIN 数据: ${binData.length} bytes (${(binData.length / 1024).toFixed(1)} KB)`);
+    console.log(`       BIN 包头: ${hasHeader ? '已有 (复用)' : '无 (自动构建)'}`);
+    console.log(`       固件大小: ${fwSize} bytes (${(fwSize / 1024).toFixed(1)} KB)`);
     console.log(`       版本号:   0x${version.toString(16).toUpperCase().padStart(8, '0')}`);
     console.log(`       目标设备: ${target === 'mcu' ? '主单片机 (0x01)' : '加热模块 (0x02)'}`);
     console.log(`       协议:     BLE OTA (0x0C/0x0D/0x0E)`);
-    console.log(`       CRC32:    0x${crc32_mpeg2(firmware).toString(16).toUpperCase().padStart(8, '0')} (MPEG-2)`);
 
     // --- 打包 ---
-    const frames = packBleOta(firmware, version, targetVal);
+    // 若 .bin 已自带包头: 直接分包, 不重复构建包头
+    // 若无包头 (裸固件): 先构建 256B 包头再分包
+    let frames;
+    if (hasHeader) {
+        frames = packBleOtaFromBinData(binData, version, targetVal);
+    } else {
+        frames = packBleOta(binData, version, targetVal);
+    }
 
     // --- 输出路径 ---
     let outputPath = args.output;
@@ -573,7 +643,7 @@ function main() {
     fs.writeFileSync(outputPath, otaData);
 
     // --- 摘要 ---
-    printSummary(frames, outputPath, firmware.length, version, targetVal);
+    printSummary(frames, outputPath, fwSize, version, targetVal);
 
     console.log(`\n[完成] 可打开 BLEDebug → 加载 ${outputPath} → 逐帧发送。`);
 }
