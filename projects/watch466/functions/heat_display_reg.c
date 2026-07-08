@@ -261,6 +261,15 @@ void heat_display_feed_dp(u8 *data, u16 len)
         }
         return;
     }
+
+#if ELUNCHBOX_PANEL_EN
+    /* 充电结束，加热恢复：从保温跳回加热界面 */
+    if (got_enable && heating && func_cb.sta == FUNC_NEW_WARM) {
+        printf("[LCD_REG] feed_dp: charge off, heating resume -> back to heat panel\n");
+        func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        return;
+    }
+#endif
     if (got_remain && got_temp) {
         heat_display_show(remain_min, temp_f);
 #if ELUNCHBOX_PANEL_EN
