@@ -76,9 +76,6 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_ARROW_DOWN_Y            ((s16)(NEW_TIMEING_BOX_Y + 47))
 #define NEW_TIMEING_BTN_CENTER_DIST         ((s16)130)
 #define NEW_TIMEING_BTN_BOTTOM_Y            ((s16)(NEW_TIMEING_PANEL_Y + NEW_TIMEING_PANEL_H / 2 - NEW_TIME_BTN_H / 2 - 12 + NEW_TIMEING_CONTENT_OFFSET_Y))
-#define NEW_TIMEING_SUFFIX_DX_H             ((s16)24)
-#define NEW_TIMEING_SUFFIX_DX_MIN           ((s16)28)
-#define NEW_TIMEING_SUFFIX_DY               ((s16)12)
 #else
 #define NEW_TIMEING_STATUS_Y                NEW_TIMEING_SY(48)
 #define NEW_TIMEING_STATUS_RIGHT_MARGIN     NEW_TIMEING_SX(24)
@@ -98,9 +95,21 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_ARROW_DOWN_Y            ((s16)(NEW_TIMEING_BOX_Y + NEW_TIMEING_SY(92)))
 #define NEW_TIMEING_BTN_CENTER_DIST         NEW_TIMEING_SX(230)
 #define NEW_TIMEING_BTN_BOTTOM_Y            ((s16)(NEW_TIMEING_PANEL_Y + NEW_TIMEING_PANEL_H / 2 - NEW_TIME_BTN_H / 2 - NEW_TIMEING_SY(16) + NEW_TIMEING_CONTENT_OFFSET_Y))
-#define NEW_TIMEING_SUFFIX_DX_H             NEW_TIMEING_SX(24)
-#define NEW_TIMEING_SUFFIX_DX_MIN           NEW_TIMEING_SX(28)
-#define NEW_TIMEING_SUFFIX_DY               NEW_TIMEING_SY(12)
+#endif
+
+/*
+ * new_blue_bj1 / new_gray_bj1 固定左上角（320×240 当前屏位；蓝/灰切换仅换图）
+ */
+#if (GUI_SCREEN_WIDTH == 320) && (GUI_SCREEN_HEIGHT == 240)
+#define NEW_TIMEING_HOUR_BOX_X              107
+#define NEW_TIMEING_HOUR_BOX_Y              126
+#define NEW_TIMEING_MIN_BOX_X               213
+#define NEW_TIMEING_MIN_BOX_Y               126
+#else
+#define NEW_TIMEING_HOUR_BOX_X              ((s16)((s32)107 * GUI_SCREEN_WIDTH / 320))
+#define NEW_TIMEING_HOUR_BOX_Y              ((s16)((s32)126 * GUI_SCREEN_HEIGHT / 240))
+#define NEW_TIMEING_MIN_BOX_X               ((s16)((s32)213 * GUI_SCREEN_WIDTH / 320))
+#define NEW_TIMEING_MIN_BOX_Y               ((s16)((s32)126 * GUI_SCREEN_HEIGHT / 240))
 #endif
 
 /* 时/分/按钮区相对白色卡片水平居中 */
@@ -109,9 +118,6 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_COLON_X                 GUI_SCREEN_CENTER_X
 #define NEW_TIMEING_BTN_NO_X                ((s16)(GUI_SCREEN_CENTER_X - NEW_TIMEING_BTN_CENTER_DIST / 2))
 #define NEW_TIMEING_BTN_YES_X               ((s16)(GUI_SCREEN_CENTER_X + NEW_TIMEING_BTN_CENTER_DIST / 2))
-#define NEW_TIMEING_SUFFIX_H_X              ((s16)(NEW_TIMEING_HOUR_COL_X + NEW_TIMEING_SUFFIX_DX_H))
-#define NEW_TIMEING_SUFFIX_MIN_X            ((s16)(NEW_TIMEING_MIN_COL_X + NEW_TIMEING_SUFFIX_DX_MIN))
-#define NEW_TIMEING_SUFFIX_Y                ((s16)(NEW_TIMEING_BOX_Y + NEW_TIMEING_SUFFIX_DY))
 
 #define NEW_TIMEING_STATUS_BAT_X            (GUI_SCREEN_WIDTH - NEW_TIMEING_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2)
 #define NEW_TIMEING_STATUS_BT_X             (NEW_TIMEING_STATUS_BAT_X - NEW_HOME_BAT_W / 2 - NEW_TIMEING_STATUS_GAP - NEW_HOME_BT_W / 2)
@@ -143,8 +149,6 @@ enum {
     COMPO_ID_TXT_COLON,
     COMPO_ID_PIC_M10,
     COMPO_ID_PIC_M1,
-    COMPO_ID_TXT_H_SUFFIX,
-    COMPO_ID_TXT_MIN_SUFFIX,
     COMPO_ID_PIC_NO_BG,
     COMPO_ID_PIC_YES_BG,
     COMPO_ID_TXT_NO,
@@ -184,8 +188,6 @@ typedef struct {
     compo_textbox_t *txt_colon;
     compo_picturebox_t *pic_m10;
     compo_picturebox_t *pic_m1;
-    compo_textbox_t *txt_h_suffix;
-    compo_textbox_t *txt_min_suffix;
     compo_picturebox_t *pic_no_bg;
     compo_picturebox_t *pic_yes_bg;
     compo_textbox_t *txt_title;
@@ -271,8 +273,6 @@ static void new_timeing_font_apply_once(f_new_timeing_t *f)
     WDT_CLR();
     new_timeing_font_bind_txt(f->txt_title);
     new_timeing_font_bind_txt(f->txt_colon);
-    new_timeing_font_bind_txt(f->txt_h_suffix);
-    new_timeing_font_bind_txt(f->txt_min_suffix);
     new_timeing_font_bind_txt(f->txt_no);
     new_timeing_font_bind_txt(f->txt_yes);
     new_timeing_font_ready = true;
@@ -313,6 +313,43 @@ static void new_timeing_pic_pos_tr(compo_picturebox_t *pic, s16 tr_x, s16 tr_y, 
         return;
     }
     compo_picturebox_set_pos(pic, (s16)(tr_x - w / 2), (s16)(tr_y - h / 2));
+}
+
+static void new_timeing_box_bg_pos_fix(compo_picturebox_t *pic, s16 x, s16 y)
+{
+    if (pic == NULL) {
+        return;
+    }
+    compo_picturebox_set_pos(pic, x, y);
+    compo_picturebox_set_size(pic, NEW_TIME_BOX_W, NEW_TIME_BOX_H);
+    compo_picturebox_set_visible(pic, true);
+}
+
+static bool new_timeing_box_bg_texture_bind(u8 *ram, u16 buf_size, u32 addr, u16 len,
+                                            compo_picturebox_t *pic)
+{
+    u16 need;
+
+    if (pic == NULL || addr == 0 || len == 0 || ram == NULL || len > buf_size) {
+        if (pic != NULL) {
+            compo_picturebox_set_visible(pic, false);
+        }
+        return false;
+    }
+    WDT_CLR();
+    os_spiflash_read(ram, addr, len);
+    if (!gui_set_ram_check(ram, __func__)) {
+        compo_picturebox_set_visible(pic, false);
+        return false;
+    }
+    need = (u16)(8 + (u32)GET_LE16(&ram[4]) * GET_LE16(&ram[6]) * 2);
+    if (need > len || need > buf_size) {
+        compo_picturebox_set_visible(pic, false);
+        return false;
+    }
+    compo_picturebox_set_ram(pic, ram);
+    compo_picturebox_set_size(pic, NEW_TIME_BOX_W, NEW_TIME_BOX_H);
+    return true;
 }
 #endif
 
@@ -422,14 +459,12 @@ static void new_timeing_boxes_apply(f_new_timeing_t *f)
     min_addr = min_sel ? UI_BUF_NEW_UI_NEW_BLUE_BJ1_BIN : UI_BUF_NEW_UI_NEW_GRAY_BJ1_BIN;
     min_len = min_sel ? UI_LEN_NEW_UI_NEW_BLUE_BJ1_BIN : UI_LEN_NEW_UI_NEW_GRAY_BJ1_BIN;
 
-    (void)new_timeing_gpu_ram_bind(NEW_TIMEING_HOUR_BOX_RAM, NEW_HOME_TAB_RAM_SIZE,
-                                   hour_addr, hour_len, f->pic_hour_bg,
-                                   NEW_TIME_BOX_W, NEW_TIME_BOX_H,
-                                   NEW_TIMEING_HOUR_COL_X, NEW_TIMEING_BOX_Y);
-    (void)new_timeing_gpu_ram_bind(NEW_TIMEING_MIN_BOX_RAM, NEW_HOME_TAB_RAM_SIZE,
-                                   min_addr, min_len, f->pic_min_bg,
-                                   NEW_TIME_BOX_W, NEW_TIME_BOX_H,
-                                   NEW_TIMEING_MIN_COL_X, NEW_TIMEING_BOX_Y);
+    (void)new_timeing_box_bg_texture_bind(NEW_TIMEING_HOUR_BOX_RAM, NEW_HOME_TAB_RAM_SIZE,
+                                          hour_addr, hour_len, f->pic_hour_bg);
+    new_timeing_box_bg_pos_fix(f->pic_hour_bg, NEW_TIMEING_HOUR_BOX_X, NEW_TIMEING_HOUR_BOX_Y);
+    (void)new_timeing_box_bg_texture_bind(NEW_TIMEING_MIN_BOX_RAM, NEW_HOME_TAB_RAM_SIZE,
+                                          min_addr, min_len, f->pic_min_bg);
+    new_timeing_box_bg_pos_fix(f->pic_min_bg, NEW_TIMEING_MIN_BOX_X, NEW_TIMEING_MIN_BOX_Y);
 }
 
 static void new_timeing_arrows_apply(f_new_timeing_t *f)
@@ -621,22 +656,14 @@ static void new_timeing_text_apply(f_new_timeing_t *f)
 {
     u16 no_color;
     u16 yes_color;
-    u16 h_color;
-    u16 min_color;
 
     if (f == NULL) {
         return;
     }
     new_timeing_font_apply_once(f);
     new_timeing_title_txt_show(f->txt_title);
-    h_color = (f->focus == NEW_TIMEING_FOCUS_HOUR) ? NEW_TIMEING_COLOR_ON : NEW_TIMEING_COLOR_OFF;
-    min_color = (f->focus == NEW_TIMEING_FOCUS_MIN) ? NEW_TIMEING_COLOR_ON : NEW_TIMEING_COLOR_OFF;
     new_timeing_txt_pos_center(f->txt_colon, NEW_TIMEING_COLON_X, NEW_TIMEING_BOX_Y, 12, 24);
     new_timeing_label_show(f->txt_colon, ":", NEW_TIMEING_COLOR_OFF);
-    new_timeing_txt_pos_center(f->txt_h_suffix, NEW_TIMEING_SUFFIX_H_X, NEW_TIMEING_SUFFIX_Y, 16, 20);
-    new_timeing_label_show(f->txt_h_suffix, "H", h_color);
-    new_timeing_txt_pos_center(f->txt_min_suffix, NEW_TIMEING_SUFFIX_MIN_X, NEW_TIMEING_SUFFIX_Y, 32, 20);
-    new_timeing_label_show(f->txt_min_suffix, "min", min_color);
     if (f->focus == NEW_TIMEING_FOCUS_BOTTOM && f->bottom_sel == 0) {
         no_color = NEW_TIMEING_COLOR_ON;
         yes_color = NEW_TIMEING_COLOR_OFF;
@@ -864,8 +891,6 @@ static void new_timeing_bind_objects(f_new_timeing_t *f)
     f->txt_colon = compo_getobj_byid(COMPO_ID_TXT_COLON);
     f->pic_m10 = compo_getobj_byid(COMPO_ID_PIC_M10);
     f->pic_m1 = compo_getobj_byid(COMPO_ID_PIC_M1);
-    f->txt_h_suffix = compo_getobj_byid(COMPO_ID_TXT_H_SUFFIX);
-    f->txt_min_suffix = compo_getobj_byid(COMPO_ID_TXT_MIN_SUFFIX);
     f->pic_no_bg = compo_getobj_byid(COMPO_ID_PIC_NO_BG);
     f->pic_yes_bg = compo_getobj_byid(COMPO_ID_PIC_YES_BG);
     f->txt_no = compo_getobj_byid(COMPO_ID_TXT_NO);
@@ -926,12 +951,6 @@ compo_form_t *func_new_timeing_form_create(void)
                                  NEW_TIMEING_COLOR_OFF);
     (void)new_timeing_pic_create_hidden(frm, COMPO_ID_PIC_M10);
     (void)new_timeing_pic_create_hidden(frm, COMPO_ID_PIC_M1);
-    (void)new_timeing_txt_create(frm, COMPO_ID_TXT_H_SUFFIX, 2,
-                                 NEW_TIMEING_SUFFIX_H_X, NEW_TIMEING_SUFFIX_Y, 16, 20,
-                                 NEW_TIMEING_COLOR_OFF);
-    (void)new_timeing_txt_create(frm, COMPO_ID_TXT_MIN_SUFFIX, 4,
-                                 NEW_TIMEING_SUFFIX_MIN_X, NEW_TIMEING_SUFFIX_Y, 32, 20,
-                                 NEW_TIMEING_COLOR_OFF);
     (void)new_timeing_pic_create_hidden(frm, COMPO_ID_PIC_NO_BG);
     (void)new_timeing_pic_create_hidden(frm, COMPO_ID_PIC_YES_BG);
     {
