@@ -2283,6 +2283,7 @@ void func_exit(void)
     if (func_cb.frm_main != NULL) {
 #if ELUNCHBOX_PANEL_EN
         printf("exit: destroy form\n");
+        bool was_blocked = (elunchbox_te_block_flag != 0);
         if (elunchbox_te_block_flag) {
             elunchbox_te_block_flag = 0;
         }
