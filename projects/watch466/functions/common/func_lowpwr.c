@@ -28,6 +28,11 @@ bool keep_ram_tbl_restore(void);
 //     return true;
 // }
 
+/* 【休眠/关机倒计时】500ms 定时器回调：递减 sleep_delay / guioff_delay / pwroff_delay
+ *   sleep_delay → 0: 触发深度休眠(sfunc_sleep)
+ *   guioff_delay → 0: 触发仅熄屏(gui_sleep)
+ *   pwroff_delay → 0: 触发自动关机(func_pwroff)
+ */
 AT(.com_text.sleep)
 void lowpwr_tout_ticks(void)
 {
@@ -268,6 +273,7 @@ bool sfunc_sleep_proc(void)
 
 
 #if ELUNCHBOX_PANEL_EN
+    /* 【手动关机-极限省电】VDDCORE 降至 0.9V（正常休眠 1.0V），保留 retention RAM */
     if (manual_off) {
         PWRCON0 = (PWRCON0 & ~0x1f) | 8;       //8: 0.9v (手动关机极限省电，保留retention)
     } else
@@ -291,6 +297,7 @@ bool sfunc_sleep_proc(void)
         status = bt_sleep_proc();
 
 #if ELUNCHBOX_PANEL_EN
+        /* 【手动关机-唤醒轮询】在休眠循环中轮询 TCH5 长按/充电唤醒标志 */
         if (manual_off) {
             elunchbox_manual_off_sleep_poll();
             if (elunchbox_manual_wake_pending_peek()) {
@@ -307,7 +314,7 @@ bool sfunc_sleep_proc(void)
         if (status == 1) {
 #if ELUNCHBOX_PANEL_EN
             if (manual_off) {
-                /* 手动关机: 跳过 sleep_timer (省ADC/charge_detect), 仅低电退出 */
+                /* 【手动关机-省电】跳过频繁的 sleep_timer(ADC/charge_detect)，每 60 轮仅查一次低电 */
                 if (++sys_cb.sleep_counter >= 60) {
                     sys_cb.sleep_counter = 0;
                     ret = sleep_timer();
@@ -339,10 +346,11 @@ bool sfunc_sleep_proc(void)
 #endif
         bsp_sensor_step_lowpwr_pro();
 
+        /* 【端口唤醒】按键/IO 中断唤醒 */
         if (wkpnd) {
 #if ELUNCHBOX_PANEL_EN
             if (manual_off) {
-                /* 手动关机：按键/PB9-UART唤醒 MCU 供主循环处理，但不亮屏 */
+                /* 【手动关机-端口唤醒】按键/PB9-UART 唤醒 MCU，但不亮屏 */
                 break;
             }
 #endif
@@ -364,10 +372,11 @@ bool sfunc_sleep_proc(void)
             break;
         }
 #if LE_EN
+        /* 【BLE 事件唤醒】蓝牙数据/事件触发唤醒 */
         if (ble_app_need_wakeup()) {
 #if ELUNCHBOX_PANEL_EN
             if (manual_off) {
-                /* 手动关机：BLE 事件不唤醒，继续等待 TCH5 长按 */
+                /* 【手动关机】忽略 BLE 唤醒，仅等 TCH5 长按/充电 */
             } else
 #endif
             {
@@ -378,10 +387,11 @@ bool sfunc_sleep_proc(void)
         }
 #endif
 
+        /* 【co_timer 唤醒】软件定时器到期 */
         if (co_timer_pro(true)) {
 #if ELUNCHBOX_PANEL_EN
             if (manual_off) {
-                /* 手动关机：co_timer 不唤醒，继续等待 TCH5 长按 */
+                /* 【手动关机】忽略 co_timer 唤醒，仅等 TCH5 长按/充电 */
             } else
 #endif
             {
@@ -390,10 +400,11 @@ bool sfunc_sleep_proc(void)
             }
         }
 
+		/* 【蓝牙来电唤醒】通话事件触发唤醒 */
 		if (bt_cb.call_type) {
 #if ELUNCHBOX_PANEL_EN
             if (manual_off) {
-                /* 手动关机：来电不唤醒，继续等待 TCH5 长按 */
+                /* 【手动关机】忽略来电唤醒，仅等 TCH5 长按/充电 */
             } else
 #endif
             {
@@ -409,6 +420,11 @@ bool sfunc_sleep_proc(void)
     return gui_need_wkp;
 }
 
+/* 【休眠主函数】sfunc_sleep — 熄屏 + 关外设 + sfunc_sleep_proc 深度休眠
+ *   自动息屏: guioff_slp=1, manual_off_slp=0 → BLE 降参数, 保留部分唤醒源
+ *   手动关机: guioff_slp=1, manual_off_slp=1 → 关 BLE 广播, 关 RTC WDT, 仅保留 UART RX+按键唤醒
+ *   普通休眠: guioff_slp=0 → gui_sleep 熄屏后进入深度休眠
+ */
 static void sfunc_sleep(void)
 {
     uint32_t usbcon0, usbcon1;
@@ -420,6 +436,7 @@ static void sfunc_sleep(void)
     bool gui_need_wkp = false;
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     bool elunchbox_guioff_slp = elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta;
+    /* 【手动关机标志】guioff_slp && manual_off → 进入手动关机低功耗深度休眠路径 */
     bool elunchbox_manual_off_slp = elunchbox_guioff_slp && elunchbox_pwr_is_manual_off();
 #else
     bool elunchbox_guioff_slp = false;
@@ -466,6 +483,7 @@ static void sfunc_sleep(void)
     while(btstack_audio_is_busy());
 #if LE_EN
     adv_interval = ble_get_adv_interval();
+    /* 【手动关机】关闭 BLE 广播以降低休眠功耗 */
     if (elunchbox_manual_off_slp) {
         ble_adv_dis();
     } else {
@@ -537,6 +555,7 @@ static void sfunc_sleep(void)
     SD0_LDO_DIS();
 #endif
 
+    /* 【熄屏】非饭盒路径：休眠前先关屏；饭盒路径已在 sleep_process 中提前熄屏，此处跳过 */
     if (!elunchbox_guioff_slp) {
         gui_sleep(true);
     }
@@ -798,7 +817,7 @@ bool sleep_process(is_sleep_func is_sleep)
     if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
         sys_cb.gui_need_wakeup = 0;
 #if ELUNCHBOX_PANEL_EN
-        /* 手动长按关机：直接进入深度休眠，sfunc_sleep() 内含 manual_off 低功耗路径 */
+        /* 【手动关机入口】长按 TCH5 触发 manual_off → 直接进入 sfunc_sleep() 深度休眠 */
         if (elunchbox_pwr_is_manual_off()) {
             sfunc_sleep();
             reset_sleep_delay_all();
@@ -813,13 +832,14 @@ bool sleep_process(is_sleep_func is_sleep)
         }
 #endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-        /* 自动息屏浅睡：按住 TCH5 时不进浅睡，让主循环累计 3 秒长按唤醒 */
+        /* 【自动息屏浅睡-防误触】按住 TCH5 时不进浅睡，让主循环累计 3 秒长按后触发手动关机 */
         if (pt8028_is_power_key_held() || pt8028_boot_tch5_down()) {
             reset_sleep_delay();
             reset_pwroff_delay();
             return false;
         }
 #endif
+        /* 【自动息屏浅睡入口】idel 计时到期，且无加热/TCH5 占用 → 进入 sfunc_sleep() 浅睡 */
         if (elunchbox_guioff_sleep_ready() && (*is_sleep)()) {
             sfunc_sleep();
 #if LE_EN
@@ -909,6 +929,7 @@ bool sleep_process(is_sleep_func is_sleep)
             return false;
         }
 #endif
+        /* 【非饭盒-深度休眠入口】sleep_delay 倒计时到 0 → 熄屏 + 进入 sfunc_sleep() 深度休眠 */
         if (sys_cb.sleep_delay == 0) {
             gui_sleep_psram_check();
             sfunc_sleep();              //熄屏且进入休眠
@@ -1010,7 +1031,7 @@ void sfunc_power_save_enter(void)
     RTCCON9 = 0xfff;                            //Clr pending
 }
 
-//硬开关方案，低电时，进入省电状态
+/* 【低电关机-硬开关方案】关闭所有外设 → sleep mode，仅等 VUSB 充电唤醒 */
 AT(.text.pwroff)
 void sfunc_lowbat_do(void)
 {
@@ -1026,7 +1047,7 @@ void sfunc_lowbat_do(void)
     }
 }
 
-//软开关方案，POWER键/低电时，进入关机状态
+/* 【软关机-最终断电】关闭所有外设/时钟/PLL → power down mode，等 WK 引脚/VUSB 唤醒 */
 AT(.text.pwroff.pwrdwn)
 void sfunc_pwrdown_do(u8 vusb_wakeup_en)
 {
@@ -1107,6 +1128,9 @@ void sfunc_lowbat(void)
     sfunc_lowbat_do();
 }
 
+/* 【最终关机入口】func_pwroff: 断开蓝牙 → 熄屏 → sfunc_pwrdown 硬关机 / sfunc_lowbat 低电休眠
+ *   调用路径：系统关机 / 低电关机 / 手动长按关机（最终阶段）
+ */
 void func_pwroff(int pwroff_tone_en)
 {
     printf("%s\n", __func__);

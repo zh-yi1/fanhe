@@ -487,6 +487,10 @@ static void elunchbox_pwr_off_arm_wake_keys(const char *tag)
 }
 #endif
 
+/* 【手动/自动关机统一入口】elunchbox_pwr_manual_shutdown:
+ *   触发源：TCH5 长按 3 秒 / 自动关机超时(elunchbox_pwr_pending_auto_shutdown)
+ *   流程：设 manual_off 标志 → 关 LED/加热/UART TX → 断 BLE/BT → 熄屏 → 进入低功耗深度休眠
+ */
 static void elunchbox_pwr_manual_shutdown(void)
 {
     if (elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) {
@@ -1070,7 +1074,8 @@ void func_process(void)
         }
         co_timer_pro(false);
         WDT_CLR();
-        sleep_process(bt_is_allow_sleep);  /* 进入深度休眠(sfunc_sleep)，靠中断/按键唤醒 */
+        /* 【手动关机→深度休眠】进入 sfunc_sleep()，仅保留 UART RX + 按键唤醒，其余外设全部休眠 */
+        sleep_process(bt_is_allow_sleep);
         return;
     }
 #endif
@@ -1191,11 +1196,12 @@ void func_process(void)
         }
     }
 
+    /* 【自动息屏/休眠入口】idel 计时到期 → sleep_process → sfunc_sleep 深度休眠 */
     if (sleep_process(bt_is_allow_sleep)) {
         bt_cb.disp_status = 0xff;
     }
 #if ELUNCHBOX_PANEL_EN
-    //自动关机-超时无操作后自动关机
+    /* 【自动关机】超时无操作 → elunchbox_pwr_manual_shutdown → 手动关机低功耗路径 */
     if (elunchbox_pwr_pending_auto_shutdown) {
         elunchbox_pwr_pending_auto_shutdown = false;
         elunchbox_pwr_manual_shutdown();
