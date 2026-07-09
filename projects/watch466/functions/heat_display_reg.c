@@ -240,7 +240,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-    if (got_warm_mode && func_heat_ui_is_heating()) {
+    if (got_warm_mode && func_heat_uart_finish_ok()) {
         func_elunchbox_enter_warm_from_heat();
         return;
     }
@@ -250,7 +250,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
     if (got_enable && !heating) {
         printf("[LCD_REG] feed_dp: heating stopped, clear remain\n");
 #if ELUNCHBOX_PANEL_EN
-        if (func_heat_ui_is_heating()) {
+        if (func_heat_uart_finish_ok()) {
             func_elunchbox_enter_warm_from_heat();
             return;
         }
@@ -273,7 +273,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
     if (got_remain && got_temp) {
         heat_display_show(remain_min, temp_f);
 #if ELUNCHBOX_PANEL_EN
-        if (remain_min == 0 && func_heat_ui_is_heating()) {
+        if (remain_min == 0 && func_heat_uart_finish_ok()) {
             func_elunchbox_enter_warm_from_heat();
             return;
         }
@@ -285,7 +285,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
             heat_display_show(remain_min, last.temp_f);
         }
 #if ELUNCHBOX_PANEL_EN
-        if (remain_min == 0 && func_heat_ui_is_heating()) {
+        if (remain_min == 0 && func_heat_uart_finish_ok()) {
             func_elunchbox_enter_warm_from_heat();
             return;
         }

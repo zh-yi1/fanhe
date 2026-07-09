@@ -1335,6 +1335,18 @@ bool func_heat_ui_is_heating(void)
     return f_heat->ui_state == HEAT_UI_HEATING;
 }
 
+/** UART 上报加热结束/remain=0 是否可信（须先收到过 remain>0，避免开局残留 DP 误切保温） */
+bool func_heat_uart_finish_ok(void)
+{
+    f_heat_t *f_heat;
+
+    if (!func_heat_ui_is_heating()) {
+        return false;
+    }
+    f_heat = (f_heat_t *)func_cb.f_cb;
+    return f_heat->heat_live_ready;
+}
+
 #if ELUNCHBOX_PANEL_EN
 u8 func_heat_panel_get_ui_state(const void *f)
 {

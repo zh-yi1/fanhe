@@ -251,6 +251,8 @@ void func_heat_ble_remote_restart(void);
 void func_new_warm_ble_restart(void);
 void func_heat_key_poll(void);
 bool func_heat_ui_is_heating(void);
+/** UART 侧判定加热结束是否可信（heat_live_ready 后才行，过滤开局残留 DP） */
+bool func_heat_uart_finish_ok(void);
 bool elunchbox_pwr_gui_off_is_on(void);
 bool elunchbox_ui_is_live(void);
 bool elunchbox_pwr_is_manual_off(void);
