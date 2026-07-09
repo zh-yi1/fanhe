@@ -280,6 +280,11 @@ static u8 elunchbox_guioff_sleep_mode;
 static u32 elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;  /* 100ms 单位，独立于 sys_cb.guioff_delay */
 static bool elunchbox_pwr_pending_auto_shutdown;  /* 空闲定时器到期，延迟执行 manual_shutdown */
 static u32  elunchbox_saved_clkgat0;               /* 关机时保存 CLKGAT0，唤醒后恢复 */
+
+static bool elunchbox_is_charging(void)
+{
+    return home_ui_shared_battery_is_charging();
+}
 #if USER_PT8028_KEY
 static void func_elunchbox_guioff_wake_poll(void);
 #endif
@@ -423,7 +428,7 @@ void elunchbox_pwr_gui_off_activate(void)
     if (elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) {
         return;
     }
-    if (elunchbox_heating_blocks_idle()) {
+    if (elunchbox_heating_blocks_idle() || elunchbox_is_charging()) {
         elunchbox_user_activity_reset();
         return;
     }
@@ -500,6 +505,12 @@ static void elunchbox_pwr_manual_shutdown(void)
     if (elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) {
         return;
     }
+    if (elunchbox_is_charging()) {
+        elunchbox_pwr_pending_auto_shutdown = false;
+        elunchbox_user_activity_reset();
+        printf("elunchbox: shutdown blocked (charging)\n");
+        return;
+    }
 #if USER_PANEL_LED
     panel_led_all_off();
     panel_led_set_switch_latched(false);
@@ -570,6 +581,10 @@ void elunchbox_pwr_ble_switch(bool on)
         elunchbox_pwr_gui_wake_reason("ble power on");
         elunchbox_pwr_intentional_wake = false;
     } else {
+        if (elunchbox_is_charging()) {
+            printf("elunchbox: BLE power off blocked (charging)\n");
+            return;
+        }
         if ((elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) || elunchbox_pwr_is_manual_off()) {
             printf("elunchbox: BLE power off ignored (already off)\n");
             return;
@@ -663,8 +678,9 @@ void elunchbox_guioff_idle_tick(void)
     if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
         return;
     }
-    if (elunchbox_heating_blocks_idle()) {
+    if (elunchbox_heating_blocks_idle() || elunchbox_is_charging()) {
         elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
+        elunchbox_pwr_pending_auto_shutdown = false;
         return;
     }
     if (elunchbox_idle_tmr > 0) {
@@ -677,7 +693,7 @@ bool elunchbox_guioff_idle_expired(void)
     if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
         return false;
     }
-    if (elunchbox_heating_blocks_idle()) {
+    if (elunchbox_heating_blocks_idle() || elunchbox_is_charging()) {
         return false;
     }
     return elunchbox_idle_tmr == 0;
@@ -959,6 +975,10 @@ static void func_elunchbox_pwr_long_poll(void)
 #endif
             }
         }
+        return;
+    }
+    if (elunchbox_is_charging()) {
+        printf("elunchbox: pwr_long shutdown blocked (charging)\n");
         return;
     }
     /* 普通亮屏态：长按 3 秒 = 手动关机 */
