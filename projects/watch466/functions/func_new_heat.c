@@ -135,14 +135,14 @@ static const u16 tbl_new_heat_temp_f[NEW_HEAT_TEMP_CNT] = {
     140, 158, 176, 194, 212,
 };
 
-/* 时长（分钟）：2min ~ 120min(2H)，13 档均匀分布 */
+/* 时长（分钟）：60min(1H) ~ 120min(2H)，每档 +5min */
 static const u16 tbl_new_heat_time_min[NEW_HEAT_TIME_CNT] = {
-    2, 11, 21, 31, 41, 51, 61, 70, 80, 90, 100, 110, 120,
+    60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120,
 };
 
-/* 时间刻度尺显示三档：索引 0(2min)、6(~1H)、12(2H) */
+/* 时间刻度尺显示三档：索引 0(1H)、6(1H30min)、12(2H) */
 static const u8 tbl_new_heat_time_scale_idx[3] = {
-    NEW_HEAT_TIME_IDX_MIN, NEW_HEAT_TIME_IDX_1H, NEW_HEAT_TIME_IDX_MAX,
+    NEW_HEAT_TIME_IDX_MIN, 6, NEW_HEAT_TIME_IDX_MAX,
 };
 
 /* 模式页（func_new_mode.c）进入时通过以下全局变量传递模式名称和默认参数 */

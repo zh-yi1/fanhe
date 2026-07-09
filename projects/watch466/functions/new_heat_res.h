@@ -14,9 +14,9 @@
 
 #define NEW_HEAT_TEMP_CNT                 5
 #define NEW_HEAT_TIME_CNT                 13
-#define NEW_HEAT_TIME_IDX_MIN             0       /* tbl: 2 min */
-#define NEW_HEAT_TIME_IDX_1H              6       /* tbl: ~61 min */
-#define NEW_HEAT_TIME_IDX_MAX             12      /* tbl: 120 min */
+#define NEW_HEAT_TIME_IDX_MIN             0       /* tbl: 60 min (1H) */
+#define NEW_HEAT_TIME_IDX_1H              0       /* 默认 1 小时 */
+#define NEW_HEAT_TIME_IDX_MAX             12      /* tbl: 120 min (2H) */
 
 #define NEW_HEAT_NEW_BLUE_TIME_W                 55
 #define NEW_HEAT_NEW_BLUE_TIME_H                 27

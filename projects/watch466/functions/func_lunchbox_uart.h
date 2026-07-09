@@ -57,7 +57,7 @@ enum {
     LB_DPID_RTC_TIME        = 14,       // rtc的unix时间: value(4B) unix时间 (加热模块→MCU上报设备时间, v1.0.8新增)
 };
 
-#define LB_HEAT_DURATION_MIN_MIN          2       // 加热时长下限(分钟)
+#define LB_HEAT_DURATION_MIN_MIN          60      // 加热时长下限(分钟)，UI 最低 1 小时
 #define LB_HEAT_DURATION_MAX_MIN          120     // UI 加热时长上限(分钟)，产品上限 2 小时
 
 // DataPoint 数据类型

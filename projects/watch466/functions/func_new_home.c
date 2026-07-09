@@ -259,10 +259,13 @@ static void new_home_white_bg_create(compo_form_t *frm)
 
 static void new_home_logo_load(void)
 {
+    printf("new_home_logo_loaded%d\n", new_home_logo_loaded);
     if (new_home_logo_loaded) {
         return;
     }
+    printf("new_home_logo_load: before os_spiflash_read111\n");
     os_spiflash_read(new_home_logo_ram, UI_BUF_NEW_UI_NEW_LOGO_BIN, UI_LEN_NEW_UI_NEW_LOGO_BIN);
+    printf("new_home_logo_load: after os_spiflash_read222\n");
     new_home_logo_loaded = true;
 }
 
@@ -389,6 +392,7 @@ void func_home_force_ui_refresh_after_wake(void)
         home_gpu_wait_idle();
         WDT_CLR();
         new_home_status_icons_apply(f);
+        printf("new_home_force_ui_refresh_after_wake: before new_home_logo_apply111111\n");
         new_home_logo_apply(f);
         new_home_tab_apply(f);
         new_home_top_time_restore(f);
@@ -712,6 +716,7 @@ void func_home_process(void)
                 home_gpu_wait_idle();
                 WDT_CLR();
                 new_home_status_icons_apply(f);
+                printf("new_home_force_ui_refresh_after_wake: before new_home_logo_apply222222\n");
                 new_home_logo_apply(f);
                 if (!was_blocked) {
                     elunchbox_te_block_flag = 0;
@@ -840,6 +845,7 @@ void func_home_enter(void)
     printf("home_enter: lock_icon_prepare done\n");
 
 #if ELUNCHBOX_PANEL_EN
+    printf("home_enter: before display_stage=666666\n");
     f->display_stage = 1;
     f->pending_switch_sta = 0;
     f->tab_gpu_applied = 0xff;
@@ -847,8 +853,11 @@ void func_home_enter(void)
     new_home_tab_ram_sel_reset();
     func_home_gui_mark_dirty();
 #else
-    new_home_status_icons_apply(f);
+    printf("home_enter: before logo_apply\n");
     new_home_logo_apply(f);
+    printf("home_enter: after logo_apply\n");
+    new_home_status_icons_apply(f);
+    
     new_home_tab_apply(f);
     new_home_top_time_restore(f);
     new_home_res_marquee_refresh(f);
