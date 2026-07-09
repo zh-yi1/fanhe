@@ -946,8 +946,9 @@ void lb_heating_sync_from_dp(u8 *data, u16 len)
             /* 充电状态由 heat_display_feed_dp() 统一处理唤醒逻辑 */
             break;
         case LB_DPID_TIME_SYNC:
-            /* 加热模块上报的时间戳 (dpid=11, 旧版兼容): 记录后用 lb_get_display_tm() 按 APP > 加热模块 > RTC 优先级使用 */
-            if (val_len >= 4) {
+            /* 加热模块回传的时间戳 (dpid=11): 仅蓝牙连接时接受(此时APP已同步权威时间, lb_get_display_tm()优先用BLE时间);
+             * 蓝牙未连接时忽略, 改用 dpid=14(RTC时间)作为加热模块时间源 */
+            if (val_len >= 4 && ble_is_connected()) {
                 lb_synced_heat_unix_ts = ((u32)val[0] << 24) | ((u32)val[1] << 16)
                                        | ((u32)val[2] << 8) | val[3];
                 lb_synced_heat_rtccnt = RTCCNT;
@@ -955,7 +956,7 @@ void lb_heating_sync_from_dp(u8 *data, u16 len)
             }
             break;
         case LB_DPID_RTC_TIME:
-            /* 加热模块上报的 RTC 时间戳 (dpid=14, v1.0.8新增): 未连蓝牙时优先显示此时间 */
+            /* 加热模块上报的 RTC 时间戳 (dpid=14): 未连蓝牙时作为显示时间源 (lb_get_display_tm() 优先级: APP > 加热模块 > 本地RTC) */
             if (val_len >= 4) {
                 lb_synced_heat_unix_ts = ((u32)val[0] << 24) | ((u32)val[1] << 16)
                                        | ((u32)val[2] << 8) | val[3];
