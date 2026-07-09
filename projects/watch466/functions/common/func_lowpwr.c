@@ -605,7 +605,10 @@ static void sfunc_sleep(void)
         } else {
             GPIOBDE = BIT(3) | BIT(8) | BIT(9); /* PB3 日志 / PB8 PB9 UART1 */
         }
-        GPIOEDE = (BIT(0) | BIT(1)); //PT8028 PE0+OUT_FLAG only, D0/D1/D2 off to prevent spurious wakeup
+        /* 手动关机仅保留唤醒源: PB9(RX) + PE1(FLAG) + VDDIO(常开)；
+         * PE2~PE4(BCD D0/D1/D2) 切模拟: 省电 + 防止 BCD 跳变误唤醒。
+         * 唤醒后 pt8028_port_gpio_init 会重新使能全部 PE1~PE4。 */
+        GPIOEDE = (BIT(0) | BIT(1));
         GPIOFDE = 0;
     } else
 #endif
@@ -817,8 +820,16 @@ bool sleep_process(is_sleep_func is_sleep)
     if (elunchbox_pwr_gui_off_is_on() && sys_cb.gui_sleep_sta) {
         sys_cb.gui_need_wakeup = 0;
 #if ELUNCHBOX_PANEL_EN
-        /* 【手动关机入口】长按 TCH5 触发 manual_off → 直接进入 sfunc_sleep() 深度休眠 */
+        /* 【手动关机入口】长按 TCH5 触发 manual_off → 直接进入 sfunc_sleep() 深度休眠
+         * 【修复】若 TCH5 正被按住(fresh press)，勿进入深度休眠：
+         *   深度休眠期间 tick_get() 不推进，get_pt8028_key() 内 2s 长按计时无法到期，
+         *   导致用户长按永远唤不醒。此时留在 main loop，tick_get() 正常推进，2s 后即可触发唤醒。 */
         if (elunchbox_pwr_is_manual_off()) {
+            if (elunchbox_pwr_manual_off_should_stay_awake()) {
+                reset_sleep_delay();
+                reset_pwroff_delay();
+                return false;
+            }
             sfunc_sleep();
             reset_sleep_delay_all();
             reset_pwroff_delay();

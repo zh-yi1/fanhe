@@ -255,6 +255,8 @@ bool elunchbox_pwr_gui_off_is_on(void);
 bool elunchbox_ui_is_live(void);
 bool elunchbox_pwr_is_manual_off(void);
 bool elunchbox_pwr_manual_off_wake_pressing(void);
+/** 手动关机唤醒：TCH5 被按住时应阻止深度休眠，让 tick_get() 正常推进完成 2s 长按检测 */
+bool elunchbox_pwr_manual_off_should_stay_awake(void);
 void elunchbox_pwr_gui_off_activate(void);
 bool elunchbox_is_device_powered(void);
 void elunchbox_pwr_gui_wake(void);

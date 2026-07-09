@@ -104,6 +104,9 @@ bool pt8028_pwr_boot_short_rel(void);
 bool pt8028_boot_tch5_down(void);
 /* OUT_FLAG=1 空闲（已释放），仅看 PE1 不看 BCD */
 bool pt8028_out_flag_is_idle(void);
+/* 只读 OUT_FLAG(PE1) 电平，不碰 BCD 也不调 gpio_bcd_ensure。
+ *   手动关机浅睡轮询专用：休眠期 BCD 已切模拟，调 ensure 会误恢复。 */
+u8 pt8028_read_flag_raw(void);
 /* func_pwroff：等 OUT_FLAG 回到 1 再进 sfunc_pwrdown */
 void pt8028_wait_out_flag_release(void);
 /* power_on_check：是否有键按下（含 TCH5 长按开机） */

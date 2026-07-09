@@ -416,6 +416,25 @@ bool elunchbox_pwr_manual_off_wake_pressing(void)
 #endif
 }
 
+/* 【手动关机-唤醒保持】fresh press 且 TCH5 正被按住时返回 true。
+ *   调用方(sleep_process)应跳过深度休眠，让 tick_get() 在 main loop 中正常推进，
+ *   使 PT8028 BSP 长按计时(pwr_long_pending)能在 2s 后触发唤醒。
+ *   need_fresh_press 未清(松手前残留在关机前的按键)时返回 false，交由浅睡轮询清掉。 */
+bool elunchbox_pwr_manual_off_should_stay_awake(void)
+{
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_is_manual_off() || !elunchbox_pwr_wake_armed) {
+        return false;
+    }
+    if (elunchbox_pwr_need_fresh_press) {
+        return false;
+    }
+    return pt8028_is_power_key_held() || pt8028_boot_tch5_down();
+#else
+    return false;
+#endif
+}
+
 bool elunchbox_is_device_powered(void)
 {
     return true;
@@ -524,10 +543,14 @@ static void elunchbox_pwr_manual_shutdown(void)
     elunchbox_guioff_sleep_delay = 0;
 #if FUNC_LUNCHBOX_UART_EN
     heat_display_unregister();
-    lb_uart_tx_block(true);
+    /* 【修复】先发 UART 关机指令(stop+power_off)，再封 TX。
+     *   原顺序 lb_uart_tx_block(true) 在最前面导致后续 lb_uart_send_raw 全部被 return，
+     *   加热模块收不到 PowerSwitch=OFF，保持运行并持续发 UART 数据→PB9 port wakeup 抖动，
+     *   使 sfunc_sleep 期间 CPU 被反复唤醒，TCH5 长按无法可靠检测。 */
     lunchbox_keep_warm_stop();
     lunchbox_heat_stop();
     lunchbox_power_off();
+    lb_uart_tx_block(true);
     /* RX 保持开启以接收加热模块充电数据，仅封 TX 降功耗 */
 #endif
 #if FUNC_RESERVATION_UI_EN
@@ -602,10 +625,11 @@ void elunchbox_pwr_ble_switch(bool on)
         sys_cb.gui_need_wakeup = 0;
         elunchbox_guioff_sleep_delay = 0;
         heat_display_unregister();
-        lb_uart_tx_block(true);
+        /* 【修复】先发 UART 关机指令，再封 TX（同 manual_shutdown 路径） */
         lunchbox_keep_warm_stop();
         lunchbox_heat_stop();
         lunchbox_power_off();
+        lb_uart_tx_block(true);
 #if FUNC_RESERVATION_UI_EN
         func_reservation_on_manual_shutdown();
 #endif
@@ -853,25 +877,8 @@ static bool elunchbox_manual_off_wake_ready(void)
     return true;
 }
 
-static bool elunchbox_manual_off_long_ready(void)
-{
-    if (!elunchbox_manual_off_wake_ready()) {
-        if (pt8028_take_pwr_long_pending()) {
-            printf("elunchbox: discard pwr_long_pending (not wake_ready)\n");
-            pt8028_pwr_long_consume();
-        }
-        return false;
-    }
-    if (pt8028_take_pwr_long_pending()) {
-        pt8028_pwr_long_consume();
-        return true;
-    }
-    if ((pt8028_is_power_key_held() || pt8028_boot_tch5_down()) && pt8028_pwr_key_long_ready()) {
-        pt8028_pwr_long_consume();
-        return true;
-    }
-    return false;
-}
+/* 【手动关机唤醒-轮询】仅由 func_elunchbox_guioff_wake_poll / func_elunchbox_pwr_long_poll
+ * 在主循环内检测 FLAG + BCD 并判断长按，不再在浅睡循环内识别键值。 */
 
 /* 【熄屏唤醒轮询】检测按键长按/短按，区分手动关机态和普通熄屏态：
  * - 手动关机态：TCH5/电源键长按 3 秒 → 设 manual_wake_pending 标志，由 func_process 调用方唤醒
@@ -989,15 +996,26 @@ static void func_elunchbox_pwr_long_poll(void)
 void elunchbox_manual_off_sleep_poll(void)
 {
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    static u8 last_flag = 1;
+
     if (!elunchbox_pwr_is_manual_off() || !elunchbox_pwr_wake_armed) {
+        last_flag = 1;
         return;
     }
     WDT_CLR();
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
-    if (elunchbox_manual_off_long_ready()) {
+    /* 【手动关机-浅睡轮询】只读 FLAG(PE1)，不读 BCD(PE2~PE4)：
+     *   sfunc_sleep 已把 PE2~PE4 切为模拟以防误唤醒、降功耗；
+     *   若在此调 pt8028_key_scan()→get_pt8028_key()→pt8028_gpio_bcd_ensure()
+     *   会把 BCD 线重新拉回数字输入，浪费功耗且引入 BCD 跳变误唤醒。
+     *   唤醒分两步：
+     *     Step 1: FLAG 下降沿(键按下) → 退出浅睡
+     *     Step 2: 主循环 sfunc_sleep 退出后 pt8028_port_gpio_init 重开 BCD
+     *             → 读键值 → 判断 TCH5 → 2s 长按 → 真正唤醒 */
+    u8 flag = pt8028_read_flag_raw();
+    if (flag == 0 && last_flag == 1) {
         elunchbox_manual_wake_pending = true;
     }
+    last_flag = flag;
 #endif
 }
 

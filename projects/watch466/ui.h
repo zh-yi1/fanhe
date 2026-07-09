@@ -407,346 +407,316 @@
 #define UI_BUF_NEW_UI_NEW_B0_BIN                   UI_ADDR_BASE(0x743e5)
 #define UI_LEN_NEW_UI_NEW_B0_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_B0_PNG                   UI_ADDR_BASE(0x748ad)
-#define UI_LEN_NEW_UI_NEW_B0_PNG                   0x250
-
-#define UI_BUF_NEW_UI_NEW_B1_BIN                   UI_ADDR_BASE(0x74afd)
+#define UI_BUF_NEW_UI_NEW_B1_BIN                   UI_ADDR_BASE(0x748ad)
 #define UI_LEN_NEW_UI_NEW_B1_BIN                   0x134
 
-#define UI_BUF_NEW_UI_NEW_B1_PNG                   UI_ADDR_BASE(0x74c31)
-#define UI_LEN_NEW_UI_NEW_B1_PNG                   0x1f9
-
-#define UI_BUF_NEW_UI_NEW_B2_BIN                   UI_ADDR_BASE(0x74e2a)
+#define UI_BUF_NEW_UI_NEW_B2_BIN                   UI_ADDR_BASE(0x749e1)
 #define UI_LEN_NEW_UI_NEW_B2_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_B2_PNG                   UI_ADDR_BASE(0x752f2)
-#define UI_LEN_NEW_UI_NEW_B2_PNG                   0x245
-
-#define UI_BUF_NEW_UI_NEW_B3_BIN                   UI_ADDR_BASE(0x75537)
+#define UI_BUF_NEW_UI_NEW_B3_BIN                   UI_ADDR_BASE(0x74ea9)
 #define UI_LEN_NEW_UI_NEW_B3_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_B3_PNG                   UI_ADDR_BASE(0x759ff)
-#define UI_LEN_NEW_UI_NEW_B3_PNG                   0x234
-
-#define UI_BUF_NEW_UI_NEW_B4_BIN                   UI_ADDR_BASE(0x75c33)
+#define UI_BUF_NEW_UI_NEW_B4_BIN                   UI_ADDR_BASE(0x75371)
 #define UI_LEN_NEW_UI_NEW_B4_BIN                   0x47c
 
-#define UI_BUF_NEW_UI_NEW_B4_PNG                   UI_ADDR_BASE(0x760af)
-#define UI_LEN_NEW_UI_NEW_B4_PNG                   0x223
-
-#define UI_BUF_NEW_UI_NEW_B5_BIN                   UI_ADDR_BASE(0x762d2)
+#define UI_BUF_NEW_UI_NEW_B5_BIN                   UI_ADDR_BASE(0x757ed)
 #define UI_LEN_NEW_UI_NEW_B5_BIN                   0x508
 
-#define UI_BUF_NEW_UI_NEW_B5_PNG                   UI_ADDR_BASE(0x767da)
-#define UI_LEN_NEW_UI_NEW_B5_PNG                   0x24d
-
-#define UI_BUF_NEW_UI_NEW_B6_BIN                   UI_ADDR_BASE(0x76a27)
+#define UI_BUF_NEW_UI_NEW_B6_BIN                   UI_ADDR_BASE(0x75cf5)
 #define UI_LEN_NEW_UI_NEW_B6_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_B6_PNG                   UI_ADDR_BASE(0x76eef)
-#define UI_LEN_NEW_UI_NEW_B6_PNG                   0x24d
-
-#define UI_BUF_NEW_UI_NEW_B7_BIN                   UI_ADDR_BASE(0x7713c)
+#define UI_BUF_NEW_UI_NEW_B7_BIN                   UI_ADDR_BASE(0x761bd)
 #define UI_LEN_NEW_UI_NEW_B7_BIN                   0x4a2
 
-#define UI_BUF_NEW_UI_NEW_B7_PNG                   UI_ADDR_BASE(0x775de)
-#define UI_LEN_NEW_UI_NEW_B7_PNG                   0x20e
-
-#define UI_BUF_NEW_UI_NEW_B8_BIN                   UI_ADDR_BASE(0x777ec)
+#define UI_BUF_NEW_UI_NEW_B8_BIN                   UI_ADDR_BASE(0x7665f)
 #define UI_LEN_NEW_UI_NEW_B8_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_B8_PNG                   UI_ADDR_BASE(0x77cb4)
-#define UI_LEN_NEW_UI_NEW_B8_PNG                   0x253
-
-#define UI_BUF_NEW_UI_NEW_B9_BIN                   UI_ADDR_BASE(0x77f07)
+#define UI_BUF_NEW_UI_NEW_B9_BIN                   UI_ADDR_BASE(0x76b27)
 #define UI_LEN_NEW_UI_NEW_B9_BIN                   0x508
 
-#define UI_BUF_NEW_UI_NEW_B9_PNG                   UI_ADDR_BASE(0x7840f)
-#define UI_LEN_NEW_UI_NEW_B9_PNG                   0x251
-
-#define UI_BUF_NEW_UI_NEW_BLUETOOTH_BIN            UI_ADDR_BASE(0x78660)
+#define UI_BUF_NEW_UI_NEW_BLUETOOTH_BIN            UI_ADDR_BASE(0x7702f)
 #define UI_LEN_NEW_UI_NEW_BLUETOOTH_BIN            0x148
 
-#define UI_BUF_NEW_UI_NEW_BLUE_BJ1_BIN             UI_ADDR_BASE(0x787a8)
+#define UI_BUF_NEW_UI_NEW_BLUE_BJ1_BIN             UI_ADDR_BASE(0x77177)
 #define UI_LEN_NEW_UI_NEW_BLUE_BJ1_BIN             0x24f2
 
-#define UI_BUF_NEW_UI_NEW_BLUE_BJ2_BIN             UI_ADDR_BASE(0x7ac9a)
+#define UI_BUF_NEW_UI_NEW_BLUE_BJ2_BIN             UI_ADDR_BASE(0x79669)
 #define UI_LEN_NEW_UI_NEW_BLUE_BJ2_BIN             0x148c
 
-#define UI_BUF_NEW_UI_NEW_BLUE_BJ3_BIN             UI_ADDR_BASE(0x7c126)
+#define UI_BUF_NEW_UI_NEW_BLUE_BJ3_BIN             UI_ADDR_BASE(0x7aaf5)
 #define UI_LEN_NEW_UI_NEW_BLUE_BJ3_BIN             0x788
 
-#define UI_BUF_NEW_UI_NEW_BLUE_TIME_BIN            UI_ADDR_BASE(0x7c8ae)
+#define UI_BUF_NEW_UI_NEW_BLUE_TIME_BIN            UI_ADDR_BASE(0x7b27d)
 #define UI_LEN_NEW_UI_NEW_BLUE_TIME_BIN            0xba2
 
-#define UI_BUF_NEW_UI_NEW_CHAGE_BIN                UI_ADDR_BASE(0x7d450)
+#define UI_BUF_NEW_UI_NEW_CHAGE_BIN                UI_ADDR_BASE(0x7be1f)
 #define UI_LEN_NEW_UI_NEW_CHAGE_BIN                0x5350
 
-#define UI_BUF_NEW_UI_NEW_CHICKEN_0_BIN            UI_ADDR_BASE(0x827a0)
+#define UI_BUF_NEW_UI_NEW_CHICKEN_0_BIN            UI_ADDR_BASE(0x8116f)
 #define UI_LEN_NEW_UI_NEW_CHICKEN_0_BIN            0x808
 
-#define UI_BUF_NEW_UI_NEW_CHICKEN_1_BIN            UI_ADDR_BASE(0x82fa8)
+#define UI_BUF_NEW_UI_NEW_CHICKEN_1_BIN            UI_ADDR_BASE(0x81977)
 #define UI_LEN_NEW_UI_NEW_CHICKEN_1_BIN            0x808
 
-#define UI_BUF_NEW_UI_NEW_COLONM_BIN               UI_ADDR_BASE(0x837b0)
+#define UI_BUF_NEW_UI_NEW_COLONM_BIN               UI_ADDR_BASE(0x8217f)
 #define UI_LEN_NEW_UI_NEW_COLONM_BIN               0x68
 
-#define UI_BUF_NEW_UI_NEW_DL_BIN                   UI_ADDR_BASE(0x83818)
+#define UI_BUF_NEW_UI_NEW_DL_BIN                   UI_ADDR_BASE(0x821e7)
 #define UI_LEN_NEW_UI_NEW_DL_BIN                   0x426
 
-#define UI_BUF_NEW_UI_NEW_DL1_BIN                  UI_ADDR_BASE(0x83c3e)
+#define UI_BUF_NEW_UI_NEW_DL1_BIN                  UI_ADDR_BASE(0x8260d)
 #define UI_LEN_NEW_UI_NEW_DL1_BIN                  0x426
 
-#define UI_BUF_NEW_UI_NEW_DL2_BIN                  UI_ADDR_BASE(0x84064)
+#define UI_BUF_NEW_UI_NEW_DL2_BIN                  UI_ADDR_BASE(0x82a33)
 #define UI_LEN_NEW_UI_NEW_DL2_BIN                  0x426
 
-#define UI_BUF_NEW_UI_NEW_DL3_BIN                  UI_ADDR_BASE(0x8448a)
+#define UI_BUF_NEW_UI_NEW_DL3_BIN                  UI_ADDR_BASE(0x82e59)
 #define UI_LEN_NEW_UI_NEW_DL3_BIN                  0x426
 
-#define UI_BUF_NEW_UI_NEW_DL4_BIN                  UI_ADDR_BASE(0x848b0)
+#define UI_BUF_NEW_UI_NEW_DL4_BIN                  UI_ADDR_BASE(0x8327f)
 #define UI_LEN_NEW_UI_NEW_DL4_BIN                  0x464
 
-#define UI_BUF_NEW_UI_NEW_DOWN_BIN                 UI_ADDR_BASE(0x84d14)
+#define UI_BUF_NEW_UI_NEW_DOWN_BIN                 UI_ADDR_BASE(0x836e3)
 #define UI_LEN_NEW_UI_NEW_DOWN_BIN                 0x17e
 
-#define UI_BUF_NEW_UI_NEW_GRAY_BJ1_BIN             UI_ADDR_BASE(0x84e92)
+#define UI_BUF_NEW_UI_NEW_GRAY_BJ1_BIN             UI_ADDR_BASE(0x83861)
 #define UI_LEN_NEW_UI_NEW_GRAY_BJ1_BIN             0x24f2
 
-#define UI_BUF_NEW_UI_NEW_GRAY_BJ2_BIN             UI_ADDR_BASE(0x87384)
+#define UI_BUF_NEW_UI_NEW_GRAY_BJ2_BIN             UI_ADDR_BASE(0x85d53)
 #define UI_LEN_NEW_UI_NEW_GRAY_BJ2_BIN             0x148c
 
-#define UI_BUF_NEW_UI_NEW_GRAY_BJ3_BIN             UI_ADDR_BASE(0x88810)
+#define UI_BUF_NEW_UI_NEW_GRAY_BJ3_BIN             UI_ADDR_BASE(0x871df)
 #define UI_LEN_NEW_UI_NEW_GRAY_BJ3_BIN             0x788
 
-#define UI_BUF_NEW_UI_NEW_HM_BIN                   UI_ADDR_BASE(0x88f98)
+#define UI_BUF_NEW_UI_NEW_HM_BIN                   UI_ADDR_BASE(0x87967)
 #define UI_LEN_NEW_UI_NEW_HM_BIN                   0x68
 
-#define UI_BUF_NEW_UI_NEW_INFO_0_BIN               UI_ADDR_BASE(0x89000)
+#define UI_BUF_NEW_UI_NEW_INFO_0_BIN               UI_ADDR_BASE(0x879cf)
 #define UI_LEN_NEW_UI_NEW_INFO_0_BIN               0x808
 
-#define UI_BUF_NEW_UI_NEW_INFO_1_BIN               UI_ADDR_BASE(0x89808)
+#define UI_BUF_NEW_UI_NEW_INFO_1_BIN               UI_ADDR_BASE(0x881d7)
 #define UI_LEN_NEW_UI_NEW_INFO_1_BIN               0x808
 
-#define UI_BUF_NEW_UI_NEW_LANGUAGE_0_BIN           UI_ADDR_BASE(0x8a010)
+#define UI_BUF_NEW_UI_NEW_LANGUAGE_0_BIN           UI_ADDR_BASE(0x889df)
 #define UI_LEN_NEW_UI_NEW_LANGUAGE_0_BIN           0x808
 
-#define UI_BUF_NEW_UI_NEW_LANGUAGE_1_BIN           UI_ADDR_BASE(0x8a818)
+#define UI_BUF_NEW_UI_NEW_LANGUAGE_1_BIN           UI_ADDR_BASE(0x891e7)
 #define UI_LEN_NEW_UI_NEW_LANGUAGE_1_BIN           0x808
 
-#define UI_BUF_NEW_UI_NEW_LEFT_BIN                 UI_ADDR_BASE(0x8b020)
+#define UI_BUF_NEW_UI_NEW_LEFT_BIN                 UI_ADDR_BASE(0x899ef)
 #define UI_LEN_NEW_UI_NEW_LEFT_BIN                 0xf2
 
-#define UI_BUF_NEW_UI_NEW_LOCK_BIN                 UI_ADDR_BASE(0x8b112)
+#define UI_BUF_NEW_UI_NEW_LOCK_BIN                 UI_ADDR_BASE(0x89ae1)
 #define UI_LEN_NEW_UI_NEW_LOCK_BIN                 0x3e88
 
-#define UI_BUF_NEW_UI_NEW_LOGO_BIN                 UI_ADDR_BASE(0x8ef9a)
+#define UI_BUF_NEW_UI_NEW_LOGO_BIN                 UI_ADDR_BASE(0x8d969)
 #define UI_LEN_NEW_UI_NEW_LOGO_BIN                 0x34a0
 
-#define UI_BUF_NEW_UI_NEW_MINM_BIN                 UI_ADDR_BASE(0x9243a)
+#define UI_BUF_NEW_UI_NEW_MINM_BIN                 UI_ADDR_BASE(0x90e09)
 #define UI_LEN_NEW_UI_NEW_MINM_BIN                 0xf8
 
-#define UI_BUF_NEW_UI_NEW_ORDER_0_BIN              UI_ADDR_BASE(0x92532)
+#define UI_BUF_NEW_UI_NEW_ORDER_0_BIN              UI_ADDR_BASE(0x90f01)
 #define UI_LEN_NEW_UI_NEW_ORDER_0_BIN              0x808
 
-#define UI_BUF_NEW_UI_NEW_ORDER_1_BIN              UI_ADDR_BASE(0x92d3a)
+#define UI_BUF_NEW_UI_NEW_ORDER_1_BIN              UI_ADDR_BASE(0x91709)
 #define UI_LEN_NEW_UI_NEW_ORDER_1_BIN              0x808
 
-#define UI_BUF_NEW_UI_NEW_PASTA_0_BIN              UI_ADDR_BASE(0x93542)
+#define UI_BUF_NEW_UI_NEW_PASTA_0_BIN              UI_ADDR_BASE(0x91f11)
 #define UI_LEN_NEW_UI_NEW_PASTA_0_BIN              0x808
 
-#define UI_BUF_NEW_UI_NEW_PASTA_1_BIN              UI_ADDR_BASE(0x93d4a)
+#define UI_BUF_NEW_UI_NEW_PASTA_1_BIN              UI_ADDR_BASE(0x92719)
 #define UI_LEN_NEW_UI_NEW_PASTA_1_BIN              0x808
 
-#define UI_BUF_NEW_UI_NEW_PMM_BIN                  UI_ADDR_BASE(0x94552)
+#define UI_BUF_NEW_UI_NEW_PMM_BIN                  UI_ADDR_BASE(0x92f21)
 #define UI_LEN_NEW_UI_NEW_PMM_BIN                  0x15c
 
-#define UI_BUF_NEW_UI_NEW_POINT_BIN                UI_ADDR_BASE(0x946ae)
+#define UI_BUF_NEW_UI_NEW_POINT_BIN                UI_ADDR_BASE(0x9307d)
 #define UI_LEN_NEW_UI_NEW_POINT_BIN                0x5ba
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_1_BIN           UI_ADDR_BASE(0x94c68)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_1_BIN           UI_ADDR_BASE(0x93637)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_1_BIN           0xa
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_10_BIN          UI_ADDR_BASE(0x94c72)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_10_BIN          UI_ADDR_BASE(0x93641)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_10_BIN          0x9a1e
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_11_BIN          UI_ADDR_BASE(0x9e690)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_11_BIN          UI_ADDR_BASE(0x9d05f)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_11_BIN          0xa668
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_12_BIN          UI_ADDR_BASE(0xa8cf8)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_12_BIN          UI_ADDR_BASE(0xa76c7)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_12_BIN          0xaa30
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_13_BIN          UI_ADDR_BASE(0xb3728)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_13_BIN          UI_ADDR_BASE(0xb20f7)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_13_BIN          0xaa30
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_2_BIN           UI_ADDR_BASE(0xbe158)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_2_BIN           UI_ADDR_BASE(0xbcb27)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_2_BIN           0x536
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_3_BIN           UI_ADDR_BASE(0xbe68e)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_3_BIN           UI_ADDR_BASE(0xbd05d)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_3_BIN           0x908
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_4_BIN           UI_ADDR_BASE(0xbef96)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_4_BIN           UI_ADDR_BASE(0xbd965)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_4_BIN           0x146c
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_5_BIN           UI_ADDR_BASE(0xc0402)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_5_BIN           UI_ADDR_BASE(0xbedd1)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_5_BIN           0x2768
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_6_BIN           UI_ADDR_BASE(0xc2b6a)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_6_BIN           UI_ADDR_BASE(0xc1539)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_6_BIN           0x40ee
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_7_BIN           UI_ADDR_BASE(0xc6c58)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_7_BIN           UI_ADDR_BASE(0xc5627)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_7_BIN           0x5bba
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_8_BIN           UI_ADDR_BASE(0xcc812)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_8_BIN           UI_ADDR_BASE(0xcb1e1)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_8_BIN           0x735c
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_9_BIN           UI_ADDR_BASE(0xd3b6e)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_9_BIN           UI_ADDR_BASE(0xd253d)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_9_BIN           0x891a
 
-#define UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN          UI_ADDR_BASE(0xdc488)
+#define UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN          UI_ADDR_BASE(0xdae57)
 #define UI_LEN_NEW_UI_NEW_PROGRESS_BG_BIN          0xad80
 
-#define UI_BUF_NEW_UI_NEW_SHOW_BIN                 UI_ADDR_BASE(0xe7208)
+#define UI_BUF_NEW_UI_NEW_SHOW_BIN                 UI_ADDR_BASE(0xe5bd7)
 #define UI_LEN_NEW_UI_NEW_SHOW_BIN                 0x5c90
 
-#define UI_BUF_NEW_UI_NEW_TEMP_1_BIN               UI_ADDR_BASE(0xece98)
+#define UI_BUF_NEW_UI_NEW_TEMP_1_BIN               UI_ADDR_BASE(0xeb867)
 #define UI_LEN_NEW_UI_NEW_TEMP_1_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TEMP_2_BIN               UI_ADDR_BASE(0xedc06)
+#define UI_BUF_NEW_UI_NEW_TEMP_2_BIN               UI_ADDR_BASE(0xec5d5)
 #define UI_LEN_NEW_UI_NEW_TEMP_2_BIN               0xdd0
 
-#define UI_BUF_NEW_UI_NEW_TEMP_3_BIN               UI_ADDR_BASE(0xee9d6)
+#define UI_BUF_NEW_UI_NEW_TEMP_3_BIN               UI_ADDR_BASE(0xed3a5)
 #define UI_LEN_NEW_UI_NEW_TEMP_3_BIN               0xdd0
 
-#define UI_BUF_NEW_UI_NEW_TEMP_4_BIN               UI_ADDR_BASE(0xef7a6)
+#define UI_BUF_NEW_UI_NEW_TEMP_4_BIN               UI_ADDR_BASE(0xee175)
 #define UI_LEN_NEW_UI_NEW_TEMP_4_BIN               0xdd0
 
-#define UI_BUF_NEW_UI_NEW_TEMP_5_BIN               UI_ADDR_BASE(0xf0576)
+#define UI_BUF_NEW_UI_NEW_TEMP_5_BIN               UI_ADDR_BASE(0xeef45)
 #define UI_LEN_NEW_UI_NEW_TEMP_5_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIMEING_0_BIN            UI_ADDR_BASE(0xf12e4)
+#define UI_BUF_NEW_UI_NEW_TIMEING_0_BIN            UI_ADDR_BASE(0xefcb3)
 #define UI_LEN_NEW_UI_NEW_TIMEING_0_BIN            0x808
 
-#define UI_BUF_NEW_UI_NEW_TIMEING_1_BIN            UI_ADDR_BASE(0xf1aec)
+#define UI_BUF_NEW_UI_NEW_TIMEING_1_BIN            UI_ADDR_BASE(0xf04bb)
 #define UI_LEN_NEW_UI_NEW_TIMEING_1_BIN            0x808
 
-#define UI_BUF_NEW_UI_NEW_TIME_1_BIN               UI_ADDR_BASE(0xf22f4)
+#define UI_BUF_NEW_UI_NEW_TIME_1_BIN               UI_ADDR_BASE(0xf0cc3)
 #define UI_LEN_NEW_UI_NEW_TIME_1_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_10_BIN              UI_ADDR_BASE(0xf3062)
+#define UI_BUF_NEW_UI_NEW_TIME_10_BIN              UI_ADDR_BASE(0xf1a31)
 #define UI_LEN_NEW_UI_NEW_TIME_10_BIN              0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_11_BIN              UI_ADDR_BASE(0xf3dd0)
+#define UI_BUF_NEW_UI_NEW_TIME_11_BIN              UI_ADDR_BASE(0xf279f)
 #define UI_LEN_NEW_UI_NEW_TIME_11_BIN              0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_12_BIN              UI_ADDR_BASE(0xf4b3e)
+#define UI_BUF_NEW_UI_NEW_TIME_12_BIN              UI_ADDR_BASE(0xf350d)
 #define UI_LEN_NEW_UI_NEW_TIME_12_BIN              0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_13_BIN              UI_ADDR_BASE(0xf58ac)
+#define UI_BUF_NEW_UI_NEW_TIME_13_BIN              UI_ADDR_BASE(0xf427b)
 #define UI_LEN_NEW_UI_NEW_TIME_13_BIN              0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_2_BIN               UI_ADDR_BASE(0xf661a)
+#define UI_BUF_NEW_UI_NEW_TIME_2_BIN               UI_ADDR_BASE(0xf4fe9)
 #define UI_LEN_NEW_UI_NEW_TIME_2_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_3_BIN               UI_ADDR_BASE(0xf7388)
+#define UI_BUF_NEW_UI_NEW_TIME_3_BIN               UI_ADDR_BASE(0xf5d57)
 #define UI_LEN_NEW_UI_NEW_TIME_3_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_4_BIN               UI_ADDR_BASE(0xf80f6)
+#define UI_BUF_NEW_UI_NEW_TIME_4_BIN               UI_ADDR_BASE(0xf6ac5)
 #define UI_LEN_NEW_UI_NEW_TIME_4_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_5_BIN               UI_ADDR_BASE(0xf8e64)
+#define UI_BUF_NEW_UI_NEW_TIME_5_BIN               UI_ADDR_BASE(0xf7833)
 #define UI_LEN_NEW_UI_NEW_TIME_5_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_6_BIN               UI_ADDR_BASE(0xf9bd2)
+#define UI_BUF_NEW_UI_NEW_TIME_6_BIN               UI_ADDR_BASE(0xf85a1)
 #define UI_LEN_NEW_UI_NEW_TIME_6_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_7_BIN               UI_ADDR_BASE(0xfa940)
+#define UI_BUF_NEW_UI_NEW_TIME_7_BIN               UI_ADDR_BASE(0xf930f)
 #define UI_LEN_NEW_UI_NEW_TIME_7_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_8_BIN               UI_ADDR_BASE(0xfb6ae)
+#define UI_BUF_NEW_UI_NEW_TIME_8_BIN               UI_ADDR_BASE(0xfa07d)
 #define UI_LEN_NEW_UI_NEW_TIME_8_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_TIME_9_BIN               UI_ADDR_BASE(0xfc41c)
+#define UI_BUF_NEW_UI_NEW_TIME_9_BIN               UI_ADDR_BASE(0xfadeb)
 #define UI_LEN_NEW_UI_NEW_TIME_9_BIN               0xd6e
 
-#define UI_BUF_NEW_UI_NEW_UNLOCK_BIN               UI_ADDR_BASE(0xfd18a)
+#define UI_BUF_NEW_UI_NEW_UNLOCK_BIN               UI_ADDR_BASE(0xfbb59)
 #define UI_LEN_NEW_UI_NEW_UNLOCK_BIN               0x52d8
 
-#define UI_BUF_NEW_UI_NEW_UP_BIN                   UI_ADDR_BASE(0x102462)
+#define UI_BUF_NEW_UI_NEW_UP_BIN                   UI_ADDR_BASE(0x100e31)
 #define UI_LEN_NEW_UI_NEW_UP_BIN                   0x17e
 
-#define UI_BUF_NEW_UI_NEW_W0_BIN                   UI_ADDR_BASE(0x1025e0)
+#define UI_BUF_NEW_UI_NEW_W0_BIN                   UI_ADDR_BASE(0x100faf)
 #define UI_LEN_NEW_UI_NEW_W0_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_W0_PNG                   UI_ADDR_BASE(0x102aa8)
+#define UI_BUF_NEW_UI_NEW_W0_PNG                   UI_ADDR_BASE(0x101477)
 #define UI_LEN_NEW_UI_NEW_W0_PNG                   0x250
 
-#define UI_BUF_NEW_UI_NEW_W1_BIN                   UI_ADDR_BASE(0x102cf8)
+#define UI_BUF_NEW_UI_NEW_W1_BIN                   UI_ADDR_BASE(0x1016c7)
 #define UI_LEN_NEW_UI_NEW_W1_BIN                   0x134
 
-#define UI_BUF_NEW_UI_NEW_W1_PNG                   UI_ADDR_BASE(0x102e2c)
+#define UI_BUF_NEW_UI_NEW_W1_PNG                   UI_ADDR_BASE(0x1017fb)
 #define UI_LEN_NEW_UI_NEW_W1_PNG                   0x1f9
 
-#define UI_BUF_NEW_UI_NEW_W2_BIN                   UI_ADDR_BASE(0x103025)
+#define UI_BUF_NEW_UI_NEW_W2_BIN                   UI_ADDR_BASE(0x1019f4)
 #define UI_LEN_NEW_UI_NEW_W2_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_W2_PNG                   UI_ADDR_BASE(0x1034ed)
+#define UI_BUF_NEW_UI_NEW_W2_PNG                   UI_ADDR_BASE(0x101ebc)
 #define UI_LEN_NEW_UI_NEW_W2_PNG                   0x245
 
-#define UI_BUF_NEW_UI_NEW_W3_BIN                   UI_ADDR_BASE(0x103732)
+#define UI_BUF_NEW_UI_NEW_W3_BIN                   UI_ADDR_BASE(0x102101)
 #define UI_LEN_NEW_UI_NEW_W3_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_W3_PNG                   UI_ADDR_BASE(0x103bfa)
+#define UI_BUF_NEW_UI_NEW_W3_PNG                   UI_ADDR_BASE(0x1025c9)
 #define UI_LEN_NEW_UI_NEW_W3_PNG                   0x257
 
-#define UI_BUF_NEW_UI_NEW_W4_BIN                   UI_ADDR_BASE(0x103e51)
+#define UI_BUF_NEW_UI_NEW_W4_BIN                   UI_ADDR_BASE(0x102820)
 #define UI_LEN_NEW_UI_NEW_W4_BIN                   0x47c
 
-#define UI_BUF_NEW_UI_NEW_W4_PNG                   UI_ADDR_BASE(0x1042cd)
+#define UI_BUF_NEW_UI_NEW_W4_PNG                   UI_ADDR_BASE(0x102c9c)
 #define UI_LEN_NEW_UI_NEW_W4_PNG                   0x223
 
-#define UI_BUF_NEW_UI_NEW_W5_BIN                   UI_ADDR_BASE(0x1044f0)
+#define UI_BUF_NEW_UI_NEW_W5_BIN                   UI_ADDR_BASE(0x102ebf)
 #define UI_LEN_NEW_UI_NEW_W5_BIN                   0x508
 
-#define UI_BUF_NEW_UI_NEW_W5_PNG                   UI_ADDR_BASE(0x1049f8)
+#define UI_BUF_NEW_UI_NEW_W5_PNG                   UI_ADDR_BASE(0x1033c7)
 #define UI_LEN_NEW_UI_NEW_W5_PNG                   0x249
 
-#define UI_BUF_NEW_UI_NEW_W6_BIN                   UI_ADDR_BASE(0x104c41)
+#define UI_BUF_NEW_UI_NEW_W6_BIN                   UI_ADDR_BASE(0x103610)
 #define UI_LEN_NEW_UI_NEW_W6_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_W6_PNG                   UI_ADDR_BASE(0x105109)
+#define UI_BUF_NEW_UI_NEW_W6_PNG                   UI_ADDR_BASE(0x103ad8)
 #define UI_LEN_NEW_UI_NEW_W6_PNG                   0x24d
 
-#define UI_BUF_NEW_UI_NEW_W7_BIN                   UI_ADDR_BASE(0x105356)
+#define UI_BUF_NEW_UI_NEW_W7_BIN                   UI_ADDR_BASE(0x103d25)
 #define UI_LEN_NEW_UI_NEW_W7_BIN                   0x4a2
 
-#define UI_BUF_NEW_UI_NEW_W7_PNG                   UI_ADDR_BASE(0x1057f8)
+#define UI_BUF_NEW_UI_NEW_W7_PNG                   UI_ADDR_BASE(0x1041c7)
 #define UI_LEN_NEW_UI_NEW_W7_PNG                   0x20e
 
-#define UI_BUF_NEW_UI_NEW_W8_BIN                   UI_ADDR_BASE(0x105a06)
+#define UI_BUF_NEW_UI_NEW_W8_BIN                   UI_ADDR_BASE(0x1043d5)
 #define UI_LEN_NEW_UI_NEW_W8_BIN                   0x4c8
 
-#define UI_BUF_NEW_UI_NEW_W8_PNG                   UI_ADDR_BASE(0x105ece)
+#define UI_BUF_NEW_UI_NEW_W8_PNG                   UI_ADDR_BASE(0x10489d)
 #define UI_LEN_NEW_UI_NEW_W8_PNG                   0x254
 
-#define UI_BUF_NEW_UI_NEW_W9_BIN                   UI_ADDR_BASE(0x106122)
+#define UI_BUF_NEW_UI_NEW_W9_BIN                   UI_ADDR_BASE(0x104af1)
 #define UI_LEN_NEW_UI_NEW_W9_BIN                   0x508
 
-#define UI_BUF_NEW_UI_NEW_W9_PNG                   UI_ADDR_BASE(0x10662a)
+#define UI_BUF_NEW_UI_NEW_W9_PNG                   UI_ADDR_BASE(0x104ff9)
 #define UI_LEN_NEW_UI_NEW_W9_PNG                   0x24d
 
-#define UI_BUF_NEW_UI_NEW_WARM_0_BIN               UI_ADDR_BASE(0x106877)
+#define UI_BUF_NEW_UI_NEW_WARM_0_BIN               UI_ADDR_BASE(0x105246)
 #define UI_LEN_NEW_UI_NEW_WARM_0_BIN               0x808
 
-#define UI_BUF_NEW_UI_NEW_WARM_1_BIN               UI_ADDR_BASE(0x10707f)
+#define UI_BUF_NEW_UI_NEW_WARM_1_BIN               UI_ADDR_BASE(0x105a4e)
 #define UI_LEN_NEW_UI_NEW_WARM_1_BIN               0x808
 
-#define UI_BUF_NEW_UI_NEW_WHITE_TIME_BIN           UI_ADDR_BASE(0x107887)
+#define UI_BUF_NEW_UI_NEW_WHITE_TIME_BIN           UI_ADDR_BASE(0x106256)
 #define UI_LEN_NEW_UI_NEW_WHITE_TIME_BIN           0xba2
 
-#define UI_BUF_NEW_UI_SETUP_0_BIN                  UI_ADDR_BASE(0x108429)
+#define UI_BUF_NEW_UI_SETUP_0_BIN                  UI_ADDR_BASE(0x106df8)
 #define UI_LEN_NEW_UI_SETUP_0_BIN                  0x3658
 
-#define UI_BUF_NEW_UI_SETUP_1_BIN                  UI_ADDR_BASE(0x10ba81)
+#define UI_BUF_NEW_UI_SETUP_1_BIN                  UI_ADDR_BASE(0x10a450)
 #define UI_LEN_NEW_UI_SETUP_1_BIN                  0x3658
 
 #endif

@@ -1582,6 +1582,20 @@ bool pt8028_out_flag_is_idle(void)
     return pt8028_read_out_flag() != 0;
 }
 
+/* 只读 OUT_FLAG(PE1)，不调 gpio_bcd_ensure，不碰 D0/D1/D2。
+ *   供手动关机浅睡轮询用 —— 休眠期间 BCD 线已切模拟，
+ *   若在此调 ensure 会重新使能 PE2~PE4，导致功耗升高 + 误唤醒。 */
+AT(.com_text.bsp.pt8028)
+u8 pt8028_read_flag_raw(void)
+{
+    u8 flag = bsp_gpio_get_sta(PT8028_GPIO_OUT_FLAG) ? 1 : 0;
+#if PT8028_FLAG_ACTIVE_LOW
+    return flag;
+#else
+    return flag ? 0 : 1;
+#endif
+}
+
 AT(.text.pwroff.pwrdwn)
 void pt8028_wait_out_flag_release(void)
 {
