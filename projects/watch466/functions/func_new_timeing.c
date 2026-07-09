@@ -65,7 +65,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_STATUS_RIGHT_MARGIN     10
 #define NEW_TIMEING_STATUS_GAP              6
 #define NEW_TIMEING_TITLE_LEFT              10
-#define NEW_TIMEING_TITLE_Y                 9
+#define NEW_TIMEING_TITLE_Y                 0
 #define NEW_TIMEING_TITLE_H                 36
 #define NEW_TIMEING_TITLE_W                 120
 #define NEW_TIMEING_PANEL_Y                 142
@@ -84,7 +84,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_STATUS_RIGHT_MARGIN     NEW_TIMEING_SX(24)
 #define NEW_TIMEING_STATUS_GAP              NEW_TIMEING_SX(10)
 #define NEW_TIMEING_TITLE_LEFT              NEW_TIMEING_SX(10)
-#define NEW_TIMEING_TITLE_Y                 NEW_TIMEING_SY(34)
+#define NEW_TIMEING_TITLE_Y                 NEW_TIMEING_SY(16)
 #define NEW_TIMEING_TITLE_H                 NEW_TIMEING_SY(36)
 #define NEW_TIMEING_TITLE_W                 NEW_TIMEING_SX(120)
 #define NEW_TIMEING_PANEL_Y                 NEW_TIMEING_SY(144)
