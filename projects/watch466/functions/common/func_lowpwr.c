@@ -1096,7 +1096,7 @@ void sfunc_pwrdown_do(u8 vusb_wakeup_en)
     rtccon3 |= BIT(10);                         //WK pin wake up enable
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     rtccon3 |= BIT(7);                          //VDDIO AON：PT8028 与 PE 口在硬关机态仍需供电
-    GPIOEDE |= (BIT(0) | BIT(1)); //PE0+OUT_FLAG only, D0/D1/D2 off to prevent spurious wakeup
+    GPIOEDE |= (BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4)); //PE0+OUT_FLAG+D0/D1/D2, 冷启动即读键值
     pt8028_port_pwrdown_wake_prep();            //恢复 OUT_FLAG 上拉与数字使能
     port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
     rtccon3 |= BIT(17);                         //port io wakeup enable

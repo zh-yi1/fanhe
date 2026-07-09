@@ -344,7 +344,15 @@ void pt8028_port_pwrdown_wake_prep(void)
     bsp_gpio_de_en(PT8028_GPIO_OUT_FLAG);
     bsp_gpio_pu_en(PT8028_GPIO_OUT_FLAG, GPIOxPU200K);
     bsp_gpio_de_en(IO_PE0);
-    // D0/D1/D2 (PE2/PE3/PE4) NOT enabled here — only OUT_FLAG is the wake source
+    /* D0/D1/D2 (PE2/PE3/PE4) 使能数字输入+上拉:
+     *   冷启动后 boot 阶段即可读到 BCD 键值，无需等 pt8028_port_gpio_init()，
+     *   缩短长按开机感知时间(~6s → ~3s)。功耗增加约 3~6uA(VDDIO AON)。 */
+    bsp_gpio_de_en(PT8028_GPIO_D0);
+    bsp_gpio_pu_en(PT8028_GPIO_D0, PT8028_GPIO_BCD_PULL);
+    bsp_gpio_de_en(PT8028_GPIO_D1);
+    bsp_gpio_pu_en(PT8028_GPIO_D1, PT8028_GPIO_BCD_PULL);
+    bsp_gpio_de_en(PT8028_GPIO_D2);
+    bsp_gpio_pu_en(PT8028_GPIO_D2, PT8028_GPIO_BCD_PULL);
 }
 
 

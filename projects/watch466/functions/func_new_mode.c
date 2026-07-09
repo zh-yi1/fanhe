@@ -809,7 +809,11 @@ static void new_mode_confirm(f_new_mode_t *f)
         break;
 
     case NEW_MODE_ITEM_WARM:
-        func_cb.sta = FUNC_NEW_WARM;
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        func_home_drain_stale_key_msgs();
+        pt8028_release_clear();
+#endif
+        func_switch_to(FUNC_NEW_WARM, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
         break;
 
     default:
