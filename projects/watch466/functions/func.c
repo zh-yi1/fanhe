@@ -77,6 +77,10 @@ static bool func_elunchbox_res_key_page_ok(void)
     case FUNC_LANGUAGEING:
     case FUNC_TIMEING:
     case FUNC_VERINFO:
+    case FUNC_NEW_HEAT:
+    case FUNC_NEW_MODE:
+    case FUNC_NEW_SETUP:
+    case FUNC_NEW_WARM:
         return true;
     default:
         return false;
