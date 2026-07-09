@@ -124,44 +124,53 @@ static u32 lb_crc32_mpeg2_byte(u32 crc, u8 byte)
     return crc;
 }
 
-/** @brief 计算 UART END 帧所需的最终 CRC32 (MPEG-2, 匹配加热模块 bootloader) */
+/** @brief 计算固件 CRC32/MPEG-2 (不含 mod16 零填充), 用于本地校验 header CRC */
 static u32 heat_ota_get_final_crc(void)
 {
     // MCU通信协议.md §5: 包头的第13-16字节表示该固件的CRC32/MPEG-2校验码
-    // END 帧 CRC 与包头 CRC 为同一算法: CRC32/MPEG-2 (多项式 0x04C11DB7, 非反射, 无最终XOR)
-    // END 帧 CRC 必须覆盖 mod16 对齐后的零填充, 否则模块拒绝
+    // 此处计算的是固件原始数据的 CRC32/MPEG-2, 不含 mod16 对齐填充
+    // (END 帧发给加热模块时需要追加零填充, 由 heat_ota_send_end_packet 处理)
     u32 crc = 0xFFFFFFFF;
     u32 fw_start;
+    u32 fw_size;
 
     if (g_heat_ota.has_header) {
         fw_start = HEAT_OTA_HEADER_SIZE;  // 跳过 256 字节包头
+
+        // 从 header bytes 8-11 读取固件实际长度 (大端)
+        // recv_size 包含 BLE 分包对齐产生的零填充，不可直接用于 CRC
+        u8 len_buf[4];
+        os_spiflash_read(len_buf, HEAT_OTA_FLASH_ADDR + 8, 4);
+        fw_size = ((u32)len_buf[0] << 24) | ((u32)len_buf[1] << 16)
+                | ((u32)len_buf[2] << 8)  | len_buf[3];
+
+        // 合法性检查: fw_size 必须 >0 且 ≤ 实际接收的固件数据量
+        if (fw_size == 0 || fw_size > (g_heat_ota.recv_size - fw_start)) {
+            printf("[HEAT_OTA] CRC: bad fw_len=%lu in header, fallback to recv_size\n",
+                   (unsigned long)fw_size);
+            fw_size = g_heat_ota.recv_size - fw_start;
+        }
     } else {
         fw_start = 0;
+        fw_size = g_heat_ota.recv_size;
     }
 
-    u32 fw_size = g_heat_ota.recv_size - fw_start;
-
-    // 计算 mod16 对齐后的总长度 (匹配 UART 发送时的零填充)
-    u16 mod = fw_size & 0x0F;
-    u32 aligned_size = mod ? ((fw_size + 16) & ~0x0F) : fw_size;
-
     // === DEBUG: 打印 CRC 计算参数 ===
-    printf("[HEAT_OTA] CRC: recv_size=%lu has_header=%d fw_start=%lu\n",
-           (unsigned long)g_heat_ota.recv_size, g_heat_ota.has_header, (unsigned long)fw_start);
-    printf("[HEAT_OTA] CRC: fw_size=%lu mod=%u aligned_size=%lu pad=%lu\n",
-           (unsigned long)fw_size, mod, (unsigned long)aligned_size, (unsigned long)(aligned_size - fw_size));
+    printf("[HEAT_OTA] CRC: recv_size=%lu has_header=%d fw_start=%lu fw_size=%lu\n",
+           (unsigned long)g_heat_ota.recv_size, g_heat_ota.has_header,
+           (unsigned long)fw_start, (unsigned long)fw_size);
 
     u8 buf[128];
     u32 off = fw_start;
 
-    // 1) CRC 真实固件数据 (从 Flash 读取)
-    u32 remain = g_heat_ota.recv_size - fw_start;
+    // CRC 真实固件数据 (从 Flash 读取, 仅 fw_size 字节)
+    u32 remain = fw_size;
 
     // 打印首尾各 16 字节用于校验
     if (remain >= 16) {
         u8 head[16], tail[16];
         os_spiflash_read(head, HEAT_OTA_FLASH_ADDR + fw_start, 16);
-        os_spiflash_read(tail, HEAT_OTA_FLASH_ADDR + g_heat_ota.recv_size - 16, 16);
+        os_spiflash_read(tail, HEAT_OTA_FLASH_ADDR + fw_start + fw_size - 16, 16);
         printf("[HEAT_OTA] CRC: head[0..15]=");
         u32 di;
         for (di = 0; di < 16; di++) printf("%02X ", head[di]);
@@ -182,14 +191,7 @@ static u32 heat_ota_get_final_crc(void)
         remain -= len;
     }
 
-    // 2) CRC 零填充部分 (匹配 UART 发送时 mod16 对齐添加的 0x00)
-    u32 pad = aligned_size - fw_size;
-    u32 j;
-    for (j = 0; j < pad; j++) {
-        crc = lb_crc32_mpeg2_byte(crc, 0x00);
-    }
-
-    return crc;  // MPEG-2 无最终 XOR
+    return crc;  // MPEG-2 无最终 XOR, 不含 mod16 填充
 }
 
 /** @brief 解析包头 (收到 ≥256B 时调用) */
@@ -352,7 +354,22 @@ static void heat_ota_send_end_packet(void)
            (unsigned long)g_heat_ota.send_total, (unsigned long)g_heat_ota.send_offset,
            g_heat_ota.sent_packets, g_heat_ota.total_packets);
 
+    // 获取原始固件 CRC32/MPEG-2 (不含 mod16 填充, 匹配 header CRC)
     u32 end_crc = heat_ota_get_final_crc();
+
+    // 追加 mod16 零填充: 加热模块通过 UART 收到的数据含对齐填充,
+    // END 帧 CRC 必须覆盖填充后的完整数据, 否则模块拒绝
+    u16 mod = g_heat_ota.send_total & 0x0F;
+    if (mod) {
+        u32 pad = 16 - mod;
+        u32 j;
+        for (j = 0; j < pad; j++) {
+            end_crc = lb_crc32_mpeg2_byte(end_crc, 0x00);
+        }
+        printf("[HEAT_OTA] UART: END CRC extended with %lu zero-padding bytes\n",
+               (unsigned long)pad);
+    }
+
     u8 crc_data[4];
     crc_data[0] = (u8)(end_crc >> 24);
     crc_data[1] = (u8)(end_crc >> 16);
@@ -374,7 +391,19 @@ static void heat_ota_start_uart_transfer(void)
     printf("[HEAT_OTA] starting UART transfer\n");
 
     if (g_heat_ota.has_header) {
-        g_heat_ota.send_total = g_heat_ota.recv_size - HEAT_OTA_HEADER_SIZE;
+        // 从 header bytes 8-11 读取固件实际长度 (大端)
+        // recv_size 包含 BLE 分包对齐产生的零填充，不可直接使用
+        u8 len_buf[4];
+        os_spiflash_read(len_buf, HEAT_OTA_FLASH_ADDR + 8, 4);
+        u32 hdr_fw_len = ((u32)len_buf[0] << 24) | ((u32)len_buf[1] << 16)
+                       | ((u32)len_buf[2] << 8)  | len_buf[3];
+
+        if (hdr_fw_len > 0 && hdr_fw_len <= (g_heat_ota.recv_size - HEAT_OTA_HEADER_SIZE)) {
+            g_heat_ota.send_total = hdr_fw_len;
+        } else {
+            printf("[HEAT_OTA] bad fw_len=%lu in header, fallback\n", (unsigned long)hdr_fw_len);
+            g_heat_ota.send_total = g_heat_ota.recv_size - HEAT_OTA_HEADER_SIZE;
+        }
     } else {
         g_heat_ota.send_total = g_heat_ota.recv_size;
     }
