@@ -993,9 +993,9 @@ static void new_time_pt8028_keys_process(f_new_time_t *f)
         elunchbox_user_activity_reset();
     }
     if (press_tch == PT8028_KEY_TCH6) {
-        new_time_value_inc(f);
-    } else if (press_tch == PT8028_KEY_TCH2) {
         new_time_value_dec(f);
+    } else if (press_tch == PT8028_KEY_TCH2) {
+        new_time_value_inc(f);
     } else if (press_tch == PT8028_KEY_TCH3) {
         new_time_mode_key(f);
     } else if (press_tch == PT8028_KEY_TCH4) {
@@ -1059,10 +1059,10 @@ static void func_new_time_message(size_msg_t msg)
         new_time_ok_key(f);
         break;
     case KU_VOL_UP:
-        new_time_value_inc(f);
+        new_time_value_dec(f);
         break;
     case KU_VOL_DOWN:
-        new_time_value_dec(f);
+        new_time_value_inc(f);
         break;
     case KEY_RIGHT | KEY_SHORT_UP:
         new_time_power_key(f);

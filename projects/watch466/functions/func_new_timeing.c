@@ -1036,9 +1036,9 @@ static void new_timeing_pt8028_keys_process(f_new_timeing_t *f)
     }
     press_tch = pt8028_take_press_tch();
     if (press_tch == PT8028_KEY_TCH2) {
-        new_timeing_value_dec(f);
-    } else if (press_tch == PT8028_KEY_TCH6) {
         new_timeing_value_inc(f);
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        new_timeing_value_dec(f);
     } else if (press_tch == PT8028_KEY_TCH3) {
         new_timeing_mode_key(f);
     } else if (press_tch == PT8028_KEY_TCH4) {
@@ -1092,10 +1092,10 @@ static void func_new_timeing_message(size_msg_t msg)
         new_timeing_ok_key(f);
         break;
     case KU_VOL_UP:
-        new_timeing_value_inc(f);
+        new_timeing_value_dec(f);
         break;
     case KU_VOL_DOWN:
-        new_timeing_value_dec(f);
+        new_timeing_value_inc(f);
         break;
     case KEY_RIGHT | KEY_SHORT_UP:
         new_timeing_power_key(f);

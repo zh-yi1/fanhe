@@ -1211,9 +1211,9 @@ static void new_heat_pt8028_keys_process(f_new_heat_t *f)
     } else if (press_tch == PT8028_KEY_TCH5) {
         new_heat_power_key(f);
     } else if (press_tch == PT8028_KEY_TCH2) {
-        new_heat_value_dec(f);
-    } else if (press_tch == PT8028_KEY_TCH6) {
         new_heat_value_inc(f);
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        new_heat_value_dec(f);
     } else if (press_tch == PT8028_KEY_TCH3) {
         new_heat_mode_key();
     } else if (press_tch == PT8028_KEY_TCH1) {
@@ -1273,11 +1273,11 @@ static void func_new_heat_message(size_msg_t msg)
     case KU_BACK:       /* NEW_HEAT_MSG_OK = 确认键 */
         new_heat_ok_key(f);
         break;
-    case KU_VOL_UP:     /* NEW_HEAT_MSG_PLUS = 加键 */
-        new_heat_value_inc(f);
-        break;
-    case KU_VOL_DOWN:   /* NEW_HEAT_MSG_MINUS = 减键 */
+    case KU_VOL_UP:     /* NEW_HEAT_MSG_PLUS → 减键 */
         new_heat_value_dec(f);
+        break;
+    case KU_VOL_DOWN:   /* NEW_HEAT_MSG_MINUS → 加键 */
+        new_heat_value_inc(f);
         break;
     case KEY_RIGHT | KEY_SHORT_UP:  /* NEW_HEAT_MSG_POWER = 电源/返回键 */
         new_heat_power_key(f);

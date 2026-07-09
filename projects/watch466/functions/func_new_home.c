@@ -676,9 +676,9 @@ void new_home_pt8028_keys_process(f_new_home_t *f)
     } else if (press_tch == PT8028_KEY_TCH4) {
         func_home_confirm_key();
     } else if (press_tch == PT8028_KEY_TCH2) {
-        new_home_tab_cycle(f, -1);
-    } else if (press_tch == PT8028_KEY_TCH6) {
         new_home_tab_cycle(f, +1);
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        new_home_tab_cycle(f, -1);
     } else if (press_tch == PT8028_KEY_TCH7) {
         /* 预约键：跳转到预约设置页 */
         if (!sys_cb.flag_swithing) {

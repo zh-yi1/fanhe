@@ -1098,11 +1098,11 @@ static void func_timeing_message(size_msg_t msg)
         break;
 
     case KU_VOL_UP:
-        func_timeing_value_inc(f_timeing);
+        func_timeing_value_dec(f_timeing);
         break;
 
     case KU_VOL_DOWN:
-        func_timeing_value_dec(f_timeing);
+        func_timeing_value_inc(f_timeing);
         break;
 
     default:

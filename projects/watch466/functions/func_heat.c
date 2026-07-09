@@ -1131,11 +1131,11 @@ static void func_heat_message(size_msg_t msg)
         break;
 
     case HEAT_MSG_PLUS:
-        func_heat_value_inc(f_heat);
+        func_heat_value_dec(f_heat);
         break;
 
     case HEAT_MSG_MINUS:
-        func_heat_value_dec(f_heat);
+        func_heat_value_inc(f_heat);
         break;
 
     case HEAT_MSG_POWER:

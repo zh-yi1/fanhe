@@ -2019,13 +2019,13 @@ static void func_reservation_message(size_msg_t msg)
 
     case RES_MSG_PLUS:
         if (f_res != NULL && func_cb.sta == FUNC_RESERVATION) {
-            func_res_value_inc(f_res);
+            func_res_value_dec(f_res);
         }
         break;
 
     case RES_MSG_MINUS:
         if (f_res != NULL && func_cb.sta == FUNC_RESERVATION) {
-            func_res_value_dec(f_res);
+            func_res_value_inc(f_res);
         }
         break;
 

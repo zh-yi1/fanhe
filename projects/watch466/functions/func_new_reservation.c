@@ -478,7 +478,7 @@ static void new_res_pt8028_keys_process(f_new_reservation_t *f)
         elunchbox_user_activity_reset();
     }
     if (press_tch == PT8028_KEY_TCH2) {
-        new_res_value_dec(f);
+        new_res_value_inc(f);
     } else if (press_tch == PT8028_KEY_TCH3) {
         new_res_mode_key();
     } else if (press_tch == PT8028_KEY_TCH4) {
@@ -486,7 +486,7 @@ static void new_res_pt8028_keys_process(f_new_reservation_t *f)
     } else if (press_tch == PT8028_KEY_TCH5) {
         new_res_power_key();
     } else if (press_tch == PT8028_KEY_TCH6) {
-        new_res_value_inc(f);
+        new_res_value_dec(f);
     } else if (press_tch == PT8028_KEY_TCH1) {
         /* 加热键：跳转到加热设置页 */
         if (!sys_cb.flag_swithing) {
@@ -581,10 +581,10 @@ static void func_new_reservation_message(size_msg_t msg)
         new_res_ok_key(f);
         break;
     case KU_VOL_UP:
-        new_res_value_inc(f);
+        new_res_value_dec(f);
         break;
     case KU_VOL_DOWN:
-        new_res_value_dec(f);
+        new_res_value_inc(f);
         break;
     case KEY_RIGHT | KEY_SHORT_UP:
         new_res_power_key();

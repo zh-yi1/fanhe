@@ -762,9 +762,9 @@ static void new_lang_pt8028_keys_process(f_new_lang_t *f)
     } else if (press_tch == PT8028_KEY_TCH5) {
         new_lang_power_key();
     } else if (press_tch == PT8028_KEY_TCH2) {
-        new_lang_sel_prev(f);
-    } else if (press_tch == PT8028_KEY_TCH6) {
         new_lang_sel_next(f);
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        new_lang_sel_prev(f);
     } else if (press_tch == PT8028_KEY_TCH1) {
         /* 加热键：跳转到加热设置页 */
         if (!sys_cb.flag_swithing) {
