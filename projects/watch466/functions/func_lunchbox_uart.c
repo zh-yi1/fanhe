@@ -976,15 +976,36 @@ void lb_heating_sync_from_dp(u8 *data, u16 len)
     if (got_enable && heating) {
         lb_heat_task_active = true;
     } else if (got_remain) {
-        lb_heat_task_active = (remain > 0);
-        if (remain == 0) {
+#if ELUNCHBOX_PANEL_EN
+        bool warm_hold = lb_keep_warm_active || (func_cb.sta == FUNC_NEW_WARM);
+#else
+        bool warm_hold = lb_keep_warm_active;
+#endif
+        if (remain > 0) {
+            lb_heat_task_active = true;
+        } else if (warm_hold) {
+            /* 保温模式 Remain 恒为 0，勿因 DP06=0 清除保温/禁止息屏保护 */
+            lb_heat_task_active = true;
+            lb_heat_lcd_active = true;
+#if ELUNCHBOX_PANEL_EN
+            if (func_cb.sta == FUNC_NEW_WARM) {
+                lb_keep_warm_active = true;
+            }
+#endif
+        } else {
+            lb_heat_task_active = false;
             lb_heat_lcd_active = false;
             lb_keep_warm_active = false;
         }
     } else if (got_enable && !heating && got_remain && remain == 0) {
-        lb_heat_task_active = false;
-        lb_heat_lcd_active = false;
-        lb_keep_warm_active = false;
+#if ELUNCHBOX_PANEL_EN
+        if (func_cb.sta != FUNC_NEW_WARM && !lb_keep_warm_active)
+#endif
+        {
+            lb_heat_task_active = false;
+            lb_heat_lcd_active = false;
+            lb_keep_warm_active = false;
+        }
     }
     /* UART 上报的 HEAT_ENABLE 同步到本地属性，避免 lunchbox_heating_task_active()
      * 因 lb_attr_heat_enable 过期而导致关机后 elunchbox_heating_blocks_idle 误唤醒 */

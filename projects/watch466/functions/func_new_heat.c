@@ -135,18 +135,20 @@ static const u16 tbl_new_heat_temp_f[NEW_HEAT_TEMP_CNT] = {
     140, 158, 176, 194, 212,
 };
 
-/* 时长（分钟）：60min(1H) ~ 120min(2H)，每档+5min */
+/* 时长（分钟）：2min ~ 120min(2H)，13 档均匀分布 */
 static const u16 tbl_new_heat_time_min[NEW_HEAT_TIME_CNT] = {
-    60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120,
+    2, 11, 21, 31, 41, 51, 61, 70, 80, 90, 100, 110, 120,
 };
 
-/* 时间刻度尺显示三档：索引 0(1H)、6(1H30min)、12(2H) */
-static const u8 tbl_new_heat_time_scale_idx[3] = { 0, 6, 12 };
+/* 时间刻度尺显示三档：索引 0(2min)、6(~1H)、12(2H) */
+static const u8 tbl_new_heat_time_scale_idx[3] = {
+    NEW_HEAT_TIME_IDX_MIN, NEW_HEAT_TIME_IDX_1H, NEW_HEAT_TIME_IDX_MAX,
+};
 
 /* 模式页（func_new_mode.c）进入时通过以下全局变量传递模式名称和默认参数 */
 const char *g_new_heat_mode_name = NULL;
 u8 g_new_heat_temp_idx = 0;
-u8 g_new_heat_time_idx = 0;
+u8 g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
 u8 g_new_heat_proto_mode = 1;
 
 static void new_heat_white_bg_create(compo_form_t *frm)
@@ -396,7 +398,9 @@ static void new_heat_format_duration(char *buf, u16 total_min)
     u8 hour = (u8)(total_min / 60);
     u8 min = (u8)(total_min % 60);
 
-    if (min == 0) {
+    if (total_min < 60) {
+        sprintf(buf, "%umin", total_min);
+    } else if (min == 0) {
         sprintf(buf, "%uH", hour);
     } else if (min == 30) {
         sprintf(buf, "%uH30min", hour);
@@ -996,6 +1000,11 @@ static void new_heat_ok_key(f_new_heat_t *f)
      * 仅封锁 func_heat_panel_enter 确保资源绑定期间不被 TE 打断。 */
     temp_f = tbl_new_heat_temp_f[f->temp_idx];
     total_min = tbl_new_heat_time_min[f->time_idx];
+    if (total_min < LB_HEAT_DURATION_MIN_MIN) {
+        total_min = LB_HEAT_DURATION_MIN_MIN;
+    } else if (total_min > LB_HEAT_DURATION_MAX_MIN) {
+        total_min = LB_HEAT_DURATION_MAX_MIN;
+    }
 
 #if ELUNCHBOX_PANEL_EN
     if (g_res_heat_pending) {
@@ -1023,7 +1032,7 @@ static void new_heat_ok_key(f_new_heat_t *f)
     lb_heat_autostart_set(true);
     g_new_heat_mode_name = NULL;
     g_new_heat_temp_idx = 0;
-    g_new_heat_time_idx = 0;
+    g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
     g_new_heat_proto_mode = 1;
     func_cb.sta = FUNC_HEAT;
 }
@@ -1046,7 +1055,7 @@ static void new_heat_power_key(f_new_heat_t *f)
     }
     g_new_heat_mode_name = NULL;
     g_new_heat_temp_idx = 0;
-    g_new_heat_time_idx = 0;
+    g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
     g_new_heat_proto_mode = 1;
     /* 不调 func_switch_to：让 func_exit() 安全路径做清理 */
     func_cb.sta = FUNC_HOME;
@@ -1467,7 +1476,7 @@ void func_new_heat_exit(void)
 {
     g_new_heat_mode_name = NULL;
     g_new_heat_temp_idx = 0;
-    g_new_heat_time_idx = 0;
+    g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
     g_new_heat_proto_mode = 1;
     /* GPU 资源由 func_exit() 的 compo_form_destroy() + compos_init() 统一清理。
      * 此处不做 GPU detach，避免：

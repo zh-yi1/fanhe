@@ -9,6 +9,7 @@
 #include "home_top_time.h"
 #include "func_key_lock.h"
 #include "func_lunchbox_uart.h"
+#include "new_heat_res.h"
 
 #if ELUNCHBOX_PANEL_EN
 extern volatile u8 elunchbox_te_block_flag;
@@ -787,7 +788,7 @@ static void new_mode_confirm(f_new_mode_t *f)
     case NEW_MODE_ITEM_CHICKEN:
         g_new_heat_mode_name = "Chicken";
         g_new_heat_temp_idx = 4;       /* 212°F */
-        g_new_heat_time_idx = 0;       /* 60min (1H) */
+        g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;       /* ~61min (1H) */
         g_new_heat_proto_mode = 2;
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         func_home_drain_stale_key_msgs();
@@ -799,7 +800,7 @@ static void new_mode_confirm(f_new_mode_t *f)
     case NEW_MODE_ITEM_PASTA:
         g_new_heat_mode_name = "Pasta";
         g_new_heat_temp_idx = 3;       /* 194°F */
-        g_new_heat_time_idx = 0;       /* 60min (1H) */
+        g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;       /* ~61min (1H) */
         g_new_heat_proto_mode = 3;
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         func_home_drain_stale_key_msgs();
