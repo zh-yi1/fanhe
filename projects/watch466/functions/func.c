@@ -1017,8 +1017,8 @@ static void func_elunchbox_key_notify_poll(void)
         return;
     }
 #if ELUNCHBOX_PANEL_EN
-    if (func_key_lock_is_active() && tch != PT8028_KEY_TCH5) {
-        func_key_lock_notify_blocked();
+    if (func_key_lock_is_active()) {
+        func_key_lock_notify_blocked_tch(tch);
         return;
     }
 #endif

@@ -5,6 +5,7 @@
 
 #include "home_ui_lock_overlay.h"
 #include "bsp_pt8028_key.h"
+#include "port_pt8028_key.h"
 #include "func.h"
 #include "func_lunchbox_lcd.h"
 #include "heat_display_reg.h"
@@ -211,8 +212,26 @@ bool func_key_lock_show_status_icon(bool page_local_locked)
     return page_local_locked;
 }
 
+void func_key_lock_notify_blocked_tch(u8 tch)
+{
+#if FUNC_LUNCHBOX_UART_EN
+    u8 key_val;
+
+    if (tch > PT8028_KEY_TCH7) {
+        return;
+    }
+    key_val = pt8028_tch_to_lunchbox_key(tch);
+    if (key_val != 0) {
+        lunchbox_key_notify(key_val);
+    }
+#else
+    (void)tch;
+#endif
+}
+
 void func_key_lock_notify_blocked(void)
 {
+    func_key_lock_notify_blocked_tch(PT8028_KEY_TCH7);
 }
 
 static void func_key_lock_enter(bool from_long_press)
