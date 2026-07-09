@@ -5,7 +5,7 @@
 #include "new_home_icon_res.h"
 #include "func.h"
 
-#if ELUNCHBOX_PANEL_EN
+#if ELUNCHBOX_PANEL_EN && HOME_UI_LOWBAT_OVERLAY_EN
 
 #ifndef UI_BUF_NEW_UI_DIDIAN_BIN
 #error "Missing didian.bin: add Output/bin/ui/new_ui/didian.png and run tools/gen_new_ui_icons.py + prebuild.bat"
@@ -209,7 +209,6 @@ void home_ui_lowbat_overlay_show(void)
 
 void home_ui_lowbat_poll(void)
 {
-#if ELUNCHBOX_PANEL_EN
     if (!elunchbox_ui_is_live() || elunchbox_pwr_is_manual_off() || sys_cb.flag_swithing) {
         if (lowbat_state != LOWBAT_ST_IDLE || lowbat_overlay_visible) {
             home_ui_lowbat_overlay_hide();
@@ -254,7 +253,6 @@ void home_ui_lowbat_poll(void)
         lowbat_state = LOWBAT_ST_IDLE;
         break;
     }
-#endif
 }
 
-#endif /* ELUNCHBOX_PANEL_EN */
+#endif /* ELUNCHBOX_PANEL_EN && HOME_UI_LOWBAT_OVERLAY_EN */

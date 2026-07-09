@@ -3,7 +3,7 @@
 
 #include "include.h"
 
-#if ELUNCHBOX_PANEL_EN
+#if ELUNCHBOX_PANEL_EN && HOME_UI_LOWBAT_OVERLAY_EN
 
 /** 低电量(<25%)提示图 didian.bin：显示 5s → 隐藏 60s → 循环 */
 void home_ui_lowbat_overlay_show(void);
