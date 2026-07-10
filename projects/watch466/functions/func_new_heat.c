@@ -1057,6 +1057,7 @@ static void new_heat_power_key(f_new_heat_t *f)
     g_new_heat_temp_idx = 0;
     g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
     g_new_heat_proto_mode = 1;
+    g_res_heat_pending = false;  /* 退出预约温度设置，清除预约 pending 标记 */
     /* 不调 func_switch_to：让 func_exit() 安全路径做清理 */
     func_cb.sta = FUNC_HOME;
 }

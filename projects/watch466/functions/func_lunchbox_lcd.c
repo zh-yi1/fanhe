@@ -389,11 +389,15 @@ void lunchbox_reservation_delete(u8 id)
     lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 2);
 }
 
+void lunchbox_query_reservation_list(void)
+{
+    lb_uart_send_raw(LB_UART_CMD_SCHEDULE, NULL, 0);
+}
+
 //-----------------------------------------------------------------------------
 // BLE 连接回调
 //-----------------------------------------------------------------------------
 
-#if 0
 /**
  * @brief 计算下一个指定时分(北京时间)的Unix时间戳
  */
@@ -407,7 +411,6 @@ static u32 lb_next_time_of_day(u8 hour, u8 min)
     }
     return target_unix;
 }
-#endif
 
 /**
  * @brief BLE 连接后发送5个固定预约预设到加热模块 (UART 0x03)
@@ -426,20 +429,20 @@ void lunchbox_ble_send_presets(void)
         return;
     }
 
-    // u8 temp_idx = lunchbox_temp_f_to_idx(149);
+    u8 temp_idx = lunchbox_temp_f_to_idx(149);
 
-    // lunchbox_reservation_send(1, 1, "\xe6\x97\xa9\xe9\xa4\x90",
-    //                           lb_next_time_of_day(8, 0), temp_idx, 60, 0, 0xff);
-    // lunchbox_reservation_send(1, 2, "\xe5\x8d\x88\xe9\xa4\x90",
-    //                           lb_next_time_of_day(10, 50), temp_idx, 70, 0, 0xff);
-    // lunchbox_reservation_send(1, 3, "\xe6\x99\x9a\xe9\xa4\x90",
-    //                           lb_next_time_of_day(16, 30), temp_idx, 90, 0, 0xff);
-    // lunchbox_reservation_send(2, 4, "\xe9\xb8\xa1\xe8\x85\xbf\xe6\xa8\xa1\xe5\xbc\x8f",
-    //                           lb_get_unix_time(), temp_idx, 60, 0, 0xff);
-    // lunchbox_reservation_send(3, 5, "\xe6\x84\x8f\xe9\x9d\xa2\xe6\xa8\xa1\xe5\xbc\x8f",
-    //                           lb_get_unix_time(), temp_idx, 60, 0, 0xff);
+    lunchbox_reservation_send(1, 1, "\xe6\x97\xa9\xe9\xa4\x90",
+                              lb_next_time_of_day(8, 0), temp_idx, 60, 0, 0xff);
+    lunchbox_reservation_send(1, 2, "\xe5\x8d\x88\xe9\xa4\x90",
+                              lb_next_time_of_day(10, 50), temp_idx, 70, 0, 0xff);
+    lunchbox_reservation_send(1, 3, "\xe6\x99\x9a\xe9\xa4\x90",
+                              lb_next_time_of_day(16, 30), temp_idx, 90, 0, 0xff);
+    lunchbox_reservation_send(2, 4, "\xe9\xb8\xa1\xe8\x85\xbf\xe6\xa8\xa1\xe5\xbc\x8f",
+                              lb_get_unix_time(), temp_idx, 60, 0, 0xff);
+    lunchbox_reservation_send(3, 5, "\xe6\x84\x8f\xe9\x9d\xa2\xe6\xa8\xa1\xe5\xbc\x8f",
+                              lb_get_unix_time(), temp_idx, 60, 0, 0xff);
 
-    //printf("BLE connected: 5 presets sent to heat module via UART 0x03\n");
+    printf("BLE connected: 5 presets sent to heat module via UART 0x03\n");
 #else
     // 本地模式: 预设已在 lunchbox_uart_init() → lb_local_init_presets() 中初始化
     // 后续用户新增预约 ID 从 6 开始 (lb_next_schedule_id = 6)

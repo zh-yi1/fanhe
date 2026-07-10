@@ -85,7 +85,7 @@ typedef struct {
 //-----------------------------------------------------------------------------
 typedef struct {
     u8  action;                         // 0=删除, 1=自定义加热, 2=鸡腿模式
-    u8  id;                             // 预约ID (删除时=目标ID, 新增时=0)
+    u8  id;                             // 预约ID (删除时=目标ID, 新增时>=6)
     char name[32];                      // 预约名称
     u32 time;                           // unix触发时间（秒, 大端）
     u8  temp;                           // 温度档位
@@ -380,6 +380,9 @@ void lunchbox_power_on(void);
 /** @brief LCD 时间同步 — 发送 UART 0x01 帧同步 Unix 时间戳到加热模块 */
 void lunchbox_time_sync(u32 unix_time);
 
+/** @brief LCD 查询预约列表 — 发送 UART 0x02 帧查询加热模块的预约列表 */
+void lunchbox_query_reservation_list(void);
+
 /** @brief 获取当前 Unix 时间戳
  *
  * 若已通过 APP 0x01 同步过权威时间，则用 synced_unix_ts + (RTCCNT - synced_rtccnt) 推算；
@@ -431,6 +434,12 @@ void lunchbox_reservation_send(u8 action, u8 id, const char *name, u32 unix_time
 
 /** @brief LCD 删除预约 */
 void lunchbox_reservation_delete(u8 id);
+
+#if !LB_BRIDGE_MODE
+u8 lb_schedule_alloc_id(void);          // 分配下一个可用预约ID (>=6)
+#else
+static inline u8 lb_schedule_alloc_id(void) { return 6; }  // 桥模式: APP分配ID
+#endif
 
 /** @brief 获取指定模式的预设温度档位 */
 u8 lunchbox_mode_get_temp(u8 mode);
