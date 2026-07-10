@@ -1351,7 +1351,7 @@ void func_reservation_new_ui_do_submit(void)
     u8 duration;
     u32 now;
 
-    g_res.phase = RES_PHASE_WAITING;
+    g_res.phase = RES_PHASE_WAITING;  //等待进入
     g_res.appt_triggered_today = false;
     g_res.appt_unix = func_res_appt_unix_from_setting(g_res.appt_hour, g_res.appt_min);
     now = func_res_now_unix();
@@ -1830,49 +1830,36 @@ void func_reservation_poll(void)
         u32 now = func_res_now_unix();
 
         if (g_res.appt_unix > 0 && now >= g_res.appt_unix) {
-            g_res.phase = RES_PHASE_HEATING;
-#if USER_PANEL_LED
-            func_reservation_led_sync();
+            /* UART 加热指令只发一次 */
+            if (!g_res.appt_triggered_today) {   //时间到了
+                g_res.appt_triggered_today = true;
+#if FUNC_LUNCHBOX_UART_EN
+                func_res_trigger_heating_uart_from_global(); //发加热指令
 #endif
+            }
+
+            /* 尝试跳转到加热界面，失败则保持 WAITING 状态，下个分钟重试 */
 #if FUNC_RESERVATION_UI_EN
 #if ELUNCHBOX_PANEL_EN
-            if (func_cb.sta == FUNC_RESERVATION) {
-                func_res_trigger_heating_uart_from_global();
-                if (func_cb.sta != FUNC_HEAT) {
-                    func_res_allow_switch = 1;
-                    func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-                    func_res_allow_switch = 0;
-                }
-            } else {
-#if FUNC_LUNCHBOX_UART_EN
-                func_res_trigger_heating_uart_from_global();
-#endif
-                /* 自动息屏(非手动关机)：唤醒并跳转到加热界面 */
-                if (!elunchbox_pwr_is_manual_off()
-                    && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
-                    elunchbox_pwr_gui_wake_reason("reservation heat");
-                }
-                if (func_cb.sta != FUNC_HEAT) {
-                    func_res_allow_switch = 1;
-                    func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-                    func_res_allow_switch = 0;
-                }
+            if (!elunchbox_pwr_is_manual_off()
+                && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
+                elunchbox_pwr_gui_wake_reason("reservation heat");
             }
-#else
-            if (func_cb.sta != FUNC_RESERVATION) {
-                func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-            } else {
-                f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
+#endif
+            if (func_cb.sta != FUNC_HEAT) {
+                func_res_allow_switch = 1;
+                func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+                func_res_allow_switch = 0;
+            }
+#endif
 
-                if (f_res != NULL) {
-                    f_res->heat_hour = g_res.heat_hour;
-                    f_res->heat_min = g_res.heat_min;
-                    f_res->temp_idx = g_res.temp_idx;
-                    func_res_start_heating(f_res);
-                }
+            /* 切换成功后才标记 HEATING，否则保持 WAITING 允许重试 */
+            if (func_cb.sta == FUNC_HEAT) {
+                g_res.phase = RES_PHASE_HEATING;  //跳成功才改状态
+#if USER_PANEL_LED
+                func_reservation_led_sync();
+#endif
             }
-#endif
-#endif
         }
     }
 }
