@@ -259,9 +259,7 @@ static bool lb_frame_parse(void)
         lb_heating_sync_from_dp(rx.data, rx.data_len);
         heat_display_feed_dp(rx.data, rx.data_len);
 #if ELUNCHBOX_PANEL_EN
-        if (elunchbox_ui_is_live()) {
-            home_ui_shared_battery_feed_dp(rx.data, rx.data_len);
-        }
+        home_ui_shared_battery_feed_dp(rx.data, rx.data_len);
 #endif
     }
 #endif

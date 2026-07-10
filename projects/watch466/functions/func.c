@@ -217,6 +217,27 @@ void func_elunchbox_switch_to_warm_panel(void)
 #endif
 }
 
+bool func_elunchbox_charging_redirect_warm(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    if (!home_ui_shared_battery_is_charging()) {
+        return false;
+    }
+    if (func_cb.sta == FUNC_NEW_WARM) {
+        home_ui_shared_battery_icon_refresh();
+        return true;
+    }
+    if (sys_cb.flag_swithing || elunchbox_ble_pending_sta == FUNC_NEW_WARM) {
+        return true;
+    }
+    if (func_cb.sta == FUNC_HEAT && func_cb.f_cb != NULL && func_heat_ui_is_heating()) {
+        func_elunchbox_enter_warm_from_heat();
+        return true;
+    }
+#endif
+    return false;
+}
+
 #if ELUNCHBOX_PANEL_EN
 static void elunchbox_subpage_gpu_recycle_after_leave(void)
 {

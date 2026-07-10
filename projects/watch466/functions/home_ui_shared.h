@@ -3,6 +3,7 @@
 
 #include "home_icon_res.h"
 #include "new_home_tab_res.h"
+#include "new_home_icon_res.h"
 
 /* Home / Heat / Mode 互斥；新主页底部 Tab 为 79×88，占 3 槽静态 RAM */
 #define HOME_UI_SHARED_TAB_CNT          3
@@ -50,6 +51,10 @@ u32 home_ui_shared_battery_flash_addr(void);
 u8 home_ui_shared_battery_level(void);
 bool home_ui_shared_battery_is_low(void);
 bool home_ui_shared_battery_is_charging(void);
+/** 提前应用充电 DP（feed_dp 判保温前同步，避免同包 charge+enable 顺序误判） */
+void home_ui_shared_battery_charge_apply(u8 charge_sta);
+/** 按当前电量/充电状态重载右上角电池图标 RAM */
+void home_ui_shared_battery_icon_refresh(void);
 
 /* Heat / Mode 中部倒计时共享 RAM（互斥使用，不增加 BSS 总量） */
 extern u8 home_ui_shared_timer_colon_ram[HEAT_WBX_RAM_SIZE];

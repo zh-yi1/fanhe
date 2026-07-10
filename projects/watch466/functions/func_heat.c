@@ -1238,6 +1238,13 @@ void func_heat_enter(void)
         return;
     }
 
+    /* 充电中进入立即加热面板：直接保温（不闪加热 UI） */
+    if (home_ui_shared_battery_is_charging() && func_heat_ui_is_heating()) {
+        home_ui_shared_battery_icon_refresh();
+        func_elunchbox_enter_warm_from_heat();
+        return;
+    }
+
     home_gpu_wait_idle();
     WDT_CLR();
     {

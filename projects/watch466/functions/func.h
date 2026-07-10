@@ -247,6 +247,8 @@ void func_elunchbox_switch_to_heat_panel(void);
 void func_elunchbox_switch_to_warm_panel(void);
 /** 加热面板自然结束：UART 开保温 + 切 func_new_warm */
 void func_elunchbox_enter_warm_from_heat(void);
+/** 充电中且正在加热：跳转 func_new_warm 并刷新充电图标 */
+bool func_elunchbox_charging_redirect_warm(void);
 void func_heat_ble_remote_restart(void);
 void func_new_warm_ble_restart(void);
 void func_heat_key_poll(void);

@@ -121,9 +121,20 @@ static void home_ui_shared_battery_refresh_attached(void)
     }
     if (gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         compo_picturebox_set_ram(home_bat_pic, home_ui_shared_status_bat_ram);
+#if defined(NEW_HOME_BAT_W) && defined(NEW_HOME_BAT_H)
+        compo_picturebox_set_size(home_bat_pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
+#else
         compo_picturebox_set_size(home_bat_pic, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+#endif
         compo_picturebox_set_visible(home_bat_pic, true);
     }
+}
+
+static void home_ui_shared_battery_mark_dirty(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    func_home_gui_mark_dirty();
+#endif
 }
 
 static void home_ui_shared_battery_reload(void)
@@ -136,17 +147,16 @@ static void home_ui_shared_battery_reload(void)
     if (!home_bat_icon_flash(icon, &addr, &len)) {
         return;
     }
-    if (icon == home_bat_icon_idx && home_ui_shared_status_inited) {
-        return;
+    if (icon != home_bat_icon_idx || !home_ui_shared_status_inited) {
+        /* 勿 wait_idle：Home 切子页后 gui thread miss 时会死等导致 WDT */
+        WDT_CLR();
+        os_spiflash_read(home_ui_shared_status_bat_ram, addr, len);
+        home_bat_icon_idx = icon;
     }
-
-    /* 勿 wait_idle：Home 切子页后 gui thread miss 时会死等导致 WDT */
-    WDT_CLR();
-    os_spiflash_read(home_ui_shared_status_bat_ram, addr, len);
-    home_bat_icon_idx = icon;
 
     if (home_bat_pic != NULL) {
         home_ui_shared_battery_refresh_attached();
+        home_ui_shared_battery_mark_dirty();
     }
 }
 
@@ -220,18 +230,18 @@ void home_ui_shared_battery_feed_dp(u8 *data, u16 len)
     if (chg > 2) {
         chg = 0;
     }
-    if (bat == home_bat_level && chg == home_bat_charge) {
-        return;
-    }
 
     home_bat_level = bat;
     home_bat_charge = chg;
+
 #if ELUNCHBOX_PANEL_EN
     if (!elunchbox_ui_is_live() || !is_gpu_init()) {
         return;
     }
 #endif
-    home_ui_shared_battery_reload();
+    if (got_bat || got_chg) {
+        home_ui_shared_battery_reload();
+    }
 }
 
 u8 home_ui_shared_battery_level(void)
@@ -247,6 +257,24 @@ bool home_ui_shared_battery_is_low(void)
 bool home_ui_shared_battery_is_charging(void)
 {
     return home_bat_charge != 0;
+}
+
+void home_ui_shared_battery_charge_apply(u8 charge_sta)
+{
+    if (charge_sta > 2) {
+        charge_sta = 0;
+    }
+    if (home_bat_charge != charge_sta) {
+        home_bat_charge = charge_sta;
+        home_bat_icon_idx = 0xFF;
+    }
+    home_ui_shared_battery_reload();
+}
+
+void home_ui_shared_battery_icon_refresh(void)
+{
+    home_bat_icon_idx = 0xFF;
+    home_ui_shared_battery_reload();
 }
 
 u32 home_ui_shared_battery_flash_addr(void)
@@ -275,7 +303,11 @@ void home_ui_shared_status_bind_bat(compo_picturebox_t *pic)
     home_ui_shared_battery_reload();
     if (gui_set_ram_check(home_ui_shared_status_bat_ram, __func__)) {
         compo_picturebox_set_ram(pic, home_ui_shared_status_bat_ram);
+#if defined(NEW_HOME_BAT_W) && defined(NEW_HOME_BAT_H)
+        compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
+#else
         compo_picturebox_set_size(pic, HOME_STATUS_BAT_W, HOME_STATUS_BAT_H);
+#endif
         compo_picturebox_set_visible(pic, true);
     }
 }
@@ -317,6 +349,15 @@ bool home_ui_shared_battery_is_low(void)
 bool home_ui_shared_battery_is_charging(void)
 {
     return false;
+}
+
+void home_ui_shared_battery_charge_apply(u8 charge_sta)
+{
+    (void)charge_sta;
+}
+
+void home_ui_shared_battery_icon_refresh(void)
+{
 }
 
 void home_ui_shared_status_bind_bat(compo_picturebox_t *pic)

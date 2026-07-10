@@ -2,6 +2,7 @@
 #include "heat_display_reg.h"
 #include "func_lunchbox_uart.h"
 #include "func.h"
+#include "home_ui_shared.h"
 
 static heat_display_cb_t heat_display_cb;
 static heat_display_info_t heat_display_last;
@@ -226,6 +227,10 @@ void heat_display_feed_dp(u8 *data, u16 len)
         off += 4 + val_len;
     }
 
+    if (got_charge) {
+        home_ui_shared_battery_charge_apply(charge_val);
+    }
+
     /* 手动关机/息屏：仅更新缓存与充电唤醒标志，不触发 UI 回调 */
 #if ELUNCHBOX_PANEL_EN
     if (!ui_ok) {
@@ -237,9 +242,25 @@ void heat_display_feed_dp(u8 *data, u16 len)
         }
         return;
     }
+
+    /* 充电中且正在加热：立即刷新充电图标并跳转保温页 */
+    if (func_heat_ui_is_heating()
+        && (home_ui_shared_battery_is_charging()
+            || (got_charge && charge_val != 0))) {
+        home_ui_shared_battery_icon_refresh();
+        if (func_elunchbox_charging_redirect_warm()) {
+            return;
+        }
+    }
 #endif
 
 #if ELUNCHBOX_PANEL_EN
+    if (got_warm_mode && func_cb.sta == FUNC_HEAT
+        && home_ui_shared_battery_is_charging()
+        && func_heat_ui_is_heating()) {
+        func_elunchbox_charging_redirect_warm();
+        return;
+    }
     if (got_warm_mode && func_heat_uart_finish_ok()) {
         func_elunchbox_enter_warm_from_heat();
         return;
@@ -250,6 +271,11 @@ void heat_display_feed_dp(u8 *data, u16 len)
     if (got_enable && !heating) {
         printf("[LCD_REG] feed_dp: heating stopped, clear remain\n");
 #if ELUNCHBOX_PANEL_EN
+        if (func_cb.sta == FUNC_HEAT && home_ui_shared_battery_is_charging()
+            && func_heat_ui_is_heating()) {
+            func_elunchbox_charging_redirect_warm();
+            return;
+        }
         if (func_heat_uart_finish_ok()) {
             func_elunchbox_enter_warm_from_heat();
             return;
@@ -298,11 +324,12 @@ void heat_display_feed_dp(u8 *data, u16 len)
         }
     }
 
-    /* 充电中：通知 LCD 唤醒屏幕显示充电图标 */
-    if (got_charge && charge_val == 1) {
+    /* 充电中：刷新电量图标并唤醒息屏 */
+    if (got_charge && charge_val != 0) {
         printf("[LCD_REG] feed_dp: charging, notify LCD\n");
+        home_ui_shared_battery_icon_refresh();
         heat_display_notify();
-        heat_display_charge_pending = true;  /* 主循环可用此标志唤醒息屏 */
+        heat_display_charge_pending = true;
     }
 }
 
