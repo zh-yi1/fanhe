@@ -1201,6 +1201,9 @@ void func_process(void)
 #endif
         if (func_cb.frm_main != NULL) {
             compo_update();
+#if ELUNCHBOX_PANEL_EN && LE_EN
+            home_ui_shared_ble_status_poll();
+#endif
             if (gui_do_refresh) {
                 gui_process();    // 实际刷新屏幕
             }
@@ -2367,6 +2370,7 @@ void func_exit(void)
     }
     func_key_lock_on_form_destroy();
     home_ui_lowbat_overlay_reset();
+    home_ui_shared_bt_detach_pic();
 #endif
     //销毁窗体
     if (func_cb.frm_main != NULL) {

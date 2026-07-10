@@ -380,6 +380,98 @@ void home_ui_shared_status_lock_preload(void)
     home_ui_shared_status_lock_preloaded = true;
 }
 
+/* 蓝牙图标须为白底黑图（RGB565: 0xFFFF 底 + 0x0000 描边） */
+static bool home_ui_shared_bt_ram_has_shape(const u8 *ram, u32 len)
+{
+    u16 w;
+    u16 h;
+    u32 i;
+    u32 n;
+
+    if (ram == NULL || len < 8 || GET_LE32(&ram[0]) != 0x24150) {
+        return false;
+    }
+    w = GET_LE16(&ram[4]);
+    h = GET_LE16(&ram[6]);
+    n = (u32)w * h;
+    if (n == 0 || 8 + n * 2 > len) {
+        return false;
+    }
+    for (i = 0; i < n; i++) {
+        if (GET_LE16(&ram[8 + i * 2]) != 0xFFFF) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool home_ui_shared_bt_ram_border_mostly_black(const u8 *ram, u32 len)
+{
+    u16 w;
+    u16 h;
+    u16 black;
+    u16 total;
+    u16 x;
+    u16 y;
+
+    if (ram == NULL || len < 8 || GET_LE32(&ram[0]) != 0x24150) {
+        return false;
+    }
+    w = GET_LE16(&ram[4]);
+    h = GET_LE16(&ram[6]);
+    if (w == 0 || h == 0 || 8 + (u32)w * h * 2 > len) {
+        return false;
+    }
+    black = 0;
+    total = 0;
+    for (x = 0; x < w; x++) {
+        for (y = 0; y < h; y++) {
+            if (x != 0 && x + 1 != w && y != 0 && y + 1 != h) {
+                continue;
+            }
+            total++;
+            if (GET_LE16(&ram[8 + ((u32)y * w + x) * 2]) == 0) {
+                black++;
+            }
+        }
+    }
+    return total > 0 && black * 2 > total;
+}
+
+static void home_ui_shared_bt_ram_invert(u8 *ram, u32 len)
+{
+    u16 w;
+    u16 h;
+    u32 i;
+    u32 n;
+
+    if (ram == NULL || len < 8 || GET_LE32(&ram[0]) != 0x24150) {
+        return;
+    }
+    w = GET_LE16(&ram[4]);
+    h = GET_LE16(&ram[6]);
+    n = (u32)w * h;
+    if (n == 0 || 8 + n * 2 > len) {
+        return;
+    }
+    for (i = 0; i < n; i++) {
+        u16 *pc = (u16 *)(void *)&ram[8 + i * 2];
+
+        if (*pc == 0) {
+            *pc = 0xFFFF;
+        } else if (*pc == 0xFFFF) {
+            *pc = 0;
+        }
+    }
+}
+
+static void home_ui_shared_bt_ram_ensure_white_bg(u8 *ram, u32 len)
+{
+    if (home_ui_shared_bt_ram_border_mostly_black(ram, len)) {
+        home_ui_shared_bt_ram_invert(ram, len);
+    }
+}
+
 void home_ui_shared_status_init(void)
 {
     if (home_ui_shared_status_inited) {
@@ -388,9 +480,17 @@ void home_ui_shared_status_init(void)
 #ifdef UI_BUF_NEW_UI_NEW_BLUETOOTH_BIN
     os_spiflash_read(home_ui_shared_status_bt_ram, UI_BUF_NEW_UI_NEW_BLUETOOTH_BIN,
                      UI_LEN_NEW_UI_NEW_BLUETOOTH_BIN);
+#if defined(UI_BUF_HOME_BLUETOOTH_BIN) && defined(UI_LEN_HOME_BLUETOOTH_BIN)
+    if (!home_ui_shared_bt_ram_has_shape(home_ui_shared_status_bt_ram,
+                                         UI_LEN_NEW_UI_NEW_BLUETOOTH_BIN)) {
+        os_spiflash_read(home_ui_shared_status_bt_ram, UI_BUF_HOME_BLUETOOTH_BIN,
+                         UI_LEN_HOME_BLUETOOTH_BIN);
+    }
+#endif
 #else
     os_spiflash_read(home_ui_shared_status_bt_ram, UI_BUF_HOME_BLUETOOTH_BIN, UI_LEN_HOME_BLUETOOTH_BIN);
 #endif
+    home_ui_shared_bt_ram_ensure_white_bg(home_ui_shared_status_bt_ram, HOME_STATUS_BT_RAM_SIZE);
     if (!home_ui_shared_status_lock_preloaded) {
         os_spiflash_read(home_ui_shared_status_lock_ram, UI_BUF_HOME_LOCK_BIN, UI_LEN_HOME_LOCK_BIN);
     }
@@ -407,6 +507,13 @@ void home_ui_shared_status_init(void)
     home_ui_shared_status_inited = true;
 }
 
+#if ELUNCHBOX_PANEL_EN
+static compo_picturebox_t *home_ui_shared_attached_bt_pic;
+static bool home_ui_shared_bt_last_linked;
+static bool home_ui_shared_bt_link_dirty;
+static bool home_ui_shared_bt_icon_inited;
+#endif
+
 bool home_ui_shared_ble_linked(void)
 {
 #if LE_EN
@@ -421,32 +528,74 @@ bool home_ui_shared_ble_linked(void)
 
 void home_ui_shared_status_refresh_bt(compo_picturebox_t *pic)
 {
-    static bool last_vis = false;
-    static bool last_inited;
     bool vis;
 
     if (pic == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    home_ui_shared_attached_bt_pic = pic;
+#endif
     home_ui_shared_status_init();
     if (!gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         return;
     }
     vis = home_ui_shared_ble_linked();
-    if (!last_inited || vis != last_vis) {
+#if ELUNCHBOX_PANEL_EN
+    if (!home_ui_shared_bt_icon_inited || vis != home_ui_shared_bt_last_linked) {
         printf("elunchbox: bt icon %s (linked=%u)\n", vis ? "show" : "hide", vis ? 1u : 0u);
-        last_vis = vis;
-        last_inited = true;
+        home_ui_shared_bt_last_linked = vis;
+        home_ui_shared_bt_icon_inited = true;
     }
+#endif
     compo_picturebox_set_ram(pic, home_ui_shared_status_bt_ram);
+#if defined(NEW_HOME_BT_W) && defined(NEW_HOME_BT_H)
+    compo_picturebox_set_size(pic, NEW_HOME_BT_W, NEW_HOME_BT_H);
+#else
     compo_picturebox_set_size(pic, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
+#endif
     compo_picturebox_set_visible(pic, vis);
+    if (vis && pic->img != NULL) {
+        widget_set_top(pic->img, true);
+    }
+}
+
+void home_ui_shared_ble_status_poll(void)
+{
+#if ELUNCHBOX_PANEL_EN && LE_EN
+    compo_picturebox_t *pic;
+    bool linked;
+
+    if (!elunchbox_ui_is_live() || sys_cb.flag_swithing) {
+        return;
+    }
+    pic = home_ui_shared_attached_bt_pic;
+    if (pic == NULL) {
+        return;
+    }
+    linked = home_ui_shared_ble_linked();
+    if (!home_ui_shared_bt_link_dirty
+        && home_ui_shared_bt_icon_inited
+        && linked == home_ui_shared_bt_last_linked) {
+        return;
+    }
+    home_ui_shared_bt_link_dirty = false;
+    home_ui_shared_status_refresh_bt(pic);
+#endif
 }
 
 void home_ui_shared_ble_link_notify(void)
 {
 #if ELUNCHBOX_PANEL_EN
+    home_ui_shared_bt_link_dirty = true;
     func_home_gui_mark_dirty();
+#endif
+}
+
+void home_ui_shared_bt_detach_pic(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    home_ui_shared_attached_bt_pic = NULL;
 #endif
 }
 

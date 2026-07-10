@@ -29,7 +29,10 @@ void home_ui_shared_dash_init(void);
 bool home_ui_shared_ble_linked(void);
 /** 刷新右上角蓝牙图标显隐（连接/断开后须调用） */
 void home_ui_shared_status_refresh_bt(compo_picturebox_t *pic);
+/** BLE 连接/断开时由协议栈回调；主循环 poll 刷新右上角蓝牙图标 */
+void home_ui_shared_ble_status_poll(void);
 void home_ui_shared_ble_link_notify(void);
+void home_ui_shared_bt_detach_pic(void);
 
 /** 上电预载 dl4 到 bat_ram（不依赖 UART DP） */
 void home_ui_shared_battery_boot_init(void);

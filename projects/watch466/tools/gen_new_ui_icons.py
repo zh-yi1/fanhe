@@ -29,6 +29,8 @@ BIN_DIR = BIN_PNG_DIR
 OUT_H = ROOT / "functions" / "new_home_icon_res.h"
 
 BG_WHITE = (255, 255, 255)
+# 状态栏小图标：透明→白底，非透明→黑色（白底黑图）
+BLACK_ICON_ON_WHITE = frozenset({"new_bluetooth"})
 
 ICON_ITEMS = [
     (("new_logo.png", "logo.png"), "new_logo"),
@@ -63,24 +65,32 @@ def pack_gpu(w: int, h: int, pixels: list[int]) -> bytes:
     return bytes(buf)
 
 
-def pixels_from_rgba(im: Image.Image, bg_rgb: tuple[int, int, int]) -> tuple[int, int, list[int]]:
+def pixels_from_rgba(
+    im: Image.Image,
+    bg_rgb: tuple[int, int, int],
+    *,
+    black_icon: bool = False,
+) -> tuple[int, int, list[int]]:
     w, h = im.size
     px = im.load()
     bg = rgba565(*bg_rgb)
+    black = rgba565(0, 0, 0)
     out: list[int] = []
     for y in range(h):
         for x in range(w):
             r, g, b, a = px[x, y]
             if a < 32:
                 out.append(bg)
+            elif black_icon:
+                out.append(black)
             else:
                 out.append(rgba565(r, g, b))
     return w, h, out
 
 
-def png_to_gpu(path: Path) -> tuple[bytes, int, int]:
+def png_to_gpu(path: Path, *, black_icon: bool = False) -> tuple[bytes, int, int]:
     im = Image.open(path).convert("RGBA")
-    w, h, pixels = pixels_from_rgba(im, BG_WHITE)
+    w, h, pixels = pixels_from_rgba(im, BG_WHITE, black_icon=black_icon)
     return pack_gpu(w, h, pixels), w, h
 
 
@@ -154,7 +164,7 @@ def process_icon(png_names: tuple[str, ...], stem: str, sizes: dict[str, tuple[i
     bin_path = BIN_DIR / f"{stem}.bin"
     try:
         src = resolve_src(png_names)
-        data, w, h = png_to_gpu(src)
+        data, w, h = png_to_gpu(src, black_icon=(stem in BLACK_ICON_ON_WHITE))
         write_bin(f"{stem}.bin", data, src)
     except SystemExit:
         if not bin_path.exists():

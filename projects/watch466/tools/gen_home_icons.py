@@ -27,7 +27,11 @@ OUT_H = ROOT / "functions" / "home_icon_res.h"
 
 BG_BLUE = (4, 109, 217)
 BG_BLACK = (0, 0, 0)
+BG_WHITE = (255, 255, 255)
 FG_WHITE = (255, 255, 255)
+FG_BLACK = (0, 0, 0)
+
+STATUS_WHITE_BG = frozenset({"bluetooth"})
 
 NAV_ICON_ITEMS = [
     ("heat.png", "heat"),
@@ -420,7 +424,10 @@ def main() -> None:
 
     for fname, stem in STATUS_ITEMS:
         path = require_src(fname)
-        data, w, h = png_native_to_gpu(path)
+        if stem in STATUS_WHITE_BG:
+            data, w, h = nav_icon_to_gpu(path, BG_WHITE, FG_BLACK)
+        else:
+            data, w, h = png_native_to_gpu(path)
         out_name = f"{stem}.bin"
         write_bin(out_name, data, fname)
         keep.add(out_name)
