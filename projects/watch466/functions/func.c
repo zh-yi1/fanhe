@@ -1085,53 +1085,47 @@ void func_process(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-    /* 【手动关机-低功耗待机】关机熄屏后只保留 UART RX 引脚接收加热模块数据，
-     * 其余外设全部休眠以降低功耗。仅两个唤醒源：
-     *   1. 充电唤醒 — 加热模块发来充电状态数据，检测到充电则唤醒屏幕
-     *   2. 手动唤醒 — TCH5/电源键长按 3 秒开机
-     */
-    if (guioff && elunchbox_pwr_is_manual_off()) {
-        WDT_CLR();
+    if (guioff && elunchbox_pwr_is_manual_off()) {  //手动关机
+        WDT_CLR();  //喂狗->防止系统复位
 #if USER_PT8028_KEY
         pt8028_set_home_msg_block(0);
-        pt8028_gpio_ensure_periodic();
-        pt8028_key_scan();
-        func_elunchbox_guioff_wake_poll();
+        pt8028_gpio_ensure_periodic();        //确保摁键周期性扫描
+        pt8028_key_scan();                    //检测是否有长按唤醒
+        func_elunchbox_guioff_wake_poll();    //轮询检查是否需要唤醒屏幕-充电，摁键
 #if SOFT_POWER_ON_OFF
-        func_elunchbox_pwr_long_poll();
+        func_elunchbox_pwr_long_poll();   //轮询检查电源键长按（3 秒开机）
 #endif
-        reset_sleep_delay();
-        reset_pwroff_delay();
+        reset_sleep_delay();    //重置休眠倒计时 → 阻止系统进入休眠->USER_PT8028_KEY有操作
+        reset_pwroff_delay();   //重置关机倒计时 → 阻止系统自动关机->USER_PT8028_KEY有操作
 #else
         reset_sleep_delay();
         reset_pwroff_delay();
 #endif
 #if FUNC_LUNCHBOX_UART_EN
-        /* 手动关机不挂起串口，轮询接收充电模块发来的数据 */
-        lunchbox_uart_process();
-        /* 【充电中唤醒】加热模块发来充电状态，检测到充电则唤醒 */
-        if (heat_display_charge_wake_pending()) {
+        lunchbox_uart_process();    //轮询接收充电模块发来的数据
+        
+        if (heat_display_charge_wake_pending()) {    //充电中唤醒->加热模块发来充电状态，检测到充电则唤醒 
             printf("elunchbox: charge DP wakes screen from manual off\n");
             elunchbox_pwr_gui_wake();
             return;
         }
 #endif
-        /* 【手动唤醒】TCH5/电源键长按 3 秒唤醒（与 UART 无关，不放 ifdef 内） */
-        if (elunchbox_manual_wake_pending_take()) {
+        
+        if (elunchbox_manual_wake_pending_take()) {   //手动唤醒->TCH5/电源键长按 3 秒唤醒
             printf("elunchbox: TCH5 3s hold wakes screen from manual off\n");
-            elunchbox_pwr_gui_wake();
+            elunchbox_pwr_gui_wake();   
             return;
         }
         co_timer_pro(false);
         WDT_CLR();
-        /* 【手动关机→深度休眠】进入 sfunc_sleep()，仅保留 UART RX + 按键唤醒，其余外设全部休眠 */
-        sleep_process(bt_is_allow_sleep);
+        
+        sleep_process(bt_is_allow_sleep);  //手动关机→深度休眠
         return;
     }
 #endif
 
-    if (gui_get_auto_power_en() && !guioff) {
-        sys_clk_req(INDEX_GUI, SYS_192M);
+    if (gui_get_auto_power_en() && !guioff) {    //唤醒
+        sys_clk_req(INDEX_GUI, SYS_192M);        //恢复主频率
     }
 
     WDT_CLR();
@@ -1147,20 +1141,20 @@ void func_process(void)
 #if ELUNCHBOX_PANEL_EN
     if (!guioff || !sys_cb.gui_sleep_sta)
 #endif
-    tft_bglight_frist_set_check();
+    tft_bglight_frist_set_check();  //背光检测
 
     // gui 没有休眠才更新
 	#if FOTA_UI_EN
     if ((!guioff) && (func_cb.sta != FUNC_OTA_UI_MODE) && !sys_cb.flag_halt) {
 	#else
-	if (!guioff && !sys_cb.flag_halt) {
+	if (!guioff && !sys_cb.flag_halt) {  //是否执行GUI更新
 	#endif
 
 #if ELUNCHBOX_PANEL_EN
-        bool gui_do_refresh = true;
+        bool gui_do_refresh = true;   // 默认允许刷新
 
-        if (sys_cb.flag_swithing) {
-            gui_do_refresh = false;
+        if (sys_cb.flag_swithing) {   // 如果正在切换页面/模式
+            gui_do_refresh = false;   // 跳过本次刷新
         }
 #if USER_PT8028_KEY
         /* Home 在 func_home_process 内扫键；子页（加热/模式/设置/预约等）须在此扫键 */
@@ -1187,7 +1181,7 @@ void func_process(void)
         if (func_cb.frm_main != NULL) {
             compo_update();
             if (gui_do_refresh) {
-                gui_process();
+                gui_process();    // 实际刷新屏幕
             }
         }
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -1197,7 +1191,7 @@ void func_process(void)
         home_ui_lowbat_poll();
 #endif
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
-        func_elunchbox_res_key_poll();
+        func_elunchbox_res_key_poll(); //预约
 #endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         func_heat_key_poll();
@@ -1205,7 +1199,7 @@ void func_process(void)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_keep_warm_poll();
 #endif
-        func_reservation_poll();
+        func_reservation_poll();  //预约定时
 #else
         compo_update();                                     //更新组件
 
@@ -1218,11 +1212,10 @@ void func_process(void)
 
     } else if (guioff) {
 #if ELUNCHBOX_PANEL_EN
-        //熄屏待机-熄屏空闲处理 + 按键扫描 + 唤醒轮询（充电/触摸）
-        elunchbox_guioff_idle_process();
+        elunchbox_guioff_idle_process();   //熄屏空闲处理
         pt8028_gpio_ensure_periodic();
         pt8028_key_scan();
-        func_elunchbox_guioff_wake_poll();
+        func_elunchbox_guioff_wake_poll();  //轮询唤醒->充电/触摸
 #endif
     }
 
@@ -1239,19 +1232,19 @@ void func_process(void)
 
     if (!elunchbox_pwr_is_manual_off()) {
         co_timer_pro(false);
-        bsp_sensor_step_pro_isr();
+        bsp_sensor_step_pro_isr(); //wu guan
 
         if (sys_cb.mp3_res_playing) {
-            mp3_res_process();                                 //提示音后台处理
+            mp3_res_process();    //wuguan                //提示音后台处理
         }
     }
 
-    /* 【自动息屏/休眠入口】idel 计时到期 → sleep_process → sfunc_sleep 深度休眠 */
-    if (sleep_process(bt_is_allow_sleep)) {
+    
+    if (sleep_process(bt_is_allow_sleep)) {  //自动息屏/休眠入->idel 计时到期 → sleep_process → sfunc_sleep 深度休眠 
         bt_cb.disp_status = 0xff;
     }
 #if ELUNCHBOX_PANEL_EN
-    /* 【自动关机】超时无操作 → elunchbox_pwr_manual_shutdown → 手动关机低功耗路径 */
+    //自动关机超时无操作
     if (elunchbox_pwr_pending_auto_shutdown) {
         elunchbox_pwr_pending_auto_shutdown = false;
         elunchbox_pwr_manual_shutdown();
@@ -1261,8 +1254,8 @@ void func_process(void)
     sys_cb.sleep_en = 0;
 #endif
 
-#if VBAT_DETECT_EN
-    if (!elunchbox_pwr_is_manual_off()) {
+#if VBAT_DETECT_EN //各种子系统->到1302
+    if (!elunchbox_pwr_is_manual_off()) {  
         bsp_vbat_lpwr_process();
     }
 #endif
@@ -1332,20 +1325,20 @@ void func_process(void)
 #endif
 
    if (gui_get_auto_power_en() && !guioff) {
-        sys_clk_free(INDEX_GUI);
+        sys_clk_free(INDEX_GUI); // 释放 GUI 时钟
    }
 
 #if FUNC_LUNCHBOX_UART_EN
     if (!guioff) {
-        lunchbox_uart_process();
+        lunchbox_uart_process(); //串口
     }
 #endif
 
 #if USER_PT8028_KEY && SOFT_POWER_ON_OFF
-    func_elunchbox_pwr_long_poll();
+    func_elunchbox_pwr_long_poll();  // 电源键长按检测
 #endif
 #if ELUNCHBOX_PANEL_EN
-    elunchbox_ble_pending_sta_poll();
+    elunchbox_ble_pending_sta_poll();// BLE 状态轮询
 #endif
 }
 
