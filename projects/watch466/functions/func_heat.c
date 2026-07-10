@@ -1127,18 +1127,22 @@ static void func_heat_message(size_msg_t msg)
 
     switch (msg) {
     case HEAT_MSG_OK:
+        pt8028_defer_key_sound_tch(PT8028_KEY_TCH4);
         func_heat_ok_key(f_heat);
         break;
 
     case HEAT_MSG_PLUS:
+        pt8028_defer_key_sound_tch(PT8028_KEY_TCH6);
         func_heat_value_dec(f_heat);
         break;
 
     case HEAT_MSG_MINUS:
+        pt8028_defer_key_sound_tch(PT8028_KEY_TCH2);
         func_heat_value_inc(f_heat);
         break;
 
     case HEAT_MSG_POWER:
+        pt8028_defer_key_sound_tch(PT8028_KEY_TCH5);
         func_heat_power_key(f_heat);
         break;
 
@@ -1149,6 +1153,7 @@ static void func_heat_message(size_msg_t msg)
 #if ELUNCHBOX_PANEL_EN
         /* 模式键：跳转到模式选择页 */
         if (!sys_cb.flag_swithing) {
+            pt8028_defer_key_sound_tch(PT8028_KEY_TCH3);
             func_switch_to(FUNC_NEW_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         }
         break;
@@ -1625,8 +1630,8 @@ void func_heat(void)
     printf("%s\n", __func__);
     func_heat_enter();
     while (func_cb.sta == FUNC_HEAT) {
-        func_heat_process();
         func_heat_message(msg_dequeue());
+        func_heat_process();
     }
     func_heat_exit();
 }

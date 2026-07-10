@@ -76,6 +76,8 @@ void pt8028_poll_reinit(void);
 #if ELUNCHBOX_PANEL_EN
 /* 饭盒：主线程 5ms 节拍扫描（勿放 5ms 中断，避免 tmr thread miss） */
 void pt8028_key_scan(void);
+/* 子页 process 开头：先扫键再 take，轻触同帧可响应 */
+void pt8028_key_scan_page(void);
 
 /* Home 页由 func_home 取 release_tch 处理，屏蔽消息队列 */
 void pt8028_set_home_msg_block(u8 en);
@@ -88,6 +90,10 @@ u8 pt8028_take_home_action(void);
 bool pt8028_take_res_key_pending(void);
 /* 主线程取走待上报的按键 TCH，无则返回 0xff */
 u8 pt8028_take_key_notify_tch(void);
+/* take_press / take_res 后取走待蜂鸣 TCH，无则返回 0xff */
+u8 pt8028_take_key_sound_defer_tch(void);
+/* 消息队列路径：处理 KU 后登记待蜂鸣 TCH */
+void pt8028_defer_key_sound_tch(u8 tch);
 /* 开关键长按 3s 待关机，取走后清零 */
 bool pt8028_take_pwr_long_pending(void);
 /* 关机/开机等待：TCH5 已按住达到 PT8028_PWR_LONG_MS */

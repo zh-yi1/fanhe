@@ -1053,6 +1053,7 @@ static void new_timeing_keys_poll(f_new_timeing_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
+    pt8028_key_scan_page();
     new_timeing_pt8028_keys_process(f);
 }
 #endif
@@ -1168,6 +1169,11 @@ static void func_new_timeing_process(void)
     }
 #endif
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (elunchbox_ui_is_live()) {
+        new_timeing_keys_poll(f);
+    }
+#endif
     if (f->display_pending) {
 #if ELUNCHBOX_PANEL_EN
         new_timeing_ui_apply(f);
@@ -1175,16 +1181,12 @@ static void func_new_timeing_process(void)
         f->display_pending = false;
     }
 
-    func_process();
 #if ELUNCHBOX_PANEL_EN
-    if (!elunchbox_ui_is_live()) {
-        return;
+    if (elunchbox_ui_is_live()) {
+        new_timeing_status_refresh(f);
     }
-    new_timeing_status_refresh(f);
 #endif
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_timeing_keys_poll(f);
-#endif
+    func_process();
 }
 
 void func_new_timeing_enter(void)

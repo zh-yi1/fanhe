@@ -933,12 +933,13 @@ static void new_mode_pt8028_keys_process(f_new_mode_t *f)
     }
 }
 
-/* 须在 func_process() 之后调用：统一由 func.c 扫键，此处只 take 处理 */
+/* 须在 func_process() 之前调用：先处理按键/UI，再由 func.c 刷屏后发 UART 按键音 */
 static void new_mode_keys_poll(f_new_mode_t *f)
 {
     if (f == NULL || !f->key_ready) {
         return;
     }
+    pt8028_key_scan_page();
     new_mode_pt8028_keys_process(f);
 }
 #endif
@@ -1032,6 +1033,11 @@ static void func_new_mode_process(void)
     }
 #endif
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (elunchbox_ui_is_live()) {
+        new_mode_keys_poll(f);
+    }
+#endif
     if (f->display_pending) {
         new_mode_ui_refresh(f);
     }
@@ -1048,9 +1054,6 @@ static void func_new_mode_process(void)
     if (!elunchbox_ui_is_live()) {
         return;
     }
-#endif
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_mode_keys_poll(f);
 #endif
 }
 

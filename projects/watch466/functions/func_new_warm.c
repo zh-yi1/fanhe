@@ -792,6 +792,11 @@ static void func_new_warm_process(void)
     }
 #endif
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_key_scan_page();
+    new_warm_pt8028_keys_process(f);
+#endif
+
     if (f->display_pending) {
         new_warm_ui_apply(f);
         f->display_pending = false;
@@ -806,9 +811,6 @@ static void func_new_warm_process(void)
 
     home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
 
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_warm_pt8028_keys_process(f);
-#endif
     func_process();
 }
 

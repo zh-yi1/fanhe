@@ -770,6 +770,7 @@ static void new_lang_keys_poll(f_new_lang_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
+    pt8028_key_scan_page();
     new_lang_pt8028_keys_process(f);
 }
 #endif
@@ -865,6 +866,11 @@ static void func_new_language_process(void)
     }
 #endif
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (elunchbox_ui_is_live()) {
+        new_lang_keys_poll(f);
+    }
+#endif
     if (f->display_pending) {
         new_lang_ui_refresh(f);
     }
@@ -874,9 +880,6 @@ static void func_new_language_process(void)
     if (!elunchbox_ui_is_live()) {
         return;
     }
-#endif
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_lang_keys_poll(f);
 #endif
 }
 

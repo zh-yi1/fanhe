@@ -276,7 +276,6 @@ void func_elunchbox_res_key_poll(void)
 #endif
     if (pt8028_take_res_key_pending()) {
         if (func_key_lock_is_active()) {
-            func_key_lock_notify_blocked();
             return;
         }
         if (func_elunchbox_res_key_page_ok()) {
@@ -1083,16 +1082,10 @@ static void func_elunchbox_key_notify_poll(void)
     u8 tch;
     u8 key_val;
 
-    tch = pt8028_take_key_notify_tch();
+    tch = pt8028_take_key_sound_defer_tch();
     if (tch > PT8028_KEY_TCH7) {
         return;
     }
-#if ELUNCHBOX_PANEL_EN
-    if (func_key_lock_is_active()) {
-        func_key_lock_notify_blocked_tch(tch);
-        return;
-    }
-#endif
     key_val = pt8028_tch_to_lunchbox_key(tch);
     if (key_val != 0) {
         lunchbox_key_notify(key_val);
@@ -1199,9 +1192,6 @@ void func_process(void)
                 elunchbox_user_activity_reset();
             }
         }
-#if FUNC_LUNCHBOX_UART_EN
-        func_elunchbox_key_notify_poll();
-#endif
 #endif
 #if USER_PANEL_LED && USER_PT8028_KEY
         /* Home 已在 func_home_process 扫 LED；此处跳过避免重复 GPIO 采样 */
@@ -1215,6 +1205,10 @@ void func_process(void)
                 gui_process();    // 实际刷新屏幕
             }
         }
+#if USER_PT8028_KEY && FUNC_LUNCHBOX_UART_EN
+        /* 按键音走 UART：须在 gui_process 之后，避免先响蜂鸣后变画面 */
+        func_elunchbox_key_notify_poll();
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         func_key_lock_poll();
 #endif

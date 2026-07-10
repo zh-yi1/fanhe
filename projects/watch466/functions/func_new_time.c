@@ -1020,6 +1020,7 @@ static void new_time_keys_poll(f_new_time_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
+    pt8028_key_scan_page();
     new_time_pt8028_keys_process(f);
 }
 #endif
@@ -1131,21 +1132,22 @@ static void func_new_time_process(void)
     }
 #endif
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (elunchbox_ui_is_live()) {
+        new_time_keys_poll(f);
+    }
+#endif
     if (f->display_pending) {
         new_time_ui_apply(f);
         f->display_pending = false;
     }
 
-    func_process();
 #if ELUNCHBOX_PANEL_EN
-    if (!elunchbox_ui_is_live()) {
-        return;
+    if (elunchbox_ui_is_live()) {
+        new_time_status_refresh(f);
     }
-    new_time_status_refresh(f);
 #endif
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_time_keys_poll(f);
-#endif
+    func_process();
 }
 
 void func_new_time_enter(void)

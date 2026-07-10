@@ -756,8 +756,7 @@ void func_home_process(void)
 #endif
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    pt8028_gpio_ensure_periodic();
-    pt8028_key_scan();
+    pt8028_key_scan_page();
     new_home_pt8028_keys_process(f);
 #if USER_PANEL_LED
     panel_led_scan();

@@ -502,6 +502,7 @@ static void new_res_keys_poll(f_new_reservation_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
+    pt8028_key_scan_page();
     new_res_pt8028_keys_process(f);
 }
 #endif
@@ -669,6 +670,12 @@ static void func_new_reservation_process(void)
     }
 #endif
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (elunchbox_ui_is_live()) {
+        new_res_keys_poll(f);
+    }
+#endif
+
 #if ELUNCHBOX_PANEL_EN
     if (f->display_pending && elunchbox_ui_is_live()) {
         new_res_ui_refresh(f);
@@ -679,9 +686,6 @@ static void func_new_reservation_process(void)
     }
 #endif
     func_process();
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    new_res_keys_poll(f);
-#endif
 #if ELUNCHBOX_PANEL_EN
     if (!elunchbox_ui_is_live()) {
         return;

@@ -1243,6 +1243,7 @@ static void new_heat_keys_poll(f_new_heat_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
+    pt8028_key_scan_page();
     new_heat_pt8028_keys_process(f);
 }
 #endif
@@ -1341,8 +1342,6 @@ static void func_new_heat_process(void)
             u8 t_before = f->temp_idx;
             u8 tm_before = f->time_idx;
 
-            pt8028_gpio_ensure_periodic();
-            pt8028_key_scan();
             new_heat_keys_poll(f);
             if (f->temp_idx == t_before && f->time_idx == tm_before) {
                 break;

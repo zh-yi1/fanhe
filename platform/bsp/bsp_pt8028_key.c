@@ -61,7 +61,8 @@ typedef struct {
     u8  press_pending;      /* 按下沿事件待取 */
     u8  press_emitted;      /* 本次按下已触发按下逻辑 */
     u8  home_act_pending;   /* 释放后待 Home 取走的动作 */
-    u8  key_notify_tch;     /* 待主线程 lunchbox_key_notify 的 TCH */
+    u8  key_sound_defer_tch; /* take_press / take_res 后待 gui 刷新完再 UART 蜂鸣 */
+    u8  key_notify_tch;     /* 待主线程 lunchbox_key_notify 的 TCH（legacy） */
     u8  key_notify_pending;
     u8  pwr_long_fired;     /* 本次 TCH5 按下已触发长按关机 */
     u8  pwr_long_pending;   /* 主线程待处理关机 */
@@ -819,7 +820,7 @@ static void pt8028_emit_press(u8 tch)
         pt8028_queue_edge(0, tch, 0);
         pt8028_queue_key(tch, key, (u16)(key | KEY_SHORT), tch, 0);
     }
-    pt8028_queue_key_notify(tch);
+    /* 蜂鸣改由 take_press_tch / take_res_key_pending 登记，避免只响无响应 */
 }
 
 AT(.com_text.bsp.pt8028)
@@ -983,6 +984,7 @@ void pt8028_key_init(void)
     pt8028_cb.press_tch = PT8028_KEY_NONE;
     pt8028_cb.press_key = NO_KEY;
     pt8028_cb.press_snap_tch = PT8028_KEY_NONE;
+    pt8028_cb.key_sound_defer_tch = 0xff;
     pt8028_cb.last_out_flag = pt8028_read_out_flag();
 #if ELUNCHBOX_PANEL_EN
     pt8028_release_clear();
@@ -1084,9 +1086,6 @@ u8 get_pt8028_key(void)
 #if FUNC_RESERVATION_UI_EN
             } else if (tch == PT8028_KEY_TCH7) {
                 pt8028_cb.res_key_pending = 1;
-                if (!pt8028_cb.press_emitted) {
-                    pt8028_queue_key_notify(PT8028_KEY_TCH7);
-                }
 #endif
             } else if (!pt8028_cb.press_emitted) {
                 /* Hold 无效且按下阶段无有效键 */
@@ -1449,6 +1448,7 @@ void pt8028_release_clear(void)
     pt8028_cb.home_act_pending = PT8028_HOME_ACT_NONE;
     pt8028_cb.key_notify_pending = 0;
     pt8028_cb.key_notify_tch = 0xff;
+    pt8028_cb.key_sound_defer_tch = 0xff;
     pt8028_cb.pwr_long_fired = 0;
     pt8028_cb.pwr_long_pending = 0;
     pt8028_cb.pwr_boot_mode = 0;
@@ -1487,6 +1487,7 @@ u8 pt8028_take_press_tch(void)
     }
     tch = pt8028_cb.session_tch;
     pt8028_cb.press_pending = 0;
+    pt8028_cb.key_sound_defer_tch = tch;
     return tch;
 }
 
@@ -1497,7 +1498,26 @@ bool pt8028_take_res_key_pending(void)
         return false;
     }
     pt8028_cb.res_key_pending = 0;
+    pt8028_cb.key_sound_defer_tch = PT8028_KEY_TCH7;
     return true;
+}
+
+AT(.com_text.bsp.pt8028)
+void pt8028_defer_key_sound_tch(u8 tch)
+{
+    if (tch <= PT8028_KEY_TCH7) {
+        pt8028_cb.key_sound_defer_tch = tch;
+    }
+}
+
+AT(.com_text.bsp.pt8028)
+u8 pt8028_take_key_sound_defer_tch(void)
+{
+    u8 tch;
+
+    tch = pt8028_cb.key_sound_defer_tch;
+    pt8028_cb.key_sound_defer_tch = 0xff;
+    return tch;
 }
 
 AT(.com_text.bsp.pt8028)
@@ -1707,6 +1727,13 @@ bool func_key_lock_ku_blocked(u16 msg);
 bool elunchbox_pwr_gui_off_is_on(void);
 void elunchbox_user_activity_reset(void);
 #endif
+
+AT(.text.bsp.pt8028)
+void pt8028_key_scan_page(void)
+{
+    pt8028_gpio_ensure_periodic();
+    pt8028_key_scan();
+}
 
 AT(.text.bsp.pt8028)
 void pt8028_key_scan(void)
