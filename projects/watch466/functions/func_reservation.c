@@ -1800,28 +1800,91 @@ void func_reservation_on_manual_shutdown(void)
 #if USER_PANEL_LED
     func_reservation_led_sync();
 #endif
+#if ELUNCHBOX_PANEL_EN
+    func_reservation_sleep_wake_arm();
+#endif
 }
+
+#if ELUNCHBOX_PANEL_EN
+void func_reservation_sleep_wake_arm(void)
+{
+    u32 until;
+    u32 sec;
+
+    if (!func_reservation_is_waiting()) {
+        return;
+    }
+    until = func_res_seconds_until_appt();
+    if (until == 0) {
+        sec = 1;
+    } else if (until > 3600) {
+        sec = 3600;
+    } else {
+        sec = until;
+    }
+    if (sec > 60) {
+        sec = 60;
+    }
+    if (sec < 1) {
+        sec = 1;
+    }
+    rtc_set_alarm_wakeup(sec);
+}
+#endif
+
+#if ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
+static void func_reservation_fire_heating_at_appt(void)
+{
+    g_res.phase = RES_PHASE_HEATING;
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+#if ELUNCHBOX_PANEL_EN
+    if (func_cb.sta == FUNC_RESERVATION) {
+        func_res_trigger_heating_uart_from_global();
+        if (func_cb.sta != FUNC_HEAT) {
+            func_res_allow_switch = 1;
+            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            func_res_allow_switch = 0;
+        }
+    } else {
+#if FUNC_LUNCHBOX_UART_EN
+        func_res_trigger_heating_uart_from_global();
+#endif
+        if (elunchbox_pwr_is_manual_off()
+            || elunchbox_pwr_gui_off_is_on()
+            || sys_cb.gui_sleep_sta) {
+            elunchbox_pwr_gui_wake_reason("reservation heat");
+        }
+        if (func_cb.sta != FUNC_HEAT) {
+            func_res_allow_switch = 1;
+            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            func_res_allow_switch = 0;
+        }
+    }
+#endif
+}
+#endif
 
 void func_reservation_poll(void)
 {
     tm_t tm;
+    bool guioff_deep;
 
 #if USER_PANEL_LED
     func_reservation_led_sync();
-#endif
-
-#if ELUNCHBOX_PANEL_EN
-    if (elunchbox_pwr_is_manual_off()) {
-        return;
-    }
 #endif
 
     if (!g_res.setup_done || g_res.phase != RES_PHASE_WAITING) {
         return;
     }
 
+    guioff_deep = elunchbox_pwr_is_manual_off()
+               || elunchbox_pwr_gui_off_is_on()
+               || sys_cb.gui_sleep_sta;
+
     tm = rtc_clock_get();
-    if (tm.min == g_res.last_poll_min) {
+    if (!guioff_deep && tm.min == g_res.last_poll_min) {
         return;
     }
     g_res.last_poll_min = tm.min;
@@ -1830,35 +1893,13 @@ void func_reservation_poll(void)
         u32 now = func_res_now_unix();
 
         if (g_res.appt_unix > 0 && now >= g_res.appt_unix) {
+#if ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
+            func_reservation_fire_heating_at_appt();
+#else
             g_res.phase = RES_PHASE_HEATING;
 #if USER_PANEL_LED
             func_reservation_led_sync();
 #endif
-#if FUNC_RESERVATION_UI_EN
-#if ELUNCHBOX_PANEL_EN
-            if (func_cb.sta == FUNC_RESERVATION) {
-                func_res_trigger_heating_uart_from_global();
-                if (func_cb.sta != FUNC_HEAT) {
-                    func_res_allow_switch = 1;
-                    func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-                    func_res_allow_switch = 0;
-                }
-            } else {
-#if FUNC_LUNCHBOX_UART_EN
-                func_res_trigger_heating_uart_from_global();
-#endif
-                /* 自动息屏(非手动关机)：唤醒并跳转到加热界面 */
-                if (!elunchbox_pwr_is_manual_off()
-                    && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
-                    elunchbox_pwr_gui_wake_reason("reservation heat");
-                }
-                if (func_cb.sta != FUNC_HEAT) {
-                    func_res_allow_switch = 1;
-                    func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-                    func_res_allow_switch = 0;
-                }
-            }
-#else
             if (func_cb.sta != FUNC_RESERVATION) {
                 func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
             } else {
@@ -1872,9 +1913,14 @@ void func_reservation_poll(void)
                 }
             }
 #endif
-#endif
         }
     }
+
+#if ELUNCHBOX_PANEL_EN
+    if (func_reservation_is_waiting() && elunchbox_pwr_is_manual_off()) {
+        func_reservation_sleep_wake_arm();
+    }
+#endif
 }
 
 compo_form_t *func_reservation_form_create(void)

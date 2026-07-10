@@ -335,9 +335,11 @@ void elunchbox_guioff_sleep_service(void)
     if (!elunchbox_pwr_is_manual_off()) {
         lunchbox_uart_process();
         lunchbox_keep_warm_poll();
+    } else if (func_reservation_is_waiting()) {
+        lunchbox_uart_process();
     }
 #endif
-    if (!elunchbox_pwr_is_manual_off()) {
+    if (!elunchbox_pwr_is_manual_off() || func_reservation_is_waiting()) {
         func_reservation_poll();
     }
 }
@@ -850,9 +852,11 @@ static void elunchbox_guioff_idle_process(void)
     if (!elunchbox_pwr_is_manual_off()) {
         lunchbox_uart_process();
         lunchbox_keep_warm_poll();
+    } else if (func_reservation_is_waiting()) {
+        lunchbox_uart_process();
     }
 #endif
-    if (!elunchbox_pwr_is_manual_off()) {
+    if (!elunchbox_pwr_is_manual_off() || func_reservation_is_waiting()) {
         func_reservation_poll();
     }
 }
@@ -1107,6 +1111,12 @@ void func_process(void)
         if (heat_display_charge_wake_pending()) {    //充电中唤醒->加热模块发来充电状态，检测到充电则唤醒 
             printf("elunchbox: charge DP wakes screen from manual off\n");
             elunchbox_pwr_gui_wake();
+            return;
+        }
+#endif
+#if FUNC_RESERVATION_UI_EN
+        func_reservation_poll();
+        if (func_reservation_is_heating()) {
             return;
         }
 #endif

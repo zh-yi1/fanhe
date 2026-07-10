@@ -1,5 +1,8 @@
 #include "include.h"
 #include "func.h"
+#if ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
+#include "func_reservation.h"
+#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
 #include "bsp_pt8028_key.h"
 #include "port_pt8028_key.h"
@@ -223,7 +226,12 @@ uint32_t sleep_timer(void)
 	sleep_ble_param_check();
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    if (elunchbox_guioff_in_sleep_mode() && !elunchbox_pwr_is_manual_off()) {
+    if (elunchbox_guioff_in_sleep_mode()
+        && (!elunchbox_pwr_is_manual_off()
+#if FUNC_RESERVATION_UI_EN
+            || func_reservation_is_waiting()
+#endif
+            )) {
         elunchbox_guioff_sleep_service();
     }
 #endif

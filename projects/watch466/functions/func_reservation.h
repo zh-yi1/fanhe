@@ -38,6 +38,8 @@ bool func_reservation_is_heating(void);
 void func_reservation_marquee_text(char *buf, u16 buf_len);
 void func_reservation_force_heating_enter(void);
 void func_reservation_on_manual_shutdown(void);
+/** 关机/休眠前设 RTC 闹钟，保证到点前唤醒复检预约（new_reservation 流程复用） */
+void func_reservation_sleep_wake_arm(void);
 
 /* func_new_reservation.c：滚轮时间设置 / 提交 / 返回 Home */
 void func_reservation_new_ui_load_time(u8 *hour, u8 *min, u8 *sec);
