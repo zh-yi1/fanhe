@@ -24,14 +24,14 @@
 // 保温常量
 //-----------------------------------------------------------------------------
 #define LB_KEEP_WARM_MODE       5
-#define LB_KEEP_WARM_TEMP_F     140
+#define LB_KEEP_WARM_TEMP_F     194
 
 //-----------------------------------------------------------------------------
 // LCD 加热任务状态 (lb_heating_sync_from_dp 在 core 中通过 extern 访问)
 //-----------------------------------------------------------------------------
 bool lb_keep_warm_active = false;
 bool lb_heat_lcd_active;     /* LCD 已下发加热/保温，至 stop 或 MCU 确认结束 */
-static u8 lb_warm_temp_idx = 0xff;  /* 0xff=默认 140°F；BLE 跳转保温页前可指定 */
+static u8 lb_warm_temp_idx = 0xff;  /* 0xff=默认 194°F；BLE 跳转保温页前可指定 */
 
 //-----------------------------------------------------------------------------
 // 模式界面 → 加热界面 预设参数传递
@@ -254,13 +254,10 @@ static void lunchbox_warm_mark_active(void)
 }
 #endif
 
-void lunchbox_keep_warm_start(void)
+void lunchbox_keep_warm_apply(void)
 {
     u8 temp_idx;
 
-    if (lb_keep_warm_active) {
-        return;
-    }
     if (lb_warm_temp_idx <= 6) {
         temp_idx = lb_warm_temp_idx;
         lb_warm_temp_idx = 0xff;
@@ -273,11 +270,19 @@ void lunchbox_keep_warm_start(void)
 #if ELUNCHBOX_PANEL_EN
         lunchbox_warm_mark_active();
 #endif
-        printf("keep_warm_start: bridge skip UART temp_idx=%u\n", temp_idx);
+        printf("keep_warm_apply: bridge skip UART temp_idx=%u\n", temp_idx);
         return;
     }
 #endif
     lunchbox_heat_start(LB_KEEP_WARM_MODE, temp_idx, 0);
+}
+
+void lunchbox_keep_warm_start(void)
+{
+    if (lb_keep_warm_active) {
+        return;
+    }
+    lunchbox_keep_warm_apply();
 }
 
 void lunchbox_keep_warm_stop(void)

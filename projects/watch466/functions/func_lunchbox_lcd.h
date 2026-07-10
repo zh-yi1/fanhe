@@ -35,13 +35,16 @@ void lunchbox_power_off(void);
 // 保温控制
 //-----------------------------------------------------------------------------
 
-/** @brief 加热自然结束后自动开启保温 (模式5, 140°F, 至低电关机) */
+/** @brief 进入保温页时下发保温指令 (模式5, 默认 194°F) */
+void lunchbox_keep_warm_apply(void);
+
+/** @brief 加热自然结束后自动开启保温 (模式5, 194°F, 至低电关机) */
 void lunchbox_keep_warm_start(void);
 
 /** @brief 停止保温 */
 void lunchbox_keep_warm_stop(void);
 
-/** @brief BLE/0x04 跳转保温页前设置温度档位 (0~6)，0xff 表示用默认 140°F */
+/** @brief BLE/0x04 跳转保温页前设置温度档位 (0~6)，0xff 表示用默认 194°F */
 void lunchbox_keep_warm_set_temp_idx(u8 temp_idx);
 
 /** @brief 当前是否处于保温状态 */

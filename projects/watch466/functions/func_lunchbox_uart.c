@@ -899,7 +899,7 @@ static u8 lb_attr_write(u8 *data, u16 len)
 // UART 应答返回时用于确定正确的 BLE 响应命令字
 
 // 模式信息（0x09 查询 / 0x0a 修改）：索引 1=自定义, 2=鸡腿, 3=意面, 4=预约, 5=保温
-u8 lb_mode_temp[6]     = { 0, 3, 4, 5, 3, 2 };
+u8 lb_mode_temp[6]     = { 0, 3, 4, 5, 3, 5 };
 u8 lb_mode_duration[6] = { 0, 30, 45, 20, 30, 0 };
 
 // LB_KEEP_WARM_MODE/LB_KEEP_WARM_TEMP_F → 已移至 func_lunchbox_lcd.c

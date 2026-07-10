@@ -33,7 +33,7 @@ extern volatile u8 elunchbox_te_block_flag;
  *   顶栏：蓝牙 + 电量 + 标题 WARM
  *   弧形进度条 + 圆点（复用 new_progress_* / new_point）
  *   弧内：累计保温时长；弧下：Total Warm Time
- *   140°F 持续保温至低电（lunchbox_keep_warm_start）
+ *   194°F 持续保温至低电（lunchbox_keep_warm_apply）
  *   电源键：停止保温并回 Home
  */
 #define NEW_WARM_STATUS_Y                 20
@@ -549,13 +549,13 @@ static void new_warm_heating_start(f_new_warm_t *f)
         return;
     }
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_keep_warm_start();
+    lunchbox_keep_warm_apply();
 #endif
     f->heating = true;
     f->start_tick = tick_get();
     f->last_progress_idx = 0xff;
     f->last_elapsed_min = 0xffffffff;
-    printf("new_warm: heating start 140F\n");
+    printf("new_warm: heating start 194F\n");
 }
 
 static void new_warm_heating_stop(void)
