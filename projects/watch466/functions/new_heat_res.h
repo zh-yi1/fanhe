@@ -14,9 +14,11 @@
 
 #define NEW_HEAT_TEMP_CNT                 5
 #define NEW_HEAT_TIME_CNT                 13
-#define NEW_HEAT_TIME_IDX_MIN             0       /* tbl: 60 min (1H) */
-#define NEW_HEAT_TIME_IDX_1H              0       /* 默认 1 小时 */
-#define NEW_HEAT_TIME_IDX_MAX             12      /* tbl: 120 min (2H) */
+
+/* 时长刻度相关索引 */
+#define NEW_HEAT_TIME_IDX_MIN             0       // 60min
+#define NEW_HEAT_TIME_IDX_MAX             12      // 120min
+#define NEW_HEAT_TIME_IDX_1H              0       // 默认1H
 
 #define NEW_HEAT_NEW_BLUE_TIME_W                 55
 #define NEW_HEAT_NEW_BLUE_TIME_H                 27
@@ -48,23 +50,23 @@
 #define NEW_HEAT_NEW_PROGRESS_11_ANCHOR_X            162
 #define NEW_HEAT_NEW_PROGRESS_11_ANCHOR_Y            108
 #define NEW_HEAT_NEW_PROGRESS_11_TIP_X            76
-#define NEW_HEAT_NEW_PROGRESS_11_TIP_Y            107
+#define NEW_HEAT_NEW_PROGRESS_11_TIP_Y            114
 
 #define NEW_HEAT_NEW_PROGRESS_12_W                 180
 #define NEW_HEAT_NEW_PROGRESS_12_H                 121
 #define NEW_HEAT_NEW_PROGRESS_12_RAM_SIZE          43568
 #define NEW_HEAT_NEW_PROGRESS_12_ANCHOR_X            160
 #define NEW_HEAT_NEW_PROGRESS_12_ANCHOR_Y            108
-#define NEW_HEAT_NEW_PROGRESS_12_TIP_X            76
-#define NEW_HEAT_NEW_PROGRESS_12_TIP_Y            107
+#define NEW_HEAT_NEW_PROGRESS_12_TIP_X            74
+#define NEW_HEAT_NEW_PROGRESS_12_TIP_Y            141
 
 #define NEW_HEAT_NEW_PROGRESS_13_W                 180
 #define NEW_HEAT_NEW_PROGRESS_13_H                 121
 #define NEW_HEAT_NEW_PROGRESS_13_RAM_SIZE          43568
 #define NEW_HEAT_NEW_PROGRESS_13_ANCHOR_X            160
 #define NEW_HEAT_NEW_PROGRESS_13_ANCHOR_Y            108
-#define NEW_HEAT_NEW_PROGRESS_13_TIP_X            75
-#define NEW_HEAT_NEW_PROGRESS_13_TIP_Y            168
+#define NEW_HEAT_NEW_PROGRESS_13_TIP_X            76
+#define NEW_HEAT_NEW_PROGRESS_13_TIP_Y            166
 
 #define NEW_HEAT_NEW_PROGRESS_2_W                 17
 #define NEW_HEAT_NEW_PROGRESS_2_H                 39

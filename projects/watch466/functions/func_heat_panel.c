@@ -158,32 +158,76 @@ static u8 heat_panel_show_ram[NEW_HEAT_SHOW_RAM_SIZE];
 
 #define HEAT_PANEL_OVERLAY_SKIP565      0xFFFF
 #define HEAT_PANEL_OVERLAY_ROW_MAX      192
-#define HEAT_PANEL_POINT_SNAP_RADIUS    24
+#define HEAT_PANEL_NEAR_FULL_IDX        11
+#define HEAT_PANEL_LEFT_TIP_MAX_X       (NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X - 84)
 
-static bool heat_panel_is_blue565(u16 c)
+static bool heat_panel_is_progress_blue(u16 c)
 {
-    u16 r = (c >> 11) & 0x1F;
-    u16 g = (c >> 5) & 0x3F;
-    u16 b = c & 0x1F;
+    u16 r;
+    u16 g;
+    u16 b;
 
-    return (r >= 24 && g >= 56 && b >= 28);
+    if (c >= 0xFFFE) {
+        return false;
+    }
+    r = (c >> 11) & 0x1F;
+    g = (c >> 5) & 0x3F;
+    b = c & 0x1F;
+    return (b >= 10 && b > r && g < 42);
 }
 
-/* 合成后把圆点吸附到距预期 TIP 最近的蓝像素，确保落在蓝弧顶点上 */
-static void heat_panel_point_snap_to_blue(s16 tx, s16 ty, s16 *x, s16 *y)
+static u16 heat_panel_composite_color(u16 tw, u16 th, s16 ox, s16 oy, s16 sx, s16 sy)
+{
+    s16 ix;
+    s16 iy;
+    u32 di;
+
+    ix = sx - ox;
+    iy = sy - oy;
+    if (ix < 0 || iy < 0 || ix >= (s16)tw || iy >= (s16)th) {
+        return HEAT_PANEL_OVERLAY_SKIP565;
+    }
+    di = 8 + ((u32)iy * tw + (u32)ix) * 2;
+    if (di + 1 >= NEW_HEAT_NEW_PROGRESS_BG_RAM_SIZE) {
+        return HEAT_PANEL_OVERLAY_SKIP565;
+    }
+    return GET_LE16(&home_ui_heat_bg_ram[di]);
+}
+
+static bool heat_panel_is_blue_boundary(u16 tw, u16 th, s16 ox, s16 oy, s16 sx, s16 sy)
+{
+    static const s16 dx[4] = {1, -1, 0, 0};
+    static const s16 dy[4] = {0, 0, 1, -1};
+    u8 i;
+
+    if (!heat_panel_is_progress_blue(heat_panel_composite_color(tw, th, ox, oy, sx, sy))) {
+        return false;
+    }
+    for (i = 0; i < 4; i++) {
+        if (!heat_panel_is_progress_blue(heat_panel_composite_color(tw, th, ox, oy,
+                sx + dx[i], sy + dy[i]))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* idx>=11 近满弧：圆点落在左侧蓝灰交界最下缘（倒计时 CCW 缩回端） */
+static void heat_panel_point_tip_near_full(u8 idx, s16 *x, s16 *y)
 {
     u16 tw;
     u16 th;
     s16 ox;
     s16 oy;
-    u32 best_d;
     s16 best_x;
     s16 best_y;
     bool found;
     u16 iy;
     u16 ix;
-    u32 snap_r2;
 
+    if (idx < HEAT_PANEL_NEAR_FULL_IDX || !g_hp.track_ready) {
+        return;
+    }
     tw = GET_LE16(&home_ui_heat_bg_ram[4]);
     th = GET_LE16(&home_ui_heat_bg_ram[6]);
     if (tw == 0 || th == 0) {
@@ -191,36 +235,23 @@ static void heat_panel_point_snap_to_blue(s16 tx, s16 ty, s16 *x, s16 *y)
     }
     ox = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X - (s16)(tw / 2);
     oy = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y - (s16)(th / 2);
-    snap_r2 = (u32)HEAT_PANEL_POINT_SNAP_RADIUS * HEAT_PANEL_POINT_SNAP_RADIUS;
-    best_d = 0xffffffffUL;
-    best_x = tx;
-    best_y = ty;
+    best_x = *x;
+    best_y = *y;
     found = false;
 
     for (iy = 0; iy < th; iy++) {
         for (ix = 0; ix < tw; ix++) {
-            u32 di = 8 + ((u32)iy * tw + ix) * 2;
-            u16 c = GET_LE16(&home_ui_heat_bg_ram[di]);
-            s16 sx;
-            s16 sy;
-            s32 dx;
-            s32 dy;
-            u32 d;
+            s16 sx = ox + (s16)ix;
+            s16 sy = oy + (s16)iy;
 
-            if (!heat_panel_is_blue565(c)) {
+            if (sx > HEAT_PANEL_LEFT_TIP_MAX_X) {
                 continue;
             }
-            sx = ox + (s16)ix;
-            sy = oy + (s16)iy;
-            dx = (s32)sx - (s32)tx;
-            dy = (s32)sy - (s32)ty;
-            d = (u32)(dx * dx + dy * dy);
-            if (d > snap_r2) {
+            if (!heat_panel_is_blue_boundary(tw, th, ox, oy, sx, sy)) {
                 continue;
             }
-            if (!found || d < best_d) {
+            if (!found || sy > best_y || (sy == best_y && sx < best_x)) {
                 found = true;
-                best_d = d;
                 best_x = sx;
                 best_y = sy;
             }
@@ -501,6 +532,7 @@ static void heat_panel_point_bind(u8 progress_idx)
         return;
     }
     heat_panel_point_pos(progress_idx, &px, &py);
+    heat_panel_point_tip_near_full(progress_idx, &px, &py);
     if (!heat_panel_gpu_ram_bind(g_hp.pic_point, UI_BUF_NEW_UI_NEW_POINT_BIN,
                                   UI_LEN_NEW_UI_NEW_POINT_BIN,
                                   home_ui_colon_ram, HOME_COLON_RAM_SIZE,

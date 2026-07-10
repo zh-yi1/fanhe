@@ -155,6 +155,58 @@ class ProgressPack:
         self.tip_y = tip_y
 
 
+def arc_tip_countdown(blues: list[tuple[int, int]], cx: int, cy: int, idx: int) -> tuple[int, int]:
+    """倒计时圆点：近满弧(idx>=11)取左侧蓝灰交界最下缘，其余取 CCW 增长端。"""
+    if not blues:
+        return 0, 0
+    if idx >= 11:
+        blue_set = set(blues)
+        left_max_x = cx - 84
+        best = None
+        for x, y in blues:
+            if x > left_max_x:
+                continue
+            boundary = False
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                if (x + dx, y + dy) not in blue_set:
+                    boundary = True
+                    break
+            if not boundary:
+                continue
+            if best is None or y > best[1] or (y == best[1] and x < best[0]):
+                best = (x, y)
+        if best is not None:
+            return best
+    return arc_tip_growth_end(blues, cx, cy, full_circle=(idx == 13))
+
+
+def composite_progress_blue(idx: int, bg_pack: ProgressPack,
+                          overlays: list[ProgressPack]) -> list[tuple[int, int]]:
+    """合成灰轨+蓝弧，返回全屏坐标蓝像素列表。"""
+    bw, bh, bg_px = load_gpu_bin(BIN_DIR / "new_progress_bg.bin")
+    bg_ax, bg_ay = bg_pack.anchor_x, bg_pack.anchor_y
+    comp = bg_px[:]
+    if idx <= 1:
+        return []
+    pack = overlays[idx - 1]
+    if pack.w == 0 or pack.h == 0:
+        return []
+    ow, oh, ov = load_gpu_bin(BIN_DIR / f"new_progress_{idx}.bin")
+    dx0 = (pack.anchor_x - ow // 2) - (bg_ax - bw // 2)
+    dy0 = (pack.anchor_y - oh // 2) - (bg_ay - bh // 2)
+    ox, oy = bg_ax - bw // 2, bg_ay - bh // 2
+    for y in range(oh):
+        for x in range(ow):
+            c = ov[y * ow + x]
+            if c == WHITE565:
+                continue
+            dx, dy = dx0 + x, dy0 + y
+            if 0 <= dx < bw and 0 <= dy < bh:
+                comp[dy * bw + dx] = c
+    return [(ox + x, oy + y) for y in range(bh) for x in range(bw)
+            if is_progress_blue(comp[y * bw + x])]
+
+
 def arc_tip_growth_end(blues: list[tuple[int, int]], cx: int, cy: int,
                        full_circle: bool = False) -> tuple[int, int]:
     """蓝弧增长端：沿 CCW 扩展的最前沿外缘点；满圈帧取外缘最大极角。"""
@@ -362,11 +414,24 @@ def fill_progress_metadata(existing: dict[str, str],
         return
 
     arc_cx, arc_cy = bg_anchor
+    bg_pack = None
+    progress_overlay_packs: list[ProgressPack] = []
     if bg_path.exists():
         bw, bh, bg_px = load_gpu_bin(bg_path)
+        bg_pack = ProgressPack(bw, bh, arc_cx, arc_cy, bg_path.stat().st_size)
         start_x, start_y = arc_start_tip_from_bg(bw, bh, bg_px, arc_cx, arc_cy, arc_cx, arc_cy)
         progress_tips["new_progress_1"] = (start_x, start_y)
         print(f"new_progress_1: start tip=({start_x},{start_y})")
+        for i in range(1, 14):
+            stem = f"new_progress_{i}"
+            anchor = progress_anchors.get(stem, (0, 0))
+            bin_path = BIN_DIR / f"{stem}.bin"
+            if i == 1 or not bin_path.exists():
+                progress_overlay_packs.append(ProgressPack(0, 0, 0, 0, 0))
+                continue
+            ow, oh, _ = load_gpu_bin(bin_path)
+            progress_overlay_packs.append(
+                ProgressPack(ow, oh, anchor[0], anchor[1], bin_path.stat().st_size))
 
     for i in range(2, 14):
         stem = f"new_progress_{i}"
@@ -380,8 +445,12 @@ def fill_progress_metadata(existing: dict[str, str],
         if anchor is None:
             continue
         ax, ay = anchor
-        tip_x, tip_y = tip_from_cropped_bin(ow, oh, pixels, arc_cx, arc_cy, ax, ay,
-                                            full_circle=(i == 13))
+        if i >= 11 and bg_pack is not None and len(progress_overlay_packs) >= i:
+            blues = composite_progress_blue(i, bg_pack, progress_overlay_packs)
+            tip_x, tip_y = arc_tip_countdown(blues, arc_cx, arc_cy, i)
+        else:
+            tip_x, tip_y = tip_from_cropped_bin(ow, oh, pixels, arc_cx, arc_cy, ax, ay,
+                                                full_circle=(i == 13))
         progress_tips[stem] = (tip_x, tip_y)
         print(f"{stem}: anchor=({ax},{ay}) tip=({tip_x},{tip_y})")
 
