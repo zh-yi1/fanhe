@@ -888,6 +888,7 @@ void func_new_warm_exit(void)
     pt8028_set_home_msg_block(0);
     pt8028_release_clear();
 #endif
+    printf("func_new_warm_exit: ok1111111\n");
     func_cb.last = FUNC_NEW_WARM;
     printf("func_new_warm_exit\n");
 }
@@ -896,9 +897,13 @@ void func_new_warm(void)
 {
     printf("func_new_warm run\n");
     func_new_warm_enter();
+    printf("FUNC_NEW_WARM%d\n", FUNC_NEW_WARM);
+    printf("func_cb.sta%d\n", func_cb.sta);
     while (func_cb.sta == FUNC_NEW_WARM) {
+        // printf("func_new_warm_process111\n");
         func_new_warm_process();
+        // printf("func_new_warm_message2222\n");
         func_new_warm_message(msg_dequeue());
     }
-    func_new_warm_exit();
+    // func_new_warm_exit();
 }

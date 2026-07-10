@@ -1154,7 +1154,7 @@ static void func_res_start_heating(f_reservation_t *f_res)
         u32 duration_min = f_res->heat_total_sec / 60;
 
         if (duration_min == 0) {
-            duration_min = 1;
+            duration_min = LB_HEAT_DURATION_MIN_MIN;
         }
         printf("target_temp_f reservation: %d, duration_min: %d, proto_mode: %d\n",
                lunchbox_temp_f_to_idx(temp_f), duration_min, 4);
@@ -1775,7 +1775,7 @@ static void func_res_trigger_heating_uart_from_global(void)
            : tbl_res_temp_preset[0];
     duration_min = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
     if (duration_min == 0) {
-        duration_min = 1;
+        duration_min = LB_HEAT_DURATION_MIN_MIN;
     }
     if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
         duration_min = LB_HEAT_DURATION_MIN_MIN;

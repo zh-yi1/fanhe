@@ -372,6 +372,14 @@ bool elunchbox_heating_blocks_idle(void)
     if (func_cb.sta == FUNC_MODE && func_mode_ui_is_heating()) {
         return true;
     }
+    if (func_cb.sta == FUNC_NEW_WARM) {
+        return true;
+    }
+#if FUNC_LUNCHBOX_UART_EN
+    if (lunchbox_keep_warm_is_active()) {
+        return true;
+    }
+#endif
     return false;
 }
 

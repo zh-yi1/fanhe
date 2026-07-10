@@ -661,17 +661,6 @@ static void new_lang_sel_prev(f_new_lang_t *f)
 #endif
 }
 
-static void new_lang_confirm(f_new_lang_t *f)
-{
-    if (f == NULL || sys_cb.flag_swithing || f->sel >= NEW_LANG_ITEM_CNT) {
-        return;
-    }
-    sys_cb.lang_id = f->sel;
-    param_lang_id_write();
-    lang_select(sys_cb.lang_id);
-    func_switch_to(FUNC_NEW_SETUP, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-}
-
 static void new_lang_power_key(void)
 {
     if (sys_cb.flag_swithing) {
@@ -757,8 +746,6 @@ static void new_lang_pt8028_keys_process(f_new_lang_t *f)
     }
     if (press_tch == PT8028_KEY_TCH3) {
         new_lang_mode_key();
-    } else if (press_tch == PT8028_KEY_TCH4) {
-        new_lang_confirm(f);
     } else if (press_tch == PT8028_KEY_TCH5) {
         new_lang_power_key();
     } else if (press_tch == PT8028_KEY_TCH2) {
@@ -819,7 +806,6 @@ static void func_new_language_message(size_msg_t msg)
         new_lang_mode_key();
         break;
     case KU_BACK:
-        new_lang_confirm(f);
         break;
     case KEY_RIGHT | KEY_SHORT_UP:
         new_lang_power_key();
