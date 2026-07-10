@@ -289,9 +289,18 @@ void heat_display_feed_dp(u8 *data, u16 len)
     }
 
 #if ELUNCHBOX_PANEL_EN
-    /* 充电结束，加热恢复：从保温跳回加热界面 */
-    if (got_enable && heating && func_cb.sta == FUNC_NEW_WARM) {
-        printf("[LCD_REG] feed_dp: charge off, heating resume -> back to heat panel\n");
+    /* 保温页 + 充电中：模块 HeatEn=ON 为保温运行，勿跳回加热/设置页 */
+    if (func_cb.sta == FUNC_NEW_WARM && home_ui_shared_battery_is_charging()) {
+        if (got_charge && charge_val != 0) {
+            home_ui_shared_battery_icon_refresh();
+        }
+        return;
+    }
+
+    /* 仅充电结束且非保温模式时，才从保温页回到加热页 */
+    if (got_enable && heating && func_cb.sta == FUNC_NEW_WARM
+        && !home_ui_shared_battery_is_charging() && !got_warm_mode) {
+        printf("[LCD_REG] feed_dp: charge ended, resume heat panel\n");
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;
     }

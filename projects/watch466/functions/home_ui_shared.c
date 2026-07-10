@@ -142,19 +142,21 @@ static void home_ui_shared_battery_reload(void)
     u8 icon;
     u32 addr;
     u32 len;
+    bool icon_changed;
 
     icon = home_bat_pick_icon();
     if (!home_bat_icon_flash(icon, &addr, &len)) {
         return;
     }
-    if (icon != home_bat_icon_idx || !home_ui_shared_status_inited) {
+    icon_changed = (icon != home_bat_icon_idx || !home_ui_shared_status_inited);
+    if (icon_changed) {
         /* 勿 wait_idle：Home 切子页后 gui thread miss 时会死等导致 WDT */
         WDT_CLR();
         os_spiflash_read(home_ui_shared_status_bat_ram, addr, len);
         home_bat_icon_idx = icon;
     }
 
-    if (home_bat_pic != NULL) {
+    if (home_bat_pic != NULL && icon_changed) {
         home_ui_shared_battery_refresh_attached();
         home_ui_shared_battery_mark_dirty();
     }
@@ -230,18 +232,20 @@ void home_ui_shared_battery_feed_dp(u8 *data, u16 len)
     if (chg > 2) {
         chg = 0;
     }
+    if (bat == home_bat_level && chg == home_bat_charge) {
+        return;
+    }
 
     home_bat_level = bat;
     home_bat_charge = chg;
+    home_bat_icon_idx = 0xFF;
 
 #if ELUNCHBOX_PANEL_EN
     if (!elunchbox_ui_is_live() || !is_gpu_init()) {
         return;
     }
 #endif
-    if (got_bat || got_chg) {
-        home_ui_shared_battery_reload();
-    }
+    home_ui_shared_battery_reload();
 }
 
 u8 home_ui_shared_battery_level(void)
@@ -264,10 +268,11 @@ void home_ui_shared_battery_charge_apply(u8 charge_sta)
     if (charge_sta > 2) {
         charge_sta = 0;
     }
-    if (home_bat_charge != charge_sta) {
-        home_bat_charge = charge_sta;
-        home_bat_icon_idx = 0xFF;
+    if (home_bat_charge == charge_sta) {
+        return;
     }
+    home_bat_charge = charge_sta;
+    home_bat_icon_idx = 0xFF;
     home_ui_shared_battery_reload();
 }
 
