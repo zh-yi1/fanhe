@@ -143,11 +143,54 @@ void func_elunchbox_switch_to_heat(void)
 #if ELUNCHBOX_PANEL_EN
 static bool elunchbox_pwr_intentional_wake; /* manual_off 下允许 gui_wakeup（前置声明） */
 static u8   elunchbox_ble_pending_sta;      /* BLE 触发的延后切页（避免 flag_swithing 时丢失） */
+static u8   elunchbox_ble_pending_home;     /* BLE 停止加热：延后回 Home */
+
+void func_elunchbox_switch_to_home(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    if (func_cb.sta == FUNC_HOME) {
+        return;
+    }
+    if (sys_cb.flag_swithing) {
+        elunchbox_ble_pending_home = 1;
+        return;
+    }
+    elunchbox_ble_pending_sta = 0;
+    elunchbox_ble_pending_home = 0;
+#if USER_PT8028_KEY
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
+    if (func_cb.sta == FUNC_HEAT) {
+        func_heat_prepare_ble_stop();
+    }
+    home_gpu_wait_idle();
+    WDT_CLR();
+    printf("elunchbox: switch to home from sta=%u\n", func_cb.sta);
+    func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+#endif
+}
+
+void func_elunchbox_ble_cancel_pending_switch(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_ble_pending_sta = 0;
+    elunchbox_ble_pending_home = 0;
+#endif
+}
 
 static void elunchbox_ble_pending_sta_poll(void)
 {
     u8 sta;
 
+    if (elunchbox_ble_pending_home) {
+        if (sys_cb.flag_swithing) {
+            return;
+        }
+        elunchbox_ble_pending_home = 0;
+        func_elunchbox_switch_to_home();
+        return;
+    }
     if (elunchbox_ble_pending_sta == 0) {
         return;
     }

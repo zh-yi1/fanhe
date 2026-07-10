@@ -718,10 +718,40 @@ void lunchbox_control_apply_heat(const u8 *data, u16 len)
     lunchbox_ble_goto_heat_panel(proto_mode, temp_f, hour, min);
 }
 
+/** @brief 0x04 停止加热（DP10=0 或 DP02=0）：停 UART 任务并回 Home */
+static bool lunchbox_control_apply_stop_heat(const u8 *data, u16 len)
+{
+    u8 val;
+    bool stop = false;
+
+    if (lb_dp_scan_bool(data, len, LB_DPID_HEAT_ENABLE, &val) && val == 0) {
+        stop = true;
+    } else if (lb_dp_scan_bool(data, len, LB_DPID_HEAT_MODE, &val) && val == 0) {
+        stop = true;
+    }
+    if (!stop) {
+        return false;
+    }
+
+    printf("BLE control: stop heat (sta=%u)\n", func_cb.sta);
+    func_elunchbox_ble_cancel_pending_switch();
+    heat_display_unregister();
+    lunchbox_keep_warm_stop();
+    lunchbox_heat_stop();
+
+    if (func_cb.sta != FUNC_HOME) {
+        func_elunchbox_switch_to_home();
+    }
+    return true;
+}
+
 /** @brief 0x04 控制帧：面板侧总开关 + 加热页跳转 */
 void lunchbox_control_apply_panel(const u8 *data, u16 len)
 {
     lunchbox_control_apply_power_switch(data, len);
+    if (lunchbox_control_apply_stop_heat(data, len)) {
+        return;
+    }
     lunchbox_control_apply_heat(data, len);
 }
 #endif

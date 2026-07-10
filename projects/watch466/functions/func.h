@@ -245,6 +245,11 @@ void func_elunchbox_switch_to_heat(void);
 void func_elunchbox_switch_to_heat_panel(void);
 /** BLE 0x04 保温指令：跳转 func_new_warm */
 void func_elunchbox_switch_to_warm_panel(void);
+/** BLE 停止加热：回 Home 主界面 */
+void func_elunchbox_switch_to_home(void);
+/** 取消 BLE 延后切页（停止加热时须调用） */
+void func_elunchbox_ble_cancel_pending_switch(void);
+void func_heat_prepare_ble_stop(void);
 /** 加热面板自然结束：UART 开保温 + 切 func_new_warm */
 void func_elunchbox_enter_warm_from_heat(void);
 /** 充电中且正在加热：跳转 func_new_warm 并刷新充电图标 */

@@ -766,6 +766,17 @@ static void func_heat_start_heating(f_heat_t *f_heat)
 }
 
 #if ELUNCHBOX_PANEL_EN
+void func_heat_prepare_ble_stop(void)
+{
+    f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
+
+    if (func_cb.sta != FUNC_HEAT || f_heat == NULL) {
+        return;
+    }
+    func_heat_countdown_stop();
+    func_heat_reset_setup(f_heat);
+}
+
 void func_heat_ble_remote_restart(void)
 {
     f_heat_t *f_heat;
