@@ -216,17 +216,12 @@ const char *bt_get_local_name(void)
 
 void bt_get_local_bd_addr(u8 *addr)
 {
-#if LE_SM_SC_EN
+    // 始终使用 xcfg 烧录的唯一 MAC 地址，确保重启/烧录/OTA 均不变
     memcpy(addr, xcfg_cb.bt_addr, 6);
+#if LE_SM_SC_EN
     if (!app_phone_type_get()) {
         addr[5] ^= 0x55;
     }
-#elif BT_LOCAL_ADDR
-    param_random_key_read(&addr[2]);
-    addr[0] = 0x41;
-    addr[1] = 0x42;
-#else
-    memcpy(addr, xcfg_cb.bt_addr, 6);
 #endif
 }
 

@@ -1644,7 +1644,7 @@ void lunchbox_uart_init(u32 baud)
     // 默认设备信息
     memset(&lb_dev_info, 0, sizeof(lb_dev_info));
     u8 ble_addr[6];
-    ble_get_local_bd_addr(ble_addr);
+    ble_get_local_bd_addr(ble_addr);   //mac
     sprintf(lb_dev_info.bt_name, "AR0MA-NY_%02X%02X", ble_addr[4], ble_addr[5]);
     memcpy(lb_dev_info.version, "01.00.00", 8);
     memcpy(lb_dev_info.model,  "SF101\0\0\0\0\0", 10);
