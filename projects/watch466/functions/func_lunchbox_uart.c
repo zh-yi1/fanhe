@@ -724,30 +724,37 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
 
     //=== 0x05: ScheduleList ============================================
     case LB_CMD_SCHEDULE_LIST:
-        if (!is_rx && len >= 43 && data[0] > 0) {
-            // MCU→APP: single schedule entry (43 bytes), 总条数为 0 时不打印
-            u8  total  = data[0];
-            u8  seq    = data[1];
-            u8  id     = data[2];
-            u32 time_s = ((u32)data[35] << 24) | ((u32)data[36] << 16)
-                       | ((u32)data[37] << 8)  |  (u32)data[38];
-            u8  temp   = data[39];
-            u8  dur    = data[40];
-            u8  en     = data[41];
-            u8  repeat = data[42];
-            printf("Schedule[%u/%u] ID=%u name=%.32s time=%lu temp=%u dur=%umin en=%u rep=0x%02X\n",
-                   seq, total, id, data + 3, (unsigned long)time_s, temp, dur, en, repeat);
+        if (!is_rx && len >= 44 && data[0] > 0) {
+            // MCU→APP: single schedule entry (44 bytes), ALL=0 时不打印
+            u8  ALL    = data[0];
+            u8  now_id = data[1];
+            u8  mode   = data[2];
+            u8  ID     = data[3];
+            u32 TIME   = ((u32)data[36] << 24) | ((u32)data[37] << 16)
+                       | ((u32)data[38] << 8)  |  (u32)data[39];
+            u8  temp   = data[40];
+            u8  time   = data[41];
+            u8  status = data[42];
+            u8  rep    = data[43];
+            printf("Schedule[%u/%u] ALL=%u now_id=%u mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
+                   now_id, ALL, ALL, now_id, mode, ID, data + 4, (unsigned long)TIME, temp, time, status, rep);
         }
         break;
 
     //=== 0x06: ScheduleAdd =============================================
     case LB_CMD_SCHEDULE_ADD:
-        if (is_rx && len >= 41) {
-            // APP→MCU: 41 bytes schedule data (蓝牙通讯协议1.0.6.md §3.6)
-            u32 time_s = ((u32)data[33] << 24) | ((u32)data[34] << 16)
-                       | ((u32)data[35] << 8)  |  (u32)data[36];
-            printf("name=%.32s\ntrig_time=%lu\ntemp=%u\ntime=%umin\nstatus=%u\nrep=0x%02X\n",
-                   data + 1, (unsigned long)time_s, data[37], data[38], data[39], data[40]);
+        if (is_rx && len >= 42) {
+            // APP→MCU: 42 bytes schedule data (MCU通信协议.md §3.6)
+            u8  mode   = data[0];
+            u8  ID     = data[1];
+            u32 TIME   = ((u32)data[34] << 24) | ((u32)data[35] << 16)
+                       | ((u32)data[36] << 8)  |  (u32)data[37];
+            u8  temp   = data[38];
+            u8  time   = data[39];
+            u8  status = data[40];
+            u8  rep    = data[41];
+            printf("mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
+                   mode, ID, data + 2, (unsigned long)TIME, temp, time, status, rep);
         } else if (!is_rx && len >= 1) {
             // MCU→APP: assigned ID(1B)
             printf("AssignedID=%u\n", data[0]);
@@ -756,11 +763,18 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
 
     //=== 0x07: ScheduleModify ==========================================
     case LB_CMD_SCHEDULE_MODIFY:
-        if (is_rx && len >= 41) {
-            u32 time_s = ((u32)data[33] << 24) | ((u32)data[34] << 16)
-                       | ((u32)data[35] << 8)  |  (u32)data[36];
-            printf("ID=%u\nname=%.32s\ntrig_time=%lu\ntemp=%u\ntime=%umin\nstatus=%u\nrep=0x%02X\n",
-                   data[0], data + 1, (unsigned long)time_s, data[37], data[38], data[39], data[40]);
+        if (is_rx && len >= 42) {
+            // APP→MCU: 42 bytes schedule data (MCU通信协议.md §3.6)
+            u8  mode   = data[0];
+            u8  ID     = data[1];
+            u32 TIME   = ((u32)data[34] << 24) | ((u32)data[35] << 16)
+                       | ((u32)data[36] << 8)  |  (u32)data[37];
+            u8  temp   = data[38];
+            u8  time   = data[39];
+            u8  status = data[40];
+            u8  rep    = data[41];
+            printf("mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
+                   mode, ID, data + 2, (unsigned long)TIME, temp, time, status, rep);
         }
         break;
 
