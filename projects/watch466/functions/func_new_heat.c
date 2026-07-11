@@ -130,9 +130,9 @@ typedef struct {
     compo_textbox_t *txt_time_scale[3];
 } f_new_heat_t;
 
-/* 温度值：140°F, 158°F, 176°F, 194°F, 212°F */
+/* 温度值 协议 ID=7: 40/50/60/70/80/90/100°C → 104~212°F */
 static const u16 tbl_new_heat_temp_f[NEW_HEAT_TEMP_CNT] = {
-    140, 158, 176, 194, 212,
+    104, 122, 140, 158, 176, 194, 212,
 };
 
 /* 时长（分钟）：60min(1H) ~ 120min(2H)，每档 +5min */
@@ -272,6 +272,8 @@ static u32 new_heat_temp_track_addr(u8 idx)
         UI_BUF_NEW_UI_NEW_TEMP_3_BIN,
         UI_BUF_NEW_UI_NEW_TEMP_4_BIN,
         UI_BUF_NEW_UI_NEW_TEMP_5_BIN,
+        UI_BUF_NEW_UI_NEW_TEMP_4_BIN,
+        UI_BUF_NEW_UI_NEW_TEMP_5_BIN,
     };
 
     if (idx >= NEW_HEAT_TEMP_CNT) {
@@ -286,6 +288,8 @@ static u16 new_heat_temp_track_w(u8 idx)
         NEW_HEAT_NEW_TEMP_1_W,
         NEW_HEAT_NEW_TEMP_2_W,
         NEW_HEAT_NEW_TEMP_3_W,
+        NEW_HEAT_NEW_TEMP_4_W,
+        NEW_HEAT_NEW_TEMP_5_W,
         NEW_HEAT_NEW_TEMP_4_W,
         NEW_HEAT_NEW_TEMP_5_W,
     };
@@ -326,6 +330,8 @@ static u16 new_heat_temp_track_len(u8 idx)
         UI_LEN_NEW_UI_NEW_TEMP_1_BIN,
         UI_LEN_NEW_UI_NEW_TEMP_2_BIN,
         UI_LEN_NEW_UI_NEW_TEMP_3_BIN,
+        UI_LEN_NEW_UI_NEW_TEMP_4_BIN,
+        UI_LEN_NEW_UI_NEW_TEMP_5_BIN,
         UI_LEN_NEW_UI_NEW_TEMP_4_BIN,
         UI_LEN_NEW_UI_NEW_TEMP_5_BIN,
     };
