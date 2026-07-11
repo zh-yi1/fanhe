@@ -5,6 +5,7 @@
 #include "func_reservation.h"
 #include "func_new_home.h"
 #include "heat_display_reg.h"
+#include "func_lunchbox_off.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "home_ui_lowbat_overlay.h"
@@ -635,7 +636,8 @@ static void elunchbox_pwr_manual_shutdown(void)
     func_key_lock_on_form_destroy();
 #endif
 #endif
-    gui_sleep(false);
+    //gui_sleep(false);
+    lunchbox_display_off();  // 仅关背光，不退出 TFT/CTP/GPU
     elunchbox_pwr_shutdown_yield();
 
 #if LE_EN
@@ -655,7 +657,7 @@ static void elunchbox_pwr_manual_shutdown(void)
     printf("elunchbox: TCH5 long -> manual off (low power sleep)\n");
 
     /* 关 printf 口(UART0) 和 debug dump 口(HUART) 时钟，只保留加热模块 RX(UART1) */
-    // elunchbox_saved_clkgat0 = CLKGAT0;
+    elunchbox_saved_clkgat0 = CLKGAT0;  // 虽不关时钟，仍需保存供唤醒恢复（否则恢复为 0→8001 蓝屏）
     // CLKGAT0 &= ~(BIT(CLKGAT0_UART0_CLK_EN) | BIT(CLKGAT0_HSUT0_CLK_EN));
 }
 
@@ -712,7 +714,8 @@ void elunchbox_pwr_ble_switch(bool on)
         func_key_lock_on_form_destroy();
 #endif
 #endif
-        gui_sleep(false);
+        //gui_sleep(false);
+        lunchbox_display_off();  // 仅关背光，不退出 TFT/CTP/GPU
         elunchbox_pwr_shutdown_yield();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         elunchbox_pwr_off_arm_wake_keys("ble_off");
@@ -850,7 +853,8 @@ static void elunchbox_screen_wake(void)
     if (sys_cb.gui_sleep_sta) {
         gui_wakeup();
     }
-    tft_bglight_force_on();
+    //tft_bglight_force_on();
+    lunchbox_display_on();  // 先开 VDDLCD → 再恢复背光（与 lunchbox_display_off 配对）
     elunchbox_user_activity_reset();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_port_gpio_init();
@@ -1156,7 +1160,7 @@ void func_process(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (guioff && elunchbox_pwr_is_manual_off()) {  //手动关机
-        printf("%s: %d\n",__func__,__LINE__); 
+        //printf("%s: %d\n",__func__,__LINE__); 
         WDT_CLR();  //喂狗->防止系统复位
 #if USER_PT8028_KEY
         pt8028_set_home_msg_block(0);
@@ -1202,13 +1206,14 @@ void func_process(void)
         }
         co_timer_pro(false);
         WDT_CLR();
-        
-        sleep_process(bt_is_allow_sleep);  //手动关机→深度休眠
+
+        //sleep_process(bt_is_allow_sleep);  //手动关机→深度休眠
+        //lunchbox_display_off();  // 已在 elunchbox_pwr_manual_shutdown() 中调用，循环里无需重复
         return;
     }
 #endif
 
-    if (gui_get_auto_power_en() && !guioff) {    //唤醒
+    if (gui_get_auto_power_en() && !guioff) {    //唤醒  !guioff
         sys_clk_req(INDEX_GUI, SYS_192M);        //恢复主频率
     }
 
@@ -1298,7 +1303,7 @@ void func_process(void)
 #endif
 #endif
 
-    } else if (guioff) {
+    } else if (guioff) {  //guioff && !manual_off
 #if ELUNCHBOX_PANEL_EN
         elunchbox_guioff_idle_process();   //熄屏空闲处理
         /* 预约加热已由加热模块自动启动 → 唤醒并跳转加热界面 */
@@ -1334,14 +1339,17 @@ void func_process(void)
     }
 
     
-    if (sleep_process(bt_is_allow_sleep)) {  //自动息屏/休眠入->idel 计时到期 → sleep_process → sfunc_sleep 深度休眠 
+    // guioff 时已熄屏，只需 lunchbox_display_off()；亮屏时才走 sleep_process 处理 idle 超时
+    if (!guioff && sleep_process(bt_is_allow_sleep)) {
         bt_cb.disp_status = 0xff;
     }
 #if ELUNCHBOX_PANEL_EN
-    //自动关机超时无操作
+    //自动关机超时无操作 → 仅关背光
     if (elunchbox_pwr_pending_auto_shutdown) {
         elunchbox_pwr_pending_auto_shutdown = false;
-        elunchbox_pwr_manual_shutdown();
+        //elunchbox_pwr_manual_shutdown();
+        elunchbox_pwr_gui_off = true;
+        lunchbox_display_off();  //只关背光
     }
 #endif
 #if ELUNCHBOX_KEEP_AWAKE && ELUNCHBOX_PANEL_EN
