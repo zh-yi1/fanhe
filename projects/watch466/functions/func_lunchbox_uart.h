@@ -1,5 +1,5 @@
 /*
-    智能盒饭 - UART串口协议 (MCU通信协议.md v1.0.8)
+    智能盒饭 - UART串口协议 (MCU通信协议.md v1.0.7)
     智能盒饭 - BLE蓝牙协议 (蓝牙通讯协议1.0.7.md v1.0.7)
 
     引脚: TX=PB8=UT1TXMAP_G2_PB8
@@ -43,7 +43,7 @@
 enum {
     LB_DPID_POWER_SWITCH    = 1,        // 总开关: bool, 1=开 0=关
     LB_DPID_HEAT_MODE       = 2,        // 加热模式: enum, 0=关 1=自定义 2=鸡腿 3=意面 4=预约 5=保温
-    LB_DPID_BATTERY         = 3,        // 电量: enum, 1=低 2=中 3=高 4=满
+    LB_DPID_BATTERY         = 3,        // 电量: enum, 0=没电 1=低 2=中 3=高 4=满
     LB_DPID_CHARGE_STATUS   = 4,        // 充电状态: enum, 0=未充电 1=充电中 2=已充满
     LB_DPID_HEAT_DURATION   = 5,        // 加热时长: value(4B), 60~210 分钟
     LB_DPID_REMAIN_TIME     = 6,        // 剩余加热时间: value(4B), 分钟
@@ -54,11 +54,11 @@ enum {
     LB_DPID_MCU_VERSION     = 13,       // MCU版本号: value(4B), 固件版本号 (v1.0.7 新增)
     LB_DPID_TIME_SYNC       = 11,       // app同步时间戳: value(4B) unix时间 (APP→加热模块设置时间)
     LB_DPID_KEY_NOTIFY      = 12,       // 模组按键通知: enum, 0-9, MCU→加热模块通知按键按下
-    LB_DPID_RTC_TIME        = 14,       // rtc的unix时间: value(4B) unix时间 (加热模块→MCU上报设备时间, v1.0.8新增)
+    LB_DPID_RTC_TIME        = 14,       // rtc的unix时间: value(4B) unix时间 (加热模块→MCU上报设备时间, v1.0.7新增)
 };
 
-#define LB_HEAT_DURATION_MIN_MIN          60      // 加热时长下限(分钟)，UI 最低 1 小时
-#define LB_HEAT_DURATION_MAX_MIN          120     // UI 加热时长上限(分钟)，产品上限 2 小时
+#define LB_HEAT_DURATION_MIN_MIN          30      // 加热时长下限(分钟)，协议范围 30-210 (v1.0.7 §4)
+#define LB_HEAT_DURATION_MAX_MIN          210     // 加热时长上限(分钟)，协议范围 30-210 (v1.0.7 §4)
 
 // DataPoint 数据类型
 #define LB_DP_TYPE_BOOL     0x01
@@ -73,7 +73,7 @@ enum {
 typedef struct {
     u8  id;                             // 唯一标识 (1~255, 0=无效/自动分配)
     char name[32];                      // 预约名称, 不足补0
-    u32 time;                           // 结束时间（秒, 从0:00起, 大端）
+    u32 time;                           // 开始加热的Unix时间戳（秒, 大端）
     u8  temp;                           // 温度档位 (0~10)
     u8  duration;                       // 加热时长（分钟）
     u8  enabled;                        // 0=关闭, 1=开启
@@ -183,14 +183,14 @@ enum {
 #define LB_OTA_RESULT_SUCCESS       0x01    // 升级成功
 
 //-----------------------------------------------------------------------------
-// MCU UART 命令字 (MCU通信协议.md v1.0.8 — MCU ↔ 加热模块)
+// MCU UART 命令字 (MCU通信协议.md v1.0.7 — MCU ↔ 加热模块)
 //-----------------------------------------------------------------------------
 enum {
     LB_UART_CMD_DYNAMIC     = 0x01,     // 查询设备动态属性+状态上报(合并)
     LB_UART_CMD_SCHEDULE    = 0x02,     // 查询预约列表
     LB_UART_CMD_SCHEDULE_OP = 0x03,     // 新增/修改/删除预约(合并)
     LB_UART_CMD_OTA         = 0x04,     // OTA(合并start/transfer/end)
-    LB_UART_CMD_HEARTBEAT   = 0x05,     // 心跳包: MCU↔加热模块, 验证双方在线 (MCU协议 v1.0.8 §6.1)
+    LB_UART_CMD_HEARTBEAT   = 0x05,     // 心跳包: MCU↔加热模块, 验证双方在线 (MCU协议 v1.0.7 §6.1)
 };
 
 /*
@@ -200,6 +200,15 @@ enum {
 enum {
     LB_ERR_SUCCESS = 0x00,
     LB_ERR_EXEC_FAIL = 0x01,
+};
+
+//-----------------------------------------------------------------------------
+// 加热温度档位 (MCU通信协议 §4.1.4 ID=7): 0=40°C .. 6=100°C
+//-----------------------------------------------------------------------------
+#define LB_HEAT_TEMP_CNT    7
+
+static const u16 tbl_heat_temp_f[LB_HEAT_TEMP_CNT] = {
+    104, 122, 140, 158, 176, 194, 212,
 };
 
 //-----------------------------------------------------------------------------

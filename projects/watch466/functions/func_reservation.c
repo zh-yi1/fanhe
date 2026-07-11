@@ -153,7 +153,6 @@
 #define RES_HEAT_TIMER_TR_M1_X            ((s16)((s32)283 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
 
 #define RES_HEAT_LOCK_MS                  30000
-#define RES_TEMP_PRESET_CNT               7
 #define RES_MIN_STEP                      5
 #define RES_MSG_OK                        KU_BACK
 #define RES_MSG_PLUS                      KU_VOL_UP
@@ -289,10 +288,6 @@ static u16 func_res_gpu_pic_h(const u8 *ram)
     return GET_LE16(&ram[6]);
 }
 #endif
-
-static const u16 tbl_res_temp_preset[RES_TEMP_PRESET_CNT] = {
-    104, 122, 140, 158, 176, 194, 212,
-};
 
 static const u32 tbl_res_w_digit_addr[10] = {
     UI_BUF_HOME_W0X_BIN, UI_BUF_HOME_W1X_BIN, UI_BUF_HOME_W2X_BIN, UI_BUF_HOME_W3X_BIN,
@@ -472,10 +467,10 @@ static void func_reservation_led_sync(void)
 
 static u16 func_res_get_target_temp_f(u8 temp_idx)
 {
-    if (temp_idx >= RES_TEMP_PRESET_CNT) {
-        return tbl_res_temp_preset[0];
+    if (temp_idx >= LB_HEAT_TEMP_CNT) {
+        return tbl_heat_temp_f[0];
     }
-    return tbl_res_temp_preset[temp_idx];
+    return tbl_heat_temp_f[temp_idx];
 }
 
 /** RTC 日历 tm → Unix 秒（tm_to_time 为 2020 纪元，+LB_RTC_UNIX_OFFSET 转 Unix） */
@@ -1148,9 +1143,9 @@ static void func_res_start_heating(f_reservation_t *f_res)
 
 #if FUNC_LUNCHBOX_UART_EN
     {
-        u16 temp_f = (f_res->temp_idx < RES_TEMP_PRESET_CNT)
-                   ? tbl_res_temp_preset[f_res->temp_idx]
-                   : tbl_res_temp_preset[0];
+        u16 temp_f = (f_res->temp_idx < LB_HEAT_TEMP_CNT)
+                   ? tbl_heat_temp_f[f_res->temp_idx]
+                   : tbl_heat_temp_f[0];
         u32 duration_min = f_res->heat_total_sec / 60;
 
         if (duration_min == 0) {
@@ -1237,9 +1232,9 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
 #if FUNC_LUNCHBOX_UART_EN
     {
         u32 unix_time = g_res.appt_unix;
-        u16 temp_f = (f_res->temp_idx < RES_TEMP_PRESET_CNT)
-                   ? tbl_res_temp_preset[f_res->temp_idx]
-                   : tbl_res_temp_preset[0];
+        u16 temp_f = (f_res->temp_idx < LB_HEAT_TEMP_CNT)
+                   ? tbl_heat_temp_f[f_res->temp_idx]
+                   : tbl_heat_temp_f[0];
         u8 duration = (u8)((u32)f_res->heat_hour * 60 + (u32)f_res->heat_min);
 
         if (duration < LB_HEAT_DURATION_MIN_MIN) {
@@ -1336,7 +1331,7 @@ void func_reservation_new_ui_submit_time(u8 hour, u8 min, u8 sec)
 #endif
 
 #if FUNC_LUNCHBOX_UART_EN
-    temp_f = tbl_res_temp_preset[g_res.temp_idx];
+    temp_f = tbl_heat_temp_f[g_res.temp_idx];
     duration = (u8)((u32)g_res.heat_hour * 60 + (u32)g_res.heat_min);
     if (duration < LB_HEAT_DURATION_MIN_MIN) {
         duration = LB_HEAT_DURATION_MIN_MIN;
@@ -1384,7 +1379,7 @@ void func_reservation_new_ui_do_submit(void)
 #endif
 
 #if FUNC_LUNCHBOX_UART_EN
-    temp_f = tbl_res_temp_preset[g_res.temp_idx];
+    temp_f = tbl_heat_temp_f[g_res.temp_idx];
     duration = (u8)((u32)g_res.heat_hour * 60 + (u32)g_res.heat_min);
     if (duration < LB_HEAT_DURATION_MIN_MIN) {
         duration = LB_HEAT_DURATION_MIN_MIN;
@@ -1600,7 +1595,7 @@ static void func_res_value_inc(f_reservation_t *f_res)
             break;
 
         case RES_FOCUS_HEAT_TEMP:
-            if (f_res->temp_idx + 1 < RES_TEMP_PRESET_CNT) {
+            if (f_res->temp_idx + 1 < LB_HEAT_TEMP_CNT) {
                 f_res->temp_idx++;
             }
             f_res->last_temp_f = 0xffff;
@@ -1795,9 +1790,9 @@ static void func_res_trigger_heating_uart_from_global(void)
     u16 temp_f;
     u32 duration_min;
 
-    temp_f = (g_res.temp_idx < RES_TEMP_PRESET_CNT)
-           ? tbl_res_temp_preset[g_res.temp_idx]
-           : tbl_res_temp_preset[0];
+    temp_f = (g_res.temp_idx < LB_HEAT_TEMP_CNT)
+           ? tbl_heat_temp_f[g_res.temp_idx]
+           : tbl_heat_temp_f[0];
     duration_min = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
     if (duration_min == 0) {
         duration_min = LB_HEAT_DURATION_MIN_MIN;

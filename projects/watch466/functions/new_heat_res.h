@@ -12,7 +12,7 @@
 #define NEW_HEAT_PROGRESS_OVERLAY_RAM_SIZE    43568
 #define NEW_HEAT_SHOW_RAM_SIZE                23696
 
-#define NEW_HEAT_TEMP_CNT                 5
+#define NEW_HEAT_TEMP_CNT                 7
 #define NEW_HEAT_TIME_CNT                 13
 
 /* 时长刻度相关索引 */
