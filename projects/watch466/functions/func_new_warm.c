@@ -550,7 +550,15 @@ static void new_warm_heating_start(f_new_warm_t *f)
         return;
     }
 #if FUNC_LUNCHBOX_UART_EN
+#if ELUNCHBOX_PANEL_EN
+    if (home_ui_shared_battery_is_charging()) {
+        lunchbox_warm_mark_active();
+    } else {
+        lunchbox_keep_warm_apply();
+    }
+#else
     lunchbox_keep_warm_apply();
+#endif
 #endif
     f->heating = true;
     f->start_tick = tick_get();

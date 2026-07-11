@@ -190,7 +190,7 @@ void func_elunchbox_uart_stop_and_home(void)
     func_elunchbox_ble_cancel_pending_switch();
 #if FUNC_LUNCHBOX_UART_EN
     heat_display_unregister();
-    lunchbox_heat_stop();
+    lunchbox_heat_clear_local();
 #endif
     if (func_cb.sta == FUNC_HEAT) {
         func_heat_prepare_ble_stop();
@@ -285,19 +285,9 @@ void func_elunchbox_switch_to_warm_panel(void)
 bool func_elunchbox_charging_redirect_warm(void)
 {
 #if ELUNCHBOX_PANEL_EN
-    if (!home_ui_shared_battery_is_charging()) {
-        return false;
-    }
-    if (func_cb.sta == FUNC_NEW_WARM) {
+    /* 充电中界面跳转只跟 UART 上报，本地不再主动切保温 */
+    if (home_ui_shared_battery_is_charging() && func_cb.sta == FUNC_NEW_WARM) {
         home_ui_shared_battery_icon_refresh();
-        return true;
-    }
-    if (sys_cb.flag_swithing || elunchbox_ble_pending_sta == FUNC_NEW_WARM) {
-        return true;
-    }
-    if (func_cb.sta == FUNC_HEAT && func_cb.f_cb != NULL && func_heat_ui_is_heating()) {
-        func_elunchbox_enter_warm_from_charging();
-        return true;
     }
 #endif
     return false;

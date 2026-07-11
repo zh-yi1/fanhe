@@ -179,8 +179,15 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
 
     u16 data_len = (u16)(p - data);
+#if ELUNCHBOX_PANEL_EN
+    if (home_ui_shared_battery_is_charging()) {
+        printf("lb: heat_start skipped UART (charging RX-only)\n");
+        goto heat_start_local_done;
+    }
+#endif
     lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
 
+heat_start_local_done:
 #if ELUNCHBOX_PANEL_EN
     if (!elunchbox_pwr_is_manual_off()
         && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
@@ -212,6 +219,11 @@ void lunchbox_heat_stop(void)
     lb_keep_warm_active = false;
     lb_heat_lcd_active = false;
     lb_heat_task_active = false;
+#if ELUNCHBOX_PANEL_EN
+    if (home_ui_shared_battery_is_charging()) {
+        return;
+    }
+#endif
     u8 data[32];
     u8 *p = data;
 
@@ -228,6 +240,21 @@ void lunchbox_heat_stop(void)
 #endif
 }
 
+/** @brief MCU 已下发停止时仅清本地加热状态，不向加热模块回发 UART */
+void lunchbox_heat_clear_local(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    func_key_lock_on_heating_stop();
+#endif
+    lb_keep_warm_active = false;
+    lb_heat_lcd_active = false;
+    lb_heat_task_active = false;
+#if !LB_BRIDGE_MODE
+    lb_attr_heat_enable = 0;
+    lb_attr_heat_mode   = 0;
+#endif
+}
+
 //-----------------------------------------------------------------------------
 // 保温控制
 //-----------------------------------------------------------------------------
@@ -238,7 +265,7 @@ void lunchbox_keep_warm_set_temp_idx(u8 temp_idx)
 }
 
 #if ELUNCHBOX_PANEL_EN
-static void lunchbox_warm_mark_active(void)
+void lunchbox_warm_mark_active(void)
 {
     lb_keep_warm_active = true;
     lb_heat_lcd_active = true;
@@ -739,6 +766,12 @@ static bool lunchbox_control_apply_stop_heat(const u8 *data, u16 len)
 /** @brief 0x04 控制帧：面板侧总开关 + 加热页跳转 */
 void lunchbox_control_apply_panel(const u8 *data, u16 len)
 {
+#if ELUNCHBOX_PANEL_EN
+    /* 充电时界面跳转只跟 UART 上报，BLE 0x04 不切页 */
+    if (home_ui_shared_battery_is_charging()) {
+        return;
+    }
+#endif
     lunchbox_control_apply_power_switch(data, len);
     if (lunchbox_control_apply_stop_heat(data, len)) {
         return;

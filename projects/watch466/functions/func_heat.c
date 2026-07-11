@@ -837,11 +837,6 @@ void func_heat_ble_remote_restart(void)
 
     func_heat_led_sync(true);
     func_heat_panel_mark_dirty(f_heat);
-    if (home_ui_shared_battery_is_charging()) {
-        home_ui_shared_battery_icon_refresh();
-        func_elunchbox_enter_warm_from_charging();
-        return;
-    }
     {
         u8 was_blocked = elunchbox_te_block_flag;
         if (!was_blocked) {
@@ -1259,13 +1254,6 @@ void func_heat_enter(void)
         return;
     }
 
-    /* 充电中进入立即加热面板：直接保温（不闪加热 UI） */
-    if (home_ui_shared_battery_is_charging() && func_heat_ui_is_heating()) {
-        home_ui_shared_battery_icon_refresh();
-        func_elunchbox_enter_warm_from_charging();
-        return;
-    }
-
     home_gpu_wait_idle();
     WDT_CLR();
     {
@@ -1552,9 +1540,17 @@ static void func_elunchbox_enter_warm_from_heat_body(void)
     func_heat_led_sync(false);
     heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
+#if ELUNCHBOX_PANEL_EN
+    if (func_elunchbox_warm_from_charging()) {
+        lunchbox_warm_mark_active();
+    } else if (!lunchbox_keep_warm_is_active()) {
+        lunchbox_keep_warm_start();
+    }
+#else
     if (!lunchbox_keep_warm_is_active()) {
         lunchbox_keep_warm_start();
     }
+#endif
 #endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     func_key_lock_on_heating_stop();

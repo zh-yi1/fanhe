@@ -25,6 +25,9 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration);
 /** @brief LCD 停止加热 — 构造 UART 0x01 帧发给加热模块 */
 void lunchbox_heat_stop(void);
 
+/** @brief MCU 已下发停止时仅清本地状态，不回发 UART */
+void lunchbox_heat_clear_local(void);
+
 /** @brief LCD 开机 — 发送 PowerSwitch=ON 给加热模块 */
 void lunchbox_power_on(void);
 
@@ -52,6 +55,11 @@ bool lunchbox_keep_warm_is_active(void);
 
 /** @brief 主循环轮询保温 (低电关机时停止) */
 void lunchbox_keep_warm_poll(void);
+
+#if ELUNCHBOX_PANEL_EN
+/** @brief 仅更新本地保温/加热任务标志（充电 RX-only 时不发 UART） */
+void lunchbox_warm_mark_active(void);
+#endif
 
 //-----------------------------------------------------------------------------
 // 预约管理

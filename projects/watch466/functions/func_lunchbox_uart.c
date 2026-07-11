@@ -13,6 +13,7 @@
 #include "func_lunchbox_uart_internal.h"
 #include "func_lunchbox_ota.h"
 #include "func_lunchbox_bridge.h"
+#include "home_ui_shared.h"
 #include "func_lunchbox_ble.h"
 
 #include "func_lunchbox_lcd.h"
@@ -413,11 +414,24 @@ static void lb_timeout_check(void)
  *   - lb_ble_tx_fn == NULL  → uart_bufs_tx() 走串口 PB8 发出
  *   - lb_ble_tx_fn != NULL  → lb_ble_tx_fn() 走 BLE Notify 发出
  */
+#if ELUNCHBOX_PANEL_EN
+/** 充电中仅接收加热模块 UART，主动下发由 MCU 侧完成；心跳应答除外 */
+static bool lb_uart_tx_skip_charging(u8 cmd)
+{
+    return home_ui_shared_battery_is_charging() && cmd != LB_UART_CMD_HEARTBEAT;
+}
+#endif
+
 static void lb_send_frame(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
 {
     if (lb_uart_tx_blocked) {
         return;  /* 手动关机期间禁止 UART TX */
     }
+#if ELUNCHBOX_PANEL_EN
+    if (lb_ble_tx_fn == NULL && lb_uart_tx_skip_charging(cmd)) {
+        return;
+    }
+#endif
     u16 off = 0;
     lb_tx_buf[off++] = (u8)(LB_FRAME_HEADER >> 8);  // 0x55
     lb_tx_buf[off++] = (u8)LB_FRAME_HEADER;          // 0xaa
@@ -1063,6 +1077,11 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
     if (lb_uart_tx_blocked) {
         return;  /* 手动关机期间禁止 UART TX */
     }
+#if ELUNCHBOX_PANEL_EN
+    if (lb_uart_tx_skip_charging(uart_cmd)) {
+        return;
+    }
+#endif
     u8 buf[LB_TXBUF_SIZE];
     u16 off = 0;
     static u8 s_uart_msg_flag = 0;

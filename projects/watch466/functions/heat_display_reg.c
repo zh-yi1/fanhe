@@ -51,6 +51,18 @@ static bool heat_display_warm_exit_try(void)
     heat_display_warm_exit_pending = true;
     return true;
 }
+
+/** 充电中 MCU 上报 DP02=5 时是否应切保温（须已有加热任务，空闲 Home 插电不跳） */
+static bool heat_display_charging_warm_should_enter(bool got_enable, bool heating)
+{
+    if (func_cb.sta == FUNC_HEAT && func_heat_ui_is_heating()) {
+        return true;
+    }
+    if (got_enable && heating) {
+        return true;
+    }
+    return false;
+}
 #endif
 
 static void heat_display_notify(void)
@@ -279,6 +291,12 @@ void heat_display_feed_dp(u8 *data, u16 len)
 #if ELUNCHBOX_PANEL_EN
     if (got_charge) {
         home_ui_shared_battery_charge_apply(charge_val);
+        if (ui_ok) {
+            home_ui_shared_battery_icon_refresh();
+        }
+        if (charge_val == 1) {
+            heat_display_charge_pending = true;
+        }
     }
 #endif
 
@@ -294,17 +312,12 @@ void heat_display_feed_dp(u8 *data, u16 len)
         return;
     }
 
-    /* 充电中且正在加热：立即刷新充电图标并跳转保温页 */
-    if (func_heat_ui_is_heating()
-        && heat_display_charging_now(got_charge, charge_val)) {
-        home_ui_shared_battery_icon_refresh();
-        if (func_elunchbox_charging_redirect_warm()) {
-            return;
-        }
-    }
-#endif
+    /* ── 充电保温路由（仅 UART 驱动，显示端充电时不发指令）────────────────
+     * 1) 加热中插电 / 先充后加热：保持加热 UI，等 MCU 发 DP02=5 → 保温
+     * 2) 保温中拔电：DP10=0 或 DP02=0 → Home；DP10=1 且非保温模式 → 加热
+     * 3) 空闲 Home 仅 DP04：只刷新充电图标，不因 DP02=5 跳保温
+     * ─────────────────────────────────────────────────────────────────── */
 
-#if ELUNCHBOX_PANEL_EN
     /* 预约加热已由加热模块自动启动 → 跳转加热界面
      * UART 回调可能在 func_reservation_poll() 之前触发，必须在此处预设加热参数
      * (autostart + mode_to_heat)，避免 func_heat 进入后因没有 autostart 而跳转到设置页 */
@@ -327,12 +340,17 @@ void heat_display_feed_dp(u8 *data, u16 len)
         return;
     }
 
-    /* 串口保温指令：加热中+充电 → 立即切保温（勿等 heat_live_ready） */
-    if (got_warm_mode && func_heat_ui_is_heating()
-        && heat_display_charging_now(got_charge, charge_val)) {
-        printf("[LCD_REG] feed_dp: warm cmd while charging+heating\n");
-        func_elunchbox_enter_warm_from_charging();
-        return;
+    /* 充电中：MCU 上报 DP02=5 且存在加热任务 → 保温页 */
+    if (got_warm_mode && heat_display_charging_now(got_charge, charge_val)) {
+        if (func_cb.sta != FUNC_NEW_WARM
+            && heat_display_charging_warm_should_enter(got_enable, heating)) {
+            printf("[LCD_REG] feed_dp: DP02=5 charging+heating -> warm panel\n");
+            func_elunchbox_enter_warm_from_charging();
+            return;
+        }
+        if (func_cb.sta == FUNC_NEW_WARM) {
+            return;
+        }
     }
 
     if (got_warm_mode && func_heat_uart_finish_ok()) {
@@ -367,25 +385,17 @@ void heat_display_feed_dp(u8 *data, u16 len)
             return;
         }
     }
-#endif
 
     /* 加热已停止：清零 remain，让 heat_display_heating_active() 返回 false，避免阻止息屏/误唤醒 */
     if (got_enable && !heating) {
         printf("[LCD_REG] feed_dp: heating stopped, clear remain\n");
-#if ELUNCHBOX_PANEL_EN
         if (func_cb.sta == FUNC_NEW_WARM && heat_display_charging_now(got_charge, charge_val)) {
-            return;
-        }
-        if (func_cb.sta == FUNC_HEAT && heat_display_charging_now(got_charge, charge_val)
-            && func_heat_ui_is_heating()) {
-            func_elunchbox_charging_redirect_warm();
             return;
         }
         if (func_heat_uart_finish_ok()) {
             func_elunchbox_enter_warm_from_heat();
             return;
         }
-#endif
         if (heat_display_has_last && heat_display_last.remain_min > 0) {
             heat_display_last.remain_min = 0;
             heat_display_notify();
@@ -393,12 +403,8 @@ void heat_display_feed_dp(u8 *data, u16 len)
         return;
     }
 
-#if ELUNCHBOX_PANEL_EN
-    /* 保温页 + 充电中：模块 HeatEn=ON 为保温运行，勿跳回加热/设置页 */
+    /* 保温页 + 充电中：HeatEn=ON 为保温运行，勿跳回加热/设置页 */
     if (func_cb.sta == FUNC_NEW_WARM && heat_display_charging_now(got_charge, charge_val)) {
-        if (got_charge) {
-            home_ui_shared_battery_icon_refresh();
-        }
         return;
     }
 
@@ -413,7 +419,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
         return;
     }
 
-    /* 因充电进保温：拔电后串口下发继续加热 → 回加热界面 */
+    /* 因充电进保温：拔电后 MCU 下发继续加热 → 回加热界面 */
     if (got_enable && heating && func_cb.sta == FUNC_NEW_WARM
         && func_elunchbox_warm_from_charging()
         && !heat_display_charging_now(got_charge, charge_val) && !got_warm_mode) {
@@ -424,6 +430,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
         return;
     }
 #endif
+
     if (got_remain && got_temp) {
         heat_display_show(remain_min, temp_f);
 #if ELUNCHBOX_PANEL_EN
@@ -452,13 +459,11 @@ void heat_display_feed_dp(u8 *data, u16 len)
         }
     }
 
-    /* 充电中：刷新电量图标并唤醒息屏 */
-    if (got_charge && charge_val != 0) {
-        printf("[LCD_REG] feed_dp: charging, notify LCD\n");
-        home_ui_shared_battery_icon_refresh();
+#if ELUNCHBOX_PANEL_EN
+    if (got_charge && ui_ok) {
         heat_display_notify();
-        heat_display_charge_pending = true;
     }
+#endif
 }
 
 bool heat_display_charge_wake_pending(void)

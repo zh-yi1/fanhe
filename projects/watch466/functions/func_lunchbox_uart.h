@@ -419,6 +419,11 @@ bool lunchbox_keep_warm_is_active(void);
 /** @brief 主循环轮询保温 (低电关机时停止) */
 void lunchbox_keep_warm_poll(void);
 
+#if ELUNCHBOX_PANEL_EN
+/** @brief 仅更新本地保温/加热任务标志（充电 RX-only 时不发 UART） */
+void lunchbox_warm_mark_active(void);
+#endif
+
 /** @brief LCD 按键通知 — 构造 UART 0x01 DataPoint(dpid=12) 帧发往加热模块
  *  @param key_val  按键值: 0-9, 每个按键对应不同的值 */
 void lunchbox_key_notify(u8 key_val);
