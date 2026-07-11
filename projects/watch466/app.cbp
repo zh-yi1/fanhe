@@ -882,6 +882,9 @@
 		<Unit filename="functions/func_lunchbox_off.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_lunchbox_wake.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_lunchbox_ble.c">
 			<Option compilerVar="CC" />
 		</Unit>

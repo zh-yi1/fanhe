@@ -6,6 +6,7 @@
 #include "func_new_home.h"
 #include "heat_display_reg.h"
 #include "func_lunchbox_off.h"
+#include "func_lunchbox_wake.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "home_ui_lowbat_overlay.h"
@@ -715,6 +716,7 @@ void elunchbox_pwr_ble_switch(bool on)
 #endif
 #endif
         //gui_sleep(false);
+        elunchbox_saved_clkgat0 = CLKGAT0;  // 唤醒时需恢复，否则 CLKGAT0=0→8001 蓝屏
         lunchbox_display_off();  // 仅关背光，不退出 TFT/CTP/GPU
         elunchbox_pwr_shutdown_yield();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -879,7 +881,14 @@ static void elunchbox_screen_wake(void)
 #if ELUNCHBOX_PANEL_EN
     home_ui_shared_status_inited = false;
     home_ui_shared_status_lock_preloaded = false;
+    /* boot_init 会把 home_bat_charge 重置为 0，但 guioff 期间 UART 已收到正确值。
+       手动关机路径靠 was_manual=true → lunchbox_power_on() 重新查询得到修正；
+       自动关屏路径无此修正，故须先保存再恢复，否则充电图标永远不显示。 */
+    bool bat_was_charging = home_ui_shared_battery_is_charging();
     home_ui_shared_battery_boot_init();
+    if (bat_was_charging) {
+        home_ui_shared_battery_charge_apply(1);
+    }
     func_home_gui_mark_dirty();
     /* 手动关机时若不在 Home，改 sta 后由 func_home_enter 重建 UI */
     if (!go_home && func_cb.sta == FUNC_HOME) {
@@ -1228,7 +1237,7 @@ void func_process(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-    if (!guioff || !sys_cb.gui_sleep_sta)
+    if (!guioff || !sys_cb.gui_sleep_sta)   //
 #endif
     tft_bglight_frist_set_check();  //背光检测
 
@@ -1303,14 +1312,24 @@ void func_process(void)
 #endif
 #endif
 
-    } else if (guioff) {  //guioff && !manual_off
+    } else if (guioff) {  //guioff && !manual_off 自动息屏
 #if ELUNCHBOX_PANEL_EN
-        elunchbox_guioff_idle_process();   //熄屏空闲处理
+        elunchbox_guioff_idle_process();   //熄屏空闲处理(UART收数据→可能设 charge/heat pending)
+        /* 充电中唤醒→加热模块发来充电状态，检测到充电则唤醒。
+           模仿手动关机充电唤醒：elunchbox_screen_wake 中 go_home=false(非手动)，
+           不会自动切 HOME，需显式切到 HOME 页确保充电图标刷新 */
+        if (heat_display_charge_wake_pending()) {
+            printf("elunchbox: charge DP wakes screen from guioff\n");
+            elunchbox_pwr_gui_wake();
+            func_cb.sta = FUNC_HOME;
+            return;
+        }
         /* 预约加热已由加热模块自动启动 → 唤醒并跳转加热界面 */
         if (heat_display_heat_wake_pending() && g_res.setup_done) {
             printf("elunchbox: reservation heating wakes screen from guioff\n");
             elunchbox_pwr_gui_wake();
             func_elunchbox_switch_to_heat_panel();
+            return;
         }
         pt8028_gpio_ensure_periodic();
         pt8028_key_scan();
@@ -1329,7 +1348,7 @@ void func_process(void)
 //    }
 //#endif//OPUS_ENC_EN
 
-    if (!elunchbox_pwr_is_manual_off()) {
+    if (!elunchbox_pwr_is_manual_off()) {  
         co_timer_pro(false);
         bsp_sensor_step_pro_isr(); //wu guan
 
@@ -1339,6 +1358,16 @@ void func_process(void)
     }
 
     
+
+#if FUNC_LUNCHBOX_UART_EN
+    /* UART 必须在 sleep_process 之前处理：预约加热来的指令先解析
+       → lb_attr_heat_enable=1 → elunchbox_heating_blocks_idle()=true
+       → sleep_process 内的自动关屏判断才能正确跳过，避免"先关屏再唤醒"的抖动 */
+    if (!guioff) {
+        lunchbox_uart_process();
+    }
+#endif
+
     // guioff 时已熄屏，只需 lunchbox_display_off()；亮屏时才走 sleep_process 处理 idle 超时
     if (!guioff && sleep_process(bt_is_allow_sleep)) {
         bt_cb.disp_status = 0xff;
@@ -1349,6 +1378,7 @@ void func_process(void)
         elunchbox_pwr_pending_auto_shutdown = false;
         //elunchbox_pwr_manual_shutdown();
         elunchbox_pwr_gui_off = true;
+        elunchbox_saved_clkgat0 = CLKGAT0;  // 必须在熄屏前保存，否则唤醒时 CLKGAT0=0→8001 蓝屏
         lunchbox_display_off();  //只关背光
     }
 #endif
@@ -1431,9 +1461,6 @@ void func_process(void)
    }
 
 #if FUNC_LUNCHBOX_UART_EN
-    if (!guioff) {
-        lunchbox_uart_process(); //串口
-    }
     /* 预约加热已由加热模块自动启动 → 亮屏时跳转加热界面 */
     if (!elunchbox_pwr_is_manual_off()
         && heat_display_heat_wake_pending() && g_res.setup_done
