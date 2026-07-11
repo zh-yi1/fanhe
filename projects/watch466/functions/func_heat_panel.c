@@ -611,7 +611,6 @@ extern u8 func_heat_panel_get_set_min(const void *f);
 extern u8 func_heat_panel_get_live_ready(const void *f);
 extern u32 func_heat_panel_get_remain_min(const void *f);
 extern u32 func_heat_panel_get_total_sec(const void *f);
-extern u32 func_heat_panel_get_start_tick(const void *f);
 
 static u16 heat_panel_total_min(const void *f_heat)
 {
@@ -634,30 +633,21 @@ static u16 heat_panel_total_min(const void *f_heat)
     return 1;
 }
 
-/* 蓝弧进度用本地计时（heat_start_tick），避免设备首包 remain 偏小导致开局非满弧 */
-static u32 heat_panel_arc_remain_min(const void *f_heat)
+/** 加热剩余分钟：优先 MCU 上报 DP06，首包前默认满时长 */
+static u32 heat_panel_remain_min_resolve(const void *f_heat)
 {
     u16 total_min;
-    u32 total_sec;
-    u32 start_tick;
-    u32 elapsed_ms;
-    u32 remain_sec;
+    u32 remain_min;
 
     total_min = heat_panel_total_min(f_heat);
-    total_sec = func_heat_panel_get_total_sec(f_heat);
-    start_tick = func_heat_panel_get_start_tick(f_heat);
-    if (start_tick == 0 || total_sec == 0) {
-        return total_min;
+    if (func_heat_panel_get_live_ready(f_heat)) {
+        remain_min = func_heat_panel_get_remain_min(f_heat);
+        if (remain_min > total_min) {
+            remain_min = total_min;
+        }
+        return remain_min;
     }
-    elapsed_ms = tick_get() - start_tick;
-    if (elapsed_ms >= total_sec * 1000UL) {
-        return 0;
-    }
-    remain_sec = total_sec - elapsed_ms / 1000UL;
-    if (remain_sec == 0) {
-        return 0;
-    }
-    return (remain_sec + 59U) / 60U;
+    return total_min;
 }
 
 static u8 heat_panel_progress_idx_resolve(const void *f_heat)
@@ -666,10 +656,7 @@ static u8 heat_panel_progress_idx_resolve(const void *f_heat)
     u32 remain_min;
 
     total_min = heat_panel_total_min(f_heat);
-    remain_min = heat_panel_arc_remain_min(f_heat);
-    if (remain_min > total_min) {
-        remain_min = total_min;
-    }
+    remain_min = heat_panel_remain_min_resolve(f_heat);
     return heat_panel_calc_progress_idx(total_min, remain_min);
 }
 
@@ -740,6 +727,7 @@ static void heat_panel_display_on_info(const heat_display_info_t *info)
         return;
     }
 
+    g_hp.last_progress_idx = 0xff;
     func_heat_panel_process(f_heat);
 }
 
@@ -784,14 +772,10 @@ static void heat_panel_text_apply(const void *f_heat)
     }
     heat_panel_font_apply_once();
     total_min = heat_panel_total_min(f_heat);
+    remain_min = heat_panel_remain_min_resolve(f_heat);
     if (func_heat_panel_get_live_ready(f_heat)) {
-        remain_min = func_heat_panel_get_remain_min(f_heat);
-        if (remain_min > total_min) {
-            remain_min = total_min;
-        }
         temp_f = func_heat_panel_get_live_temp_f(f_heat);
     } else {
-        remain_min = total_min;
         temp_f = heat_panel_target_temp_f(func_heat_panel_get_temp_idx(f_heat));
     }
 
@@ -954,7 +938,6 @@ void func_heat_panel_status_refresh(struct f_heat_t_ *f_heat)
 
 void func_heat_panel_process(struct f_heat_t_ *f_heat)
 {
-    u16 total_min;
     u32 remain_min;
     u8 progress_idx;
 
@@ -962,16 +945,8 @@ void func_heat_panel_process(struct f_heat_t_ *f_heat)
         return;
     }
 
-    total_min = heat_panel_total_min(f_heat);
+    remain_min = heat_panel_remain_min_resolve(f_heat);
     progress_idx = heat_panel_progress_idx_resolve(f_heat);
-    if (func_heat_panel_get_live_ready(f_heat)) {
-        remain_min = func_heat_panel_get_remain_min(f_heat);
-        if (remain_min > total_min) {
-            remain_min = total_min;
-        }
-    } else {
-        remain_min = heat_panel_arc_remain_min(f_heat);
-    }
 
     heat_panel_progress_apply(progress_idx);
 
@@ -1005,21 +980,15 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
     func_heat_panel_status_refresh(f_heat);
     printf("heat_panel_enter: status_refresh done\n");
 
-    u32 total_min, remain_min, arc_remain_min;
+    u32 total_min;
+    u32 remain_min;
     u8 progress_idx;
+
     total_min = heat_panel_total_min(f_heat);
-    arc_remain_min = heat_panel_arc_remain_min(f_heat);
-    if (func_heat_panel_get_live_ready(f_heat)) {
-        remain_min = func_heat_panel_get_remain_min(f_heat);
-        if (remain_min > total_min) {
-            remain_min = total_min;
-        }
-    } else {
-        remain_min = total_min;
-    }
+    remain_min = heat_panel_remain_min_resolve(f_heat);
     progress_idx = heat_panel_progress_idx_resolve(f_heat);
-    printf("heat_panel_enter: total=%u arc_remain=%u uart_remain=%u idx=%u live=%d\n",
-           total_min, arc_remain_min, remain_min, progress_idx,
+    printf("heat_panel_enter: total=%u uart_remain=%u idx=%u live=%d\n",
+           total_min, remain_min, progress_idx,
            func_heat_panel_get_live_ready(f_heat));
     g_hp.last_progress_idx = 0xff;
     heat_panel_progress_apply(progress_idx);
