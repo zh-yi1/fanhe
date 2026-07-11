@@ -19,7 +19,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_HEAT_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
 
 /*
- * 预约页 — 效果图「Set Time (Heating Finish Time)」
+ * 预约页 — 效果图「Set Time (Heating Start Time)」
  *   三列滚轮：时(0~23) / 分(5min步进) / 秒(5s步进)
  *   加/减：调节当前列；确认：切换列(时→分→秒→提交)
  *   电源：取消回 Home
@@ -127,7 +127,7 @@ static void new_res_font_apply_once(f_new_reservation_t *f)
     new_res_font_bind_txt(f->txt_colon[1]);
     new_res_font_ready = true;
 
-    /* 方式 3：覆盖标题 "Set Time(Heating Finish Time)" 为 14px 字体 */
+    /* 方式 3：覆盖标题 "Set Time(Heating Start Time)" 为 14px 字体 */
     compo_textbox_set_font(f->txt_title, UI_BUF_0FONT_FONT_TEST_14_BIN);
 }
 #endif
@@ -337,7 +337,7 @@ static void new_res_roller_content_apply(f_new_reservation_t *f)
         widget_set_location(widget,
                             GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y,
                             GUI_SCREEN_WIDTH - 16, 40);
-        compo_textbox_set(f->txt_title, "Set Time (Heating Finish Time)");
+        compo_textbox_set(f->txt_title, "Set Time (Heating Start Time)");
         rect = widget_get_location(widget);
         text_area = widget_text_get_area(widget);
         if (rect.hei > text_area.hei) {
@@ -521,7 +521,7 @@ compo_form_t *func_new_reservation_form_create(void)
 
     new_res_panel_create(frm);
 
-    /* 标题 "Set Time (Heating Finish Time)" = 32 字符，预置 32buf */
+    /* 标题 "Set Time (Heating Start Time)" = 32 字符，预置 32buf */
     txt = new_res_txt_create(frm, COMPO_ID_TXT_TITLE, 32,
                              GUI_SCREEN_CENTER_X, NEW_RES_TITLE_Y, GUI_SCREEN_WIDTH - 16, 28,
                              NEW_RES_COLOR_TITLE);

@@ -2,7 +2,7 @@
  * @file    func_lunchbox_uart.c
  * @brief   智能盒饭 - BLE+UART双协议实现 (大端, 同步/异步双模式)
  * @note    BLE侧: 蓝牙通讯协议1.0.7.md (APP ↔ MCU)
- *          UART侧: MCU通信协议.md v1.0.8 (MCU ↔ 加热模块)
+ *          UART侧: MCU通信协议.md v1.0.7 (MCU ↔ 加热模块)
  *          引脚: TX=PB8(UT1TXMAP_G2_PB8), RX=PB9(UT1RXMAP_G2_PB9)
  *          接收用 bsp_uart1_get_char() 轮询，不走 ISR 回调链
  *          >1 字节字段(data_len)采用大端传输
@@ -14,6 +14,7 @@
 #include "func_lunchbox_ota.h"
 #include "func_lunchbox_bridge.h"
 #include "func_lunchbox_ble.h"
+#include "func_lunchbox_partition.h"
 
 #include "func_lunchbox_lcd.h"
 #include "heat_display_reg.h"
@@ -32,7 +33,7 @@
 #define LB_TRACE(...)
 #endif
 
-// 心跳包数据定义 (MCU通信协议.md v1.0.8 §6.1)
+// 心跳包数据定义 (MCU通信协议.md v1.0.7 §6.1)
 // 加热模块每1分钟发一次请求，无回应则3秒重试，连续3次失败报警5声
 #define LB_HEARTBEAT_REQUEST    0x00    // 请求响应 (加热模块→MCU)
 #define LB_HEARTBEAT_RESPONSE   0x01    // 回复应答 (MCU→加热模块)
@@ -66,6 +67,22 @@ bool lb_ble_presets_pending = false;  // BLE 连接后等待 APP 时间戳应答
 bool lb_product_info_pending = false; // v1.0.7: 0x01 查询等待加热模块UART应答
 u8   lb_product_info_msg_flag = 0;    // 待完成 0x01 查询的 BLE msg_flag
 u32  lb_product_info_pend_tick = 0;   // 0x01 查询开始等待的时刻(tick), 超时用
+
+// 发送队列 + 重试机制 (定义见 func_lunchbox_partition.h)
+lb_send_q_item_t lb_send_queue[LB_SEND_QUEUE_SIZE];
+u8  lb_send_q_head;
+u8  lb_send_q_tail;
+u8  lb_send_q_count;
+
+bool lb_send_waiting;
+u8   lb_send_wait_msg;
+u8   lb_send_retry;
+u32  lb_send_tick;
+u8   lb_send_cur_cmd;
+u8   lb_send_cur_data[128];
+u16  lb_send_cur_dlen;
+
+u8   lb_uart_raw_msg_flag;
 
 // v1.0.7: 前向声明 — lb_frame_parse() 引用了这些定义在后面的符号
 u8  lb_pending_ble_cmd[256];
@@ -258,7 +275,9 @@ static bool lb_frame_parse(void)
     }
 
 #if FUNC_LUNCHBOX_UART_EN
-    if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.data && rx.data_len > 0) {
+    // 仅当加热模块执行成功 (err_flag == LB_ERR_SUCCESS) 时才将数据回调给屏幕
+    if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.data && rx.data_len > 0
+        && rx.err_flag == LB_ERR_SUCCESS) {
         lb_heating_sync_from_dp(rx.data, rx.data_len);
         heat_display_feed_dp(rx.data, rx.data_len);
 #if ELUNCHBOX_PANEL_EN
@@ -374,6 +393,11 @@ static bool lb_frame_parse(void)
         lb_ble_tx_fn = saved_ble;
     }
 #endif
+
+    // ──── 重试机制: 收到加热模块回应 (任意 cmd, msg_flag 匹配) 则清除等待 ────
+    if (lb_send_waiting && rx.msg_flag == lb_send_wait_msg) {
+        lb_send_waiting = false;
+    }
 
 lb_frame_cleanup:
     // 解析成功: 将缓冲区中剩余字节前移 (支持单次 BLE 写入含多帧的场景)
@@ -618,8 +642,12 @@ void lb_dp_dump_hex(const u8 *data, u16 data_len)
         case LB_DPID_LANGUAGE:        // 8: enum
             printf(" Lang=%d", val[0]);
             break;
-        case LB_DPID_FAULT: {         // 9: enum
-            static const char *faults[] = {"OK","HighTemp"};
+        case LB_DPID_FAULT: {         // 9: enum (0=正常, 1=故障)
+            // fault_code 详情见 MCU通信协议.md §4.1.6:
+            // 0x01=干烧超温 0x02=温升过快 0x03=NTC传感器故障 0x04=加热丝过流
+            // 0x05=上盖5V短路 0x06=NTC无响应 0x07=NTC未连接 0x08=NTC异常
+            // 0x09=蓝牙模组心跳超时 0x0a=低电上报 (v1.0.7新增)
+            static const char *faults[] = {"OK","Fault"};
             printf(" Fault=%s(%d)", val[0] < 2 ? faults[val[0]] : "?", val[0]);
             break;
         }
@@ -641,7 +669,7 @@ void lb_dp_dump_hex(const u8 *data, u16 data_len)
             printf(" MCUVersion=0x%08lX", (unsigned long)v);
             break;
         }
-        case LB_DPID_RTC_TIME: {     // 14: value(4B) 加热模块RTC时间 (v1.0.8新增)
+        case LB_DPID_RTC_TIME: {     // 14: value(4B) 加热模块RTC时间 (v1.0.7新增)
             u32 v = ((u32)val[0] << 24) | ((u32)val[1] << 16)
                   | ((u32)val[2] << 8)  |  (u32)val[3];
             printf(" RtcTime=%lu", (unsigned long)v);
@@ -1063,14 +1091,30 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
     if (lb_uart_tx_blocked) {
         return;  /* 手动关机期间禁止 UART TX */
     }
+
+    // 若已有指令等待加热模块回应 → 入队, 由 lb_uart_send_process() 后续处理
+    if (lb_send_waiting) {
+        if (lb_send_q_count < LB_SEND_QUEUE_SIZE) {
+            lb_send_q_item_t *q = &lb_send_queue[lb_send_q_tail];
+            q->cmd = uart_cmd;
+            q->data_len = (data_len <= sizeof(q->data)) ? data_len : sizeof(q->data);
+            if (data && q->data_len) memcpy(q->data, data, q->data_len);
+            lb_send_q_tail = (lb_send_q_tail + 1) % LB_SEND_QUEUE_SIZE;
+            lb_send_q_count++;
+        } else {
+            printf("lb_uart_send_raw: queue full, drop cmd=0x%02X\n", uart_cmd);
+        }
+        return;
+    }
+
+    // 构建帧并立即发送
     u8 buf[LB_TXBUF_SIZE];
     u16 off = 0;
-    static u8 s_uart_msg_flag = 0;
 
     buf[off++] = (u8)(LB_FRAME_HEADER >> 8);  // 0x55
     buf[off++] = (u8)LB_FRAME_HEADER;          // 0xAA
     buf[off++] = LB_FRAME_VERSION;
-    buf[off++] = s_uart_msg_flag++;             // msg_flag 自增
+    buf[off++] = lb_uart_raw_msg_flag;          // msg_flag (自增前保存用于匹配回应)
     buf[off++] = uart_cmd;
     buf[off++] = LB_ERR_SUCCESS;
     buf[off++] = (u8)(data_len >> 8);           // data_len 大端
@@ -1090,7 +1134,18 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
         lb_dp_dump_hex(data, data_len);
     }
 
-    uart_bufs_tx(UART_TYPE_1,buf, off);
+    uart_bufs_tx(UART_TYPE_1, buf, off);
+
+    // 标记等待加热模块回应 (等待的 msg_flag = 自增前的 lb_uart_raw_msg_flag)
+    lb_send_waiting   = true;
+    lb_send_wait_msg  = lb_uart_raw_msg_flag;
+    lb_send_retry     = 0;
+    lb_send_tick      = tick_get();
+    lb_send_cur_cmd   = uart_cmd;
+    lb_send_cur_dlen  = (data_len <= sizeof(lb_send_cur_data)) ? data_len : sizeof(lb_send_cur_data);
+    if (data && lb_send_cur_dlen) memcpy(lb_send_cur_data, data, lb_send_cur_dlen);
+
+    lb_uart_raw_msg_flag++;  // 自增留给下一条指令
 }
 
 // lunchbox_heat_start/stop, keep_warm, key_notify, power_on/off, BLE callbacks,
@@ -1730,6 +1785,110 @@ void lunchbox_uart_resume(void)
 }
 
 /**
+ * @brief 发送队列处理: 超时重试 + 出队发送下一条
+ *
+ * 由 lunchbox_uart_process() 在主循环中调用。
+ *
+ * 逻辑:
+ *   1. 等待回应中 → 检查超时:
+ *        - 未超时 → 继续等待
+ *        - 超时 + 重试次数未达上限 → 重建帧重发, retry++
+ *        - 超时 + 重试次数已满 → 放弃当前指令, 从队列取下一个
+ *   2. 未在等待 + 队列非空 → 出队, 构建帧, 发送, 标记等待
+ */
+static void lb_uart_send_process(void)
+{
+    // ── 1. 等待回应中: 检查超时 ──
+    if (lb_send_waiting) {
+        if (!tick_check_expire(lb_send_tick, LB_UART_CMD_INTERVAL_MS)) {
+            return;  // 未超时, 继续等
+        }
+
+        // 超时: 判断是否重试
+        if (lb_send_retry < LB_UART_CMD_MAX_RETRIES) {
+            // 重试: 重建帧重新发送 (使用相同的 msg_flag)
+            lb_send_retry++;
+            u8 buf[LB_TXBUF_SIZE];
+            u16 off = 0;
+
+            buf[off++] = (u8)(LB_FRAME_HEADER >> 8);
+            buf[off++] = (u8)LB_FRAME_HEADER;
+            buf[off++] = LB_FRAME_VERSION;
+            buf[off++] = lb_send_wait_msg;          // 重试用同一个 msg_flag
+            buf[off++] = lb_send_cur_cmd;
+            buf[off++] = LB_ERR_SUCCESS;
+            buf[off++] = (u8)(lb_send_cur_dlen >> 8);
+            buf[off++] = (u8)(lb_send_cur_dlen & 0xFF);
+            if (lb_send_cur_dlen) {
+                memcpy(buf + off, lb_send_cur_data, lb_send_cur_dlen);
+                off += lb_send_cur_dlen;
+            }
+            buf[off] = lb_checksum(buf, off);
+            off++;
+
+            printf("UART==>TX[retry %u/%u]: ", lb_send_retry, LB_UART_CMD_MAX_RETRIES);
+            for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
+            printf("\n");
+
+            uart_bufs_tx(UART_TYPE_1, buf, off);
+            lb_send_tick = tick_get();
+        } else {
+            // 重试次数已满: 放弃当前指令
+            printf("UART==>TX: cmd=0x%02X no response after %u retries, skip\n",
+                   lb_send_cur_cmd, LB_UART_CMD_MAX_RETRIES);
+            lb_send_waiting = false;
+        }
+        return;
+    }
+
+    // ── 2. 队列非空: 出队发送下一条 ──
+    if (lb_send_q_count > 0) {
+        lb_send_q_item_t *q = &lb_send_queue[lb_send_q_head];
+        lb_send_q_head = (lb_send_q_head + 1) % LB_SEND_QUEUE_SIZE;
+        lb_send_q_count--;
+
+        // 构建帧并发送
+        u8 buf[LB_TXBUF_SIZE];
+        u16 off = 0;
+
+        buf[off++] = (u8)(LB_FRAME_HEADER >> 8);
+        buf[off++] = (u8)LB_FRAME_HEADER;
+        buf[off++] = LB_FRAME_VERSION;
+        buf[off++] = lb_uart_raw_msg_flag;
+        buf[off++] = q->cmd;
+        buf[off++] = LB_ERR_SUCCESS;
+        buf[off++] = (u8)(q->data_len >> 8);
+        buf[off++] = (u8)(q->data_len & 0xFF);
+        if (q->data_len) {
+            memcpy(buf + off, q->data, q->data_len);
+            off += q->data_len;
+        }
+        buf[off] = lb_checksum(buf, off);
+        off++;
+
+        if (!lb_data_is_key_notify(q->data, q->data_len)) {
+            printf("LCD->UART==>TX[%d]: ", off);
+            for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
+            printf("\n");
+            lb_dp_dump_hex(q->data, q->data_len);
+        }
+
+        uart_bufs_tx(UART_TYPE_1, buf, off);
+
+        // 标记等待回应
+        lb_send_waiting  = true;
+        lb_send_wait_msg = lb_uart_raw_msg_flag;
+        lb_send_retry    = 0;
+        lb_send_tick     = tick_get();
+        lb_send_cur_cmd  = q->cmd;
+        lb_send_cur_dlen = q->data_len;
+        if (q->data_len) memcpy(lb_send_cur_data, q->data, q->data_len);
+
+        lb_uart_raw_msg_flag++;
+    }
+}
+
+/**
  * @brief 主循环中周期调用的接收处理函数
  *
  * 接收状态机（lb_rx_idx 既作写入位置，也作状态指示）：
@@ -1789,6 +1948,9 @@ void lunchbox_uart_process(void)
         if (!lb_frame_parse())
             break;
     }
+
+    // 发送队列处理: 超时重试 + 出队发送下一条
+    lb_uart_send_process();
 
     // 加热模块 OTA 状态机轮询 (超时检测/重试/继续发送)
     heat_ota_process();
