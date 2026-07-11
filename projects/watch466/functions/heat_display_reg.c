@@ -2,6 +2,7 @@
 #include "heat_display_reg.h"
 #include "func_lunchbox_uart.h"
 #include "func.h"
+#include "home_ui_shared.h"
 #if ELUNCHBOX_PANEL_EN
 #include "func_reservation.h"
 #endif

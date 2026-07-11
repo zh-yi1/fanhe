@@ -1834,19 +1834,40 @@ void func_reservation_on_manual_shutdown(void)
 #if ELUNCHBOX_PANEL_EN
 void func_reservation_sleep_wake_arm(void)
 {
-    u32 until;
-    u32 sec;
-
     if (!func_reservation_is_waiting()) {
         return;
     }
-    until = func_res_seconds_until_appt();
+    u32 until = func_res_seconds_until_appt();
     if (until == 0) {
-        sec = 1;
+        until = 1;
     } else if (until > 3600) {
-        sec = 3600;
-    } else {
-        sec = until;
+        until = 3600;
+    }
+    /* TODO: set RTC alarm to wake up after `until` seconds */
+}
+#endif /* ELUNCHBOX_PANEL_EN */
+
+void func_reservation_poll(void)
+{
+    tm_t tm;
+
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_is_manual_off()) {
+        return;
+    }
+#endif
+
+    if (!g_res.setup_done || g_res.phase != RES_PHASE_WAITING) {
+        return;
+    }
+
+    tm = rtc_clock_get();
+    if (tm.min == g_res.last_poll_min) {
+        return;
     }
     g_res.last_poll_min = tm.min;
 
@@ -1857,16 +1878,13 @@ void func_reservation_sleep_wake_arm(void)
             /* 预约时间到：加热模块会在预约时间自行启动加热并向 MCU 上报 HEAT_ENABLE=1，
              * MCU 收到后通过 heat_display_feed_dp / func_process 跳转加热界面。
              * 此处预设参数 + 标记 HEATING，不再主动发 lunchbox_heat_start()。 */
-            if (!g_res.appt_triggered_today) {   //时间到了
+            if (!g_res.appt_triggered_today) {
                 g_res.appt_triggered_today = true;
 #if FUNC_LUNCHBOX_UART_EN
-                func_res_trigger_heating_uart_from_global(); //预设加热参数，不发加热指令
+                func_res_trigger_heating_uart_from_global();
 #endif
             }
 
-            /* 加热模块到预约时间后自行加热并通过 UART 上报 HEAT_ENABLE=1，
-             * 由 func_elunchbox_switch_to_heat_panel() 被动跳转加热界面。
-             * 此处仅预设参数 + 标记 HEATING，不主动跳转。 */
 #if !ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
             /* 非 Panel 路径：无 UART 回调，仍需主动跳转 */
             if (func_cb.sta != FUNC_HEAT) {
@@ -1883,14 +1901,9 @@ void func_reservation_sleep_wake_arm(void)
 #if USER_PANEL_LED
             func_reservation_led_sync();
 #endif
+#endif /* !ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN */
         }
     }
-
-#if ELUNCHBOX_PANEL_EN
-    if (func_reservation_is_waiting() && elunchbox_pwr_is_manual_off()) {
-        func_reservation_sleep_wake_arm();
-    }
-#endif
 }
 
 compo_form_t *func_reservation_form_create(void)
