@@ -655,8 +655,8 @@ static void elunchbox_pwr_manual_shutdown(void)
     printf("elunchbox: TCH5 long -> manual off (low power sleep)\n");
 
     /* 关 printf 口(UART0) 和 debug dump 口(HUART) 时钟，只保留加热模块 RX(UART1) */
-    elunchbox_saved_clkgat0 = CLKGAT0;
-    CLKGAT0 &= ~(BIT(CLKGAT0_UART0_CLK_EN) | BIT(CLKGAT0_HSUT0_CLK_EN));
+    // elunchbox_saved_clkgat0 = CLKGAT0;
+    // CLKGAT0 &= ~(BIT(CLKGAT0_UART0_CLK_EN) | BIT(CLKGAT0_HSUT0_CLK_EN));
 }
 
 void elunchbox_pwr_ble_switch(bool on)
@@ -753,6 +753,13 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
     if (!elunchbox_pwr_is_manual_off()) {
         elunchbox_guioff_sleep_service();
     }
+#if ELUNCHBOX_PANEL_EN
+    /* 非按键唤醒(RX UART): 预约到时 + 加热模块 UART 确认加热 → 唤醒并跳转加热界面 */
+    if (!key_wake && func_reservation_is_heating() && lunchbox_heating_task_active()) {
+        printf("reservation: RX wake + heating confirmed, switch to heat panel\n");
+        func_elunchbox_switch_to_heat_panel();
+    }
+#endif
     if (key_wake) {
         elunchbox_guioff_sleep_delay_reset();
     } else if (elunchbox_pwr_is_manual_off()) {
@@ -860,6 +867,7 @@ static void elunchbox_screen_wake(void)
     if (was_manual || elunchbox_pwr_hw_off) {
         lb_uart_tx_block(false);  /* 解封 UART TX */
         lunchbox_power_on();
+        lunchbox_query_reservation_list();
         elunchbox_boot_power_sent = true;
         elunchbox_pwr_hw_off = false;
     }
@@ -901,6 +909,7 @@ void elunchbox_panel_boot_power_on(void)
     elunchbox_boot_power_sent = true;
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_power_on();
+    lunchbox_query_reservation_list();
 #endif
 }
 
@@ -1086,7 +1095,7 @@ void elunchbox_manual_off_sleep_poll(void)
      *     Step 1: FLAG 下降沿(键按下) → 退出浅睡
      *     Step 2: 主循环 sfunc_sleep 退出后 pt8028_port_gpio_init 重开 BCD
      *             → 读键值 → 判断 TCH5 → 2s 长按 → 真正唤醒 */
-    u8 flag = pt8028_read_flag_raw();
+    u8 flag = pt8028_read_flag_raw();  //获取状态
     if (flag == 0 && last_flag == 1) {
         elunchbox_manual_wake_pending = true;
     }
@@ -1147,12 +1156,13 @@ void func_process(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (guioff && elunchbox_pwr_is_manual_off()) {  //手动关机
+        printf("%s: %d\n",__func__,__LINE__); 
         WDT_CLR();  //喂狗->防止系统复位
 #if USER_PT8028_KEY
         pt8028_set_home_msg_block(0);
         pt8028_gpio_ensure_periodic();        //确保摁键周期性扫描
         pt8028_key_scan();                    //检测是否有长按唤醒
-        func_elunchbox_guioff_wake_poll();    //轮询检查是否需要唤醒屏幕-充电，摁键
+        func_elunchbox_guioff_wake_poll();    //轮询唤醒
 #if SOFT_POWER_ON_OFF
         func_elunchbox_pwr_long_poll();   //轮询检查电源键长按（3 秒开机）
 #endif
@@ -1165,9 +1175,16 @@ void func_process(void)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_uart_process();    //轮询接收充电模块发来的数据
         
-        if (heat_display_charge_wake_pending()) {    //充电中唤醒->加热模块发来充电状态，检测到充电则唤醒 
+        if (heat_display_charge_wake_pending()) {    //充电中唤醒->加热模块发来充电状态，检测到充电则唤醒
             printf("elunchbox: charge DP wakes screen from manual off\n");
             elunchbox_pwr_gui_wake();
+            return;
+        }
+        /* 预约时间到 → 加热模块自发加热 → UART 上报 HEAT_ENABLE=1 → 唤醒进入加热界面 */
+        if (heat_display_heat_wake_pending() && g_res.setup_done) {
+            printf("elunchbox: reservation heating wakes screen from manual off\n");
+            elunchbox_pwr_gui_wake();
+            func_elunchbox_switch_to_heat_panel();
             return;
         }
 #endif
@@ -1284,9 +1301,15 @@ void func_process(void)
     } else if (guioff) {
 #if ELUNCHBOX_PANEL_EN
         elunchbox_guioff_idle_process();   //熄屏空闲处理
+        /* 预约加热已由加热模块自动启动 → 唤醒并跳转加热界面 */
+        if (heat_display_heat_wake_pending() && g_res.setup_done) {
+            printf("elunchbox: reservation heating wakes screen from guioff\n");
+            elunchbox_pwr_gui_wake();
+            func_elunchbox_switch_to_heat_panel();
+        }
         pt8028_gpio_ensure_periodic();
         pt8028_key_scan();
-        func_elunchbox_guioff_wake_poll();  //轮询唤醒->充电/触摸
+        func_elunchbox_guioff_wake_poll();  //轮询唤醒
 #endif
     }
 
@@ -1402,6 +1425,13 @@ void func_process(void)
 #if FUNC_LUNCHBOX_UART_EN
     if (!guioff) {
         lunchbox_uart_process(); //串口
+    }
+    /* 预约加热已由加热模块自动启动 → 亮屏时跳转加热界面 */
+    if (!elunchbox_pwr_is_manual_off()
+        && heat_display_heat_wake_pending() && g_res.setup_done
+        && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
+        printf("elunchbox: reservation heating confirmed, switch to heat panel (awake)\n");
+        func_elunchbox_switch_to_heat_panel();
     }
 #endif
 

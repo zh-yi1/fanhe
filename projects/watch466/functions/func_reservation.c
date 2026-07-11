@@ -1205,7 +1205,13 @@ static bool func_res_switch_home(void)
     os_gui_draw_force();
     home_gpu_wait_idle();
 
+    /* 清空所有残留按键，防止退回主界面后自动触发确认/加/减键 */
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#else
     func_res_clear_switch_keys();
+#endif
     prev_sta = func_cb.sta;
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
     return (func_cb.sta == FUNC_HOME && func_cb.sta != prev_sta);
@@ -1243,7 +1249,7 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
         }
         printf("reservation send: unix_time=%u now=%u duration=%u\n",
                unix_time, func_res_now_unix(), duration);
-        lunchbox_reservation_send(1, 0, NULL, unix_time,
+        lunchbox_reservation_send(1, lb_schedule_alloc_id(), NULL, unix_time,
                                   lunchbox_temp_f_to_idx(temp_f),
                                   duration, 1, 0xff);
     }
@@ -1252,7 +1258,13 @@ static void func_res_save_and_go_home(f_reservation_t *f_res)
     if (sys_cb.flag_swithing) {
         return;
     }
+    /* 清空所有残留按键，防止退回主界面后自动触发确认/加/减键 */
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#else
     func_res_clear_switch_keys();
+#endif
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
@@ -1333,7 +1345,7 @@ void func_reservation_new_ui_submit_time(u8 hour, u8 min, u8 sec)
     }
     printf("new_res submit: %02u:%02u unix=%u duration=%u\n",
            hour, min, g_res.appt_unix, duration);
-    lunchbox_reservation_send(1, 0, NULL, g_res.appt_unix,
+    lunchbox_reservation_send(1, lb_schedule_alloc_id(), NULL, g_res.appt_unix,
                               lunchbox_temp_f_to_idx(temp_f),
                               duration, 1, 0xff);
 #endif
@@ -1341,7 +1353,13 @@ void func_reservation_new_ui_submit_time(u8 hour, u8 min, u8 sec)
     if (sys_cb.flag_swithing) {
         return;
     }
+    /* 清空所有残留按键，防止退回主界面后自动触发确认/加/减键 */
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#else
     func_res_clear_switch_keys();
+#endif
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
@@ -1351,7 +1369,7 @@ void func_reservation_new_ui_do_submit(void)
     u8 duration;
     u32 now;
 
-    g_res.phase = RES_PHASE_WAITING;
+    g_res.phase = RES_PHASE_WAITING;  //等待进入
     g_res.appt_triggered_today = false;
     g_res.appt_unix = func_res_appt_unix_from_setting(g_res.appt_hour, g_res.appt_min);
     now = func_res_now_unix();
@@ -1377,7 +1395,7 @@ void func_reservation_new_ui_do_submit(void)
            g_res.appt_hour, g_res.appt_min,
            g_res.heat_hour, g_res.heat_min, g_res.temp_idx,
            g_res.appt_unix, duration);
-    lunchbox_reservation_send(1, 0, NULL, g_res.appt_unix,
+    lunchbox_reservation_send(1, lb_schedule_alloc_id(), NULL, g_res.appt_unix,
                               lunchbox_temp_f_to_idx(temp_f),
                               duration, 1, 0xff);
 #endif
@@ -1385,7 +1403,13 @@ void func_reservation_new_ui_do_submit(void)
     if (sys_cb.flag_swithing) {
         return;
     }
+    /* 清空所有残留按键，防止退回主界面后自动触发确认/加/减键 */
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#else
     func_res_clear_switch_keys();
+#endif
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
@@ -1764,7 +1788,8 @@ static void func_res_status_refresh(f_reservation_t *f_res)
 }
 
 #if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
-/** Home/息屏到点：不跳预约 UI，直接 UART 开加热 */
+/** Home/息屏到点：加热模块已存预约，到时间会自行启动加热并通过 UART 上报 HEAT_ENABLE=1，
+ *  本函数只预设加热参数供跳转加热页时使用，不再主动发 lunchbox_heat_start()。 */
 static void func_res_trigger_heating_uart_from_global(void)
 {
     u16 temp_f;
@@ -1782,10 +1807,11 @@ static void func_res_trigger_heating_uart_from_global(void)
     } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
         duration_min = LB_HEAT_DURATION_MAX_MIN;
     }
-    /* 设置加热参数 + 自动启动标记，使 func_heat_enter 能直接进入加热面板 */
+    /* 预设加热参数，供跳转加热页时使用；加热模块会在预约时间自行开始加热 */
     lb_mode_to_heat_set(4, temp_f, (u8)(duration_min / 60), (u8)(duration_min % 60));
     lb_heat_autostart_set(true);
-    lunchbox_heat_start(4, lunchbox_temp_f_to_idx(temp_f), duration_min);
+    /* 不再主动发 lunchbox_heat_start()：加热模块到预约时间后会自发加热并上报 HEAT_ENABLE=1，
+     * MCU 收到 HEAT_ENABLE=1 后通过 heat_display_feed_dp / func_process 跳转加热界面。 */
 }
 #endif
 
@@ -1822,96 +1848,40 @@ void func_reservation_sleep_wake_arm(void)
     } else {
         sec = until;
     }
-    if (sec > 60) {
-        sec = 60;
-    }
-    if (sec < 1) {
-        sec = 1;
-    }
-    rtc_set_alarm_wakeup(sec);
-}
-#endif
-
-#if ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
-static void func_reservation_fire_heating_at_appt(void)
-{
-    g_res.phase = RES_PHASE_HEATING;
-#if USER_PANEL_LED
-    func_reservation_led_sync();
-#endif
-#if ELUNCHBOX_PANEL_EN
-    if (func_cb.sta == FUNC_RESERVATION) {
-        func_res_trigger_heating_uart_from_global();
-        if (func_cb.sta != FUNC_HEAT) {
-            func_res_allow_switch = 1;
-            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-            func_res_allow_switch = 0;
-        }
-    } else {
-#if FUNC_LUNCHBOX_UART_EN
-        func_res_trigger_heating_uart_from_global();
-#endif
-        if (elunchbox_pwr_is_manual_off()
-            || elunchbox_pwr_gui_off_is_on()
-            || sys_cb.gui_sleep_sta) {
-            elunchbox_pwr_gui_wake_reason("reservation heat");
-        }
-        if (func_cb.sta != FUNC_HEAT) {
-            func_res_allow_switch = 1;
-            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-            func_res_allow_switch = 0;
-        }
-    }
-#endif
-}
-#endif
-
-void func_reservation_poll(void)
-{
-    tm_t tm;
-    bool guioff_deep;
-
-#if USER_PANEL_LED
-    func_reservation_led_sync();
-#endif
-
-    if (!g_res.setup_done || g_res.phase != RES_PHASE_WAITING) {
-        return;
-    }
-
-    guioff_deep = elunchbox_pwr_is_manual_off()
-               || elunchbox_pwr_gui_off_is_on()
-               || sys_cb.gui_sleep_sta;
-
-    tm = rtc_clock_get();
-    if (!guioff_deep && tm.min == g_res.last_poll_min) {
-        return;
-    }
     g_res.last_poll_min = tm.min;
 
     {
         u32 now = func_res_now_unix();
 
         if (g_res.appt_unix > 0 && now >= g_res.appt_unix) {
-#if ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
-            func_reservation_fire_heating_at_appt();
+            /* 预约时间到：加热模块会在预约时间自行启动加热并向 MCU 上报 HEAT_ENABLE=1，
+             * MCU 收到后通过 heat_display_feed_dp / func_process 跳转加热界面。
+             * 此处预设参数 + 标记 HEATING，不再主动发 lunchbox_heat_start()。 */
+            if (!g_res.appt_triggered_today) {   //时间到了
+                g_res.appt_triggered_today = true;
+#if FUNC_LUNCHBOX_UART_EN
+                func_res_trigger_heating_uart_from_global(); //预设加热参数，不发加热指令
+#endif
+            }
+
+            /* 加热模块到预约时间后自行加热并通过 UART 上报 HEAT_ENABLE=1，
+             * 由 func_elunchbox_switch_to_heat_panel() 被动跳转加热界面。
+             * 此处仅预设参数 + 标记 HEATING，不主动跳转。 */
+#if !ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
+            /* 非 Panel 路径：无 UART 回调，仍需主动跳转 */
+            if (func_cb.sta != FUNC_HEAT) {
+                func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            }
+            if (func_cb.sta == FUNC_HEAT) {
+                g_res.phase = RES_PHASE_HEATING;
+#if USER_PANEL_LED
+                func_reservation_led_sync();
+#endif
+            }
 #else
             g_res.phase = RES_PHASE_HEATING;
 #if USER_PANEL_LED
             func_reservation_led_sync();
-#endif
-            if (func_cb.sta != FUNC_RESERVATION) {
-                func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-            } else {
-                f_reservation_t *f_res = (f_reservation_t *)func_cb.f_cb;
-
-                if (f_res != NULL) {
-                    f_res->heat_hour = g_res.heat_hour;
-                    f_res->heat_min = g_res.heat_min;
-                    f_res->temp_idx = g_res.temp_idx;
-                    func_res_start_heating(f_res);
-                }
-            }
 #endif
         }
     }

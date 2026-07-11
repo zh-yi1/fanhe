@@ -307,7 +307,7 @@ bool sfunc_sleep_proc(void)
 #if ELUNCHBOX_PANEL_EN
         /* 【手动关机-唤醒轮询】在休眠循环中轮询 TCH5 长按/充电唤醒标志 */
         if (manual_off) {
-            elunchbox_manual_off_sleep_poll();
+            elunchbox_manual_off_sleep_poll(); //长摁轮询
             if (elunchbox_manual_wake_pending_peek()) {
                 gui_need_wkp = true;
                 break;
@@ -1019,7 +1019,7 @@ void sfunc_power_save_enter(void)
     USBCON0 = BIT(5);
     USBCON1 = 0;
     GPIOADE = 0;
-    GPIOBDE = 0;
+    GPIOBDE = 0; //高阻态，模拟输入->省电
     GPIOEDE = 0;
     GPIOFDE = 0;
     GPIOGDE = 0x3F;                             //MCP FLASH

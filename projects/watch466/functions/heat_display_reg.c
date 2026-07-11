@@ -2,12 +2,15 @@
 #include "heat_display_reg.h"
 #include "func_lunchbox_uart.h"
 #include "func.h"
-#include "home_ui_shared.h"
+#if ELUNCHBOX_PANEL_EN
+#include "func_reservation.h"
+#endif
 
 static heat_display_cb_t heat_display_cb;
 static heat_display_info_t heat_display_last;
 static bool heat_display_has_last;
 static bool heat_display_charge_pending;  /* 充电中状态唤醒标志 */
+static bool heat_display_heat_pending;    /* 加热使能唤醒标志 */
 
 static bool heat_display_ui_ok(void)
 {
@@ -227,8 +230,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
         off += 4 + val_len;
     }
 
-    if (got_charge) {
-        home_ui_shared_battery_charge_apply(charge_val);
+    /* 加热模块主动上报 HEAT_ENABLE=1：用于熄屏唤醒和预约自动跳转 */
+    if (got_enable && heating) {
+        heat_display_heat_pending = true;
     }
 
     /* 手动关机/息屏：仅更新缓存与充电唤醒标志，不触发 UI 回调 */
@@ -255,12 +259,28 @@ void heat_display_feed_dp(u8 *data, u16 len)
 #endif
 
 #if ELUNCHBOX_PANEL_EN
-    if (got_warm_mode && func_cb.sta == FUNC_HEAT
-        && home_ui_shared_battery_is_charging()
-        && func_heat_ui_is_heating()) {
-        func_elunchbox_charging_redirect_warm();
+    /* 预约加热已由加热模块自动启动 → 跳转加热界面
+     * UART 回调可能在 func_reservation_poll() 之前触发，必须在此处预设加热参数
+     * (autostart + mode_to_heat)，避免 func_heat 进入后因没有 autostart 而跳转到设置页 */
+    if (got_enable && heating && g_res.setup_done
+        && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
+        printf("[LCD_REG] feed_dp: reservation heating started by module, switch to heat panel\n");
+        {
+            u16 temp_f = lunchbox_temp_idx_to_f(g_res.temp_idx);
+            u32 duration_min = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
+            if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
+                duration_min = LB_HEAT_DURATION_MIN_MIN;
+            } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
+                duration_min = LB_HEAT_DURATION_MAX_MIN;
+            }
+            lb_mode_to_heat_set(4, temp_f,
+                                (u8)(duration_min / 60), (u8)(duration_min % 60));
+            lb_heat_autostart_set(true);
+        }
+        func_elunchbox_switch_to_heat_panel();
         return;
     }
+
     if (got_warm_mode && func_heat_uart_finish_ok()) {
         func_elunchbox_enter_warm_from_heat();
         return;
@@ -346,5 +366,12 @@ bool heat_display_charge_wake_pending(void)
 {
     bool pending = heat_display_charge_pending;
     heat_display_charge_pending = false;
+    return pending;
+}
+
+bool heat_display_heat_wake_pending(void)
+{
+    bool pending = heat_display_heat_pending;
+    heat_display_heat_pending = false;
     return pending;
 }

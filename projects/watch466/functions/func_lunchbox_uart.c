@@ -75,6 +75,9 @@ bool lb_uart_suspended;              /* 手动关机时 UART1 已关闭 */
 static u32 lb_uart_saved_con;        /* suspend 前保存的 UART1CON 值，resume 时恢复 */
 bool lb_uart_tx_blocked;             /* 手动关机时阻止所有 UART TX */
 lb_device_info_t lb_dev_info;
+/* 预约列表本地缓存：桥模式/本地模式均需可用（UART 0x02 应答 → lb_frame_parse 填充） */
+static lb_schedule_ble_t   lb_schedules[LB_SCHEDULE_MAX];
+static u8                  lb_schedule_count;
 // OTA 升级状态机 → 已移至 func_lunchbox_ota.c
 // 桥模式 CRC32 变量 → 已移至 func_lunchbox_bridge.c
 
@@ -263,6 +266,29 @@ static bool lb_frame_parse(void)
 #endif
     }
 #endif
+
+    // ──── 预约列表查询应答 (0x02): 保存到本地 lb_schedules[] ────
+    // 加热模块逐条返回预约记录 (44B/条)，桥模式和本地模式均需本地保存
+    if (rx.cmd == LB_UART_CMD_SCHEDULE && rx.data && rx.data_len >= 44) {
+        u8 total = rx.data[0];
+        if (total > 0) {
+            u8 seq = rx.data[1];
+            if (seq == 1) lb_schedule_count = 0;  // 第一条，重置计数
+            if (lb_schedule_count < LB_SCHEDULE_MAX) {
+                lb_schedule_ble_t *s = &lb_schedules[lb_schedule_count];
+                s->id       = rx.data[3];
+                memcpy(s->name, rx.data + 4, 32);
+                s->time     = ((u32)rx.data[36] << 24) | ((u32)rx.data[37] << 16)
+                            | ((u32)rx.data[38] << 8)  | rx.data[39];
+                s->temp     = rx.data[40];
+                s->duration = rx.data[41];
+                s->enabled  = rx.data[42];
+                s->repeat   = rx.data[43];
+                lb_schedule_count++;
+            }
+        }
+        // 无论是否保存，都继续走桥模式 BLE 转发（不 goto cleanup）
+    }
 
     // ──── 心跳包 (0x05): MCU↔加热模块内部通信，不转发BLE ────
     // 加热模块每1分钟发一次请求(0x00)，MCU须回应(0x01)
@@ -696,30 +722,37 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
 
     //=== 0x05: ScheduleList ============================================
     case LB_CMD_SCHEDULE_LIST:
-        if (!is_rx && len >= 43 && data[0] > 0) {
-            // MCU→APP: single schedule entry (43 bytes), 总条数为 0 时不打印
-            u8  total  = data[0];
-            u8  seq    = data[1];
-            u8  id     = data[2];
-            u32 time_s = ((u32)data[35] << 24) | ((u32)data[36] << 16)
-                       | ((u32)data[37] << 8)  |  (u32)data[38];
-            u8  temp   = data[39];
-            u8  dur    = data[40];
-            u8  en     = data[41];
-            u8  repeat = data[42];
-            printf("Schedule[%u/%u] ID=%u name=%.32s time=%lu temp=%u dur=%umin en=%u rep=0x%02X\n",
-                   seq, total, id, data + 3, (unsigned long)time_s, temp, dur, en, repeat);
+        if (!is_rx && len >= 44 && data[0] > 0) {
+            // MCU→APP: single schedule entry (44 bytes), ALL=0 时不打印
+            u8  ALL    = data[0];
+            u8  now_id = data[1];
+            u8  mode   = data[2];
+            u8  ID     = data[3];
+            u32 TIME   = ((u32)data[36] << 24) | ((u32)data[37] << 16)
+                       | ((u32)data[38] << 8)  |  (u32)data[39];
+            u8  temp   = data[40];
+            u8  time   = data[41];
+            u8  status = data[42];
+            u8  rep    = data[43];
+            printf("Schedule[%u/%u] ALL=%u now_id=%u mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
+                   now_id, ALL, ALL, now_id, mode, ID, data + 4, (unsigned long)TIME, temp, time, status, rep);
         }
         break;
 
     //=== 0x06: ScheduleAdd =============================================
     case LB_CMD_SCHEDULE_ADD:
-        if (is_rx && len >= 41) {
-            // APP→MCU: 41 bytes schedule data (蓝牙通讯协议1.0.6.md §3.6)
-            u32 time_s = ((u32)data[33] << 24) | ((u32)data[34] << 16)
-                       | ((u32)data[35] << 8)  |  (u32)data[36];
-            printf("name=%.32s\ntrig_time=%lu\ntemp=%u\ntime=%umin\nstatus=%u\nrep=0x%02X\n",
-                   data + 1, (unsigned long)time_s, data[37], data[38], data[39], data[40]);
+        if (is_rx && len >= 42) {
+            // APP→MCU: 42 bytes schedule data (MCU通信协议.md §3.6)
+            u8  mode   = data[0];
+            u8  ID     = data[1];
+            u32 TIME   = ((u32)data[34] << 24) | ((u32)data[35] << 16)
+                       | ((u32)data[36] << 8)  |  (u32)data[37];
+            u8  temp   = data[38];
+            u8  time   = data[39];
+            u8  status = data[40];
+            u8  rep    = data[41];
+            printf("mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
+                   mode, ID, data + 2, (unsigned long)TIME, temp, time, status, rep);
         } else if (!is_rx && len >= 1) {
             // MCU→APP: assigned ID(1B)
             printf("AssignedID=%u\n", data[0]);
@@ -728,11 +761,18 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
 
     //=== 0x07: ScheduleModify ==========================================
     case LB_CMD_SCHEDULE_MODIFY:
-        if (is_rx && len >= 41) {
-            u32 time_s = ((u32)data[33] << 24) | ((u32)data[34] << 16)
-                       | ((u32)data[35] << 8)  |  (u32)data[36];
-            printf("ID=%u\nname=%.32s\ntrig_time=%lu\ntemp=%u\ntime=%umin\nstatus=%u\nrep=0x%02X\n",
-                   data[0], data + 1, (unsigned long)time_s, data[37], data[38], data[39], data[40]);
+        if (is_rx && len >= 42) {
+            // APP→MCU: 42 bytes schedule data (MCU通信协议.md §3.6)
+            u8  mode   = data[0];
+            u8  ID     = data[1];
+            u32 TIME   = ((u32)data[34] << 24) | ((u32)data[35] << 16)
+                       | ((u32)data[36] << 8)  |  (u32)data[37];
+            u8  temp   = data[38];
+            u8  time   = data[39];
+            u8  status = data[40];
+            u8  rep    = data[41];
+            printf("mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
+                   mode, ID, data + 2, (unsigned long)TIME, temp, time, status, rep);
         }
         break;
 
@@ -822,9 +862,8 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
 //-----------------------------------------------------------------------------
 // 业务状态（本地模式使用）
 //-----------------------------------------------------------------------------
+// lb_schedules[] / lb_schedule_count 已移至文件顶部（lb_frame_parse 前向引用）
 #if !LB_BRIDGE_MODE
-static lb_schedule_ble_t   lb_schedules[LB_SCHEDULE_MAX]; // 预约列表 (BLE格式)
-static u8                  lb_schedule_count;         // 当前预约条数
 static u8                  lb_next_schedule_id = 6;   // 自增预约 ID (ID 1~5 为固定预设)
 
 // 当前属性值 (BLE 属性列表 §4)
@@ -1098,12 +1137,16 @@ static int lb_schedule_find(u8 id)
     return -1;
 }
 
-/** @brief 分配新 ID */
-static u8 lb_schedule_new_id(void)
+/** @brief 分配下一个可用预约 ID (协议: 默认从 6 开始递增)
+ *
+ * 遍历 lb_schedules[] 跳过已占用 ID 和 ID 0，返回第一个空闲 ID 并自增。
+ * 桥模式(LB_BRIDGE_MODE)下不可用 — 预约 ID 由 APP 分配。
+ */
+u8 lb_schedule_alloc_id(void)
 {
     while (lb_schedule_find(lb_next_schedule_id) >= 0 || lb_next_schedule_id == 0)
         lb_next_schedule_id++;
-    return lb_next_schedule_id;
+    return lb_next_schedule_id++;
 }
 
 /** @brief 从帧数据解析 BLE 预约记录 (41B payload) */
@@ -1488,7 +1531,7 @@ static u8 lb_handler_schedule_add(lb_rx_frame_t *rx)
     lb_schedule_ble_t *s = &lb_schedules[lb_schedule_count];
     memset(s, 0, sizeof(lb_schedule_ble_t));
     lb_schedule_parse_ble(s, rx->data);
-    s->id = lb_schedule_new_id();   // MCU 自动分配 ID
+    s->id = lb_schedule_alloc_id();  // MCU 自动分配 ID (>=6)
     lb_schedule_count++;
 
     u8 assigned_id = s->id;
@@ -1559,7 +1602,7 @@ static u8 lb_handler_schedule_delete(lb_rx_frame_t *rx)
  * @brief 本地模式: 初始化 5 个固定预约预设到 lb_schedules[]
  *
  * IDs 1~5 为出厂固定预设，不可删除/修改。
- * 后续用户新增预约 ID 从 6 开始 (lb_next_schedule_id = 6)。
+ * 后续用户/APP 新增预约 ID 从 6 开始 (lb_next_schedule_id = 6)。
  */
 #if !LB_BRIDGE_MODE
 static void lb_local_init_presets(void)
@@ -1633,16 +1676,16 @@ void lunchbox_uart_init(u32 baud)
     memset(lb_rx_buf, 0, sizeof(lb_rx_buf));
     lb_rx_idx = 0;
     memset(cmd_handler, 0, sizeof(cmd_handler));
-#if !LB_BRIDGE_MODE
     memset(lb_schedules, 0, sizeof(lb_schedules));
     lb_schedule_count = 0;
+#if !LB_BRIDGE_MODE
     lb_local_init_presets();  // 初始化 5 个固定预约预设 (ID 1~5)
 #endif
 
     // 默认设备信息
     memset(&lb_dev_info, 0, sizeof(lb_dev_info));
     u8 ble_addr[6];
-    ble_get_local_bd_addr(ble_addr);
+    ble_get_local_bd_addr(ble_addr);   //mac
     sprintf(lb_dev_info.bt_name, "AR0MA-NY_%02X%02X", ble_addr[4], ble_addr[5]);
     memcpy(lb_dev_info.version, "01.00.00", 8);
     memcpy(lb_dev_info.model,  "SF101\0\0\0\0\0", 10);

@@ -652,11 +652,9 @@ static void func_new_reservation_process(void)
             elunchbox_te_block_flag = 0;
             gui_widget_refresh();
             f->load_stage = NEW_RES_LOAD_DONE;
-            f->key_ready = true;
             f->display_pending = false;
             break;
         default:
-            f->key_ready = true;
             break;
         }
         func_process();
@@ -666,6 +664,11 @@ static void func_new_reservation_process(void)
         (void)pt8028_take_press_tch();
         (void)pt8028_take_res_key_pending();
 #endif
+        /* 必须在 drain 之后才允许按键，避免 func_process() 中检测到的
+         * 残留按键在下一帧被当作正常按键处理。 */
+        if (f->load_stage >= NEW_RES_LOAD_DONE) {
+            f->key_ready = true;
+        }
         return;
     }
 #endif
@@ -735,6 +738,7 @@ void func_new_reservation_enter(void)
 
     func_cb.f_cb = func_zalloc(sizeof(f_new_reservation_t));
     f = (f_new_reservation_t *)func_cb.f_cb;
+    g_res_heat_pending = false;  /* 新一次预约流程，清除上次残留 */
     func_reservation_new_ui_load_time(&f->appt_hour, &f->appt_min, &f->appt_sec);
     f->focus_col = NEW_RES_FOCUS_HOUR;
     f->display_pending = false;
