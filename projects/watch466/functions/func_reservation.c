@@ -449,8 +449,7 @@ bool func_reservation_is_waiting(void)
 
 bool func_reservation_is_active(void)
 {
-    return g_res.setup_done &&
-           (g_res.phase == RES_PHASE_WAITING || g_res.phase == RES_PHASE_HEATING);
+    return g_res.setup_done && (g_res.phase == RES_PHASE_WAITING);
 }
 
 bool func_reservation_is_heating(void)
