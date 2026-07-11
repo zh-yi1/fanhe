@@ -1564,6 +1564,7 @@ static void func_elunchbox_enter_warm_from_heat_body(void)
     if (!elunchbox_te_block_flag) {
         elunchbox_te_block_flag = 1;
     }
+    heat_display_warm_exit_reset();
     func_cb.sta = FUNC_NEW_WARM;
 }
 #endif

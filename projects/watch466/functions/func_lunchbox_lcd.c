@@ -169,7 +169,6 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
     lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
     lb_heat_lcd_active = true;
     lb_heat_task_active = true;
-    u32 ts = lb_get_unix_time();
     u8 data[64];
     u8 *p = data;
 
@@ -177,7 +176,6 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
     p += lb_dp_encode_value(p, LB_DPID_HEAT_DURATION, duration);
     p += lb_dp_encode_enum(p, LB_DPID_HEAT_TEMP, temp);
     p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 1);
-    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
 
     u16 data_len = (u16)(p - data);
@@ -214,12 +212,10 @@ void lunchbox_heat_stop(void)
     lb_keep_warm_active = false;
     lb_heat_lcd_active = false;
     lb_heat_task_active = false;
-    u32 ts = lb_get_unix_time();
     u8 data[32];
     u8 *p = data;
 
     p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 0);
-    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
 
     u16 data_len = (u16)(p - data);
@@ -287,8 +283,7 @@ void lunchbox_keep_warm_start(void)
 
 void lunchbox_keep_warm_stop(void)
 {
-    if (!lb_keep_warm_active) return;
-    lunchbox_heat_stop();
+    lb_keep_warm_active = false;
 }
 
 bool lunchbox_keep_warm_is_active(void)
@@ -300,7 +295,7 @@ void lunchbox_keep_warm_poll(void)
 {
     if (!lb_keep_warm_active) return;
     if (bsp_vbat_get_lpwr_status()) {
-        lunchbox_keep_warm_stop();
+        lunchbox_heat_stop();
     }
 }
 

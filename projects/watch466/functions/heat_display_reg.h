@@ -68,4 +68,9 @@ bool heat_display_charge_wake_pending(void);
 /** 查询是否收到加热使能(heat_enable=1)，调用后自动清除 */
 bool heat_display_heat_wake_pending(void);
 
+#if ELUNCHBOX_PANEL_EN
+/** 进入保温页时调用，重置拔电退出去重状态 */
+void heat_display_warm_exit_reset(void);
+#endif
+
 #endif

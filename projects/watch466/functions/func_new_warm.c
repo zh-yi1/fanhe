@@ -7,6 +7,7 @@
 #include "home_ui_gpu_detach.h"
 #include "home_ui_ram.h"
 #include "func_lunchbox_uart.h"
+#include "heat_display_reg.h"
 #include "func_key_lock.h"
 
 #if ELUNCHBOX_PANEL_EN
@@ -562,7 +563,7 @@ static void new_warm_heating_stop(void)
 {
 #if FUNC_LUNCHBOX_UART_EN
     if (lunchbox_keep_warm_is_active()) {
-        lunchbox_keep_warm_stop();
+        lunchbox_heat_stop();
     }
 #endif
 }
@@ -819,6 +820,7 @@ void func_new_warm_enter(void)
     f_new_warm_t *f;
 
     printf("func_new_warm_enter\n");
+    heat_display_warm_exit_reset();
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_set_home_msg_block(1);

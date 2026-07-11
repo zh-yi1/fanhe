@@ -188,7 +188,6 @@ void func_elunchbox_uart_stop_and_home(void)
     func_elunchbox_ble_cancel_pending_switch();
 #if FUNC_LUNCHBOX_UART_EN
     heat_display_unregister();
-    lunchbox_keep_warm_stop();
     lunchbox_heat_stop();
 #endif
     if (func_cb.sta == FUNC_HEAT) {
@@ -657,7 +656,6 @@ static void elunchbox_pwr_manual_shutdown(void)
      *   原顺序 lb_uart_tx_block(true) 在最前面导致后续 lb_uart_send_raw 全部被 return，
      *   加热模块收不到 PowerSwitch=OFF，保持运行并持续发 UART 数据→PB9 port wakeup 抖动，
      *   使 sfunc_sleep 期间 CPU 被反复唤醒，TCH5 长按无法可靠检测。 */
-    lunchbox_keep_warm_stop();
     lunchbox_heat_stop();
     lunchbox_power_off();
     lb_uart_tx_block(true);
@@ -736,7 +734,6 @@ void elunchbox_pwr_ble_switch(bool on)
         elunchbox_guioff_sleep_delay = 0;
         heat_display_unregister();
         /* 【修复】先发 UART 关机指令，再封 TX（同 manual_shutdown 路径） */
-        lunchbox_keep_warm_stop();
         lunchbox_heat_stop();
         lunchbox_power_off();
         lb_uart_tx_block(true);

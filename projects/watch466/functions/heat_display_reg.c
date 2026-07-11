@@ -30,6 +30,27 @@ static bool heat_display_charging_now(bool got_charge, u8 charge_val)
     }
     return home_ui_shared_battery_is_charging();
 }
+
+static bool heat_display_warm_exit_pending;
+
+void heat_display_warm_exit_reset(void)
+{
+    heat_display_warm_exit_pending = false;
+}
+
+/** 保温页 UART 退出去重：同一次拔电/停止只触发一次 stop_and_home */
+static bool heat_display_warm_exit_try(void)
+{
+    if (func_cb.sta != FUNC_NEW_WARM) {
+        heat_display_warm_exit_pending = false;
+        return false;
+    }
+    if (heat_display_warm_exit_pending) {
+        return false;
+    }
+    heat_display_warm_exit_pending = true;
+    return true;
+}
 #endif
 
 static void heat_display_notify(void)
@@ -324,6 +345,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
         && func_elunchbox_warm_from_charging()
         && !heat_display_charging_now(got_charge, charge_val)) {
         if ((got_enable && !heating) || got_heat_stop) {
+            if (!heat_display_warm_exit_try()) {
+                return;
+            }
             printf("[LCD_REG] feed_dp: charging-warm exit -> home\n");
             func_elunchbox_uart_stop_and_home();
             return;
@@ -335,6 +359,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
         && !func_elunchbox_warm_from_charging()
         && !heat_display_charging_now(got_charge, charge_val)) {
         if ((got_enable && !heating) || got_heat_stop) {
+            if (!heat_display_warm_exit_try()) {
+                return;
+            }
             printf("[LCD_REG] feed_dp: warm page exit after charge\n");
             func_elunchbox_uart_stop_and_home();
             return;
