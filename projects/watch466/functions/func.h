@@ -249,9 +249,15 @@ void func_elunchbox_switch_to_warm_panel(void);
 void func_elunchbox_switch_to_home(void);
 /** 取消 BLE 延后切页（停止加热时须调用） */
 void func_elunchbox_ble_cancel_pending_switch(void);
+/** UART/BLE 停止加热并回 Home（DP10=0 或 DP02=0） */
+void func_elunchbox_uart_stop_and_home(void);
 void func_heat_prepare_ble_stop(void);
 /** 加热面板自然结束：UART 开保温 + 切 func_new_warm */
 void func_elunchbox_enter_warm_from_heat(void);
+/** 充电中开始/进行加热：切保温页并标记（拔电后退出指令回 Home） */
+void func_elunchbox_enter_warm_from_charging(void);
+bool func_elunchbox_warm_from_charging(void);
+void func_elunchbox_warm_from_charging_set(bool on);
 /** 充电中且正在加热：跳转 func_new_warm 并刷新充电图标 */
 bool func_elunchbox_charging_redirect_warm(void);
 void func_heat_ble_remote_restart(void);

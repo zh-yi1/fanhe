@@ -144,6 +144,7 @@ void func_elunchbox_switch_to_heat(void)
 static bool elunchbox_pwr_intentional_wake; /* manual_off 下允许 gui_wakeup（前置声明） */
 static u8   elunchbox_ble_pending_sta;      /* BLE 触发的延后切页（避免 flag_swithing 时丢失） */
 static u8   elunchbox_ble_pending_home;     /* BLE 停止加热：延后回 Home */
+static bool elunchbox_warm_from_charging;   /* 因充电进入保温（非加热自然结束） */
 
 void func_elunchbox_switch_to_home(void)
 {
@@ -176,6 +177,26 @@ void func_elunchbox_ble_cancel_pending_switch(void)
 #if ELUNCHBOX_PANEL_EN
     elunchbox_ble_pending_sta = 0;
     elunchbox_ble_pending_home = 0;
+#endif
+}
+
+void func_elunchbox_uart_stop_and_home(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    printf("elunchbox: uart stop heat -> home (sta=%u)\n", func_cb.sta);
+    func_elunchbox_warm_from_charging_set(false);
+    func_elunchbox_ble_cancel_pending_switch();
+#if FUNC_LUNCHBOX_UART_EN
+    heat_display_unregister();
+    lunchbox_keep_warm_stop();
+    lunchbox_heat_stop();
+#endif
+    if (func_cb.sta == FUNC_HEAT) {
+        func_heat_prepare_ble_stop();
+    }
+    if (func_cb.sta != FUNC_HOME) {
+        func_elunchbox_switch_to_home();
+    }
 #endif
 }
 
@@ -274,11 +295,27 @@ bool func_elunchbox_charging_redirect_warm(void)
         return true;
     }
     if (func_cb.sta == FUNC_HEAT && func_cb.f_cb != NULL && func_heat_ui_is_heating()) {
-        func_elunchbox_enter_warm_from_heat();
+        func_elunchbox_enter_warm_from_charging();
         return true;
     }
 #endif
     return false;
+}
+
+bool func_elunchbox_warm_from_charging(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    return elunchbox_warm_from_charging;
+#else
+    return false;
+#endif
+}
+
+void func_elunchbox_warm_from_charging_set(bool on)
+{
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_warm_from_charging = on;
+#endif
 }
 
 #if ELUNCHBOX_PANEL_EN

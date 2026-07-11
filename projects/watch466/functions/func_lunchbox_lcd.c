@@ -737,14 +737,7 @@ static bool lunchbox_control_apply_stop_heat(const u8 *data, u16 len)
     }
 
     printf("BLE control: stop heat (sta=%u)\n", func_cb.sta);
-    func_elunchbox_ble_cancel_pending_switch();
-    heat_display_unregister();
-    lunchbox_keep_warm_stop();
-    lunchbox_heat_stop();
-
-    if (func_cb.sta != FUNC_HOME) {
-        func_elunchbox_switch_to_home();
-    }
+    func_elunchbox_uart_stop_and_home();
     return true;
 }
 

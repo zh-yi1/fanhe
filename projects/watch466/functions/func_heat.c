@@ -837,6 +837,11 @@ void func_heat_ble_remote_restart(void)
 
     func_heat_led_sync(true);
     func_heat_panel_mark_dirty(f_heat);
+    if (home_ui_shared_battery_is_charging()) {
+        home_ui_shared_battery_icon_refresh();
+        func_elunchbox_enter_warm_from_charging();
+        return;
+    }
     {
         u8 was_blocked = elunchbox_te_block_flag;
         if (!was_blocked) {
@@ -1257,7 +1262,7 @@ void func_heat_enter(void)
     /* 充电中进入立即加热面板：直接保温（不闪加热 UI） */
     if (home_ui_shared_battery_is_charging() && func_heat_ui_is_heating()) {
         home_ui_shared_battery_icon_refresh();
-        func_elunchbox_enter_warm_from_heat();
+        func_elunchbox_enter_warm_from_charging();
         return;
     }
 
@@ -1485,6 +1490,10 @@ void func_heat_panel_set_live(struct f_heat_t_ *f_heat, u32 remain_min, u16 temp
     f->last_temp_f = 0xffff;
 }
 
+#if ELUNCHBOX_PANEL_EN
+static void func_elunchbox_enter_warm_from_heat_body(void);
+#endif
+
 void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
 {
     f_heat_t *f = (f_heat_t *)f_heat;
@@ -1499,6 +1508,19 @@ void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
 }
 
 void func_elunchbox_enter_warm_from_heat(void)
+{
+    func_elunchbox_warm_from_charging_set(false);
+    func_elunchbox_enter_warm_from_heat_body();
+}
+
+void func_elunchbox_enter_warm_from_charging(void)
+{
+    func_elunchbox_warm_from_charging_set(true);
+    printf("heat_charging -> warm panel\n");
+    func_elunchbox_enter_warm_from_heat_body();
+}
+
+static void func_elunchbox_enter_warm_from_heat_body(void)
 {
     f_heat_t *f;
 
@@ -1521,7 +1543,9 @@ void func_elunchbox_enter_warm_from_heat(void)
         return;
     }
 
-    printf("heat_finish -> warm panel\n");
+    if (!func_elunchbox_warm_from_charging()) {
+        printf("heat_finish -> warm panel\n");
+    }
     func_heat_countdown_stop();
     f->ui_state = HEAT_UI_FINISHED;
     f->screen_locked = false;
