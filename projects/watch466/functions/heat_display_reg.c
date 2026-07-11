@@ -289,7 +289,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
             heat_display_last.remain_min = 0;
         }
         if (got_charge && charge_val == 1) {
-            heat_display_charge_pending = true;
+            heat_display_charge_pending = true;   //唤醒
         }
         return;
     }
