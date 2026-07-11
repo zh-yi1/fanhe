@@ -257,30 +257,61 @@ static void new_home_white_bg_create(compo_form_t *frm)
     compo_shape_set_radius(bg, 0);
 }
 
+static void new_home_logo_invalidate(void)
+{
+    new_home_logo_loaded = false;
+}
+
 static void new_home_logo_load(void)
 {
-    printf("new_home_logo_loaded%d\n", new_home_logo_loaded);
     if (new_home_logo_loaded) {
         return;
     }
-    printf("new_home_logo_load: before os_spiflash_read111\n");
+    WDT_CLR();
     os_spiflash_read(new_home_logo_ram, UI_BUF_NEW_UI_NEW_LOGO_BIN, UI_LEN_NEW_UI_NEW_LOGO_BIN);
-    printf("new_home_logo_load: after os_spiflash_read222\n");
     new_home_logo_loaded = true;
 }
 
-static void new_home_logo_apply(f_new_home_t *f)
+static bool new_home_logo_apply(f_new_home_t *f)
 {
+    u8 retry;
+
     if (f == NULL || f->pic_logo == NULL) {
-        return;
+        return false;
     }
-    new_home_logo_load();
-    if (gui_set_ram_check(new_home_logo_ram, __func__)) {
-        compo_picturebox_set_ram(f->pic_logo, new_home_logo_ram);
-        compo_picturebox_set_pos(f->pic_logo, NEW_HOME_LOGO_X, NEW_HOME_LOGO_Y);
-        compo_picturebox_set_size(f->pic_logo, NEW_HOME_LOGO_W, NEW_HOME_LOGO_H);
-        compo_picturebox_set_visible(f->pic_logo, true);
+
+    for (retry = 0; retry < 2; retry++) {
+        if (retry > 0) {
+            new_home_logo_invalidate();
+        }
+        new_home_logo_load();
+        if (!gui_set_ram_check(new_home_logo_ram, __func__)) {
+            new_home_logo_invalidate();
+            continue;
+        }
+#if ELUNCHBOX_PANEL_EN
+        {
+            u8 was_blocked = elunchbox_te_block_flag;
+
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 1;
+            }
+            home_gpu_wait_idle();
+            WDT_CLR();
+#endif
+            compo_picturebox_set_ram(f->pic_logo, new_home_logo_ram);
+            compo_picturebox_set_pos(f->pic_logo, NEW_HOME_LOGO_X, NEW_HOME_LOGO_Y);
+            compo_picturebox_set_size(f->pic_logo, NEW_HOME_LOGO_W, NEW_HOME_LOGO_H);
+            compo_picturebox_set_visible(f->pic_logo, true);
+#if ELUNCHBOX_PANEL_EN
+            if (!was_blocked) {
+                elunchbox_te_block_flag = 0;
+            }
+        }
+#endif
+        return true;
     }
+    return false;
 }
 
 static void new_home_status_icons_apply(f_new_home_t *f)
@@ -363,6 +394,17 @@ static void new_home_status_refresh(f_new_home_t *f)
     /* 预约提交回 Home 时 RTC 秒未必变化，跑马灯须每帧检查 */
     new_home_res_marquee_refresh(f);
     home_ui_shared_status_refresh_bt(f->pic_bt);
+#if ELUNCHBOX_PANEL_EN
+    /* logo 被 detach / RAM 校验失败后自愈：每 16 帧检查一次，避免每帧刷 Flash */
+    if (f->display_stage == 0 && f->pic_logo != NULL
+        && !compo_picturebox_get_visible(f->pic_logo)) {
+        static u8 logo_recover_tick;
+
+        if ((logo_recover_tick++ & 0x0f) == 0) {
+            new_home_logo_apply(f);
+        }
+    }
+#endif
 }
 
 #if ELUNCHBOX_PANEL_EN
@@ -376,7 +418,7 @@ void func_home_force_ui_refresh_after_wake(void)
     f = (f_new_home_t *)func_cb.f_cb;
     new_home_bind_objects(f);
 
-    new_home_logo_loaded = false;
+    new_home_logo_invalidate();
     home_ui_shared_status_inited = false;
     home_ui_shared_status_lock_preloaded = false;
     f->tab_gpu_applied = 0xff;
@@ -392,7 +434,6 @@ void func_home_force_ui_refresh_after_wake(void)
         home_gpu_wait_idle();
         WDT_CLR();
         new_home_status_icons_apply(f);
-        printf("new_home_force_ui_refresh_after_wake: before new_home_logo_apply111111\n");
         new_home_logo_apply(f);
         new_home_tab_apply(f);
         new_home_top_time_restore(f);
@@ -716,7 +757,6 @@ void func_home_process(void)
                 home_gpu_wait_idle();
                 WDT_CLR();
                 new_home_status_icons_apply(f);
-                printf("new_home_force_ui_refresh_after_wake: before new_home_logo_apply222222\n");
                 new_home_logo_apply(f);
                 if (!was_blocked) {
                     elunchbox_te_block_flag = 0;
@@ -844,7 +884,7 @@ void func_home_enter(void)
     printf("home_enter: lock_icon_prepare done\n");
 
 #if ELUNCHBOX_PANEL_EN
-    printf("home_enter: before display_stage=666666\n");
+    new_home_logo_invalidate();
     f->display_stage = 1;
     f->pending_switch_sta = 0;
     f->tab_gpu_applied = 0xff;
