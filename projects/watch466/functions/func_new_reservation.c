@@ -3,6 +3,7 @@
 #include "func_reservation.h"
 #include "func_key_lock.h"
 #include "home_ui_shared.h"
+#include "func_lunchbox_lcd.h"
 
 #if ELUNCHBOX_PANEL_EN
 extern volatile u8 elunchbox_te_block_flag;
@@ -448,8 +449,14 @@ static void new_res_ok_key(f_new_reservation_t *f)
 
 static void new_res_power_key(void)
 {
+    u8 lunchbox_key;
+
     if (sys_cb.flag_swithing) {
         return;
+    }
+    lunchbox_key = pt8028_tch_to_lunchbox_key(PT8028_KEY_TCH5);
+    if (lunchbox_key != 0) {
+        lunchbox_key_notify(lunchbox_key);
     }
     func_reservation_new_ui_go_home();
 }
