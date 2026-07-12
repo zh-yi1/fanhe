@@ -69,18 +69,6 @@ enum {
     NEW_RES_FOCUS_CNT,
 };
 
-#if ELUNCHBOX_PANEL_EN
-enum {
-    NEW_RES_LOAD_FONT_TITLE = 0,
-    NEW_RES_LOAD_FONT_ROLL0,
-    NEW_RES_LOAD_FONT_ROLL1,
-    NEW_RES_LOAD_FONT_ROLL2,
-    NEW_RES_LOAD_FONT_COLON,
-    NEW_RES_LOAD_CONTENT,
-    NEW_RES_LOAD_DONE,
-};
-#endif
-
 typedef struct {
     u8 appt_hour;
     u8 appt_min;
@@ -88,7 +76,6 @@ typedef struct {
     u8 focus_col;
     bool display_pending;
 #if ELUNCHBOX_PANEL_EN
-    u8 load_stage;
     bool key_ready;
 #endif
     compo_textbox_t *txt_title;
@@ -433,7 +420,8 @@ static void new_res_ok_key(f_new_reservation_t *f)
         f->display_pending = true;
         return;
     }
-    /* 全部列已确认：保存预约时间到 g_res，跳转到加热参数设置页 */
+    /* 全部列已确认：保存预约时间到 g_res，跳转到加热参数设置页。
+     * 按键音已在 new_res_pt8028_keys_process() 中统一发送，此处不再重复。 */
     g_res.setup_done = true;
     g_res.appt_hour = f->appt_hour;
     g_res.appt_min = f->appt_min;
@@ -441,13 +429,6 @@ static void new_res_ok_key(f_new_reservation_t *f)
     g_res.heat_min = 0;
     g_res.temp_idx = 0;
     g_res_heat_pending = true;
-    /* pt8028_release_clear 会清零 key_notify_pending，须先发送 lunchbox 按键通知 */
-    {
-        u8 lunchbox_key = pt8028_tch_to_lunchbox_key(PT8028_KEY_TCH4);
-        if (lunchbox_key != 0) {
-            lunchbox_key_notify(lunchbox_key);
-        }
-    }
     /* 清空残留按键，防止 TCH4 确认键泄漏到加热参数设置页→最终退回主界面后自动触发确认键 */
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
@@ -480,6 +461,7 @@ static void new_res_mode_key(void)
 static void new_res_pt8028_keys_process(f_new_reservation_t *f)
 {
     u8 press_tch;
+    u8 lunchbox_key;
 
     if (f == NULL || !f->key_ready) {
         return;
@@ -493,6 +475,32 @@ static void new_res_pt8028_keys_process(f_new_reservation_t *f)
     if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
         elunchbox_user_activity_reset();
     }
+
+    /* pt8028_take_press_tch() 已将 key_sound_defer_tch 设为当前按键。
+     * TCH5 由 new_res_power_key() 显式发送；其余键在此统一显式发送蜂鸣，
+     * 并消费 key_sound_defer_tch 防止 func_elunchbox_key_notify_poll() 二次发送。
+     * TCH1/TCH3 必须在切页前发送，否则退出时 key_sound_defer_tch 可能被清理丢失。*/
+    switch (press_tch) {
+    case PT8028_KEY_TCH1:
+    case PT8028_KEY_TCH2:
+    case PT8028_KEY_TCH3:
+    case PT8028_KEY_TCH4:
+    case PT8028_KEY_TCH6:
+        lunchbox_key = pt8028_tch_to_lunchbox_key(press_tch);
+        if (lunchbox_key != 0) {
+            lunchbox_key_notify(lunchbox_key);
+        }
+        (void)pt8028_take_key_sound_defer_tch();  /* 消费延迟值防二次发送 */
+        break;
+    case PT8028_KEY_TCH7:
+        /* 已在预约页：消费 res_key_pending 防止 func_elunchbox_res_key_poll
+         * 再次设 key_sound_defer_tch=TCH7 导致下一帧重复蜂鸣 */
+        (void)pt8028_take_res_key_pending();
+        break;
+    default:
+        break;
+    }
+
     if (press_tch == PT8028_KEY_TCH2) {
         new_res_value_inc(f);
     } else if (press_tch == PT8028_KEY_TCH3) {
@@ -615,7 +623,6 @@ static void func_new_reservation_message(size_msg_t msg)
 static void func_new_reservation_process(void)
 {
     f_new_reservation_t *f = (f_new_reservation_t *)func_cb.f_cb;
-    u8 row;
 
     if (f == NULL) {
         func_process();
@@ -624,54 +631,41 @@ static void func_new_reservation_process(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
-        WDT_CLR();
-        switch (f->load_stage) {
-        case NEW_RES_LOAD_FONT_TITLE:
+        if (f->display_pending) {
+            /* 首帧一次性完成全部字体绑定+内容应用，参照 func_new_heat 单步加载模式。
+             * 原 6 步分段加载每步都调 func_process()→gui_process()，累积 6 次
+             * GUI 渲染导致 gui thread miss / tmr thread miss 进而页面崩溃退出。 */
+            u8 col;
+            u8 row;
+
+            home_gpu_wait_idle();
+            WDT_CLR();
+            elunchbox_te_block_flag = 1;
+
+            /* 绑定所有字体（Flash→RAM） */
             new_res_font_bind_txt(f->txt_title);
-            f->load_stage = NEW_RES_LOAD_FONT_ROLL0;
-            break;
-        case NEW_RES_LOAD_FONT_ROLL0:
-            for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
-                WDT_CLR();
-                new_res_font_bind_txt(f->txt_roll[0][row]);
+            for (col = 0; col < NEW_RES_ROLL_COLS; col++) {
+                for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
+                    WDT_CLR();
+                    new_res_font_bind_txt(f->txt_roll[col][row]);
+                }
             }
-            f->load_stage = NEW_RES_LOAD_FONT_ROLL1;
-            break;
-        case NEW_RES_LOAD_FONT_ROLL1:
-            for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
-                WDT_CLR();
-                new_res_font_bind_txt(f->txt_roll[1][row]);
-            }
-            f->load_stage = NEW_RES_LOAD_FONT_ROLL2;
-            break;
-        case NEW_RES_LOAD_FONT_ROLL2:
-            for (row = 0; row < NEW_RES_ROLL_ROWS; row++) {
-                WDT_CLR();
-                new_res_font_bind_txt(f->txt_roll[2][row]);
-            }
-            f->load_stage = NEW_RES_LOAD_FONT_COLON;
-            break;
-        case NEW_RES_LOAD_FONT_COLON:
+            WDT_CLR();
             new_res_font_bind_txt(f->txt_colon[0]);
             new_res_font_bind_txt(f->txt_colon[1]);
+            new_res_font_ready = true;
+            /* 标题用 14px 字体覆盖 */
             if (f->txt_title != NULL) {
                 compo_textbox_set_font(f->txt_title, UI_BUF_0FONT_FONT_TEST_14_BIN);
             }
-            new_res_font_ready = true;
-            f->load_stage = NEW_RES_LOAD_CONTENT;
-            break;
-        case NEW_RES_LOAD_CONTENT:
-            elunchbox_te_block_flag = 1;
-            home_gpu_wait_idle();
+
+            /* 应用滚轮内容 */
             WDT_CLR();
             new_res_roller_content_apply(f);
+
             elunchbox_te_block_flag = 0;
             gui_widget_refresh();
-            f->load_stage = NEW_RES_LOAD_DONE;
             f->display_pending = false;
-            break;
-        default:
-            break;
         }
         func_process();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -680,11 +674,7 @@ static void func_new_reservation_process(void)
         (void)pt8028_take_press_tch();
         (void)pt8028_take_res_key_pending();
 #endif
-        /* 必须在 drain 之后才允许按键，避免 func_process() 中检测到的
-         * 残留按键在下一帧被当作正常按键处理。 */
-        if (f->load_stage >= NEW_RES_LOAD_DONE) {
-            f->key_ready = true;
-        }
+        f->key_ready = true;
         return;
     }
 #endif
@@ -757,10 +747,11 @@ void func_new_reservation_enter(void)
     g_res_heat_pending = false;  /* 新一次预约流程，清除上次残留 */
     func_reservation_new_ui_load_time(&f->appt_hour, &f->appt_min, &f->appt_sec);
     f->focus_col = NEW_RES_FOCUS_HOUR;
-    f->display_pending = false;
 #if ELUNCHBOX_PANEL_EN
-    f->load_stage = NEW_RES_LOAD_FONT_TITLE;
+    f->display_pending = true;   /* 首帧完成全部字体绑定+内容刷新，参照 func_new_heat */
     f->key_ready = false;
+#else
+    f->display_pending = false;
 #endif
 
     func_cb.frm_main = func_new_reservation_form_create();
