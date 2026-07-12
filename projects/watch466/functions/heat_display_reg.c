@@ -730,27 +730,6 @@ void heat_display_feed_dp(u8 *data, u16 len)
         }
     }
 
-    /* ── 低电优先：电量低且非充电时，阻止加热/保温页路由，回主页 ───── */
-    {
-        bool low_bat = got_battery ? (battery_val <= 1)
-                      : home_ui_shared_battery_is_low();
-        if (low_bat && !heat_display_charging_now(got_charge, charge_val)) {
-            if (func_cb.sta == FUNC_NEW_WARM) {
-                printf("[LCD_ROUTE] low battery warm->home (sta=%u bat=%u)\n",
-                       func_cb.sta, got_battery ? battery_val : 99u);
-                func_elunchbox_uart_stop_and_home();
-                return;
-            }
-            /* 加热/预约场景：不跳保温也不回加热，直接回主页 */
-            if (got_enable && heating
-                && func_cb.sta != FUNC_HEAT && func_cb.sta != FUNC_NEW_HEAT) {
-                printf("[LCD_ROUTE] low battery block heat entry (sta=%u bat=%u)\n",
-                       func_cb.sta, got_battery ? battery_val : 99u);
-                return;
-            }
-        }
-    }
-
     /* 开始加热后（含预约已进入/正在进入加热页）：按 MCU 模式 + 充电状态路由 */
     if (heat_display_mcu_mode_route(got_mode, mcu_mode,
                                     remain_min, got_remain, temp_f, got_temp,
