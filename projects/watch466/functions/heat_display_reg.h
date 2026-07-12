@@ -69,6 +69,15 @@ bool heat_display_charge_wake_pending(void);
 bool heat_display_heat_wake_pending(void);
 
 #if ELUNCHBOX_PANEL_EN
+/** 熄屏时充电+保温 pending，调用后自动清除 */
+bool heat_display_warm_charge_wake_pending(void);
+/** 是否仍有 deferred 充电进保温（不清除） */
+bool heat_display_warm_charge_pending_active(void);
+/** 亮屏后执行 deferred 充电进保温 */
+void heat_display_warm_charge_route_poll(void);
+#endif
+
+#if ELUNCHBOX_PANEL_EN
 /** 进入保温页时调用，重置拔电退出去重状态 */
 void heat_display_warm_exit_reset(void);
 #endif

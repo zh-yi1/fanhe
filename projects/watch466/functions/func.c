@@ -1245,6 +1245,11 @@ void func_process(void)
             elunchbox_pwr_gui_wake();
             return;
         }
+        if (heat_display_warm_charge_pending_active()) {
+            printf("elunchbox: warm_charge DP wakes screen from manual off\n");
+            elunchbox_pwr_gui_wake();
+            return;
+        }
         /* 预约时间到 → 加热模块自发加热 → UART 上报 HEAT_ENABLE=1 → 唤醒进入加热界面 */
         {
             bool heat_pending = heat_display_heat_wake_pending();
@@ -1380,6 +1385,11 @@ void func_process(void)
             printf("elunchbox: charge DP wakes screen from guioff\n");
             elunchbox_pwr_gui_wake();
             func_cb.sta = FUNC_HOME;
+            return;
+        }
+        if (heat_display_warm_charge_pending_active()) {
+            printf("elunchbox: warm_charge DP wakes screen from guioff\n");
+            elunchbox_pwr_gui_wake();
             return;
         }
         /* 预约加热已由加热模块自动启动 → 唤醒并跳转加热界面 */
@@ -1525,6 +1535,9 @@ void func_process(void)
    }
 
 #if FUNC_LUNCHBOX_UART_EN
+    /* 熄屏期间 deferred 充电进保温（含预约到点+充电） */
+    heat_display_warm_charge_route_poll();
+
     /* 预约加热已由加热模块自动启动 → 亮屏时跳转加热界面 */
     {
         bool heat_pending = heat_display_heat_wake_pending();

@@ -1701,6 +1701,24 @@ void func_elunchbox_enter_warm_from_charging(void)
     func_elunchbox_enter_warm_from_heat_body();
 }
 
+static void func_elunchbox_enter_warm_common_prep(void)
+{
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    func_key_lock_on_heating_stop();
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
+    heat_display_unregister();
+    heat_display_warm_exit_reset();
+#if FUNC_LUNCHBOX_UART_EN
+    if (func_elunchbox_warm_from_charging()) {
+        lunchbox_warm_mark_active();
+    } else if (!lunchbox_keep_warm_is_active()) {
+        lunchbox_keep_warm_start();
+    }
+#endif
+}
+
 static void func_elunchbox_enter_warm_from_heat_body(void)
 {
     f_heat_t *f;
@@ -1714,13 +1732,16 @@ static void func_elunchbox_enter_warm_from_heat_body(void)
     if (func_cb.sta == FUNC_NEW_WARM) {
         return;
     }
+
+    /* Home/预约等待等：预约到点+充电转保温，尚未在加热页 */
     if (func_cb.sta != FUNC_HEAT || func_cb.f_cb == NULL) {
+        func_elunchbox_enter_warm_common_prep();
         func_elunchbox_switch_to_warm_panel();
         return;
     }
 
     f = (f_heat_t *)func_cb.f_cb;
-    if (f->ui_state != HEAT_UI_HEATING) {
+    if (!func_elunchbox_warm_from_charging() && f->ui_state != HEAT_UI_HEATING) {
         return;
     }
 
@@ -1731,29 +1752,10 @@ static void func_elunchbox_enter_warm_from_heat_body(void)
     f->ui_state = HEAT_UI_FINISHED;
     f->screen_locked = false;
     func_heat_led_sync(false);
-    heat_display_unregister();
-#if FUNC_LUNCHBOX_UART_EN
-#if ELUNCHBOX_PANEL_EN
-    if (func_elunchbox_warm_from_charging()) {
-        lunchbox_warm_mark_active();
-    } else if (!lunchbox_keep_warm_is_active()) {
-        lunchbox_keep_warm_start();
-    }
-#else
-    if (!lunchbox_keep_warm_is_active()) {
-        lunchbox_keep_warm_start();
-    }
-#endif
-#endif
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    func_key_lock_on_heating_stop();
-    func_home_drain_stale_key_msgs();
-    pt8028_release_clear();
-#endif
+    func_elunchbox_enter_warm_common_prep();
     if (!elunchbox_te_block_flag) {
         elunchbox_te_block_flag = 1;
     }
-    heat_display_warm_exit_reset();
     func_cb.sta = FUNC_NEW_WARM;
 }
 #endif
