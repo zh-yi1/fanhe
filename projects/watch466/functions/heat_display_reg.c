@@ -352,7 +352,32 @@ void heat_display_feed_dp(u8 *data, u16 len)
     }
 #endif
 
-    /* 手动关机/息屏：仅更新缓存与充电唤醒标志，不触发 UI 回调 */
+    /* 预约加热已由加热模块自动启动 → 预设加热参数（必须在 !ui_ok 提前返回之前）
+     * 关屏时 func_heat_enter() 需要 lb_heat_autostart 标志才能进入加热状态，
+     * 否则会因为没有 autostart 而跳转到设置页，而不是正在加热界面 */
+    if (got_enable && heating && g_res.setup_done
+        && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
+        u16 temp_f = lunchbox_temp_idx_to_f(g_res.temp_idx);
+        u32 duration_min = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
+        if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
+            duration_min = LB_HEAT_DURATION_MIN_MIN;
+        } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
+            duration_min = LB_HEAT_DURATION_MAX_MIN;
+        }
+        lb_mode_to_heat_set(4, temp_f,
+                            (u8)(duration_min / 60), (u8)(duration_min % 60));
+        lb_heat_autostart_set(true);
+        /* 加热模块已自发启动预约加热 → 立即切换预约阶段为加热中，关预约灯 LED4 */
+        func_reservation_phase_enter_heating();
+        printf("[LCD_REG] feed_dp: reservation heating, preset heat params "
+               "temp=%uF dur=%umin ui_ok=%d sta=%u\n",
+               temp_f, duration_min, ui_ok ? 1 : 0, func_cb.sta);
+    }
+
+    /* 手动关机/息屏：仅更新缓存与充电唤醒标志，不触发 UI 回调
+     * 注意：加热参数预设 (lb_mode_to_heat_set/lb_heat_autostart_set) 已在上方完成，
+     *       关屏唤醒后由 func_process() 中的 heat_display_heat_wake_pending 检查
+     *       调用 func_elunchbox_switch_to_heat_panel() 完成页面跳转 */
 #if ELUNCHBOX_PANEL_EN
     if (!ui_ok) {
         if (got_enable && !heating && heat_display_has_last) {
@@ -370,24 +395,11 @@ void heat_display_feed_dp(u8 *data, u16 len)
      * 3) 空闲 Home 仅 DP04：只刷新充电图标，不因 DP02=5 跳保温
      * ─────────────────────────────────────────────────────────────────── */
 
-    /* 预约加热已由加热模块自动启动 → 跳转加热界面
-     * UART 回调可能在 func_reservation_poll() 之前触发，必须在此处预设加热参数
-     * (autostart + mode_to_heat)，避免 func_heat 进入后因没有 autostart 而跳转到设置页 */
+    /* 预约加热已由加热模块自动启动 → 亮屏时直接跳转加热界面
+     * (加热参数已在 !ui_ok 之前预设，此处只需要触发页面跳转) */
     if (got_enable && heating && g_res.setup_done
         && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
         printf("[LCD_REG] feed_dp: reservation heating started by module, switch to heat panel\n");
-        {
-            u16 temp_f = lunchbox_temp_idx_to_f(g_res.temp_idx);
-            u32 duration_min = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
-            if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
-                duration_min = LB_HEAT_DURATION_MIN_MIN;
-            } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
-                duration_min = LB_HEAT_DURATION_MAX_MIN;
-            }
-            lb_mode_to_heat_set(4, temp_f,
-                                (u8)(duration_min / 60), (u8)(duration_min % 60));
-            lb_heat_autostart_set(true);
-        }
         func_elunchbox_switch_to_heat_panel();
         return;
     }

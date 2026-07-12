@@ -1219,11 +1219,17 @@ void func_process(void)
             return;
         }
         /* 预约时间到 → 加热模块自发加热 → UART 上报 HEAT_ENABLE=1 → 唤醒进入加热界面 */
-        if (heat_display_heat_wake_pending() && g_res.setup_done) {
-            printf("elunchbox: reservation heating wakes screen from manual off\n");
-            elunchbox_pwr_gui_wake();
-            func_elunchbox_switch_to_heat_panel();
-            return;
+        {
+            bool heat_pending = heat_display_heat_wake_pending();
+            if (heat_pending && g_res.setup_done) {
+                printf("elunchbox: reservation heating wakes screen from manual off\n");
+                elunchbox_pwr_gui_wake();
+                func_elunchbox_switch_to_heat_panel();
+                return;
+            }
+            if (heat_pending && !g_res.setup_done) {
+                printf("elunchbox: [DEBUG] manual_off heat_pending=1 BUT setup_done=0, skip wake\n");
+            }
         }
 #endif
 #if FUNC_RESERVATION_UI_EN
@@ -1350,11 +1356,17 @@ void func_process(void)
             return;
         }
         /* 预约加热已由加热模块自动启动 → 唤醒并跳转加热界面 */
-        if (heat_display_heat_wake_pending() && g_res.setup_done) {
-            printf("elunchbox: reservation heating wakes screen from guioff\n");
-            elunchbox_pwr_gui_wake();
-            func_elunchbox_switch_to_heat_panel();
-            return;
+        {
+            bool heat_pending = heat_display_heat_wake_pending();
+            if (heat_pending && g_res.setup_done) {
+                printf("elunchbox: reservation heating wakes screen from guioff\n");
+                elunchbox_pwr_gui_wake();
+                func_elunchbox_switch_to_heat_panel();
+                return;
+            }
+            if (heat_pending && !g_res.setup_done) {
+                printf("elunchbox: [DEBUG] guioff heat_pending=1 BUT setup_done=0, skip wake\n");
+            }
         }
         pt8028_gpio_ensure_periodic();
         pt8028_key_scan();
@@ -1487,11 +1499,18 @@ void func_process(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     /* 预约加热已由加热模块自动启动 → 亮屏时跳转加热界面 */
-    if (!elunchbox_pwr_is_manual_off()
-        && heat_display_heat_wake_pending() && g_res.setup_done
-        && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
-        printf("elunchbox: reservation heating confirmed, switch to heat panel (awake)\n");
-        func_elunchbox_switch_to_heat_panel();
+    {
+        bool heat_pending = heat_display_heat_wake_pending();
+        if (!elunchbox_pwr_is_manual_off()
+            && heat_pending && g_res.setup_done
+            && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
+            printf("elunchbox: reservation heating confirmed, switch to heat panel (awake)\n");
+            func_elunchbox_switch_to_heat_panel();
+        }
+        if (heat_pending && !g_res.setup_done) {
+            printf("elunchbox: [DEBUG] awake heat_pending=1 BUT setup_done=0 sta=%u, skip\n",
+                   func_cb.sta);
+        }
     }
 #endif
 

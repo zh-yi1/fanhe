@@ -441,6 +441,13 @@ static void new_res_ok_key(f_new_reservation_t *f)
     g_res.heat_min = 0;
     g_res.temp_idx = 0;
     g_res_heat_pending = true;
+    /* pt8028_release_clear 会清零 key_notify_pending，须先发送 lunchbox 按键通知 */
+    {
+        u8 lunchbox_key = pt8028_tch_to_lunchbox_key(PT8028_KEY_TCH4);
+        if (lunchbox_key != 0) {
+            lunchbox_key_notify(lunchbox_key);
+        }
+    }
     /* 清空残留按键，防止 TCH4 确认键泄漏到加热参数设置页→最终退回主界面后自动触发确认键 */
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();

@@ -449,7 +449,10 @@ bool func_reservation_is_waiting(void)
 
 bool func_reservation_is_active(void)
 {
-    return g_res.setup_done && (g_res.phase == RES_PHASE_WAITING);
+    bool active = g_res.setup_done && (g_res.phase == RES_PHASE_WAITING);
+    //printf("res_is_active: setup=%u phase=%u -> %u\n",
+           //g_res.setup_done ? 1u : 0u, g_res.phase, active ? 1u : 0u);
+    return active;
 }
 
 bool func_reservation_is_heating(void)
@@ -460,9 +463,22 @@ bool func_reservation_is_heating(void)
 #if USER_PANEL_LED
 static void func_reservation_led_sync(void)
 {
-    panel_led_set_res_latched(func_reservation_is_active());
+    bool on = func_reservation_is_active();
+    //printf("res_led_sync: set_res_latched=%u\n", on ? 1u : 0u);
+    panel_led_set_res_latched(on);
 }
 #endif
+
+/** 加热模块已自发启动预约加热（UART 上报 HEAT_ENABLE=1 + HEAT_MODE=4），
+ *  立即将预约状态切换为加热中并同步 LED（关预约灯 LED4）。*/
+void func_reservation_phase_enter_heating(void)
+{
+    g_res.phase = RES_PHASE_HEATING;
+    g_res.appt_triggered_today = true;
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+}
 
 static u16 func_res_get_target_temp_f(u8 temp_idx)
 {
@@ -1845,6 +1861,9 @@ void func_reservation_poll(void)
 {
     tm_t tm;
 
+    //printf("res_poll: enter sta=%u phase=%u setup=%u\n",
+           //func_cb.sta, g_res.phase, g_res.setup_done ? 1u : 0u);
+
 #if USER_PANEL_LED
     func_reservation_led_sync();
 #endif
@@ -1856,6 +1875,8 @@ void func_reservation_poll(void)
 #endif
 
     if (!g_res.setup_done || g_res.phase != RES_PHASE_WAITING) {
+        //printf("res_poll: skip setup=%u phase=%u sta=%u\n",
+               //g_res.setup_done ? 1u : 0u, g_res.phase, func_cb.sta);
         return;
     }
 
@@ -1891,6 +1912,7 @@ void func_reservation_poll(void)
 #endif
             }
 #else
+            printf("res_poll: ->HEATING phase=%u sta=%u\n", g_res.phase, func_cb.sta);
             g_res.phase = RES_PHASE_HEATING;
 #if USER_PANEL_LED
             func_reservation_led_sync();
