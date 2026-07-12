@@ -50,19 +50,21 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_HEAT_MODE_TITLE_W             120
 
 #define NEW_HEAT_TEMP_LABEL_Y             52
+#define NEW_HEAT_TEMP_LABEL_TEXT_Y        46
 #define NEW_HEAT_TEMP_SLIDER_Y            82
 #define NEW_HEAT_TEMP_SCALE_Y             100
 
 #define NEW_HEAT_TIME_LABEL_Y             137
+#define NEW_HEAT_TIME_LABEL_TEXT_Y        131
 #define NEW_HEAT_TIME_SLIDER_Y            166
 #define NEW_HEAT_TIME_SCALE_Y             184
 
-#define NEW_HEAT_LABEL_X                  95
 #define NEW_HEAT_BADGE_TXT_W              80
 
 #define NEW_HEAT_BADGE_X                  ((s16)(GUI_SCREEN_WIDTH - NEW_HEAT_STATUS_RIGHT_MARGIN - NEW_HEAT_BADGE_W / 2))
 #define NEW_HEAT_BADGE_TXT_X              ((s16)(NEW_HEAT_BADGE_X - (NEW_HEAT_BADGE_TXT_W - NEW_HEAT_BADGE_W) / 2 +12))
 #define NEW_HEAT_SLIDER_SLOT_X            ((s16)((GUI_SCREEN_WIDTH - NEW_HEAT_SLIDER_W) / 2))
+#define NEW_HEAT_LABEL_X                  ((s16)(NEW_HEAT_SLIDER_SLOT_X - 27))
 
 #define NEW_HEAT_COLOR_LABEL              0x0AD8
 #define NEW_HEAT_COLOR_SCALE              0xC618
@@ -765,7 +767,7 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
             compo_setid(t, COMPO_ID_TXT_TEMP_LABEL);
             compo_textbox_set_wholewrap(t, false);
             compo_textbox_set_autosize(t, false);
-            compo_textbox_set_pos(t, NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y);
+            compo_textbox_set_pos(t, NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_TEXT_Y);
             compo_textbox_set_forecolor(t, NEW_HEAT_COLOR_LABEL);
         }
         f->txt_temp_label = t;
@@ -777,7 +779,7 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
             compo_setid(t, COMPO_ID_TXT_TIME_LABEL);
             compo_textbox_set_wholewrap(t, false);
             compo_textbox_set_autosize(t, false);
-            compo_textbox_set_pos(t, NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y);
+            compo_textbox_set_pos(t, NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_TEXT_Y);
             compo_textbox_set_forecolor(t, NEW_HEAT_COLOR_LABEL);
         }
         f->txt_time_label = t;
@@ -1169,11 +1171,11 @@ compo_form_t *func_new_heat_form_create(void)
                                NEW_HEAT_MODE_TITLE_W, NEW_HEAT_MODE_TITLE_H);
 
     txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_LABEL, NEW_HEAT_FONT,
-                              NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
-    compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_Y, 300, 30);
+                              NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_TEXT_Y, NEW_HEAT_COLOR_LABEL, false);
+    compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TEMP_LABEL_TEXT_Y, 300, 30);
     txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_LABEL, NEW_HEAT_FONT,
-                              NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_LABEL, false);
-    compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_Y, 300, 30);
+                              NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_TEXT_Y, NEW_HEAT_COLOR_LABEL, false);
+    compo_textbox_set_location(txt, NEW_HEAT_LABEL_X, NEW_HEAT_TIME_LABEL_TEXT_Y, 300, 30);
 
     pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_BADGE);
     compo_picturebox_set_pos(pic, NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_LABEL_Y);
