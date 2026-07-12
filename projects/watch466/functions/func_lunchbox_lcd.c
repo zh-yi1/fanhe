@@ -238,7 +238,7 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
         goto heat_start_local_done;
     }
 #endif
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len, false);
 
 heat_start_local_done:
 #if ELUNCHBOX_PANEL_EN
@@ -289,7 +289,7 @@ void lunchbox_heat_stop(void)
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
 
     u16 data_len = (u16)(p - data);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len, false);
 
 #if !LB_BRIDGE_MODE
     lb_attr_heat_enable = 0;
@@ -451,14 +451,14 @@ void lunchbox_key_notify(u8 key_val)
 {
     u8 data[8];
     u16 len = lb_dp_encode_enum(data, LB_DPID_KEY_NOTIFY, key_val);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
 }
 
 void lunchbox_power_off(void)
 {
     u8 data[8];
     u16 len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, 0);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, true);
     led_pg_off();   // 关背光 (先于关屏，避免花屏)
     lcd_pg_off();   // 关VDDLCD
     hr_vdd_ldo_off(); // 关VDDHR 3.3V
@@ -479,7 +479,7 @@ void lunchbox_power_on(void)
     }
 
     u16 len = (u16)(p - data);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
     led_pg_on();    // 开背光 (UART发包约1~2ms，给LCD供电留出稳定时间)
 }
 
@@ -492,7 +492,7 @@ void lunchbox_time_sync(u32 unix_time)
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
 
     u16 len = (u16)(p - data);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
 }
 
 //-----------------------------------------------------------------------------
@@ -522,7 +522,7 @@ void lunchbox_reservation_send(u8 action, u8 id, const char *name, u32 unix_time
     data[2 + 32 + 6] = enabled;
     data[2 + 32 + 7] = repeat;
 
-    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 42);
+    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 42, false);
 }
 
 void lunchbox_reservation_delete(u8 id)
@@ -530,12 +530,12 @@ void lunchbox_reservation_delete(u8 id)
     u8 data[2];
     data[0] = 0x00;
     data[1] = id;
-    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 2);
+    lb_uart_send_raw(LB_UART_CMD_SCHEDULE_OP, data, 2, false);
 }
 
 void lunchbox_query_reservation_list(void)
 {
-    lb_uart_send_raw(LB_UART_CMD_SCHEDULE, NULL, 0);
+    lb_uart_send_raw(LB_UART_CMD_SCHEDULE, NULL, 0, false);
 }
 
 //-----------------------------------------------------------------------------

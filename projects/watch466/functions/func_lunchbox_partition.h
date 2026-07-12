@@ -42,6 +42,7 @@ typedef struct {
     u8   cmd;                           // UART 命令字
     u8   data[128];                     // 数据载荷
     u16  data_len;                      // 数据长度
+    bool no_wait;                       // true=发送后不等回应、不重试
 } lb_send_q_item_t;
 
 // 发送队列 (环形缓冲)

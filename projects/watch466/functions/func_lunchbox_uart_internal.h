@@ -102,7 +102,7 @@ u8 lb_checksum(u8 *data, u16 len);
 u32 lb_crc32(const void *data, u32 len, u32 crc);
 
 // UART 原始发送 (LCD/加热控制/预约 等模块用)
-void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len);
+void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
 
 // DataPoint 编码器
 u16 lb_dp_encode_bool(u8 *buf, u8 dpid, u8 val);
