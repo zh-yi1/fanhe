@@ -1045,6 +1045,13 @@ static void new_heat_ok_key(f_new_heat_t *f)
         g_res.heat_hour = (u8)(total_min / 60);
         g_res.heat_min = (u8)(total_min % 60);
         g_res.temp_idx = f->temp_idx;
+        /* pt8028_release_clear 会清零 key_notify_pending，须先发送 lunchbox 按键通知 */
+        {
+            u8 lunchbox_key = pt8028_tch_to_lunchbox_key(PT8028_KEY_TCH4);
+            if (lunchbox_key != 0) {
+                lunchbox_key_notify(lunchbox_key);
+            }
+        }
         /* 预约时间直接使用用户设定的时间，不再减去加热时长 */
         func_reservation_new_ui_do_submit();
         return;

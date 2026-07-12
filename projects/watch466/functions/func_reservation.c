@@ -469,6 +469,17 @@ static void func_reservation_led_sync(void)
 }
 #endif
 
+/** 加热模块已自发启动预约加热（UART 上报 HEAT_ENABLE=1 + HEAT_MODE=4），
+ *  立即将预约状态切换为加热中并同步 LED（关预约灯 LED4）。*/
+void func_reservation_phase_enter_heating(void)
+{
+    g_res.phase = RES_PHASE_HEATING;
+    g_res.appt_triggered_today = true;
+#if USER_PANEL_LED
+    func_reservation_led_sync();
+#endif
+}
+
 static u16 func_res_get_target_temp_f(u8 temp_idx)
 {
     if (temp_idx >= LB_HEAT_TEMP_CNT) {

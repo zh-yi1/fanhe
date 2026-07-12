@@ -31,6 +31,7 @@ extern reservation_global_t g_res;
 extern bool g_res_heat_pending;
 
 void func_reservation_poll(void);
+void func_reservation_phase_enter_heating(void);
 reservation_phase_t func_reservation_get_phase(void);
 bool func_reservation_is_waiting(void);
 bool func_reservation_is_active(void);
