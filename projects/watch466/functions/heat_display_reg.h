@@ -75,7 +75,7 @@ bool heat_display_warm_charge_wake_pending(void);
 bool heat_display_warm_charge_pending_active(void);
 /** 亮屏后执行 deferred 充电进保温 */
 void heat_display_warm_charge_route_poll(void);
-/** 预约到点是否可跳加热页：充电转保温进行中则否（与直接加热充电 MCU 路由一致） */
+/** 预约到点是否可跳加热页：已在保温/加热页则否 */
 bool heat_display_reservation_can_switch_heat(void);
 #endif
 
