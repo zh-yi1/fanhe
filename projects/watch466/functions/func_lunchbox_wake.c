@@ -11,6 +11,7 @@
 
 void lunchbox_display_on(void)
 {
+    printf("elunchbox: [DBG] lunchbox_display_on: VDDLCD+0x29+backlight\n");
     LCD_POWER_EN();                 // 先开 VDDLCD（必须先于背光，否则花屏）
     WriteComm(0x29);                // LCD Display On，恢复像素扫描
     tft_bglight_force_on();         // 恢复背光（内部调用 LCD_BL_EN + PWM 恢复）
