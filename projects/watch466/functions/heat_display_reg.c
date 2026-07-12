@@ -3,6 +3,9 @@
 #include "func_lunchbox_uart.h"
 #include "func.h"
 #include "home_ui_shared.h"
+#if !LB_BRIDGE_MODE
+#include "func_lunchbox_uart_internal.h"
+#endif
 #if ELUNCHBOX_PANEL_EN
 #include "func_reservation.h"
 #endif
@@ -167,7 +170,8 @@ static bool heat_display_try_charging_warm_route(bool got_mode, u8 mcu_mode,
 /** MCU 驱动从保温回加热：用 UART 快照预设参数，避免 func_heat 默认 176°F */
 static void heat_display_preset_resume_heat(u32 remain_min, bool got_remain,
                                             u16 temp_f, bool got_temp,
-                                            u32 duration_min, bool got_duration)
+                                            u32 duration_min, bool got_duration,
+                                            u8 proto_mode)
 {
     heat_display_info_t last;
     u16 use_temp;
@@ -202,19 +206,11 @@ static void heat_display_preset_resume_heat(u32 remain_min, bool got_remain,
 
     use_remain = got_remain ? remain_min : (has_last ? last.remain_min : use_total);
 
-    {
-        u8 proto_mode = 1;
-#if ELUNCHBOX_PANEL_EN
-        if (g_res.setup_done && func_reservation_is_heating()) {
-            proto_mode = 4;
-        }
-#endif
-        lb_mode_to_heat_set(proto_mode, use_temp,
-                            (u8)(use_total / 60), (u8)(use_total % 60));
-    }
+    lb_mode_to_heat_set(proto_mode, use_temp,
+                        (u8)(use_total / 60), (u8)(use_total % 60));
     heat_display_show(use_remain, use_temp);
-    printf("[LCD_ROUTE] resume heat preset %uF total=%umin remain=%umin\n",
-           use_temp, use_total, use_remain);
+    printf("[LCD_ROUTE] resume heat preset mode=%u %uF total=%umin remain=%umin\n",
+           proto_mode, use_temp, use_total, use_remain);
 }
 
 /** 本包无 DP10 时，用 UART 属性判断 MCU 是否仍在加热 */
@@ -228,6 +224,67 @@ static bool heat_display_mcu_still_heating(bool got_enable, bool heating)
 #else
     return false;
 #endif
+}
+
+/** 拔电回加热页时使用的协议模式（预约须为 4） */
+static u8 heat_display_resume_proto_mode(u8 mode)
+{
+    if (heat_display_mcu_mode_is_heating(mode)) {
+        return mode;
+    }
+#if ELUNCHBOX_PANEL_EN
+    if (g_res.setup_done && func_reservation_is_heating()) {
+        return 4;
+    }
+#endif
+    return 1;
+}
+
+/** 充电进保温后拔电：是否应回加热页 */
+static bool heat_display_unplug_should_resume_heat(u8 mode, bool got_enable, bool heating)
+{
+    if (heat_display_mcu_mode_is_off(mode)) {
+        return false;
+    }
+    if (got_enable && !heating) {
+        return false;
+    }
+    if (!heat_display_mcu_still_heating(got_enable, heating)) {
+        return false;
+    }
+    if (heat_display_mcu_mode_is_heating(mode) || heat_display_mcu_mode_is_warm(mode)) {
+        return true;
+    }
+#if ELUNCHBOX_PANEL_EN
+    if (g_res.setup_done && func_reservation_is_heating()) {
+        return true;
+    }
+#endif
+    return false;
+}
+
+static void heat_display_route_resume_heat(u8 mode,
+                                           u32 remain_min, bool got_remain,
+                                           u16 temp_f, bool got_temp,
+                                           u32 duration_min, bool got_duration)
+{
+    u8 proto_mode = heat_display_resume_proto_mode(mode);
+
+    heat_display_preset_resume_heat(remain_min, got_remain, temp_f, got_temp,
+                                    duration_min, got_duration, proto_mode);
+    func_elunchbox_warm_from_charging_set(false);
+    lb_heat_mcu_nav_set(true);
+    lb_heat_uart_remote_set(true);
+    lb_heat_autostart_set(true);
+    printf("[LCD_ROUTE] resume heat proto=%u (mcu_mode=%u res=%u)\n",
+           proto_mode, mode,
+#if ELUNCHBOX_PANEL_EN
+           func_reservation_is_heating() ? 1u : 0u
+#else
+           0u
+#endif
+           );
+    func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
 /** 开始加热后：按 MCU DP02 模式 + 充电状态路由界面 */
@@ -254,9 +311,8 @@ static bool heat_display_mcu_mode_route(bool got_mode, u8 mcu_mode,
         return true;
     }
 
-    /* 拔电 / 模式变化：充电转保温场景 */
-    if (!charging && func_cb.sta == FUNC_NEW_WARM
-        && func_elunchbox_warm_from_charging()) {
+    /* 保温页拔电 / MCU 模式 1~4：回加热页（预约 Mode=4 与直接加热相同） */
+    if (!charging && func_cb.sta == FUNC_NEW_WARM) {
         if (got_charge && charge_val == 0) {
             heat_display_warm_exit_reset();
         }
@@ -264,53 +320,19 @@ static bool heat_display_mcu_mode_route(bool got_mode, u8 mcu_mode,
             if (!heat_display_warm_exit_try()) {
                 return true;
             }
-            printf("[LCD_ROUTE] MCU mode=%u unplug warm->home (sta=%u)\n",
-                   mode, func_cb.sta);
+            printf("[LCD_ROUTE] MCU mode=%u warm->home (sta=%u warm_chg=%u)\n",
+                   mode, func_cb.sta, func_elunchbox_warm_from_charging() ? 1u : 0u);
             func_elunchbox_uart_stop_and_home();
             return true;
         }
-        if ((heat_display_mcu_mode_is_heating(mode)
-             || (heat_display_mcu_mode_is_warm(mode)
-                 && heat_display_mcu_still_heating(got_enable, heating)))
-            && heat_display_mcu_still_heating(got_enable, heating)) {
-            printf("[LCD_ROUTE] MCU mode=%u unplug warm->heat (sta=%u)\n",
-                   mode, func_cb.sta);
-            heat_display_preset_resume_heat(remain_min, got_remain, temp_f, got_temp,
-                                            duration_min, got_duration);
-            func_elunchbox_warm_from_charging_set(false);
-            lb_heat_mcu_nav_set(true);
-            lb_heat_uart_remote_set(true);
-            lb_heat_autostart_set(true);
-            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        if (heat_display_unplug_should_resume_heat(mode, got_enable, heating)) {
+            printf("[LCD_ROUTE] MCU mode=%u warm->heat (sta=%u warm_chg=%u)\n",
+                   mode, func_cb.sta, func_elunchbox_warm_from_charging() ? 1u : 0u);
+            heat_display_route_resume_heat(mode, remain_min, got_remain, temp_f, got_temp,
+                                           duration_min, got_duration);
             return true;
         }
         return false;
-    }
-
-    /* 拔电 / 模式变化：自然保温结束场景 */
-    if (!charging && func_cb.sta == FUNC_NEW_WARM
-        && !func_elunchbox_warm_from_charging()) {
-        if (heat_display_mcu_mode_is_off(mode) || (got_enable && !heating)) {
-            if (!heat_display_warm_exit_try()) {
-                return true;
-            }
-            printf("[LCD_ROUTE] MCU mode=%u warm exit->home (sta=%u)\n",
-                   mode, func_cb.sta);
-            func_elunchbox_uart_stop_and_home();
-            return true;
-        }
-        if (heat_display_mcu_mode_is_heating(mode) && got_enable && heating) {
-            printf("[LCD_ROUTE] MCU mode=%u charge end warm->heat (sta=%u)\n",
-                   mode, func_cb.sta);
-            heat_display_preset_resume_heat(remain_min, got_remain, temp_f, got_temp,
-                                            duration_min, got_duration);
-            func_elunchbox_warm_from_charging_set(false);
-            lb_heat_mcu_nav_set(true);
-            lb_heat_uart_remote_set(true);
-            lb_heat_autostart_set(true);
-            func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-            return true;
-        }
     }
 
     return false;
@@ -553,6 +575,9 @@ void heat_display_feed_dp(u8 *data, u16 len)
                 mcu_mode = val[0];
                 got_mode = true;
                 got_heat_stop = (val[0] == 0);
+#if !LB_BRIDGE_MODE
+                lb_attr_heat_mode = val[0];
+#endif
 #if ELUNCHBOX_PANEL_EN
                 if (ui_ok)
 #endif
@@ -657,17 +682,17 @@ void heat_display_feed_dp(u8 *data, u16 len)
         heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
     }
 
-    /* 预约到点：先进加热页，本包继续走 MCU 模式路由（充电进保温与直接加热相同） */
+    /* 预约到点：Home 等页面跳加热；已在保温页则交给 mode 路由（拔电回预约加热） */
     if (got_enable && heating && g_res.setup_done
         && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
-        if (!heat_display_reservation_can_switch_heat()) {
-            printf("[LCD_REG] feed_dp: reservation heat skip switch (warm route sta=%u)\n",
-                   func_cb.sta);
-            return;
+        if (heat_display_reservation_can_switch_heat()) {
+            printf("[LCD_REG] feed_dp: reservation heating started, switch to heat panel "
+                   "remain=%u got_remain=%d\n", remain_min, got_remain ? 1 : 0);
+            func_elunchbox_switch_to_heat_panel();
+        } else {
+            printf("[LCD_REG] feed_dp: reservation on sta=%u, try mode route (mode=%u)\n",
+                   func_cb.sta, got_mode ? mcu_mode : heat_display_cached_mcu_mode);
         }
-        printf("[LCD_REG] feed_dp: reservation heating started, switch to heat panel "
-               "remain=%u got_remain=%d\n", remain_min, got_remain ? 1 : 0);
-        func_elunchbox_switch_to_heat_panel();
     }
 
     /* 开始加热后（含预约已进入/正在进入加热页）：按 MCU 模式 + 充电状态路由 */
