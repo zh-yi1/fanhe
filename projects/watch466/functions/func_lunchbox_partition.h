@@ -19,7 +19,7 @@
  * 加热模块在 115200bps 下通常 10~50ms 内应答。
  * 设为 100ms 以兼顾响应速度与容错。
  */
-#define LB_UART_CMD_INTERVAL_MS     50
+#define LB_UART_CMD_INTERVAL_MS     70
 
 /**
  * @brief UART 指令无回应时的最大重试次数 (不含首次发送)
