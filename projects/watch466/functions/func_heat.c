@@ -1545,6 +1545,26 @@ bool func_heat_uart_finish_ok(void)
     return f_heat->heat_live_ready;
 }
 
+bool func_heat_panel_ready_for_charge_warm(void)
+{
+    f_heat_t *f_heat;
+
+    if (func_cb.sta != FUNC_HEAT || func_cb.f_cb == NULL) {
+        return false;
+    }
+    if (sys_cb.flag_swithing) {
+        return false;
+    }
+    f_heat = (f_heat_t *)func_cb.f_cb;
+    if (f_heat->ui_state != HEAT_UI_HEATING) {
+        return false;
+    }
+    if (!f_heat->heat_live_ready) {
+        return false;
+    }
+    return true;
+}
+
 #if ELUNCHBOX_PANEL_EN
 u8 func_heat_panel_get_ui_state(const void *f)
 {
@@ -1750,7 +1770,14 @@ static void func_elunchbox_enter_warm_from_heat_body(void)
     }
 
     f = (f_heat_t *)func_cb.f_cb;
-    if (!func_elunchbox_warm_from_charging() && f->ui_state != HEAT_UI_HEATING) {
+    if (func_elunchbox_warm_from_charging()) {
+        if (f->ui_state != HEAT_UI_HEATING || !f->heat_live_ready || sys_cb.flag_swithing) {
+            printf("[LCD_ROUTE] charge warm deferred (ui=%u ready=%u switching=%u)\n",
+                   f->ui_state, f->heat_live_ready ? 1u : 0u,
+                   sys_cb.flag_swithing ? 1u : 0u);
+            return;
+        }
+    } else if (f->ui_state != HEAT_UI_HEATING) {
         return;
     }
 

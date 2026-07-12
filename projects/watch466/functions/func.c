@@ -238,6 +238,10 @@ static void elunchbox_ble_pending_sta_poll(void)
     home_gpu_wait_idle();
     WDT_CLR();
     func_switch_to(sta, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    if (sta == FUNC_HEAT) {
+        home_gpu_wait_idle();
+        WDT_CLR();
+    }
 }
 #endif
 
@@ -1467,14 +1471,17 @@ void func_process(void)
                    func_cb.sta);
         }
     }
-    heat_display_warm_charge_route_poll();
 #endif
 
 #if USER_PT8028_KEY && SOFT_POWER_ON_OFF
     func_elunchbox_pwr_long_poll();  // 电源键长按检测
 #endif
 #if ELUNCHBOX_PANEL_EN
-    elunchbox_ble_pending_sta_poll();// BLE 状态轮询
+    elunchbox_ble_pending_sta_poll(); /* 预约/加热切页 */
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+    /* 须在加热页切完后再执行：预约与直接加热共用充电进保温 */
+    heat_display_warm_charge_route_poll();
 #endif
 }
 

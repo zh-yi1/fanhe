@@ -73,7 +73,7 @@ bool heat_display_heat_wake_pending(void);
 bool heat_display_warm_charge_wake_pending(void);
 /** 是否仍有 deferred 充电进保温（不清除） */
 bool heat_display_warm_charge_pending_active(void);
-/** 亮屏后执行 deferred 充电进保温 */
+/** 亮屏后执行 deferred 充电进保温（预约进加热页后与直接加热相同） */
 void heat_display_warm_charge_route_poll(void);
 /** 预约到点是否可跳加热页：已在保温/加热页则否 */
 bool heat_display_reservation_can_switch_heat(void);
