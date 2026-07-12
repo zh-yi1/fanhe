@@ -50,6 +50,9 @@ void lunchbox_keep_warm_start(void);
 /** @brief 停止保温 */
 void lunchbox_keep_warm_stop(void);
 
+/** @brief 用户按开关键停止保温：强制下发 UART stop，覆盖充电/MCU 跳页 skip */
+void lunchbox_keep_warm_stop_user(void);
+
 /** @brief BLE/0x04 跳转保温页前设置温度档位 (0~6)，0xff 表示用默认 194°F */
 void lunchbox_keep_warm_set_temp_idx(u8 temp_idx);
 

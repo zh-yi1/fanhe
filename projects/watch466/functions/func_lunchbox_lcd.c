@@ -407,6 +407,19 @@ void lunchbox_keep_warm_stop(void)
     lunchbox_heat_stop();
 }
 
+void lunchbox_keep_warm_stop_user(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    func_elunchbox_warm_from_charging_set(false);
+    lb_heat_mcu_nav_set(false);
+    lb_heat_user_uart_tx_force_set(true);
+#endif
+    if (!lb_keep_warm_active && !lb_heat_lcd_active && !lb_heat_task_active) {
+        return;
+    }
+    lunchbox_heat_stop();
+}
+
 bool lunchbox_keep_warm_is_active(void)
 {
     return lb_keep_warm_active;

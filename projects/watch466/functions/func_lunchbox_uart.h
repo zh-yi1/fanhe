@@ -428,6 +428,9 @@ void lunchbox_keep_warm_start(void);
 /** @brief 停止保温 */
 void lunchbox_keep_warm_stop(void);
 
+/** @brief 用户按开关键停止保温：强制下发 UART stop */
+void lunchbox_keep_warm_stop_user(void);
+
 /** @brief 当前是否处于保温状态 */
 bool lunchbox_keep_warm_is_active(void);
 

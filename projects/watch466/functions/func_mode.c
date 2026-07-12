@@ -1075,7 +1075,12 @@ static void func_mode_power_key(f_mode_t *f_mode)
         return;
     }
 
-    if (f_mode->ui_state == MODE_UI_HEATING) {
+    if (mode_in_keep_warm_ui) {
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_keep_warm_stop_user();
+#endif
+        mode_in_keep_warm_ui = false;
+    } else if (f_mode->ui_state == MODE_UI_HEATING) {
         func_mode_countdown_stop();
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();

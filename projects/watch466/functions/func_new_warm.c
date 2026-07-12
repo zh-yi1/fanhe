@@ -650,15 +650,17 @@ static void new_warm_gpu_detach_before_leave(f_new_warm_t *f)
 
 static void new_warm_power_key(void)
 {
+    f_new_warm_t *f = (f_new_warm_t *)func_cb.f_cb;
+
     if (sys_cb.flag_swithing) {
         return;
     }
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_keep_warm_stop();
+    lunchbox_keep_warm_stop_user();
 #endif
-#if ELUNCHBOX_PANEL_EN
-    func_elunchbox_warm_from_charging_set(false);
-#endif
+    if (f != NULL) {
+        f->heating = false;
+    }
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
