@@ -372,6 +372,19 @@ static u8 elunchbox_guioff_sleep_mode;
 static u32 elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;  /* 100ms 单位，独立于 sys_cb.guioff_delay */
 static bool elunchbox_pwr_pending_auto_shutdown;  /* 空闲定时器到期，延迟执行 manual_shutdown */
 static u32  elunchbox_saved_clkgat0;               /* 关机时保存 CLKGAT0，唤醒后恢复 */
+static u32  elunchbox_manual_wake_home_tick;       /* 手动关机后 TCH5 唤醒：短时抑制自动跳加热页 */
+
+#ifndef ELUNCHBOX_MANUAL_WAKE_HOME_HOLD_MS
+#define ELUNCHBOX_MANUAL_WAKE_HOME_HOLD_MS  3000
+#endif
+
+static bool elunchbox_manual_wake_home_active(void)
+{
+    if (elunchbox_manual_wake_home_tick == 0) {
+        return false;
+    }
+    return !tick_check_expire(elunchbox_manual_wake_home_tick, ELUNCHBOX_MANUAL_WAKE_HOME_HOLD_MS);
+}
 
 static bool elunchbox_is_charging(void)
 {
@@ -876,7 +889,10 @@ static void elunchbox_screen_wake(void)
     elunchbox_manual_wake_pending = false;
     elunchbox_guioff_sleep_delay_reset();
     if (go_home) {
-        func_cb.sta = FUNC_HOME;
+        elunchbox_manual_wake_home_tick = tick_get();
+        func_elunchbox_ble_cancel_pending_switch();
+        (void)heat_display_heat_wake_pending();
+        func_elunchbox_switch_to_home();
     }
     if (sys_cb.gui_sleep_sta) {
         gui_wakeup();
@@ -1214,7 +1230,14 @@ void func_process(void)
 #endif
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_uart_process();    //轮询接收充电模块发来的数据
-        
+
+        /* 用户 TCH5 长按唤醒优先于预约/加热 UART 自动跳页 */
+        if (elunchbox_manual_wake_pending_take()) {
+            printf("elunchbox: TCH5 3s hold wakes screen from manual off\n");
+            elunchbox_pwr_gui_wake();
+            return;
+        }
+
         if (heat_display_charge_wake_pending()) {    //充电中唤醒->加热模块发来充电状态，检测到充电则唤醒
             printf("elunchbox: charge DP wakes screen from manual off\n");
             elunchbox_pwr_gui_wake();
@@ -1240,12 +1263,7 @@ void func_process(void)
             return;
         }
 #endif
-        
-        if (elunchbox_manual_wake_pending_take()) {   //手动唤醒->TCH5/电源键长按 3 秒唤醒
-            printf("elunchbox: TCH5 3s hold wakes screen from manual off\n");
-            elunchbox_pwr_gui_wake();   
-            return;
-        }
+
         co_timer_pro(false);
         WDT_CLR();
 
@@ -1508,7 +1526,11 @@ void func_process(void)
     /* 预约加热已由加热模块自动启动 → 亮屏时跳转加热界面 */
     {
         bool heat_pending = heat_display_heat_wake_pending();
-        if (!elunchbox_pwr_is_manual_off()
+        if (elunchbox_manual_wake_home_active()) {
+            if (heat_pending) {
+                printf("elunchbox: heat_wake ignored (manual wake -> home)\n");
+            }
+        } else if (!elunchbox_pwr_is_manual_off()
             && heat_pending && g_res.setup_done
             && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
             printf("elunchbox: reservation heating confirmed, switch to heat panel (awake)\n");
