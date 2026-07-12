@@ -61,6 +61,12 @@ static bool heat_display_charging_warm_should_enter(bool got_enable, bool heatin
     if (got_enable && heating) {
         return true;
     }
+#if FUNC_LUNCHBOX_UART_EN
+    /* 先充电后点加热：本地已标记加热任务但 UART 未下发 */
+    if (func_cb.sta == FUNC_HEAT && lunchbox_heating_task_active()) {
+        return true;
+    }
+#endif
     return false;
 }
 #endif
@@ -344,7 +350,8 @@ void heat_display_feed_dp(u8 *data, u16 len)
     if (got_warm_mode && heat_display_charging_now(got_charge, charge_val)) {
         if (func_cb.sta != FUNC_NEW_WARM
             && heat_display_charging_warm_should_enter(got_enable, heating)) {
-            printf("[LCD_REG] feed_dp: DP02=5 charging+heating -> warm panel\n");
+            printf("[LCD_ROUTE] MCU DP02=5 charge+heat -> warm (sta=%u en=%u)\n",
+                   func_cb.sta, heating);
             func_elunchbox_enter_warm_from_charging();
             return;
         }
@@ -362,11 +369,15 @@ void heat_display_feed_dp(u8 *data, u16 len)
     if (func_cb.sta == FUNC_NEW_WARM
         && func_elunchbox_warm_from_charging()
         && !heat_display_charging_now(got_charge, charge_val)) {
+        if (got_charge && charge_val == 0) {
+            heat_display_warm_exit_reset();
+        }
         if ((got_enable && !heating) || got_heat_stop) {
             if (!heat_display_warm_exit_try()) {
                 return;
             }
-            printf("[LCD_REG] feed_dp: charging-warm exit -> home\n");
+            printf("[LCD_ROUTE] MCU unplug warm->home (sta=%u heating=%u stop=%u)\n",
+                   func_cb.sta, heating, got_heat_stop);
             func_elunchbox_uart_stop_and_home();
             return;
         }
@@ -380,7 +391,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
             if (!heat_display_warm_exit_try()) {
                 return;
             }
-            printf("[LCD_REG] feed_dp: warm page exit after charge\n");
+            printf("[LCD_ROUTE] MCU warm exit -> home (sta=%u)\n", func_cb.sta);
             func_elunchbox_uart_stop_and_home();
             return;
         }
@@ -408,23 +419,25 @@ void heat_display_feed_dp(u8 *data, u16 len)
         return;
     }
 
-    /* 充电结束 + 加热指令：从保温页回到加热界面（仅非“充电转保温”场景） */
+    /* 因充电进保温：拔电后 MCU 下发继续加热 → 回加热界面（仅 UI，不回发 heat_start） */
     if (got_enable && heating && func_cb.sta == FUNC_NEW_WARM
-        && !heat_display_charging_now(got_charge, charge_val) && !got_warm_mode
-        && !func_elunchbox_warm_from_charging()) {
-        printf("[LCD_REG] feed_dp: charge ended, resume heat panel\n");
+        && func_elunchbox_warm_from_charging()
+        && !heat_display_charging_now(got_charge, charge_val) && !got_warm_mode) {
+        printf("[LCD_ROUTE] MCU unplug resume heat -> FUNC_HEAT (sta=%u DP10=1)\n", func_cb.sta);
         func_elunchbox_warm_from_charging_set(false);
+        lb_heat_uart_remote_set(true);
         lb_heat_autostart_set(true);
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;
     }
 
-    /* 因充电进保温：拔电后 MCU 下发继续加热 → 回加热界面 */
+    /* 充电结束 + 加热指令：从保温页回到加热界面（仅非“充电转保温”场景） */
     if (got_enable && heating && func_cb.sta == FUNC_NEW_WARM
-        && func_elunchbox_warm_from_charging()
-        && !heat_display_charging_now(got_charge, charge_val) && !got_warm_mode) {
-        printf("[LCD_REG] feed_dp: charging-warm resume heat panel\n");
+        && !heat_display_charging_now(got_charge, charge_val) && !got_warm_mode
+        && !func_elunchbox_warm_from_charging()) {
+        printf("[LCD_ROUTE] MCU charge end resume heat -> FUNC_HEAT (sta=%u)\n", func_cb.sta);
         func_elunchbox_warm_from_charging_set(false);
+        lb_heat_uart_remote_set(true);
         lb_heat_autostart_set(true);
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         return;

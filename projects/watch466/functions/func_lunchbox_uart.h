@@ -376,8 +376,14 @@ void lunchbox_report_attr(u8 dpid);
  *  @param duration 加热时长(分钟) */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration);
 
+/** @brief MCU 已控制加热时仅同步本地状态，不回发 UART */
+void lunchbox_heat_start_local(u8 mode, u8 temp, u32 duration);
+
 /** @brief LCD 停止加热 — 构造 UART 0x03 帧发给加热模块 (action=0 删除) */
 void lunchbox_heat_stop(void);
+
+/** @brief MCU 已下发停止时仅清本地状态，不回发 UART */
+void lunchbox_heat_clear_local(void);
 
 /** @brief LCD 关机 — 发送 PowerSwitch=OFF 给加热模块 (长按开关键3秒) */
 void lunchbox_power_off(void);
@@ -540,6 +546,10 @@ bool lb_heat_autostart_consume(void);
 /** @brief BLE 桥模式已转发 UART 时，func_heat 跳过重复 lunchbox_heat_start */
 void lb_heat_uart_remote_set(bool en);
 bool lb_heat_uart_remote_consume(void);
+bool lb_heat_uart_remote_peek(void);
+/** @brief 充电转保温后 MCU 驱动跳页期间禁止回发加热 UART */
+void lb_heat_mcu_nav_set(bool on);
+bool lb_heat_mcu_nav_active(void);
 
 //-----------------------------------------------------------------------------
 // 协议翻译层 (BLE ↔ UART)

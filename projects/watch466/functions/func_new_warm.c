@@ -571,7 +571,18 @@ static void new_warm_heating_stop(void)
 {
 #if FUNC_LUNCHBOX_UART_EN
     if (lunchbox_keep_warm_is_active()) {
+#if ELUNCHBOX_PANEL_EN
+        if (home_ui_shared_battery_is_charging()
+            || func_elunchbox_warm_from_charging()
+            || lb_heat_mcu_nav_active()
+            || lb_heat_uart_remote_peek()) {
+            lunchbox_heat_clear_local();
+        } else {
+            lunchbox_heat_stop();
+        }
+#else
         lunchbox_heat_stop();
+#endif
     }
 #endif
 }

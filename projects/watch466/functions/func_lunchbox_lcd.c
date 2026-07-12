@@ -87,6 +87,41 @@ bool lb_heat_uart_remote_consume(void)
     return val;
 }
 
+bool lb_heat_uart_remote_peek(void)
+{
+    return lb_heat_uart_remote_flag;
+}
+
+/** @brief 充电转保温后由 MCU 驱动跳页，期间禁止向加热模块回发 UART */
+static bool lb_heat_mcu_nav_flag;
+
+void lb_heat_mcu_nav_set(bool on)
+{
+    lb_heat_mcu_nav_flag = on;
+    printf("lb: mcu_nav=%u\n", on);
+}
+
+bool lb_heat_mcu_nav_active(void)
+{
+    return lb_heat_mcu_nav_flag;
+}
+
+#if ELUNCHBOX_PANEL_EN
+static bool lb_heat_skip_uart_tx(void)
+{
+    if (home_ui_shared_battery_is_charging()) {
+        return true;
+    }
+    if (lb_heat_mcu_nav_flag) {
+        return true;
+    }
+    if (lb_heat_uart_remote_flag) {
+        return true;
+    }
+    return false;
+}
+#endif
+
 /** @brief 协议温度档位 → 华氏度 (0=40°C ~ 6=100°C) */
 u16 lunchbox_temp_idx_to_f(u8 idx)
 {
@@ -180,8 +215,8 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 
     u16 data_len = (u16)(p - data);
 #if ELUNCHBOX_PANEL_EN
-    if (home_ui_shared_battery_is_charging()) {
-        printf("lb: heat_start skipped UART (charging RX-only)\n");
+    if (lb_heat_skip_uart_tx()) {
+        printf("lb: heat_start skipped UART (MCU/RX-only)\n");
         goto heat_start_local_done;
     }
 #endif
@@ -220,7 +255,12 @@ void lunchbox_heat_stop(void)
     lb_heat_lcd_active = false;
     lb_heat_task_active = false;
 #if ELUNCHBOX_PANEL_EN
-    if (home_ui_shared_battery_is_charging()) {
+    if (lb_heat_skip_uart_tx()) {
+        printf("lb: heat_stop skipped UART (MCU/RX-only)\n");
+#if !LB_BRIDGE_MODE
+        lb_attr_heat_enable = 0;
+        lb_attr_heat_mode   = 0;
+#endif
         return;
     }
 #endif
@@ -237,6 +277,30 @@ void lunchbox_heat_stop(void)
     lb_attr_heat_enable = 0;
     lb_attr_heat_mode   = 0;
     lunchbox_report_all_attrs();
+#endif
+}
+
+/** @brief MCU 已控制加热时仅同步本地状态，不向加热模块回发 UART */
+void lunchbox_heat_start_local(u8 mode, u8 temp, u32 duration)
+{
+    lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
+    lb_heat_lcd_active = true;
+    lb_heat_task_active = true;
+#if !LB_BRIDGE_MODE
+    lb_attr_heat_mode     = mode;
+    lb_attr_heat_temp     = temp;
+    lb_attr_heat_duration = duration;
+    lb_attr_heat_enable   = 1;
+#endif
+#if ELUNCHBOX_PANEL_EN
+    if (!elunchbox_pwr_is_manual_off()
+        && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
+        elunchbox_pwr_gui_wake_reason("heat_start_local");
+    }
+    if (!elunchbox_pwr_is_manual_off()) {
+        elunchbox_user_activity_reset();
+    }
+    func_key_lock_on_heating_start();
 #endif
 }
 

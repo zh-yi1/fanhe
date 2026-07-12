@@ -185,8 +185,9 @@ void func_elunchbox_ble_cancel_pending_switch(void)
 void func_elunchbox_uart_stop_and_home(void)
 {
 #if ELUNCHBOX_PANEL_EN
-    printf("elunchbox: uart stop heat -> home (sta=%u)\n", func_cb.sta);
+    printf("[LCD_ROUTE] MCU stop heat -> home (sta=%u)\n", func_cb.sta);
     func_elunchbox_warm_from_charging_set(false);
+    lb_heat_mcu_nav_set(false);
     func_elunchbox_ble_cancel_pending_switch();
 #if FUNC_LUNCHBOX_UART_EN
     heat_display_unregister();

@@ -741,14 +741,16 @@ static void func_heat_start_heating(f_heat_t *f_heat)
         } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
             duration_min = LB_HEAT_DURATION_MAX_MIN;
         }
-#if LB_BRIDGE_MODE
-        if (!skip_uart)
-#endif
-        {
+        if (!skip_uart) {
             printf("lb: heat_start -> UART\n");
             printf("target_temp_f: %d, duration_min: %d, proto_mode: %d\n",
                    lunchbox_temp_f_to_idx(target_temp_f), duration_min, f_heat->proto_mode);
             lunchbox_heat_start(f_heat->proto_mode, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
+        } else {
+            printf("lb: heat_start skipped UART (MCU remote)\n");
+            lunchbox_heat_start_local(f_heat->proto_mode,
+                                      lunchbox_temp_f_to_idx(target_temp_f),
+                                      duration_min);
         }
     }
 #endif
@@ -891,7 +893,16 @@ static void func_heat_power_key(f_heat_t *f_heat)
            触发 func_heat_display_on_info 访问已销毁的 panel widget */
         heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
+#if ELUNCHBOX_PANEL_EN
+        if (home_ui_shared_battery_is_charging() || lb_heat_mcu_nav_active()) {
+            lunchbox_heat_clear_local();
+            lb_heat_mcu_nav_set(false);
+        } else {
+            lunchbox_heat_stop();
+        }
+#else
         lunchbox_heat_stop();
+#endif
 #endif
         func_heat_led_sync(false);
         func_heat_reset_setup(f_heat);
@@ -1331,7 +1342,17 @@ void func_heat_exit(void)
     }
 #if FUNC_LUNCHBOX_UART_EN
     if (f_heat != NULL && f_heat->ui_state == HEAT_UI_HEATING) {
+#if ELUNCHBOX_PANEL_EN
+        /* MCU 驱动跳页 / 充电转保温：勿回发 stop */
+        if (func_cb.sta == FUNC_NEW_WARM || home_ui_shared_battery_is_charging()
+            || lb_heat_mcu_nav_active() || lb_heat_uart_remote_peek()) {
+            lunchbox_heat_clear_local();
+        } else {
+            lunchbox_heat_stop();
+        }
+#else
         lunchbox_heat_stop();
+#endif
     }
 #else
     func_heat_countdown_stop();
@@ -1504,7 +1525,8 @@ void func_elunchbox_enter_warm_from_heat(void)
 void func_elunchbox_enter_warm_from_charging(void)
 {
     func_elunchbox_warm_from_charging_set(true);
-    printf("heat_charging -> warm panel\n");
+    lb_heat_mcu_nav_set(true);
+    printf("[LCD_ROUTE] MCU DP02=5 charge -> warm (sta=%u)\n", func_cb.sta);
     func_elunchbox_enter_warm_from_heat_body();
 }
 

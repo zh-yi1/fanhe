@@ -439,10 +439,19 @@ static void lb_timeout_check(void)
  *   - lb_ble_tx_fn != NULL  → lb_ble_tx_fn() 走 BLE Notify 发出
  */
 #if ELUNCHBOX_PANEL_EN
-/** 充电中仅接收加热模块 UART，主动下发由 MCU 侧完成；心跳应答除外 */
-static bool lb_uart_tx_skip_charging(u8 cmd)
+/** 充电中 / MCU 驱动跳页期间仅接收加热模块 UART，主动下发由 MCU 侧完成；心跳应答除外 */
+static bool lb_uart_tx_skip_rx_only(u8 cmd)
 {
-    return home_ui_shared_battery_is_charging() && cmd != LB_UART_CMD_HEARTBEAT;
+    if (cmd == LB_UART_CMD_HEARTBEAT) {
+        return false;
+    }
+    if (home_ui_shared_battery_is_charging()) {
+        return true;
+    }
+    if (lb_heat_mcu_nav_active()) {
+        return true;
+    }
+    return false;
 }
 #endif
 
@@ -452,7 +461,7 @@ static void lb_send_frame(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
         return;  /* 手动关机期间禁止 UART TX */
     }
 #if ELUNCHBOX_PANEL_EN
-    if (lb_ble_tx_fn == NULL && lb_uart_tx_skip_charging(cmd)) {
+    if (lb_ble_tx_fn == NULL && lb_uart_tx_skip_rx_only(cmd)) {
         return;
     }
 #endif
@@ -1105,6 +1114,11 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
     if (lb_uart_tx_blocked) {
         return;  /* 手动关机期间禁止 UART TX */
     }
+#if ELUNCHBOX_PANEL_EN
+    if (lb_ble_tx_fn == NULL && lb_uart_tx_skip_rx_only(uart_cmd)) {
+        return;
+    }
+#endif
 
     // 若已有指令等待加热模块回应 → 入队, 由 lb_uart_send_process() 后续处理
     if (lb_send_waiting) {
