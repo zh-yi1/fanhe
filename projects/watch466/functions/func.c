@@ -646,7 +646,6 @@ static void elunchbox_pwr_manual_shutdown(void)
         return;
     }
 #if ELUNCHBOX_PANEL_EN && USER_PT8028_KEY
-    /* 须在 manual_off 前排空 GPU 上的锁屏 overlay，否则 ab_free → C241 */
     func_key_lock_on_manual_shutdown();
 #endif
 #if USER_PANEL_LED
@@ -670,6 +669,9 @@ static void elunchbox_pwr_manual_shutdown(void)
     lunchbox_power_off();
     lb_uart_tx_block(true);
     /* RX 保持开启以接收加热模块充电数据，仅封 TX 降功耗 */
+#endif
+#if ELUNCHBOX_PANEL_EN
+    func_key_lock_on_heating_stop();
 #endif
 #if FUNC_RESERVATION_UI_EN
     func_reservation_on_manual_shutdown();

@@ -895,6 +895,9 @@ static void func_heat_ok_key(f_heat_t *f_heat)
 
 static void func_heat_power_key(f_heat_t *f_heat)
 {
+    if (func_key_lock_is_active()) {
+        return;
+    }
     if (f_heat->ui_state == HEAT_UI_HEATING) {
         func_heat_countdown_stop();
         /* 先注销 LCD 回调再发停止指令，防止 UART RX 在页面切换期间
@@ -1152,6 +1155,10 @@ static void func_heat_pt8028_keys_process(f_heat_t *f_heat)
         return;
     }
     pt8028_key_scan_page();
+    if (func_key_lock_is_active()) {
+        (void)func_key_lock_press_take_poll();
+        return;
+    }
     if (func_key_lock_press_take_guarded(&press_tch)) {
         return;
     }

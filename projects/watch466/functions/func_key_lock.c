@@ -15,8 +15,8 @@
 
 /*
  * 进入锁定（30s 自动 / 长按 3s）：LED5 亮 + 锁图标 3s → 消失后保持静默
- * 静默后用户按其它键：锁图标 3s；长按锁键 3s 解锁：LED5 灭 + 解锁图标 1.5s
- * 锁定态：仅开关键(TCH5)长按 3s 可关机；开关键短按蜂鸣+锁图标（与其它键一致）
+ * 静默后用户按其它键：锁图标 3s；长按锁键(TCH0) 3s 解锁：LED5 灭 + 解锁图标 1.5s 后消失
+ * 锁定态：TCH0 长按 3s 解锁；TCH5 长按 3s 关机停加热；两键短按蜂鸣+锁图标
  */
 
 typedef enum {
@@ -105,6 +105,7 @@ static void func_key_lock_hint_show(key_lock_hint_mode_t mode)
     key_lock_hint_on = true;
     key_lock_hint_show_tick = tick_get();
     key_lock_hint_min_polls = 3;
+    key_lock_hint_gui_refresh = true;
     home_ui_lock_overlay_show(mode == KEY_LOCK_HINT_UNLOCK);
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.sta == FUNC_HOME) {
@@ -333,12 +334,13 @@ bool func_key_lock_press_take_poll(void)
     if (press_tch > PT8028_KEY_TCH7) {
         return false;
     }
-    /* TCH5 不消费按下事件，留给驱动检测长按关机 */
-    if (press_tch == PT8028_KEY_TCH5) {
+    /* TCH0 留给长按 3s 解锁；TCH5 留给长按 3s 关机 */
+    if (press_tch == PT8028_KEY_TCH0 || press_tch == PT8028_KEY_TCH5) {
         return false;
     }
     press_tch = pt8028_take_press_tch();
-    if (press_tch > PT8028_KEY_TCH7 || press_tch == PT8028_KEY_TCH5) {
+    if (press_tch > PT8028_KEY_TCH7 || press_tch == PT8028_KEY_TCH0
+        || press_tch == PT8028_KEY_TCH5) {
         return false;
     }
     func_key_lock_blocked_hint();
@@ -359,8 +361,9 @@ bool func_key_lock_press_take_guarded(u8 *out_tch)
         }
         return false;
     }
-    /* TCH5 留给长按关机：不吞键、不弹锁定提示 */
-    if (pt8028_peek_press_tch() == PT8028_KEY_TCH5) {
+    /* TCH0 长按解锁 / TCH5 长按关机：不吞键、不弹锁定提示 */
+    if (pt8028_peek_press_tch() == PT8028_KEY_TCH0
+        || pt8028_peek_press_tch() == PT8028_KEY_TCH5) {
         return false;
     }
     if (func_key_lock_press_take_poll()) {
@@ -378,8 +381,8 @@ bool func_key_lock_filter_tch(u8 tch)
     if (!key_lock_active) {
         return false;
     }
-    /* 开关键留给长按关机检测 */
-    if (tch == PT8028_KEY_TCH5) {
+    /* 锁键/开关键留给各自长按逻辑 */
+    if (tch == PT8028_KEY_TCH0 || tch == PT8028_KEY_TCH5) {
         return false;
     }
     return true;
@@ -419,6 +422,10 @@ static void func_key_lock_lp_poll(void)
             func_key_lock_lp_toggle();
         }
     } else {
+        if (key_lock_active && key_lock_lp_tch == PT8028_KEY_TCH0) {
+            pt8028_defer_key_sound_tch(PT8028_KEY_TCH0);
+            func_key_lock_blocked_hint();
+        }
         func_key_lock_lp_reset();
     }
 }
@@ -521,6 +528,9 @@ void func_key_lock_poll(void)
 #if ELUNCHBOX_PANEL_EN
         if (func_cb.sta == FUNC_HOME) {
             func_home_gui_mark_dirty();
+        } else {
+            compo_update();
+            gui_process();
         }
 #endif
     }
