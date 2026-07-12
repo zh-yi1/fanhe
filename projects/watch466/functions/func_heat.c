@@ -265,6 +265,9 @@ static const u16 tbl_heat_temp_id[HEAT_TEMP_IDX_CNT] = {
 
 static void func_heat_display_refresh(f_heat_t *f_heat);
 static void func_heat_heating_finish_check(f_heat_t *f_heat);
+#if ELUNCHBOX_PANEL_EN
+static void func_heat_sync_mcu_snapshot(f_heat_t *f_heat);
+#endif
 void func_heat_countdown_set(u8 hour, u8 min);
 void func_heat_countdown_stop(void);
 
@@ -1255,10 +1258,12 @@ void func_heat_enter(void)
     if (lb_heat_autostart_consume()) {
         printf("heat_enter: autostart -> start_heating\n");
         func_heat_start_heating(f_heat);
+        func_heat_sync_mcu_snapshot(f_heat);
         printf("heat_enter: start_heating done\n");
     } else if (f_heat->proto_mode != 1) {
         printf("heat_enter: proto_mode=%d -> start_heating\n", f_heat->proto_mode);
         func_heat_start_heating(f_heat);
+        func_heat_sync_mcu_snapshot(f_heat);
         printf("heat_enter: start_heating done\n");
     } else if (f_heat->ui_state == HEAT_UI_SETUP) {
         func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
@@ -1498,6 +1503,24 @@ void func_heat_panel_set_live(struct f_heat_t_ *f_heat, u32 remain_min, u16 temp
     f->last_timer_key = 0xffff;
     f->last_temp_f = 0xffff;
 }
+
+#if ELUNCHBOX_PANEL_EN
+static void func_heat_sync_mcu_snapshot(f_heat_t *f_heat)
+{
+    heat_display_info_t snap;
+
+    if (f_heat == NULL || f_heat->ui_state != HEAT_UI_HEATING) {
+        return;
+    }
+    if (!heat_display_get_last(&snap)) {
+        return;
+    }
+    func_heat_panel_set_live(f_heat, snap.remain_min, snap.temp_f);
+    f_heat->temp_idx = func_heat_temp_f_to_idx(snap.temp_f);
+    printf("heat_sync_mcu: remain=%umin temp=%uF idx=%u\n",
+           snap.remain_min, snap.temp_f, f_heat->temp_idx);
+}
+#endif
 
 #if ELUNCHBOX_PANEL_EN
 static void func_elunchbox_enter_warm_from_heat_body(void);

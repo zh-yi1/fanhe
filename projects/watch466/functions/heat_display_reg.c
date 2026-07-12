@@ -69,6 +69,39 @@ static bool heat_display_charging_warm_should_enter(bool got_enable, bool heatin
 #endif
     return false;
 }
+
+/** MCU 驱动从保温回加热：用 UART 快照预设参数，避免 func_heat 默认 176°F */
+static void heat_display_preset_resume_heat(u32 remain_min, bool got_remain,
+                                            u16 temp_f, bool got_temp,
+                                            u32 duration_min, bool got_duration)
+{
+    heat_display_info_t last;
+    u16 use_temp;
+    u32 use_total;
+    u32 use_remain;
+    bool has_last;
+
+    has_last = heat_display_get_last(&last);
+    use_temp = got_temp ? temp_f : (has_last ? last.temp_f : 176);
+
+    if (got_duration && duration_min > 0) {
+        use_total = duration_min;
+    } else if (got_remain && remain_min > 0) {
+        use_total = remain_min;
+    } else if (has_last && last.remain_min > 0) {
+        use_total = last.remain_min;
+    } else {
+        use_total = 60;
+    }
+
+    use_remain = got_remain ? remain_min : (has_last ? last.remain_min : use_total);
+
+    lb_mode_to_heat_set(1, use_temp,
+                        (u8)(use_total / 60), (u8)(use_total % 60));
+    heat_display_show(use_remain, use_temp);
+    printf("[LCD_ROUTE] resume heat preset %uF total=%umin remain=%umin\n",
+           use_temp, use_total, use_remain);
+}
 #endif
 
 static void heat_display_notify(void)
@@ -212,8 +245,10 @@ void heat_display_feed_dp(u8 *data, u16 len)
     bool got_charge = false;
     bool got_warm_mode = false;
     bool got_heat_stop = false;
+    bool got_duration = false;
     bool heating = false;
     u8 charge_val = 0;
+    u32 duration_min = 0;
 
     while (off + 4 <= len) {
         u8  dpid    = data[off];
@@ -244,6 +279,17 @@ void heat_display_feed_dp(u8 *data, u16 len)
                 if (ui_ok)
 #endif
                 printf("[LCD_REG] feed_dp: HEAT_TEMP idx=%u -> %u F\n", val[0], temp_f);
+            }
+            break;
+        case LB_DPID_HEAT_DURATION:
+            if (val_len >= 4) {
+                duration_min = ((u32)val[0] << 24) | ((u32)val[1] << 16)
+                             | ((u32)val[2] << 8) | val[3];
+                got_duration = true;
+#if ELUNCHBOX_PANEL_EN
+                if (ui_ok)
+#endif
+                printf("[LCD_REG] feed_dp: HEAT_DUR=%u min\n", duration_min);
             }
             break;
         case LB_DPID_HEAT_ENABLE:
@@ -424,6 +470,8 @@ void heat_display_feed_dp(u8 *data, u16 len)
         && func_elunchbox_warm_from_charging()
         && !heat_display_charging_now(got_charge, charge_val) && !got_warm_mode) {
         printf("[LCD_ROUTE] MCU unplug resume heat -> FUNC_HEAT (sta=%u DP10=1)\n", func_cb.sta);
+        heat_display_preset_resume_heat(remain_min, got_remain, temp_f, got_temp,
+                                      duration_min, got_duration);
         func_elunchbox_warm_from_charging_set(false);
         lb_heat_uart_remote_set(true);
         lb_heat_autostart_set(true);
@@ -436,6 +484,8 @@ void heat_display_feed_dp(u8 *data, u16 len)
         && !heat_display_charging_now(got_charge, charge_val) && !got_warm_mode
         && !func_elunchbox_warm_from_charging()) {
         printf("[LCD_ROUTE] MCU charge end resume heat -> FUNC_HEAT (sta=%u)\n", func_cb.sta);
+        heat_display_preset_resume_heat(remain_min, got_remain, temp_f, got_temp,
+                                      duration_min, got_duration);
         func_elunchbox_warm_from_charging_set(false);
         lb_heat_uart_remote_set(true);
         lb_heat_autostart_set(true);
