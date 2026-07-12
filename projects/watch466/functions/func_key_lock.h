@@ -21,6 +21,9 @@
 #ifndef KEY_LOCK_HINT_QUIET_MS
 #define KEY_LOCK_HINT_QUIET_MS          300         //同一次按键多路径去重(ms)
 #endif
+#ifndef KEY_LOCK_PWR_LONG_GUI_MS
+#define KEY_LOCK_PWR_LONG_GUI_MS        400         //TCH5 按住超过此时长视为长按关机预备，收起 overlay 并停刷 GUI
+#endif
 
 bool func_key_lock_is_active(void);
 bool func_key_lock_show_status_icon(bool page_local_locked);

@@ -16,7 +16,7 @@
 /*
  * 进入锁定（30s 自动 / 长按 3s）：LED5 亮 + 锁图标 3s → 消失后保持静默
  * 静默后用户按其它键：锁图标 3s；长按锁键 3s 解锁：LED5 灭 + 解锁图标 1.5s
- * 锁定态：仅开关键(TCH5)长按 3s 可关机；其余按键（含开关键短按）均无效
+ * 锁定态：仅开关键(TCH5)长按 3s 可关机；开关键短按蜂鸣+锁图标（与其它键一致）
  */
 
 typedef enum {
@@ -39,6 +39,8 @@ static bool key_lock_need_key_rel;
 static u32 key_lock_hint_cooldown_tick;
 static bool key_lock_hint_gui_refresh;
 static bool key_lock_entry_hint_settled;  /* 进入锁定的首次 3s 提示已结束 */
+static bool key_lock_pwr_sound_sent;      /* TCH5 按下沿已登记蜂鸣 */
+static u32 key_lock_pwr_hold_tick;        /* TCH5 本次按下时刻 */
 
 static void func_key_lock_enter(bool from_long_press);
 static void func_key_lock_exit(void);
@@ -428,6 +430,40 @@ static bool func_key_lock_pwr_long_hold(void)
     return (tch == PT8028_KEY_TCH5);
 }
 
+static bool func_key_lock_pwr_long_gui_hold(void)
+{
+    if (!key_lock_active || !func_key_lock_pwr_long_hold()) {
+        return false;
+    }
+    if (key_lock_pwr_hold_tick == 0) {
+        return false;
+    }
+    return tick_check_expire(key_lock_pwr_hold_tick, KEY_LOCK_PWR_LONG_GUI_MS);
+}
+
+static void func_key_lock_pwr_sound_poll(void)
+{
+    u8 tch;
+
+    if (!key_lock_active) {
+        key_lock_pwr_sound_sent = false;
+        key_lock_pwr_hold_tick = 0;
+        return;
+    }
+    tch = pt8028_get_press_tch();
+    if (tch == PT8028_KEY_TCH5) {
+        if (!key_lock_pwr_sound_sent) {
+            key_lock_pwr_sound_sent = true;
+            key_lock_pwr_hold_tick = tick_get();
+            pt8028_defer_key_sound_tch(PT8028_KEY_TCH5);
+            func_key_lock_blocked_hint();
+        }
+    } else {
+        key_lock_pwr_sound_sent = false;
+        key_lock_pwr_hold_tick = 0;
+    }
+}
+
 static void func_key_lock_dismiss_overlay_for_pwr_hold(void)
 {
     if (!key_lock_hint_on && !home_ui_lock_overlay_is_visible()) {
@@ -443,7 +479,7 @@ static void func_key_lock_dismiss_overlay_for_pwr_hold(void)
 
 bool func_key_lock_pre_gui_poll(void)
 {
-    if (!key_lock_active || !func_key_lock_pwr_long_hold()) {
+    if (!func_key_lock_pwr_long_gui_hold()) {
         return false;
     }
     func_key_lock_dismiss_overlay_for_pwr_hold();
@@ -457,10 +493,11 @@ void func_key_lock_poll(void)
     }
 
     func_key_lock_need_key_rel_poll();
+    func_key_lock_pwr_sound_poll();
     func_key_lock_lp_poll();
     func_key_lock_heat_auto_poll();
 
-    if (func_key_lock_pwr_long_hold()) {
+    if (func_key_lock_pwr_long_gui_hold()) {
         return;
     }
 
