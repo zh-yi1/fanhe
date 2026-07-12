@@ -96,6 +96,10 @@ u8 pt8028_take_key_sound_defer_tch(void);
 void pt8028_defer_key_sound_tch(u8 tch);
 /* 开关键长按 3s 待关机，取走后清零 */
 bool pt8028_take_pwr_long_pending(void);
+/* 本次按下是否为 TCH5（session 或 press_ln） */
+bool pt8028_pwr_long_tch5_active(void);
+/* 长按已满 3s 但 pending 未置位时补提交（童锁 release_clear 后兜底） */
+void pt8028_try_commit_pwr_long(void);
 /* 关机/开机等待：TCH5 已按住达到 PT8028_PWR_LONG_MS */
 bool pt8028_pwr_key_long_ready(void);
 /* 开机成功后清除长按关机挂起，避免进主循环立刻关机 */

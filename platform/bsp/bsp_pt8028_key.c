@@ -1042,8 +1042,7 @@ u8 get_pt8028_key(void)
                 }
             }
 #if SOFT_POWER_ON_OFF
-            if (pt8028_cb.press_emitted &&
-                pt8028_cb.session_tch == PT8028_KEY_TCH5 &&
+            if (pt8028_pwr_long_tch5_active() &&
                 !pt8028_cb.pwr_long_fired &&
                 tick_check_expire(pt8028_cb.press_tick, PT8028_PWR_LONG_MS)) {
                 pt8028_cb.pwr_long_fired = 1;
@@ -1433,10 +1432,60 @@ void pt8028_poll_reinit(void)
     }
 }
 
+#if SOFT_POWER_ON_OFF
+AT(.com_text.bsp.pt8028)
+bool pt8028_pwr_long_tch5_active(void)
+{
+    if (!pt8028_cb.press_active) {
+        return false;
+    }
+    if (pt8028_cb.press_emitted && pt8028_cb.session_tch == PT8028_KEY_TCH5) {
+        return true;
+    }
+    if (pt8028_cb.press_ln_valid && pt8028_cb.press_ln_bcd == PT8028_KEY_TCH5) {
+        return true;
+    }
+    return false;
+}
+
+AT(.com_text.bsp.pt8028)
+void pt8028_try_commit_pwr_long(void)
+{
+    if (pt8028_cb.pwr_long_fired || pt8028_cb.pwr_boot_mode) {
+        return;
+    }
+    if (!pt8028_pwr_key_long_ready()) {
+        return;
+    }
+    pt8028_cb.pwr_long_fired = 1;
+    if (!pt8028_cb.pwr_boot_mode) {
+        pt8028_cb.pwr_long_pending = 1;
+    }
+    pt8028_cb.pending_ku = NO_KEY;
+#if ELUNCHBOX_PANEL_EN
+    pt8028_cb.key_notify_pending = 0;
+    pt8028_cb.key_notify_tch = 0xff;
+#endif
+}
+#endif
+
 #if ELUNCHBOX_PANEL_EN
 AT(.text.bsp.pt8028)
 void pt8028_release_clear(void)
 {
+    u8 keep_session = 0xff;
+    u8 keep_pwr_long_fired = 0;
+
+    /* 童锁进入等场景会 release_clear：若物理键仍按住，须保留 session 供 TCH5 长按关机 */
+    if (pt8028_cb.press_active && pt8028_cb.press_emitted) {
+        if (pt8028_cb.session_tch <= PT8028_KEY_TCH7) {
+            keep_session = pt8028_cb.session_tch;
+        } else if (pt8028_cb.press_ln_valid && pt8028_cb.press_ln_bcd <= PT8028_KEY_TCH7) {
+            keep_session = pt8028_cb.press_ln_bcd;
+        }
+        keep_pwr_long_fired = pt8028_cb.pwr_long_fired;
+    }
+
     pt8028_cb.release_pending = 0;
     pt8028_cb.release_tch = 0xff;
     pt8028_cb.press_pending = 0;
@@ -1456,6 +1505,11 @@ void pt8028_release_clear(void)
     pt8028_cb.pending_ku = NO_KEY;
     pt8028_cb.release_hold_left = 0;
     pt8028_session_clear();
+
+    if (keep_session <= PT8028_KEY_TCH7) {
+        pt8028_cb.session_tch = keep_session;
+        pt8028_cb.pwr_long_fired = keep_pwr_long_fired;
+    }
 }
 
 AT(.com_text.bsp.pt8028)

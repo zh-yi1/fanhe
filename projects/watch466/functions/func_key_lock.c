@@ -504,6 +504,13 @@ void func_key_lock_poll(void)
     func_key_lock_lp_poll();
     func_key_lock_heat_auto_poll();
 
+#if USER_PT8028_KEY && SOFT_POWER_ON_OFF
+    /* 童锁进入时 release_clear 可能打断 session_tch，此处兜底补提交长按关机 */
+    if (key_lock_active) {
+        pt8028_try_commit_pwr_long();
+    }
+#endif
+
     if (func_key_lock_pwr_long_gui_hold()) {
         return;
     }
