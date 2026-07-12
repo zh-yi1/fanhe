@@ -16,7 +16,7 @@
 /*
  * 进入锁定（30s 自动 / 长按 3s）：LED5 亮 + 锁图标 3s → 消失后保持静默
  * 静默后用户按其它键：锁图标 3s；长按锁键 3s 解锁：LED5 灭 + 解锁图标 1.5s
- * 锁图标仅由 enter/exit 或 press_take 新按下触发，KU 消息路径只拦截不弹图标
+ * 锁定态：仅开关键(TCH5)长按 3s 可关机；其余按键（含开关键短按）均无效
  */
 
 typedef enum {
@@ -303,6 +303,13 @@ void func_key_lock_on_form_destroy(void)
     home_ui_lock_overlay_reset();
 }
 
+static void func_key_lock_blocked_hint(void)
+{
+    if (key_lock_entry_hint_settled && !func_key_lock_hint_in_cooldown()) {
+        func_key_lock_hint_show(KEY_LOCK_HINT_LOCK);
+    }
+}
+
 bool func_key_lock_press_take_poll(void)
 {
     u8 press_tch;
@@ -310,20 +317,48 @@ bool func_key_lock_press_take_poll(void)
     if (!key_lock_active) {
         return false;
     }
-    /* 锁定态下，无条件消费所有按键，不让任何按键从队列漏出 */
     press_tch = pt8028_peek_press_tch();
     if (press_tch > PT8028_KEY_TCH7) {
         return false;
     }
-    press_tch = pt8028_take_press_tch();
-    if (press_tch > PT8028_KEY_TCH7) {
+    /* TCH5 不消费按下事件，留给驱动检测长按关机 */
+    if (press_tch == PT8028_KEY_TCH5) {
         return false;
     }
-    /* 首次进入提示已结束后，仅真实新按下才弹锁图标 */
-    if (key_lock_entry_hint_settled && !func_key_lock_hint_in_cooldown()) {
-        func_key_lock_hint_show(KEY_LOCK_HINT_LOCK);
+    press_tch = pt8028_take_press_tch();
+    if (press_tch > PT8028_KEY_TCH7 || press_tch == PT8028_KEY_TCH5) {
+        return false;
     }
+    func_key_lock_blocked_hint();
     return true;
+}
+
+bool func_key_lock_press_take_guarded(u8 *out_tch)
+{
+    u8 tch;
+
+    if (out_tch != NULL) {
+        *out_tch = 0xff;
+    }
+    if (!key_lock_active) {
+        tch = pt8028_take_press_tch();
+        if (out_tch != NULL) {
+            *out_tch = tch;
+        }
+        return false;
+    }
+    if (func_key_lock_press_take_poll()) {
+        return true;
+    }
+    tch = pt8028_take_press_tch();
+    if (out_tch != NULL) {
+        *out_tch = tch;
+    }
+    if (tch == PT8028_KEY_TCH5) {
+        func_key_lock_blocked_hint();
+        return true;
+    }
+    return false;
 }
 
 bool func_key_lock_filter_tch(u8 tch)
@@ -331,7 +366,10 @@ bool func_key_lock_filter_tch(u8 tch)
     if (!key_lock_active) {
         return false;
     }
-    /* 锁定态下所有按键都过滤（包括 TCH5） */
+    /* 开关键留给长按关机检测 */
+    if (tch == PT8028_KEY_TCH5) {
+        return false;
+    }
     return true;
 }
 

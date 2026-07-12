@@ -637,7 +637,7 @@
 #define PT8028_PRESS_SETTLE_SCANS       2           //OUT_FLAG 变 0 后约 10ms 再采 BCD
 #endif
 #define PT8028_RES_LONG_MS              2000        //预约键长按(ms)；短按/误读 BCD7 当模式键
-#define PT8028_PWR_LONG_MS              2000        //开关键(TCH5)长按(ms)手动关机
+#define PT8028_PWR_LONG_MS              3000        //开关键(TCH5)长按(ms)手动关机
 #if ELUNCHBOX_PANEL_EN
 #define PT8028_PWR_WAKE_MS              2000        //息屏/休眠后长按开关键亮屏(ms)
 #endif

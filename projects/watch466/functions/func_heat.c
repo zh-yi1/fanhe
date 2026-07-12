@@ -1151,11 +1151,10 @@ static void func_heat_pt8028_keys_process(f_heat_t *f_heat)
     if (f_heat == NULL || sys_cb.flag_swithing) {
         return;
     }
-    if (func_key_lock_press_take_poll()) {
+    pt8028_key_scan_page();
+    if (func_key_lock_press_take_guarded(&press_tch)) {
         return;
     }
-    pt8028_key_scan_page();
-    press_tch = pt8028_take_press_tch();
     if (press_tch == 0xff) {
         return;
     }

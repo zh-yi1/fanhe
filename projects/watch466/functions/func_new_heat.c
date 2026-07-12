@@ -1244,10 +1244,9 @@ static void new_heat_pt8028_keys_process(f_new_heat_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
-    if (func_key_lock_press_take_poll()) {
+    if (func_key_lock_press_take_guarded(&press_tch)) {
         return;
     }
-    press_tch = pt8028_take_press_tch();
     if (press_tch == 0xff) {
         return;
     }

@@ -1034,7 +1034,12 @@ static void new_timeing_pt8028_keys_process(f_new_timeing_t *f)
     if (f == NULL || !f->key_ready) {
         return;
     }
-    press_tch = pt8028_take_press_tch();
+    if (func_key_lock_press_take_guarded(&press_tch)) {
+        return;
+    }
+    if (press_tch == 0xff) {
+        return;
+    }
     if (press_tch == PT8028_KEY_TCH2) {
         new_timeing_value_inc(f);
     } else if (press_tch == PT8028_KEY_TCH6) {

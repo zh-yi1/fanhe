@@ -1178,6 +1178,7 @@ static void func_elunchbox_key_notify_poll(void)
     }
     key_val = pt8028_tch_to_lunchbox_key(tch);
     if (key_val != 0) {
+        /* 童锁误触也发 KEY_NOTIFY，加热模块仅蜂鸣反馈 */
         lunchbox_key_notify(key_val);
     }
 }
@@ -1313,12 +1314,12 @@ void func_process(void)
                 gui_process();    // 实际刷新屏幕
             }
         }
-#if USER_PT8028_KEY && FUNC_LUNCHBOX_UART_EN
-        /* 按键音走 UART：须在 gui_process 之后，避免先响蜂鸣后变画面 */
-        func_elunchbox_key_notify_poll();
-#endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         func_key_lock_poll();
+#endif
+#if USER_PT8028_KEY && FUNC_LUNCHBOX_UART_EN
+        /* 按键音走 UART：须在 gui_process 之后；在 key_lock_poll 之后以便童锁吞键也能蜂鸣 */
+        func_elunchbox_key_notify_poll();
 #endif
 #if ELUNCHBOX_PANEL_EN
         home_ui_lowbat_poll();

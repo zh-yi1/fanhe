@@ -27,6 +27,8 @@ bool func_key_lock_show_status_icon(bool page_local_locked);
 void func_key_lock_poll(void);
 /** 锁定态吞掉非电源键按下（全页面统一入口）；true=已消费 */
 bool func_key_lock_press_take_poll(void);
+/** 锁定态安全取键：吞掉除 TCH5 长按外的所有键；true=已拦截 */
+bool func_key_lock_press_take_guarded(u8 *out_tch);
 bool func_key_lock_filter_tch(u8 tch);
 bool func_key_lock_ku_blocked(u16 msg);
 void func_key_lock_on_page_change(void);
@@ -49,6 +51,14 @@ static inline bool func_key_lock_show_status_icon(bool page_local_locked)
 }
 static inline void func_key_lock_poll(void) {}
 static inline bool func_key_lock_press_take_poll(void) { return false; }
+static inline bool func_key_lock_press_take_guarded(u8 *out_tch)
+{
+    if (out_tch != NULL) {
+        *out_tch = 0xff;
+    }
+    (void)out_tch;
+    return false;
+}
 static inline bool func_key_lock_filter_tch(u8 tch) { (void)tch; return false; }
 static inline bool func_key_lock_ku_blocked(u16 msg) { (void)msg; return false; }
 static inline void func_key_lock_on_page_change(void) {}
