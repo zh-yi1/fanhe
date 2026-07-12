@@ -262,7 +262,10 @@ static bool heat_display_unplug_should_resume_heat(u8 mode, bool got_enable, boo
         return true;
     }
 #if ELUNCHBOX_PANEL_EN
-    if (g_res.setup_done && func_reservation_is_heating()) {
+    /* 预约加热中：Mode=1~4 表示 MCU 仍在加热，应从保温回加热；
+     * 但 Mode=5(保温) 表示加热已结束，不应回加热（否则保温→加热→保温死循环） */
+    if (g_res.setup_done && func_reservation_is_heating()
+        && !heat_display_mcu_mode_is_warm(mode)) {
         return true;
     }
 #endif
@@ -311,10 +314,18 @@ static bool heat_display_mcu_mode_route(bool got_mode, u8 mcu_mode,
     }
 
     /* 加热自然结束：DP02=5 且非充电 */
-    if (heat_display_mcu_mode_is_warm(mode) && !charging
-        && func_cb.sta == FUNC_HEAT && func_heat_uart_finish_ok()) {
-        func_elunchbox_enter_warm_from_heat();
-        return true;
+    if (heat_display_mcu_mode_is_warm(mode) && !charging) {
+        if (func_cb.sta == FUNC_HEAT && func_heat_uart_finish_ok()) {
+            printf("[LCD_ROUTE] MCU mode=5 -> warm (sta=FUNC_HEAT live_ok=1)\n");
+            func_elunchbox_enter_warm_from_heat();
+            return true;
+        }
+        printf("[LCD_ROUTE] MCU mode=5 warm skipped: "
+               "sta=%u is_heat=%d live_ok=%d charging=%d\n",
+               func_cb.sta,
+               (func_cb.sta == FUNC_HEAT) ? 1 : 0,
+               func_heat_uart_finish_ok() ? 1 : 0,
+               charging ? 1 : 0);
     }
 
     /* 保温页拔电 / MCU 模式 1~4：回加热页（预约 Mode=4 与直接加热相同） */
@@ -628,8 +639,12 @@ void heat_display_feed_dp(u8 *data, u16 len)
         off += 4 + val_len;
     }
 
-    /* 加热模块主动上报 HEAT_ENABLE=1：用于熄屏唤醒和预约自动跳转 */
-    if (got_enable && heating) {
+    /* 加热模块主动上报 HEAT_ENABLE=1：用于熄屏唤醒和预约自动跳转
+     * 但保温模式(5)下加热已结束，不应继续标记加热唤醒；
+     * 否则 Remain=0 + Mode=5 + HeatEn=1 同包到达时，保温切页被 heat_pending 覆盖回加热页 */
+    if (got_enable && heating
+        && !heat_display_mcu_mode_is_warm(
+            heat_display_mcu_mode_resolve(got_mode, mcu_mode))) {
         heat_display_heat_pending = true;
     }
 
@@ -647,9 +662,12 @@ void heat_display_feed_dp(u8 *data, u16 len)
 
     /* 预约加热已由加热模块自动启动 → 预设加热参数（必须在 !ui_ok 提前返回之前）
      * 关屏时 func_heat_enter() 需要 lb_heat_autostart 标志才能进入加热状态，
-     * 否则会因为没有 autostart 而跳转到设置页，而不是正在加热界面 */
+     * 否则会因为没有 autostart 而跳转到设置页，而不是正在加热界面
+     * 注意：Mode=5(保温) 时加热已结束，不应再预设加热参数，否则覆盖保温状态 */
     if (got_enable && heating && g_res.setup_done
-        && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
+        && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT
+        && !heat_display_mcu_mode_is_warm(
+            heat_display_mcu_mode_resolve(got_mode, mcu_mode))) {
         u16 preset_temp_f = got_temp ? temp_f : lunchbox_temp_idx_to_f(g_res.temp_idx);
         u32 preset_dur_min = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
 
@@ -717,9 +735,12 @@ void heat_display_feed_dp(u8 *data, u16 len)
         return;
     }
 
-    /* 预约到点：Home 等页面跳加热；已在保温页则交给 mode 路由（拔电回预约加热） */
+    /* 预约到点：Home 等页面跳加热；已在保温页则交给 mode 路由（拔电回预约加热）
+     * Mode=5(保温) 时跳过：加热已结束，不应再切回加热页 */
     if (got_enable && heating && g_res.setup_done
-        && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
+        && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT
+        && !heat_display_mcu_mode_is_warm(
+            heat_display_mcu_mode_resolve(got_mode, mcu_mode))) {
         if (heat_display_reservation_can_switch_heat()) {
             printf("[LCD_REG] feed_dp: reservation heating started, switch to heat panel "
                    "remain=%u got_remain=%d\n", remain_min, got_remain ? 1 : 0);
@@ -728,6 +749,22 @@ void heat_display_feed_dp(u8 *data, u16 len)
             printf("[LCD_REG] feed_dp: reservation on sta=%u, try mode route (mode=%u)\n",
                    func_cb.sta, got_mode ? mcu_mode : heat_display_cached_mcu_mode);
         }
+    }
+
+    /* Mode=5(保温) + Remain=0 同包到达 → 加热自然结束，直接进保温。
+     * 不依赖 func_heat_uart_finish_ok / heat_live_ready：
+     * 预约加热全程熄屏时 FUNC_HEAT 可能刚创建，heat_live_ready 尚未置位，
+     * 若等它才能切保温，会卡在加热界面。 */
+    if (got_mode && mcu_mode == 5 && got_remain && remain_min == 0
+        && !heat_display_charging_now(got_charge, charge_val)
+        && func_cb.sta != FUNC_NEW_WARM) {
+        printf("[LCD_REG] feed_dp: Mode=5 + Remain=0 -> enter warm "
+               "(sta=%u live_ok=%d switching=%d)\n",
+               func_cb.sta,
+               func_heat_uart_finish_ok() ? 1 : 0,
+               sys_cb.flag_swithing ? 1 : 0);
+        func_elunchbox_enter_warm_from_heat();
+        return;
     }
 
     /* 开始加热后（含预约已进入/正在进入加热页）：按 MCU 模式 + 充电状态路由 */
@@ -765,8 +802,16 @@ void heat_display_feed_dp(u8 *data, u16 len)
     heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
 #if ELUNCHBOX_PANEL_EN
     if (got_remain && remain_min == 0 && func_heat_uart_finish_ok()) {
+        printf("[LCD_REG] feed_dp: remain=0 + finish_ok -> enter warm (sta=%u)\n",
+               func_cb.sta);
         func_elunchbox_enter_warm_from_heat();
         return;
+    }
+    if (got_remain && remain_min == 0 && !func_heat_uart_finish_ok()) {
+        printf("[LCD_REG] feed_dp: remain=0 BUT finish_ok=0, skip warm "
+               "(sta=%u is_heat=%d)\n",
+               func_cb.sta,
+               (func_cb.sta == FUNC_HEAT) ? 1 : 0);
     }
 #endif
 

@@ -1559,9 +1559,13 @@ bool func_heat_uart_finish_ok(void)
     f_heat_t *f_heat;
 
     if (!func_heat_ui_is_heating()) {
+        printf("[FINISH_OK] false: not heating page (sta=%u)\n", func_cb.sta);
         return false;
     }
     f_heat = (f_heat_t *)func_cb.f_cb;
+    if (!f_heat->heat_live_ready) {
+        printf("[FINISH_OK] false: heat_live_ready=0 (sta=%u)\n", func_cb.sta);
+    }
     return f_heat->heat_live_ready;
 }
 
