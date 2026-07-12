@@ -1742,8 +1742,13 @@ static void func_elunchbox_enter_warm_common_prep(void)
 #if FUNC_LUNCHBOX_UART_EN
     if (func_elunchbox_warm_from_charging()) {
         lunchbox_warm_mark_active();
-    } else if (!lunchbox_keep_warm_is_active()) {
-        lunchbox_keep_warm_start();
+    } else {
+        /* 加热倒计时自然结束：须下发保温指令（MCU 远程加热时默认会跳过 UART） */
+#if ELUNCHBOX_PANEL_EN
+        lb_heat_user_uart_tx_force_set(true);
+        (void)lb_heat_uart_remote_consume();
+#endif
+        lunchbox_keep_warm_apply();
     }
 #endif
 }
