@@ -2,18 +2,27 @@
 #define _HOME_UI_LOWBAT_OVERLAY_H
 
 #include "include.h"
+#include "func_lowbat.h"
 
-#if ELUNCHBOX_PANEL_EN && HOME_UI_LOWBAT_OVERLAY_EN
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_LOWBAT_MODE_EN
 
-/** 低电量(<25%)提示图 didian.bin：显示 5s → 隐藏 60s → 循环 */
-void home_ui_lowbat_overlay_show(void);
-void home_ui_lowbat_overlay_hide(void);
-void home_ui_lowbat_overlay_bring_front(void);
-void home_ui_lowbat_overlay_reset(void);
-bool home_ui_lowbat_overlay_is_visible(void);
+static inline void home_ui_lowbat_overlay_show(void) {}
+static inline void home_ui_lowbat_overlay_hide(void) {}
+static inline void home_ui_lowbat_overlay_bring_front(void) {}
+static inline bool home_ui_lowbat_overlay_is_visible(void)
+{
+    return elunchbox_lowbat_active();
+}
 
-/** 主循环轮询：低电时显示 5s → 隐藏 60s → 循环 */
-void home_ui_lowbat_poll(void);
+static inline void home_ui_lowbat_overlay_reset(void)
+{
+    elunchbox_lowbat_reset();
+}
+
+static inline void home_ui_lowbat_poll(void)
+{
+    elunchbox_lowbat_poll();
+}
 
 #else
 

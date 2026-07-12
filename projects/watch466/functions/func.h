@@ -165,6 +165,7 @@ enum {
     FUNC_TIMEING,                       //定时页
     FUNC_LANGUAGEING,                   //语言页
     FUNC_VERINFO,                       //版本信息页
+    FUNC_LOWBAT,                        //低电模式（全屏 didian 图标）
     FUNC_MAX_NUM,           //用于计数
 
 };

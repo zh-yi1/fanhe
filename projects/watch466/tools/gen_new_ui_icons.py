@@ -88,6 +88,73 @@ def pixels_from_rgba(
     return w, h, out
 
 
+def crop_content_bbox(im: Image.Image, pad: int = 8) -> Image.Image:
+    """裁掉全屏白底，仅保留图标区域（低电页用）。"""
+    w, h = im.size
+    px = im.load()
+    minx, miny, maxx, maxy = w, h, 0, 0
+    found = False
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 32:
+                continue
+            if r > 240 and g > 240 and b > 240:
+                continue
+            found = True
+            minx = min(minx, x)
+            miny = min(miny, y)
+            maxx = max(maxx, x)
+            maxy = max(maxy, y)
+    if not found:
+        return im
+    minx = max(0, minx - pad)
+    miny = max(0, miny - pad)
+    maxx = min(w - 1, maxx + pad)
+    maxy = min(h - 1, maxy + pad)
+    return im.crop((minx, miny, maxx + 1, maxy + 1))
+
+
+def pixels_from_rgba_didian(im: Image.Image, bg_rgb: tuple[int, int, int]) -> tuple[int, int, list[int]]:
+    """低电图标：仅保留红色线条，其余一律白底，去掉抗锯齿暗边。"""
+    w, h = im.size
+    px = im.load()
+    bg = rgba565(*bg_rgb)
+    out: list[int] = []
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 32:
+                out.append(bg)
+            elif r >= 120 and g <= 140 and b <= 140 and r > g and r > b:
+                out.append(rgba565(r, g, b))
+            else:
+                out.append(bg)
+    return w, h, out
+
+
+def upscale_pixels_nearest(w: int, h: int, pixels: list[int], scale: int) -> tuple[int, int, list[int]]:
+    if scale <= 1:
+        return w, h, pixels
+    nw, nh = w * scale, h * scale
+    out: list[int] = []
+    for y in range(h):
+        row = pixels[y * w:(y + 1) * w]
+        for _dy in range(scale):
+            for x in range(w):
+                c = row[x]
+                out.extend([c] * scale)
+    return nw, nh, out
+
+
+def png_to_gpu_didian(path: Path, *, scale: int = 1) -> tuple[bytes, int, int]:
+    im = Image.open(path).convert("RGBA")
+    im = crop_content_bbox(im)
+    w, h, pixels = pixels_from_rgba_didian(im, BG_WHITE)
+    w, h, pixels = upscale_pixels_nearest(w, h, pixels, scale)
+    return pack_gpu(w, h, pixels), w, h
+
+
 def png_to_gpu(path: Path, *, black_icon: bool = False) -> tuple[bytes, int, int]:
     im = Image.open(path).convert("RGBA")
     w, h, pixels = pixels_from_rgba(im, BG_WHITE, black_icon=black_icon)
@@ -164,7 +231,10 @@ def process_icon(png_names: tuple[str, ...], stem: str, sizes: dict[str, tuple[i
     bin_path = BIN_DIR / f"{stem}.bin"
     try:
         src = resolve_src(png_names)
-        data, w, h = png_to_gpu(src, black_icon=(stem in BLACK_ICON_ON_WHITE))
+        if stem == "didian":
+            data, w, h = png_to_gpu_didian(src)
+        else:
+            data, w, h = png_to_gpu(src, black_icon=(stem in BLACK_ICON_ON_WHITE))
         write_bin(f"{stem}.bin", data, src)
     except SystemExit:
         if not bin_path.exists():

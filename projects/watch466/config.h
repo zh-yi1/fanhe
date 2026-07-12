@@ -202,10 +202,11 @@
 #define ELUNCHBOX_GUIOFF_TIME_SEC       300          /* 无操作自动关机(秒)，默认 5 分钟 */
 #define ELUNCHBOX_GUIOFF_SLEEP_EN       1           /* 息屏后再进 BT 浅睡降功耗 */
 #define ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC 30          /* 息屏后延迟多少秒进浅睡 */
-#define HOME_UI_LOWBAT_OVERLAY_EN       0           /* 0=关闭低电 didian.bin 弹窗 */
-#if HOME_UI_LOWBAT_OVERLAY_EN
-#define HOME_UI_LOWBAT_SHOW_MS          5000        /* 低电(<25%)提示显示时长(ms) */
-#define HOME_UI_LOWBAT_INTERVAL_MS      60000       /* 低电提示再次弹出间隔(ms) */
+#define ELUNCHBOX_LOWBAT_MODE_EN        1           /* 1=仅DP09低电故障(0x0A)进低电页，不下发UART */
+#if ELUNCHBOX_LOWBAT_MODE_EN
+#define HOME_UI_LOWBAT_OVERLAY_EN       1           /* 兼容旧宏：低电模式启用 */
+#else
+#define HOME_UI_LOWBAT_OVERLAY_EN       0
 #endif
 #define FUNC_RESERVATION_UI_EN          1           /* 1=预约键(TCH7)可进预约页 */
 /* 日志走全局 UART0_PRINTF_SEL（PRINTF_PB3 / PRINTF_NONE）；TRACE_EN 仅控各文件 TRACE() 宏 */
