@@ -10,8 +10,10 @@
 #include "ui_layout_anchor.h"
 #if ELUNCHBOX_PANEL_EN
 #include "bsp_pt8028_key.h"
+#include "port_pt8028_key.h"
 #include "func_key_lock.h"
 #include "func_heat_panel.h"
+#include "func_lunchbox_lcd.h"
 
 extern volatile u8 elunchbox_te_block_flag;
 #endif
@@ -194,6 +196,9 @@ typedef struct f_heat_t_ {
     bool last_h_white;
     bool last_m_white;
     bool last_t_white;
+#if ELUNCHBOX_PANEL_EN
+    bool key_ready;
+#endif
     home_top_time_ui_t top_time;
     compo_picturebox_t *pic_timer[HEAT_TIMER_IDX_CNT];
     compo_picturebox_t *pic_timer_colon;
@@ -897,9 +902,12 @@ static void func_heat_power_key(f_heat_t *f_heat)
         heat_display_unregister();
 #if FUNC_LUNCHBOX_UART_EN
 #if ELUNCHBOX_PANEL_EN
-        if (home_ui_shared_battery_is_charging() || lb_heat_mcu_nav_active()) {
+        if (home_ui_shared_battery_is_charging()
+            || func_elunchbox_warm_from_charging()
+            || lb_heat_mcu_nav_active()) {
             lunchbox_heat_clear_local();
             lb_heat_mcu_nav_set(false);
+            func_elunchbox_warm_from_charging_set(false);
         } else {
             lunchbox_heat_stop();
         }
@@ -1119,10 +1127,81 @@ compo_form_t *func_heat_form_create(void)
 #endif
 }
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+static void func_heat_key_debug_press(f_heat_t *f_heat, u8 press_tch)
+{
+    printf("[HEAT_KEY] take tch=%u ui=%u locked=%u key_lock=%u switching=%u "
+           "guioff=%u warm_chg=%u mcu_nav=%u uart_remote=%u te_blk=%u\n",
+           press_tch,
+           f_heat ? f_heat->ui_state : 0xff,
+           (f_heat != NULL && f_heat->screen_locked) ? 1u : 0u,
+           func_key_lock_is_active() ? 1u : 0u,
+           sys_cb.flag_swithing ? 1u : 0u,
+           elunchbox_pwr_gui_off_is_on() ? 1u : 0u,
+           func_elunchbox_warm_from_charging() ? 1u : 0u,
+           lb_heat_mcu_nav_active() ? 1u : 0u,
+           lb_heat_uart_remote_peek() ? 1u : 0u,
+           elunchbox_te_block_flag ? 1u : 0u);
+}
+
+static void func_heat_pt8028_keys_process(f_heat_t *f_heat)
+{
+    u8 press_tch;
+
+    if (f_heat == NULL || sys_cb.flag_swithing) {
+        return;
+    }
+    if (func_key_lock_press_take_poll()) {
+        return;
+    }
+    pt8028_key_scan_page();
+    press_tch = pt8028_take_press_tch();
+    if (press_tch == 0xff) {
+        return;
+    }
+    func_heat_key_debug_press(f_heat, press_tch);
+    if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
+        elunchbox_user_activity_reset();
+    }
+    if (press_tch == PT8028_KEY_TCH5) {
+        pt8028_defer_key_sound_tch(PT8028_KEY_TCH5);
+        func_heat_power_key(f_heat);
+    } else if (press_tch == PT8028_KEY_TCH4) {
+        pt8028_defer_key_sound_tch(PT8028_KEY_TCH4);
+        func_heat_ok_key(f_heat);
+    } else if (press_tch == PT8028_KEY_TCH6) {
+        pt8028_defer_key_sound_tch(PT8028_KEY_TCH6);
+        func_heat_value_dec(f_heat);
+    } else if (press_tch == PT8028_KEY_TCH2) {
+        pt8028_defer_key_sound_tch(PT8028_KEY_TCH2);
+        func_heat_value_inc(f_heat);
+    } else if (press_tch == PT8028_KEY_TCH3) {
+        if (!sys_cb.flag_swithing) {
+            pt8028_defer_key_sound_tch(PT8028_KEY_TCH3);
+            func_switch_to(FUNC_NEW_MODE, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
+    }
+}
+#endif
+
 static void func_heat_process(void)
 {
     f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (f_heat != NULL && !f_heat->key_ready) {
+        func_process();
+        func_home_drain_stale_key_msgs();
+        pt8028_release_clear();
+        (void)pt8028_take_press_tch();
+        f_heat->key_ready = true;
+        printf("[HEAT_KEY] key_ready=1 warm_chg=%u mcu_nav=%u\n",
+               func_elunchbox_warm_from_charging() ? 1u : 0u,
+               lb_heat_mcu_nav_active() ? 1u : 0u);
+        return;
+    }
+    func_heat_pt8028_keys_process(f_heat);
+#endif
     if (f_heat != NULL) {
 #if ELUNCHBOX_PANEL_EN
         func_heat_panel_process(f_heat);
@@ -1136,37 +1215,86 @@ static void func_heat_message(size_msg_t msg)
 {
     f_heat_t *f_heat = (f_heat_t *)func_cb.f_cb;
 
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    if (f_heat != NULL && f_heat->key_ready) {
+        switch (msg) {
+        case HEAT_MSG_OK:
+        case HEAT_MSG_PLUS:
+        case HEAT_MSG_MINUS:
+        case HEAT_MSG_POWER:
+            return;
+        default:
+            break;
+        }
+    }
+    if (msg != NO_KEY && msg != 0) {
+        printf("[HEAT_KEY] ku msg=0x%04x ui=%u locked=%u key_lock=%u switching=%u\n",
+               msg,
+               f_heat ? f_heat->ui_state : 0xff,
+               (f_heat != NULL && f_heat->screen_locked) ? 1u : 0u,
+               func_key_lock_is_active() ? 1u : 0u,
+               sys_cb.flag_swithing ? 1u : 0u);
+    }
+#endif
+
     if (sys_cb.flag_swithing) {
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        if (msg != NO_KEY && msg != 0) {
+            printf("[HEAT_KEY] drop ku: switching\n");
+        }
+#endif
         return;
     }
 
     if (func_key_lock_ku_blocked(msg)) {
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        if (msg != NO_KEY && msg != 0) {
+            printf("[HEAT_KEY] drop ku: key_lock\n");
+        }
+#endif
         return;
     }
 
     if (f_heat != NULL && f_heat->screen_locked) {
         if (msg != HEAT_MSG_POWER && msg != HEAT_MSG_OK) {
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+            if (msg != NO_KEY && msg != 0) {
+                printf("[HEAT_KEY] drop ku: screen_locked\n");
+            }
+#endif
             return;
         }
     }
 
     switch (msg) {
     case HEAT_MSG_OK:
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        printf("[HEAT_KEY] act OK\n");
+#endif
         pt8028_defer_key_sound_tch(PT8028_KEY_TCH4);
         func_heat_ok_key(f_heat);
         break;
 
     case HEAT_MSG_PLUS:
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        printf("[HEAT_KEY] act PLUS\n");
+#endif
         pt8028_defer_key_sound_tch(PT8028_KEY_TCH6);
         func_heat_value_dec(f_heat);
         break;
 
     case HEAT_MSG_MINUS:
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        printf("[HEAT_KEY] act MINUS\n");
+#endif
         pt8028_defer_key_sound_tch(PT8028_KEY_TCH2);
         func_heat_value_inc(f_heat);
         break;
 
     case HEAT_MSG_POWER:
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        printf("[HEAT_KEY] act POWER\n");
+#endif
         pt8028_defer_key_sound_tch(PT8028_KEY_TCH5);
         func_heat_power_key(f_heat);
         break;
@@ -1242,6 +1370,9 @@ void func_heat_enter(void)
     f_heat->last_h_white = false;
     f_heat->last_m_white = false;
     f_heat->last_t_white = false;
+#if ELUNCHBOX_PANEL_EN
+    f_heat->key_ready = false;
+#endif
 
 #if ELUNCHBOX_PANEL_EN
     printf("heat_enter: create form done, te_block=%d\n", elunchbox_te_block_flag);
@@ -1257,9 +1388,15 @@ void func_heat_enter(void)
 
     if (lb_heat_autostart_consume()) {
         printf("heat_enter: autostart -> start_heating\n");
+        func_elunchbox_warm_from_charging_set(false);
+        lb_heat_mcu_nav_set(false);
         func_heat_start_heating(f_heat);
         func_heat_sync_mcu_snapshot(f_heat);
-        printf("heat_enter: start_heating done\n");
+        printf("heat_enter: start_heating done ui=%u key_lock=%u mcu_nav=%u remote=%u\n",
+               f_heat->ui_state,
+               func_key_lock_is_active() ? 1u : 0u,
+               lb_heat_mcu_nav_active() ? 1u : 0u,
+               lb_heat_uart_remote_peek() ? 1u : 0u);
     } else if (f_heat->proto_mode != 1) {
         printf("heat_enter: proto_mode=%d -> start_heating\n", f_heat->proto_mode);
         func_heat_start_heating(f_heat);
@@ -1285,6 +1422,11 @@ void func_heat_enter(void)
         }
     }
     printf("heat_enter: panel enter done\n");
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_set_home_msg_block(0);
+    func_home_drain_stale_key_msgs();
+    pt8028_release_clear();
+#endif
 #else
     home_top_time_bind(&f_heat->top_time, COMPO_ID_PIC_TOP_TIME_H10, COMPO_ID_PIC_TOP_TIME_H1,
                        COMPO_ID_PIC_TOP_TIME_COLON, COMPO_ID_PIC_TOP_TIME_M10,

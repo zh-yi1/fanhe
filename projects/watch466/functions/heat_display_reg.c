@@ -473,6 +473,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
         heat_display_preset_resume_heat(remain_min, got_remain, temp_f, got_temp,
                                       duration_min, got_duration);
         func_elunchbox_warm_from_charging_set(false);
+        lb_heat_mcu_nav_set(false);
         lb_heat_uart_remote_set(true);
         lb_heat_autostart_set(true);
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
@@ -487,6 +488,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
         heat_display_preset_resume_heat(remain_min, got_remain, temp_f, got_temp,
                                       duration_min, got_duration);
         func_elunchbox_warm_from_charging_set(false);
+        lb_heat_mcu_nav_set(false);
         lb_heat_uart_remote_set(true);
         lb_heat_autostart_set(true);
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
