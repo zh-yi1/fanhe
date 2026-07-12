@@ -1054,6 +1054,11 @@ static void new_heat_ok_key(f_new_heat_t *f)
     printf("new_heat_ok: set preset + autostart, direct sta\n");
     lb_mode_to_heat_set(g_new_heat_proto_mode, temp_f,
                         (u8)(total_min / 60), (u8)(total_min % 60));
+#if ELUNCHBOX_PANEL_EN
+    lb_heat_user_uart_tx_force_set(true);
+    lb_heat_mcu_nav_set(false);
+    func_elunchbox_warm_from_charging_set(false);
+#endif
     lb_heat_autostart_set(true);
     g_new_heat_mode_name = NULL;
     g_new_heat_temp_idx = 0;

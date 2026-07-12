@@ -543,6 +543,7 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out);
 /** @brief 新加热页设置完成后自动开始加热 (由 func_new_heat 设置, func_heat 消费) */
 void lb_heat_autostart_set(bool en);
 bool lb_heat_autostart_consume(void);
+void lb_heat_user_uart_tx_force_set(bool en);
 /** @brief BLE 桥模式已转发 UART 时，func_heat 跳过重复 lunchbox_heat_start */
 void lb_heat_uart_remote_set(bool en);
 bool lb_heat_uart_remote_consume(void);

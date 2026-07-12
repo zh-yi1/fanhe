@@ -129,6 +129,8 @@ bool lb_mode_to_heat_get(lb_mode_to_heat_preset_t *out);
 
 void lb_heat_autostart_set(bool en);
 bool lb_heat_autostart_consume(void);
+/** @brief 用户在加热设置页确认后强制下发 UART（覆盖充电/MCU 跳页 RX-only） */
+void lb_heat_user_uart_tx_force_set(bool en);
 /** @brief BLE 桥模式已转发 UART 时，func_heat 跳过重复 lunchbox_heat_start */
 void lb_heat_uart_remote_set(bool en);
 bool lb_heat_uart_remote_consume(void);

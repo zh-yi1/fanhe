@@ -72,6 +72,21 @@ bool lb_heat_autostart_consume(void)
     return val;
 }
 
+/** @brief 用户在加热设置页确认启动：充电/MCU 跳页期间仍允许下发 heat_start */
+static bool lb_heat_user_uart_tx_force_flag;
+
+void lb_heat_user_uart_tx_force_set(bool en)
+{
+    lb_heat_user_uart_tx_force_flag = en;
+}
+
+static bool lb_heat_user_uart_tx_force_consume(void)
+{
+    bool val = lb_heat_user_uart_tx_force_flag;
+    lb_heat_user_uart_tx_force_flag = false;
+    return val;
+}
+
 /** @brief BLE 0x04 已转发 UART 时，func_heat 侧跳过重复 lunchbox_heat_start */
 static bool lb_heat_uart_remote_flag;
 
@@ -109,6 +124,9 @@ bool lb_heat_mcu_nav_active(void)
 #if ELUNCHBOX_PANEL_EN
 static bool lb_heat_skip_uart_tx(void)
 {
+    if (lb_heat_user_uart_tx_force_consume()) {
+        return false;
+    }
     if (home_ui_shared_battery_is_charging()) {
         return true;
     }
