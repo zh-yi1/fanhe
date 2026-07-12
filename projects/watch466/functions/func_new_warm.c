@@ -570,20 +570,7 @@ static void new_warm_heating_start(f_new_warm_t *f)
 static void new_warm_heating_stop(void)
 {
 #if FUNC_LUNCHBOX_UART_EN
-    if (lunchbox_keep_warm_is_active()) {
-#if ELUNCHBOX_PANEL_EN
-        if (home_ui_shared_battery_is_charging()
-            || func_elunchbox_warm_from_charging()
-            || lb_heat_mcu_nav_active()
-            || lb_heat_uart_remote_peek()) {
-            lunchbox_heat_clear_local();
-        } else {
-            lunchbox_heat_stop();
-        }
-#else
-        lunchbox_heat_stop();
-#endif
-    }
+    lunchbox_keep_warm_stop();
 #endif
 }
 
@@ -666,7 +653,12 @@ static void new_warm_power_key(void)
     if (sys_cb.flag_swithing) {
         return;
     }
-    new_warm_heating_stop();
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_keep_warm_stop();
+#endif
+#if ELUNCHBOX_PANEL_EN
+    func_elunchbox_warm_from_charging_set(false);
+#endif
     func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 

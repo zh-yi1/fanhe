@@ -374,7 +374,19 @@ void lunchbox_keep_warm_start(void)
 
 void lunchbox_keep_warm_stop(void)
 {
-    lb_keep_warm_active = false;
+    if (!lb_keep_warm_active && !lb_heat_lcd_active && !lb_heat_task_active) {
+        return;
+    }
+#if ELUNCHBOX_PANEL_EN
+    if (home_ui_shared_battery_is_charging()
+        || func_elunchbox_warm_from_charging()
+        || lb_heat_mcu_nav_active()
+        || lb_heat_uart_remote_peek()) {
+        lunchbox_heat_clear_local();
+        return;
+    }
+#endif
+    lunchbox_heat_stop();
 }
 
 bool lunchbox_keep_warm_is_active(void)
@@ -384,10 +396,20 @@ bool lunchbox_keep_warm_is_active(void)
 
 void lunchbox_keep_warm_poll(void)
 {
-    if (!lb_keep_warm_active) return;
-    if (bsp_vbat_get_lpwr_status()) {
-        lunchbox_heat_stop();
+    if (!lb_keep_warm_active) {
+        return;
     }
+    if (!bsp_vbat_get_lpwr_status()) {
+        return;
+    }
+    printf("keep_warm_poll: low battery stop\n");
+    lunchbox_keep_warm_stop();
+#if ELUNCHBOX_PANEL_EN
+    func_elunchbox_warm_from_charging_set(false);
+    if (func_cb.sta == FUNC_NEW_WARM && !sys_cb.flag_swithing) {
+        func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    }
+#endif
 }
 
 //-----------------------------------------------------------------------------
