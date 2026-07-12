@@ -8,6 +8,7 @@
 #endif
 #if ELUNCHBOX_PANEL_EN
 #include "func_reservation.h"
+#include "func_lowbat.h"
 #endif
 
 static heat_display_cb_t heat_display_cb;
@@ -501,6 +502,15 @@ static void heat_display_feed_apply(u32 remain_min, bool got_remain,
 void heat_display_feed_dp(u8 *data, u16 len)
 {
 #if ELUNCHBOX_PANEL_EN
+    if (elunchbox_lowbat_should_block_ui_route()) {
+        elunchbox_lowbat_feed_dp(data, len);
+        elunchbox_lowbat_poll();
+        return;
+    }
+    if (elunchbox_lowbat_active()) {
+        elunchbox_lowbat_feed_dp(data, len);
+        return;
+    }
     bool ui_ok = heat_display_ui_ok();
 #endif
     u16 off = 0;

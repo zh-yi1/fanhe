@@ -6,6 +6,7 @@
 #include "func_new_home.h"
 #include "heat_display_reg.h"
 #include "func_lunchbox_off.h"
+#include "func_lowbat.h"
 #include "func_lunchbox_wake.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
@@ -83,6 +84,7 @@ static bool func_elunchbox_res_key_page_ok(void)
     case FUNC_NEW_MODE:
     case FUNC_NEW_SETUP:
     case FUNC_NEW_WARM:
+    case FUNC_LOWBAT:
         return true;
     default:
         return false;
@@ -151,6 +153,10 @@ static bool elunchbox_warm_from_charging;   /* 因充电进入保温（非加热
 void func_elunchbox_switch_to_home(void)
 {
 #if ELUNCHBOX_PANEL_EN
+    if (elunchbox_lowbat_active() || elunchbox_lowbat_should_block_ui_route()) {
+        printf("elunchbox: switch home blocked (lowbat sta=%u)\n", func_cb.sta);
+        return;
+    }
     if (func_cb.sta == FUNC_HOME) {
         return;
     }
@@ -185,6 +191,10 @@ void func_elunchbox_ble_cancel_pending_switch(void)
 void func_elunchbox_uart_stop_and_home(void)
 {
 #if ELUNCHBOX_PANEL_EN
+    if (elunchbox_lowbat_should_block_ui_route()) {
+        printf("[LCD_ROUTE] MCU stop ignored: lowbat active/pending (sta=%u)\n", func_cb.sta);
+        return;
+    }
     printf("[LCD_ROUTE] MCU stop heat -> home (sta=%u)\n", func_cb.sta);
     func_elunchbox_warm_from_charging_set(false);
     lb_heat_mcu_nav_set(false);
@@ -1133,6 +1143,13 @@ void func_process(void)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_uart_process();    //轮询接收充电模块发来的数据
 
+#if ELUNCHBOX_LOWBAT_MODE_EN
+        elunchbox_lowbat_poll();
+        if (elunchbox_lowbat_active()) {
+            return;
+        }
+#endif
+
         /* 用户 TCH5 长按唤醒优先于预约/加热 UART 自动跳页 */
         if (elunchbox_manual_wake_pending_take()) {
             printf("elunchbox: TCH5 3s hold wakes screen from manual off\n");
@@ -1180,6 +1197,25 @@ void func_process(void)
 
         //sleep_process(bt_is_allow_sleep);  //手动关机→深度休眠
         //lunchbox_display_off();  // 已在 elunchbox_pwr_manual_shutdown() 中调用，循环里无需重复
+        return;
+    }
+#endif
+
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_lowbat_active()) {
+        WDT_CLR();
+        elunchbox_lowbat_poll();
+        if (!guioff) {
+            tft_bglight_frist_set_check();
+            if (func_cb.frm_main != NULL) {
+                compo_update();
+                gui_process();
+            }
+        }
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_uart_process();
+#endif
+        co_timer_pro(false);
         return;
     }
 #endif
@@ -1701,6 +1737,9 @@ void func_switch_to(u8 sta, u16 switch_mode)
         return;
     }
 #endif
+    if (elunchbox_lowbat_active() && sta != FUNC_LOWBAT && sta != FUNC_PWROFF) {
+        return;
+    }
     if (elunchbox_pwr_is_manual_off()) {
         return;
     }
@@ -1761,7 +1800,9 @@ void func_switch_to(u8 sta, u16 switch_mode)
             home_gpu_wait_idle();
             WDT_CLR();
             func_key_lock_on_form_destroy();
-            home_ui_lowbat_overlay_reset();
+            if (sta != FUNC_LOWBAT) {
+                home_ui_lowbat_overlay_reset();
+            }
             compo_form_destroy(func_cb.frm_main);
             compos_init();
             func_cb.frm_main = NULL;
@@ -2484,7 +2525,9 @@ void func_exit(void)
         home_gpu_wait_idle();
     }
     func_key_lock_on_form_destroy();
-    home_ui_lowbat_overlay_reset();
+    if (func_cb.sta != FUNC_LOWBAT) {
+        home_ui_lowbat_overlay_reset();
+    }
     home_ui_shared_bt_detach_pic();
 #endif
     //销毁窗体

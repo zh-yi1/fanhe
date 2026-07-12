@@ -22,6 +22,7 @@
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "func.h"
+#include "func_lowbat.h"
 #endif
 #include "bsp_vbat.h"
 
@@ -280,9 +281,15 @@ static bool lb_frame_parse(void)
     if (rx.cmd == LB_UART_CMD_DYNAMIC && rx.data && rx.data_len > 0
         && rx.err_flag == LB_ERR_SUCCESS) {
         lb_heating_sync_from_dp(rx.data, rx.data_len);
-        heat_display_feed_dp(rx.data, rx.data_len);
 #if ELUNCHBOX_PANEL_EN
         home_ui_shared_battery_feed_dp(rx.data, rx.data_len);
+        elunchbox_lowbat_feed_dp(rx.data, rx.data_len);
+        elunchbox_lowbat_poll();
+        if (!elunchbox_lowbat_should_block_ui_route()) {
+#endif
+        heat_display_feed_dp(rx.data, rx.data_len);
+#if ELUNCHBOX_PANEL_EN
+        }
 #endif
     }
 #endif
@@ -460,6 +467,11 @@ static void lb_send_frame(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
     if (lb_uart_tx_blocked) {
         return;  /* 手动关机期间禁止 UART TX */
     }
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_LOWBAT_MODE_EN
+    if (elunchbox_lowbat_active()) {
+        return;  /* 低电页：仅显示 UI，不应答/不下发任何 UART */
+    }
+#endif
 #if ELUNCHBOX_PANEL_EN
     if (lb_ble_tx_fn == NULL && lb_uart_tx_skip_rx_only(cmd)) {
         return;
@@ -1121,6 +1133,11 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
     if (lb_uart_tx_blocked) {
         return;  /* 手动关机期间禁止 UART TX */
     }
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_LOWBAT_MODE_EN
+    if (elunchbox_lowbat_active()) {
+        return;  /* 低电页：不下发任何 UART */
+    }
+#endif
 #if ELUNCHBOX_PANEL_EN
     if (lb_ble_tx_fn == NULL && lb_uart_tx_skip_rx_only(uart_cmd)) {
         return;

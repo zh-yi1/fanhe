@@ -39,9 +39,9 @@
 #define NEW_UI_UNLOCK_H                 100
 #define NEW_UI_UNLOCK_RAM_SIZE          (8 + 106 * 100 * 2)
 
-#define NEW_UI_DIDIAN_W                 320
-#define NEW_UI_DIDIAN_H                 240
-#define NEW_UI_DIDIAN_RAM_SIZE          (8 + 320 * 240 * 2)
+#define NEW_UI_DIDIAN_W                 118
+#define NEW_UI_DIDIAN_H                 72
+#define NEW_UI_DIDIAN_RAM_SIZE          (8 + 118 * 72 * 2)
 
 #define NEW_HOME_BAT_W                  31
 #define NEW_HOME_BAT_H                  17
