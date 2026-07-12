@@ -632,6 +632,10 @@ static void elunchbox_pwr_manual_shutdown(void)
         printf("elunchbox: shutdown blocked (charging)\n");
         return;
     }
+#if ELUNCHBOX_PANEL_EN && USER_PT8028_KEY
+    /* 须在 manual_off 前排空 GPU 上的锁屏 overlay，否则 ab_free → C241 */
+    func_key_lock_on_manual_shutdown();
+#endif
 #if USER_PANEL_LED
     panel_led_all_off();
     panel_led_set_switch_latched(false);
@@ -659,12 +663,9 @@ static void elunchbox_pwr_manual_shutdown(void)
 #endif
 #if ELUNCHBOX_PANEL_EN
     home_ui_shared_battery_detach_pic();
-#if USER_PT8028_KEY
-    func_key_lock_on_form_destroy();
-#endif
 #endif
     //gui_sleep(false);
-    lunchbox_display_off();  // 仅关背光，不退出 TFT/CTP/GPU
+    lunchbox_display_off_fast();  // 手动关机：不等 GPU，避免 draw wait timeout
     elunchbox_pwr_shutdown_yield();
 
 #if LE_EN
@@ -720,6 +721,9 @@ void elunchbox_pwr_ble_switch(bool on)
 #endif
         elunchbox_boot_power_sent = false;
         elunchbox_pwr_hw_off = true;
+#if ELUNCHBOX_PANEL_EN && USER_PT8028_KEY
+        func_key_lock_on_manual_shutdown();
+#endif
         /* 与长按关机相同：manual_off + TCH5 长按 3s 唤醒；保持 BLE 连接不断开 */
         elunchbox_pwr_manual_off = true;
         elunchbox_pwr_wake_armed = false;
@@ -736,13 +740,10 @@ void elunchbox_pwr_ble_switch(bool on)
 #endif
 #if ELUNCHBOX_PANEL_EN
         home_ui_shared_battery_detach_pic();
-#if USER_PT8028_KEY
-        func_key_lock_on_form_destroy();
-#endif
 #endif
         //gui_sleep(false);
         elunchbox_saved_clkgat0 = CLKGAT0;  // 唤醒时需恢复，否则 CLKGAT0=0→8001 蓝屏
-        lunchbox_display_off();  // 仅关背光，不退出 TFT/CTP/GPU
+        lunchbox_display_off_fast();
         elunchbox_pwr_shutdown_yield();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         elunchbox_pwr_off_arm_wake_keys("ble_off");
@@ -1306,12 +1307,17 @@ void func_process(void)
         }
 #endif
         if (func_cb.frm_main != NULL) {
-            compo_update();
-#if ELUNCHBOX_PANEL_EN && LE_EN
-            home_ui_shared_ble_status_poll();
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+            if (!func_key_lock_pre_gui_poll())
 #endif
-            if (gui_do_refresh) {
-                gui_process();    // 实际刷新屏幕
+            {
+                compo_update();
+#if ELUNCHBOX_PANEL_EN && LE_EN
+                home_ui_shared_ble_status_poll();
+#endif
+                if (gui_do_refresh) {
+                    gui_process();    // 实际刷新屏幕
+                }
             }
         }
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN

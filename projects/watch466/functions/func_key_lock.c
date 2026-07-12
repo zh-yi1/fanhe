@@ -303,6 +303,16 @@ void func_key_lock_on_form_destroy(void)
     home_ui_lock_overlay_reset();
 }
 
+void func_key_lock_on_manual_shutdown(void)
+{
+    key_lock_hint_on = false;
+    key_lock_hint_mode = KEY_LOCK_HINT_NONE;
+    key_lock_hint_show_tick = 0;
+    key_lock_hint_min_polls = 0;
+    key_lock_hint_gui_refresh = false;
+    home_ui_lock_overlay_shutdown();
+}
+
 static void func_key_lock_blocked_hint(void)
 {
     if (key_lock_entry_hint_settled && !func_key_lock_hint_in_cooldown()) {
@@ -347,16 +357,16 @@ bool func_key_lock_press_take_guarded(u8 *out_tch)
         }
         return false;
     }
+    /* TCH5 留给长按关机：不吞键、不弹锁定提示 */
+    if (pt8028_peek_press_tch() == PT8028_KEY_TCH5) {
+        return false;
+    }
     if (func_key_lock_press_take_poll()) {
         return true;
     }
     tch = pt8028_take_press_tch();
     if (out_tch != NULL) {
         *out_tch = tch;
-    }
-    if (tch == PT8028_KEY_TCH5) {
-        func_key_lock_blocked_hint();
-        return true;
     }
     return false;
 }
@@ -411,13 +421,51 @@ static void func_key_lock_lp_poll(void)
     }
 }
 
+static bool func_key_lock_pwr_long_hold(void)
+{
+    u8 tch = pt8028_get_press_tch();
+
+    return (tch == PT8028_KEY_TCH5);
+}
+
+static void func_key_lock_dismiss_overlay_for_pwr_hold(void)
+{
+    if (!key_lock_hint_on && !home_ui_lock_overlay_is_visible()) {
+        return;
+    }
+    key_lock_hint_on = false;
+    key_lock_hint_mode = KEY_LOCK_HINT_NONE;
+    key_lock_hint_show_tick = 0;
+    key_lock_hint_min_polls = 0;
+    key_lock_hint_gui_refresh = false;
+    home_ui_lock_overlay_shutdown();
+}
+
+bool func_key_lock_pre_gui_poll(void)
+{
+    if (!key_lock_active || !func_key_lock_pwr_long_hold()) {
+        return false;
+    }
+    func_key_lock_dismiss_overlay_for_pwr_hold();
+    return true;
+}
+
 void func_key_lock_poll(void)
 {
+    if (elunchbox_pwr_is_manual_off()) {
+        return;
+    }
+
     func_key_lock_need_key_rel_poll();
-    func_key_lock_hint_expire_poll();
-    (void)func_key_lock_press_take_poll();
     func_key_lock_lp_poll();
     func_key_lock_heat_auto_poll();
+
+    if (func_key_lock_pwr_long_hold()) {
+        return;
+    }
+
+    func_key_lock_hint_expire_poll();
+    (void)func_key_lock_press_take_poll();
 
     if (!key_lock_hint_on && home_ui_lock_overlay_is_visible()) {
         home_ui_lock_overlay_hide();
@@ -433,8 +481,11 @@ void func_key_lock_poll(void)
 
     if (key_lock_hint_gui_refresh && func_cb.frm_main != NULL && !sys_cb.flag_swithing) {
         key_lock_hint_gui_refresh = false;
-        compo_update();
-        gui_process();
+#if ELUNCHBOX_PANEL_EN
+        if (func_cb.sta == FUNC_HOME) {
+            func_home_gui_mark_dirty();
+        }
+#endif
     }
 }
 

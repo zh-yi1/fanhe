@@ -21,6 +21,11 @@
 void lunchbox_display_off(void)
 {
     os_gui_draw_w4_done();          // 等当前帧刷完（原 gui_sleep 也有此步骤）
+    lunchbox_display_off_fast();
+}
+
+void lunchbox_display_off_fast(void)
+{
     lcd_drv_set_brightness(0);      // PWM 占空比置 0（led_pg_off 在 PWM 模式下无效）
     LCD_BL_DIS();                   // 先关背光（避免花屏）
     WriteComm(0x28);                // LCD Display Off，停像素扫描（否则信号线寄生供电→无法彻底断电）

@@ -166,18 +166,35 @@ void home_ui_lock_overlay_bring_front(void)
 
 void home_ui_lock_overlay_reset(void)
 {
-    /* 释放 ab_malloc 缓冲区前，先解除 picturebox 对它的引用。
-       这样 compo_form_destroy(pool reset) 时 widget 数据不再指向
-       已释放内存，避免新 form 创建时 GPU 检测到资源冲突 → C241。
-       不使用 home_ui_gpu_pic_detach（含 os_gui_draw_force），
-       因为在 func_exit 上下文中会额外触发 GPU 渲染导致副作用。 */
+    lock_overlay_visible = false;
+    if (lock_overlay_dim != NULL) {
+        compo_shape_set_visible(lock_overlay_dim, false);
+    }
     if (lock_overlay_pic != NULL) {
         compo_picturebox_set_visible(lock_overlay_pic, false);
         compo_picturebox_set_ram(lock_overlay_pic, NULL);
+        compo_picturebox_set(lock_overlay_pic, 0);
     }
     if (lock_overlay_ram_ptr != NULL) {
         ab_free(lock_overlay_ram_ptr);
         lock_overlay_ram_ptr = NULL;
+    }
+    home_ui_lock_overlay_destroy();
+}
+
+void home_ui_lock_overlay_shutdown(void)
+{
+    /* 手动关机：仅隐藏+解绑，不 wait_idle/draw_force/ab_free。
+     * GUI 异常时 wait_idle 会 gpu draw wait timeout → GPU WDT_RST。
+     * RAM 保留至唤醒后 form 重建再释放。 */
+    lock_overlay_visible = false;
+    if (lock_overlay_dim != NULL) {
+        compo_shape_set_visible(lock_overlay_dim, false);
+    }
+    if (lock_overlay_pic != NULL) {
+        compo_picturebox_set_visible(lock_overlay_pic, false);
+        compo_picturebox_set_ram(lock_overlay_pic, NULL);
+        compo_picturebox_set(lock_overlay_pic, 0);
     }
     home_ui_lock_overlay_destroy();
 }

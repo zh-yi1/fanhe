@@ -33,6 +33,8 @@ bool func_key_lock_filter_tch(u8 tch);
 bool func_key_lock_ku_blocked(u16 msg);
 void func_key_lock_on_page_change(void);
 void func_key_lock_on_form_destroy(void);
+/** 手动关机前：收起 overlay 并排空 GPU，避免 C241 */
+void func_key_lock_on_manual_shutdown(void);
 void func_key_lock_notify_blocked(void);
 void func_key_lock_notify_blocked_tch(u8 tch);
 void func_key_lock_on_heating_start(void);
@@ -40,6 +42,8 @@ void func_key_lock_on_heating_stop(void);
 /** 锁/解锁图标是否正在显示 */
 bool func_key_lock_hint_is_on(void);
 void func_key_lock_overlay_to_front(void);
+/** gui_process 之前调用：TCH5 长按关机时收起 overlay；返回 true 则跳过本帧 gui_process */
+bool func_key_lock_pre_gui_poll(void);
 
 #else
 
@@ -63,12 +67,14 @@ static inline bool func_key_lock_filter_tch(u8 tch) { (void)tch; return false; }
 static inline bool func_key_lock_ku_blocked(u16 msg) { (void)msg; return false; }
 static inline void func_key_lock_on_page_change(void) {}
 static inline void func_key_lock_on_form_destroy(void) {}
+static inline void func_key_lock_on_manual_shutdown(void) {}
 static inline void func_key_lock_notify_blocked(void) {}
 static inline void func_key_lock_notify_blocked_tch(u8 tch) { (void)tch; }
 static inline void func_key_lock_on_heating_start(void) {}
 static inline void func_key_lock_on_heating_stop(void) {}
 static inline bool func_key_lock_hint_is_on(void) { return false; }
 static inline void func_key_lock_overlay_to_front(void) {}
+static inline bool func_key_lock_pre_gui_poll(void) { return false; }
 
 #endif
 

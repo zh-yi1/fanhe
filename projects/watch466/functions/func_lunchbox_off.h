@@ -12,6 +12,9 @@
 
 void lunchbox_display_off(void);
 
+/** 手动关机专用：不等 GPU 帧完成，避免 gui thread miss 时死等超时 */
+void lunchbox_display_off_fast(void);
+
 /*
  * ============================================================================
  * func.c 配套改动清单（"关机只关背光"方案）
