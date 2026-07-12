@@ -1221,6 +1221,17 @@ static void func_heat_process(void)
         func_heat_panel_process(f_heat);
 #endif
         func_heat_status_refresh(f_heat);
+#if ELUNCHBOX_PANEL_EN
+        /* 轮询兜底：回调链路因 g_hp_live_seen_positive 未就绪而丢失 remain=0
+         * 事件时，每帧检测加热结束条件，避免卡在加热界面不跳转保温页 */
+        if (f_heat->ui_state == HEAT_UI_HEATING
+            && f_heat->heat_live_ready
+            && f_heat->heat_live_remain_min == 0) {
+            printf("heat_process: poll finish remain=0 live_ready=%u\n",
+                   f_heat->heat_live_ready ? 1u : 0u);
+            func_heat_panel_heating_finish(f_heat);
+        }
+#endif
     }
     func_process();
 }
@@ -1696,6 +1707,11 @@ static void func_heat_sync_mcu_snapshot(f_heat_t *f_heat)
     func_heat_panel_ack_mcu_live(snap.remain_min);
     printf("heat_sync_mcu: remain=%umin temp=%uF idx=%u\n",
            snap.remain_min, snap.temp_f, f_heat->temp_idx);
+    /* 息屏期间加热已完成：缓存的 remain=0 表示加热结束，须驱动跳转保温页 */
+    if (snap.remain_min == 0) {
+        printf("heat_sync_mcu: remain=0 cached, trigger finish\n");
+        func_heat_panel_heating_finish(f_heat);
+    }
 }
 #endif
 
