@@ -77,6 +77,7 @@ typedef struct {
     bool display_pending;
 #if ELUNCHBOX_PANEL_EN
     bool key_ready;
+    bool pending_heat_switch;   /* TCH1 加热键：func_process 蜂鸣后再切页 */
 #endif
     compo_textbox_t *txt_title;
     compo_textbox_t *txt_roll[NEW_RES_ROLL_COLS][NEW_RES_ROLL_ROWS];
@@ -477,11 +478,10 @@ static void new_res_pt8028_keys_process(f_new_reservation_t *f)
     }
 
     /* pt8028_take_press_tch() 已将 key_sound_defer_tch 设为当前按键。
-     * TCH5 由 new_res_power_key() 显式发送；其余键在此统一显式发送蜂鸣，
-     * 并消费 key_sound_defer_tch 防止 func_elunchbox_key_notify_poll() 二次发送。
-     * TCH1/TCH3 必须在切页前发送，否则退出时 key_sound_defer_tch 可能被清理丢失。*/
+     * TCH5 由 new_res_power_key() 显式发送蜂鸣；
+     * TCH1 保留 defer，由 func_elunchbox_key_notify_poll() 在 gui 后发送；
+     * 其余键在此统一发送，并消费 defer 防二次蜂鸣。*/
     switch (press_tch) {
-    case PT8028_KEY_TCH1:
     case PT8028_KEY_TCH2:
     case PT8028_KEY_TCH3:
     case PT8028_KEY_TCH4:
@@ -512,9 +512,9 @@ static void new_res_pt8028_keys_process(f_new_reservation_t *f)
     } else if (press_tch == PT8028_KEY_TCH6) {
         new_res_value_dec(f);
     } else if (press_tch == PT8028_KEY_TCH1) {
-        /* 加热键：跳转到加热设置页 */
+        /* 加热键：defer 蜂鸣在 func_process/gui 之后发 UART，再切加热页 */
         if (!sys_cb.flag_swithing) {
-            func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            f->pending_heat_switch = true;
         }
     } else if (press_tch == PT8028_KEY_TCH7) {
         /* 已经在预约页，不做操作 */
@@ -699,6 +699,15 @@ static void func_new_reservation_process(void)
     if (!elunchbox_ui_is_live()) {
         return;
     }
+    /* TCH1 加热键：gui 刷新 + UART 蜂鸣完成后再切加热页（避免 exit release_clear 吞 defer） */
+    if (f->pending_heat_switch) {
+        f->pending_heat_switch = false;
+        if (!sys_cb.flag_swithing) {
+            func_home_drain_stale_key_msgs();
+            pt8028_release_clear();
+            func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+        }
+    }
 #endif
 }
 
@@ -750,6 +759,7 @@ void func_new_reservation_enter(void)
 #if ELUNCHBOX_PANEL_EN
     f->display_pending = true;   /* 首帧完成全部字体绑定+内容刷新，参照 func_new_heat */
     f->key_ready = false;
+    f->pending_heat_switch = false;
 #else
     f->display_pending = false;
 #endif

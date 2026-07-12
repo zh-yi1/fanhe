@@ -1825,8 +1825,8 @@ void func_heat_key_poll(void)
     u8 tch;
 
 #if ELUNCHBOX_PANEL_EN
-    /* Home 在 new_home_pt8028_keys_process 内处理 TCH1 */
-    if (func_cb.sta == FUNC_HOME) {
+    /* Home / 预约页在各自 keys_process 内处理 TCH1 */
+    if (func_cb.sta == FUNC_HOME || func_cb.sta == FUNC_RESERVATION) {
         return;
     }
 #endif
