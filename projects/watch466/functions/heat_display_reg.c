@@ -503,9 +503,15 @@ void heat_display_feed_dp(u8 *data, u16 len)
     }
 
     /* 预约加热已由加热模块自动启动 → 亮屏时跳转加热界面
-     * (加热参数已在 !ui_ok 之前预设，此处只需要触发页面跳转) */
+     * (加热参数已在 !ui_ok 之前预设，此处只需要触发页面跳转)
+     * 充电+DP02=5 已由上方 warm 路由处理，勿再强制跳加热页 */
     if (got_enable && heating && g_res.setup_done
         && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
+        if (!heat_display_reservation_can_switch_heat()) {
+            printf("[LCD_REG] feed_dp: reservation heat skip switch (warm/charge route sta=%u)\n",
+                   func_cb.sta);
+            return;
+        }
         printf("[LCD_REG] feed_dp: reservation heating started by module, switch to heat panel "
                "remain=%u got_remain=%d\n", remain_min, got_remain ? 1 : 0);
         func_elunchbox_switch_to_heat_panel();
@@ -657,5 +663,19 @@ void heat_display_warm_charge_route_poll(void)
     heat_display_heat_pending = false;
     printf("[LCD_ROUTE] warm_charge pending -> enter warm (sta=%u)\n", func_cb.sta);
     func_elunchbox_enter_warm_from_charging();
+}
+
+bool heat_display_reservation_can_switch_heat(void)
+{
+    if (func_cb.sta == FUNC_NEW_WARM || func_cb.sta == FUNC_HEAT) {
+        return false;
+    }
+    if (func_elunchbox_warm_from_charging()) {
+        return false;
+    }
+    if (heat_display_warm_charge_pending) {
+        return false;
+    }
+    return true;
 }
 #endif

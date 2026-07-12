@@ -800,10 +800,17 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
         elunchbox_guioff_sleep_service();
     }
 #if ELUNCHBOX_PANEL_EN
-    /* 非按键唤醒(RX UART): 预约到时 + 加热模块 UART 确认加热 → 唤醒并跳转加热界面 */
+    /* 非按键唤醒(RX UART): 预约到时 + 加热模块 UART 确认加热 → 唤醒并跳转
+     * 充电+保温与直接加热一致：优先 warm_charge 路由，勿被 heat_pending 覆盖 */
     if (!key_wake && func_reservation_is_heating() && lunchbox_heating_task_active()) {
-        printf("reservation: RX wake + heating confirmed, switch to heat panel\n");
-        func_elunchbox_switch_to_heat_panel();
+        heat_display_warm_charge_route_poll();
+        if (heat_display_reservation_can_switch_heat()) {
+            printf("reservation: RX wake + heating confirmed, switch to heat panel\n");
+            func_elunchbox_switch_to_heat_panel();
+        } else {
+            printf("reservation: RX wake + warm/charge route, skip heat panel (sta=%u)\n",
+                   func_cb.sta);
+        }
     }
 #endif
     if (key_wake) {
@@ -1250,13 +1257,20 @@ void func_process(void)
             elunchbox_pwr_gui_wake();
             return;
         }
-        /* 预约时间到 → 加热模块自发加热 → UART 上报 HEAT_ENABLE=1 → 唤醒进入加热界面 */
+        /* 预约时间到 → 加热模块自发加热 → UART 上报 HEAT_ENABLE=1 → 唤醒
+         * 充电+DP02=5 进保温与直接加热相同，warm_charge 优先于 heat 跳页 */
         {
             bool heat_pending = heat_display_heat_wake_pending();
             if (heat_pending && g_res.setup_done) {
-                printf("elunchbox: reservation heating wakes screen from manual off\n");
                 elunchbox_pwr_gui_wake();
-                func_elunchbox_switch_to_heat_panel();
+                heat_display_warm_charge_route_poll();
+                if (heat_display_reservation_can_switch_heat()) {
+                    printf("elunchbox: reservation heating wakes screen from manual off\n");
+                    func_elunchbox_switch_to_heat_panel();
+                } else {
+                    printf("elunchbox: reservation manual_off wake -> warm/charge (sta=%u)\n",
+                           func_cb.sta);
+                }
                 return;
             }
             if (heat_pending && !g_res.setup_done) {
@@ -1392,13 +1406,19 @@ void func_process(void)
             elunchbox_pwr_gui_wake();
             return;
         }
-        /* 预约加热已由加热模块自动启动 → 唤醒并跳转加热界面 */
+        /* 预约加热已由加热模块自动启动 → 唤醒；充电+保温优先于加热页 */
         {
             bool heat_pending = heat_display_heat_wake_pending();
             if (heat_pending && g_res.setup_done) {
-                printf("elunchbox: reservation heating wakes screen from guioff\n");
                 elunchbox_pwr_gui_wake();
-                func_elunchbox_switch_to_heat_panel();
+                heat_display_warm_charge_route_poll();
+                if (heat_display_reservation_can_switch_heat()) {
+                    printf("elunchbox: reservation heating wakes screen from guioff\n");
+                    func_elunchbox_switch_to_heat_panel();
+                } else {
+                    printf("elunchbox: reservation guioff wake -> warm/charge (sta=%u)\n",
+                           func_cb.sta);
+                }
                 return;
             }
             if (heat_pending && !g_res.setup_done) {
@@ -1538,7 +1558,7 @@ void func_process(void)
     /* 熄屏期间 deferred 充电进保温（含预约到点+充电） */
     heat_display_warm_charge_route_poll();
 
-    /* 预约加热已由加热模块自动启动 → 亮屏时跳转加热界面 */
+    /* 预约加热已由加热模块自动启动 → 亮屏时跳转（充电+保温与直接加热相同，warm 优先） */
     {
         bool heat_pending = heat_display_heat_wake_pending();
         if (elunchbox_manual_wake_home_active()) {
@@ -1547,9 +1567,12 @@ void func_process(void)
             }
         } else if (!elunchbox_pwr_is_manual_off()
             && heat_pending && g_res.setup_done
-            && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
+            && heat_display_reservation_can_switch_heat()) {
             printf("elunchbox: reservation heating confirmed, switch to heat panel (awake)\n");
             func_elunchbox_switch_to_heat_panel();
+        } else if (heat_pending && g_res.setup_done && !heat_display_reservation_can_switch_heat()) {
+            printf("elunchbox: reservation heat_wake deferred (warm/charge route sta=%u)\n",
+                   func_cb.sta);
         }
         if (heat_pending && !g_res.setup_done) {
             printf("elunchbox: [DEBUG] awake heat_pending=1 BUT setup_done=0 sta=%u, skip\n",
