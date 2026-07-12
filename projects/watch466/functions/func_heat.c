@@ -800,12 +800,6 @@ void func_heat_ble_remote_restart(void)
     if (func_cb.sta != FUNC_HEAT || func_cb.f_cb == NULL) {
         return;
     }
-    /* 低电优先：电量低且非充电时，拒绝 BLE 远程启动加热 */
-    if (home_ui_shared_battery_is_low()
-        && !home_ui_shared_battery_is_charging()) {
-        printf("heat_ble_remote_restart: low battery, skip\n");
-        return;
-    }
     if (!lb_mode_to_heat_get(&preset)) {
         return;
     }
@@ -1428,13 +1422,6 @@ void func_heat_enter(void)
 
     if (lb_heat_autostart_consume()) {
         printf("heat_enter: autostart -> start_heating\n");
-        /* 低电优先：电量低且非充电时，不启动加热，回主页显示低电提醒 */
-        if (home_ui_shared_battery_is_low()
-            && !home_ui_shared_battery_is_charging()) {
-            printf("heat_enter: low battery, skip heating -> home\n");
-            func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-            return;
-        }
         func_elunchbox_warm_from_charging_set(false);
         lb_heat_mcu_nav_set(false);
         func_heat_start_heating(f_heat);
@@ -1446,13 +1433,6 @@ void func_heat_enter(void)
                lb_heat_uart_remote_peek() ? 1u : 0u);
     } else if (f_heat->proto_mode != 1) {
         printf("heat_enter: proto_mode=%d -> start_heating\n", f_heat->proto_mode);
-        /* 低电优先：电量低且非充电时，不启动加热，回主页 */
-        if (home_ui_shared_battery_is_low()
-            && !home_ui_shared_battery_is_charging()) {
-            printf("heat_enter: low battery, skip mode heating -> home\n");
-            func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-            return;
-        }
         func_heat_start_heating(f_heat);
         func_heat_sync_mcu_snapshot(f_heat);
         printf("heat_enter: start_heating done\n");
