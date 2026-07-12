@@ -493,9 +493,10 @@ static void new_res_pt8028_keys_process(f_new_reservation_t *f)
         (void)pt8028_take_key_sound_defer_tch();  /* 消费延迟值防二次发送 */
         break;
     case PT8028_KEY_TCH7:
-        /* 已在预约页：消费 res_key_pending 防止 func_elunchbox_res_key_poll
-         * 再次设 key_sound_defer_tch=TCH7 导致下一帧重复蜂鸣 */
+        /* 已在预约页：消费 res_key_pending + key_sound_defer_tch，
+         * 防止 func_elunchbox_key_notify_poll() 向加热模块重复发送预约键蜂鸣 */
         (void)pt8028_take_res_key_pending();
+        (void)pt8028_take_key_sound_defer_tch();
         break;
     default:
         break;
@@ -591,6 +592,7 @@ static void func_new_reservation_message(size_msg_t msg)
     case KU_VOL_DOWN:
     case KU_MODE:
     case KEY_RIGHT | KEY_SHORT_UP:
+    case KEY_NEXT | KEY_SHORT:     /* TCH7 预约键，已由 pt8028 keys_process 消费 */
         return;
     default:
         break;
