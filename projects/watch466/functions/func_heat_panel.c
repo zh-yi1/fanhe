@@ -611,6 +611,7 @@ extern u8 func_heat_panel_get_set_min(const void *f);
 extern u8 func_heat_panel_get_live_ready(const void *f);
 extern u32 func_heat_panel_get_remain_min(const void *f);
 extern u32 func_heat_panel_get_total_sec(const void *f);
+extern bool func_heat_panel_is_heating(const void *f);
 
 static u16 heat_panel_total_min(const void *f_heat)
 {
@@ -633,21 +634,20 @@ static u16 heat_panel_total_min(const void *f_heat)
     return 1;
 }
 
-/** 加热剩余分钟：优先 MCU 上报 DP06，首包前默认满时长 */
+/** 加热剩余分钟：优先 MCU DP06（live 或 heat_display_last），勿用本地 total 顶替 */
 static u32 heat_panel_remain_min_resolve(const void *f_heat)
 {
-    u16 total_min;
-    u32 remain_min;
-
-    total_min = heat_panel_total_min(f_heat);
     if (func_heat_panel_get_live_ready(f_heat)) {
-        remain_min = func_heat_panel_get_remain_min(f_heat);
-        if (remain_min > total_min) {
-            remain_min = total_min;
-        }
-        return remain_min;
+        return func_heat_panel_get_remain_min(f_heat);
     }
-    return total_min;
+    if (func_heat_panel_is_heating(f_heat)) {
+        heat_display_info_t snap;
+
+        if (heat_display_get_last(&snap) && snap.remain_min > 0) {
+            return snap.remain_min;
+        }
+    }
+    return heat_panel_total_min(f_heat);
 }
 
 static u8 heat_panel_progress_idx_resolve(const void *f_heat)
@@ -691,7 +691,6 @@ static void heat_panel_format_temp(char *buf, u16 temp_f)
 /* 由 func_heat.c 提供的状态读取 */
 extern u8 func_heat_panel_get_temp_idx(const void *f);
 extern u16 func_heat_panel_get_live_temp_f(const void *f);
-extern bool func_heat_panel_is_heating(const void *f);
 extern void func_heat_panel_set_live(struct f_heat_t_ *f_heat, u32 remain_min, u16 temp_f);
 extern void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat);
 
@@ -699,6 +698,13 @@ void func_heat_panel_push_live(u32 heat_remain_min, u16 temp_f)
 {
     /* 加热中：推送剩余时长和温度 */
     heat_display_show(heat_remain_min, temp_f);
+}
+
+void func_heat_panel_ack_mcu_live(u32 remain_min)
+{
+    if (remain_min > 0) {
+        g_hp_live_seen_positive = true;
+    }
 }
 
 static void heat_panel_display_on_info(const heat_display_info_t *info)
@@ -727,6 +733,7 @@ static void heat_panel_display_on_info(const heat_display_info_t *info)
         return;
     }
 
+    g_hp.last_remain_min = 0xffffffff;
     g_hp.last_progress_idx = 0xff;
     func_heat_panel_process(f_heat);
 }

@@ -20,6 +20,8 @@ void func_heat_panel_status_refresh(struct f_heat_t_ *f_heat);
 
 /** 加热中：推送剩余时长和温度（UART/协议层 → UI 回调） */
 void func_heat_panel_push_live(u32 heat_remain_min, u16 temp_f);
+/** 进加热页同步 MCU 快照后调用，避免开局残留 remain=0 误判结束 */
+void func_heat_panel_ack_mcu_live(u32 remain_min);
 
 #endif
 

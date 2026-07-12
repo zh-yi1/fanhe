@@ -835,7 +835,14 @@ void func_heat_ble_remote_restart(void)
         } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
             duration_min = LB_HEAT_DURATION_MAX_MIN;
         }
-        lunchbox_heat_start(f_heat->proto_mode, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
+        if (!lb_heat_uart_remote_peek()) {
+            lunchbox_heat_start(f_heat->proto_mode, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
+        } else {
+            (void)lb_heat_uart_remote_consume();
+            lunchbox_heat_start_local(f_heat->proto_mode,
+                                      lunchbox_temp_f_to_idx(target_temp_f),
+                                      duration_min);
+        }
     }
 #else
     (void)lb_heat_uart_remote_consume();
@@ -845,6 +852,7 @@ void func_heat_ble_remote_restart(void)
     }
 #endif
 
+    func_heat_sync_mcu_snapshot(f_heat);
     func_heat_led_sync(true);
     func_heat_panel_mark_dirty(f_heat);
     {
@@ -1665,6 +1673,7 @@ static void func_heat_sync_mcu_snapshot(f_heat_t *f_heat)
     }
     func_heat_panel_set_live(f_heat, snap.remain_min, snap.temp_f);
     f_heat->temp_idx = func_heat_temp_f_to_idx(snap.temp_f);
+    func_heat_panel_ack_mcu_live(snap.remain_min);
     printf("heat_sync_mcu: remain=%umin temp=%uF idx=%u\n",
            snap.remain_min, snap.temp_f, f_heat->temp_idx);
 }

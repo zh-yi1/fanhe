@@ -122,11 +122,23 @@ static void heat_display_preset_resume_heat(u32 remain_min, bool got_remain,
 
     has_last = heat_display_get_last(&last);
     use_temp = got_temp ? temp_f : (has_last ? last.temp_f : 176);
+#if ELUNCHBOX_PANEL_EN
+    if (!got_temp && !has_last && g_res.setup_done) {
+        use_temp = lunchbox_temp_idx_to_f(g_res.temp_idx);
+    }
+#endif
 
     if (got_duration && duration_min > 0) {
         use_total = duration_min;
-    } else if (got_remain && remain_min > 0) {
-        use_total = remain_min;
+#if ELUNCHBOX_PANEL_EN
+    } else if (g_res.setup_done) {
+        use_total = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
+        if (use_total < LB_HEAT_DURATION_MIN_MIN) {
+            use_total = LB_HEAT_DURATION_MIN_MIN;
+        } else if (use_total > LB_HEAT_DURATION_MAX_MIN) {
+            use_total = LB_HEAT_DURATION_MAX_MIN;
+        }
+#endif
     } else if (has_last && last.remain_min > 0) {
         use_total = last.remain_min;
     } else {
@@ -205,6 +217,7 @@ void heat_display_show(u32 remain_min, u16 temp_f)
         temp_f = 999;
     }
 
+    /* 剩余时间以 MCU 为准：仅温度相同时也须刷新（避免 live 未就绪时显示旧 total） */
     changed = (!heat_display_has_last
                || heat_display_last.remain_min != remain_min
                || heat_display_last.temp_f != temp_f);
@@ -257,6 +270,37 @@ static u16 heat_display_temp_idx_to_f(u8 idx)
     }
     temp_c = 40 + (u16)idx * 10;
     return (u16)(temp_c * 9 / 5 + 32);
+}
+
+/** 将 DP06/DP07 写入 heat_display_last；跳页前须缓存，供 func_heat_sync_mcu_snapshot 读取 */
+static void heat_display_feed_apply(u32 remain_min, bool got_remain,
+                                    u16 temp_f, bool got_temp)
+{
+    heat_display_info_t last;
+    u16 use_temp;
+
+    if (got_remain && got_temp) {
+        heat_display_show(remain_min, temp_f);
+        return;
+    }
+    if (got_remain) {
+        if (heat_display_get_last(&last)) {
+            use_temp = last.temp_f;
+        }
+#if ELUNCHBOX_PANEL_EN
+        else if (g_res.setup_done) {
+            use_temp = lunchbox_temp_idx_to_f(g_res.temp_idx);
+        }
+#endif
+        else {
+            use_temp = 176;
+        }
+        heat_display_show(remain_min, use_temp);
+        return;
+    }
+    if (got_temp && heat_display_get_last(&last)) {
+        heat_display_show(last.remain_min, temp_f);
+    }
 }
 
 /**
@@ -396,21 +440,30 @@ void heat_display_feed_dp(u8 *data, u16 len)
      * 否则会因为没有 autostart 而跳转到设置页，而不是正在加热界面 */
     if (got_enable && heating && g_res.setup_done
         && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
-        u16 temp_f = lunchbox_temp_idx_to_f(g_res.temp_idx);
-        u32 duration_min = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
-        if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
-            duration_min = LB_HEAT_DURATION_MIN_MIN;
-        } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
-            duration_min = LB_HEAT_DURATION_MAX_MIN;
+        u16 preset_temp_f = got_temp ? temp_f : lunchbox_temp_idx_to_f(g_res.temp_idx);
+        u32 preset_dur_min = (u32)g_res.heat_hour * 60 + (u32)g_res.heat_min;
+
+        if (got_duration && duration_min > 0) {
+            preset_dur_min = duration_min;
         }
-        lb_mode_to_heat_set(4, temp_f,
-                            (u8)(duration_min / 60), (u8)(duration_min % 60));
+        /* 勿用 DP06 剩余时间作总时长：59min 剩余会被当成 0h59m，页面在 live 前就显示 59 */
+        if (preset_dur_min < LB_HEAT_DURATION_MIN_MIN) {
+            preset_dur_min = LB_HEAT_DURATION_MIN_MIN;
+        } else if (preset_dur_min > LB_HEAT_DURATION_MAX_MIN) {
+            preset_dur_min = LB_HEAT_DURATION_MAX_MIN;
+        }
+        lb_mode_to_heat_set(4, preset_temp_f,
+                            (u8)(preset_dur_min / 60), (u8)(preset_dur_min % 60));
         lb_heat_autostart_set(true);
-        /* 加热模块已自发启动预约加热 → 立即切换预约阶段为加热中，关预约灯 LED4 */
+        /* MCU 已自发加热：勿再发 heat_start，剩余时间以 DP06 为准 */
+        lb_heat_uart_remote_set(true);
+        lb_heat_mcu_nav_set(true);
         func_reservation_phase_enter_heating();
+        /* 预约+充电可能先转保温，须提前缓存 DP06，拔电回加热页可读 */
+        heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
         printf("[LCD_REG] feed_dp: reservation heating, preset heat params "
-               "temp=%uF dur=%umin ui_ok=%d sta=%u\n",
-               temp_f, duration_min, ui_ok ? 1 : 0, func_cb.sta);
+               "temp=%uF dur=%umin mcu_remain=%u ui_ok=%d sta=%u\n",
+               preset_temp_f, preset_dur_min, remain_min, ui_ok ? 1 : 0, func_cb.sta);
     }
 
     /* 手动关机/息屏：仅更新缓存与充电唤醒标志，不触发 UI 回调
@@ -425,6 +478,8 @@ void heat_display_feed_dp(u8 *data, u16 len)
         if (got_charge && charge_val == 1) {
             heat_display_charge_pending = true;   //唤醒
         }
+        /* 熄屏时先缓存剩余时间，唤醒跳加热页后 func_heat_sync_mcu_snapshot 可读 */
+        heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
         (void)heat_display_try_charging_warm_route(got_warm_mode, got_charge, charge_val,
                                                    got_enable, heating);
         return;
@@ -436,6 +491,11 @@ void heat_display_feed_dp(u8 *data, u16 len)
      * 3) 空闲 Home 仅 DP04：只刷新充电图标，不因 DP02=5 跳保温
      * ─────────────────────────────────────────────────────────────────── */
 
+    /* 充电/预约/拔电回加热等路由前统一缓存 DP06（充电进保温提前 return 时亦保留） */
+    if (got_remain || got_temp) {
+        heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
+    }
+
     /* 充电+保温优先于预约跳加热页（预约到点且正在充电时直接进保温） */
     if (heat_display_try_charging_warm_route(got_warm_mode, got_charge, charge_val,
                                              got_enable, heating)) {
@@ -446,7 +506,8 @@ void heat_display_feed_dp(u8 *data, u16 len)
      * (加热参数已在 !ui_ok 之前预设，此处只需要触发页面跳转) */
     if (got_enable && heating && g_res.setup_done
         && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
-        printf("[LCD_REG] feed_dp: reservation heating started by module, switch to heat panel\n");
+        printf("[LCD_REG] feed_dp: reservation heating started by module, switch to heat panel "
+               "remain=%u got_remain=%d\n", remain_min, got_remain ? 1 : 0);
         func_elunchbox_switch_to_heat_panel();
         return;
     }
@@ -518,7 +579,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
         heat_display_preset_resume_heat(remain_min, got_remain, temp_f, got_temp,
                                       duration_min, got_duration);
         func_elunchbox_warm_from_charging_set(false);
-        lb_heat_mcu_nav_set(false);
+        lb_heat_mcu_nav_set(true);
         lb_heat_uart_remote_set(true);
         lb_heat_autostart_set(true);
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
@@ -533,7 +594,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
         heat_display_preset_resume_heat(remain_min, got_remain, temp_f, got_temp,
                                       duration_min, got_duration);
         func_elunchbox_warm_from_charging_set(false);
-        lb_heat_mcu_nav_set(false);
+        lb_heat_mcu_nav_set(true);
         lb_heat_uart_remote_set(true);
         lb_heat_autostart_set(true);
         func_switch_to(FUNC_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
@@ -541,33 +602,13 @@ void heat_display_feed_dp(u8 *data, u16 len)
     }
 #endif
 
-    if (got_remain && got_temp) {
-        heat_display_show(remain_min, temp_f);
+    heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
 #if ELUNCHBOX_PANEL_EN
-        if (remain_min == 0 && func_heat_uart_finish_ok()) {
-            func_elunchbox_enter_warm_from_heat();
-            return;
-        }
-#endif
-    } else if (got_remain) {
-        heat_display_info_t last;
-
-        if (heat_display_get_last(&last)) {
-            heat_display_show(remain_min, last.temp_f);
-        }
-#if ELUNCHBOX_PANEL_EN
-        if (remain_min == 0 && func_heat_uart_finish_ok()) {
-            func_elunchbox_enter_warm_from_heat();
-            return;
-        }
-#endif
-    } else if (got_temp) {
-        heat_display_info_t last;
-
-        if (heat_display_get_last(&last)) {
-            heat_display_show(last.remain_min, temp_f);
-        }
+    if (got_remain && remain_min == 0 && func_heat_uart_finish_ok()) {
+        func_elunchbox_enter_warm_from_heat();
+        return;
     }
+#endif
 
 #if ELUNCHBOX_PANEL_EN
     if (got_charge && ui_ok) {
