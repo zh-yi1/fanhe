@@ -580,7 +580,7 @@ def main() -> None:
         f"#define NEW_HEAT_PROGRESS_OVERLAY_RAM_SIZE    {overlay_max or int(existing.get('NEW_HEAT_PROGRESS_OVERLAY_RAM_SIZE', '43568'))}",
         f"#define NEW_HEAT_SHOW_RAM_SIZE                {show_sz or int(existing.get('NEW_HEAT_SHOW_RAM_SIZE', '23696'))}",
         "",
-        "#define NEW_HEAT_TEMP_CNT                 7",
+        "#define NEW_HEAT_TEMP_CNT                 5",
         "#define NEW_HEAT_TIME_CNT                 13",
         "",
     ]

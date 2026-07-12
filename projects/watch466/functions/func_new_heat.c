@@ -132,7 +132,7 @@ typedef struct {
 
 /* 温度值 协议 ID=7: 40/50/60/70/80/90/100°C → 104~212°F */
 static const u16 tbl_new_heat_temp_f[NEW_HEAT_TEMP_CNT] = {
-    104, 122, 140, 158, 176, 194, 212,
+     140, 158, 176, 194, 212,
 };
 
 /* 时长（分钟）：60min(1H) ~ 120min(2H)，每档 +5min */
@@ -272,8 +272,6 @@ static u32 new_heat_temp_track_addr(u8 idx)
         UI_BUF_NEW_UI_NEW_TEMP_3_BIN,
         UI_BUF_NEW_UI_NEW_TEMP_4_BIN,
         UI_BUF_NEW_UI_NEW_TEMP_5_BIN,
-        UI_BUF_NEW_UI_NEW_TEMP_4_BIN,
-        UI_BUF_NEW_UI_NEW_TEMP_5_BIN,
     };
 
     if (idx >= NEW_HEAT_TEMP_CNT) {
@@ -288,8 +286,6 @@ static u16 new_heat_temp_track_w(u8 idx)
         NEW_HEAT_NEW_TEMP_1_W,
         NEW_HEAT_NEW_TEMP_2_W,
         NEW_HEAT_NEW_TEMP_3_W,
-        NEW_HEAT_NEW_TEMP_4_W,
-        NEW_HEAT_NEW_TEMP_5_W,
         NEW_HEAT_NEW_TEMP_4_W,
         NEW_HEAT_NEW_TEMP_5_W,
     };
@@ -330,8 +326,6 @@ static u16 new_heat_temp_track_len(u8 idx)
         UI_LEN_NEW_UI_NEW_TEMP_1_BIN,
         UI_LEN_NEW_UI_NEW_TEMP_2_BIN,
         UI_LEN_NEW_UI_NEW_TEMP_3_BIN,
-        UI_LEN_NEW_UI_NEW_TEMP_4_BIN,
-        UI_LEN_NEW_UI_NEW_TEMP_5_BIN,
         UI_LEN_NEW_UI_NEW_TEMP_4_BIN,
         UI_LEN_NEW_UI_NEW_TEMP_5_BIN,
     };
@@ -379,6 +373,19 @@ static u16 new_heat_time_track_w(u8 idx)
 static s16 new_heat_track_left(u16 track_w)
 {
     return (s16)(NEW_HEAT_SLIDER_SLOT_X + (NEW_HEAT_SLIDER_W - track_w) / 2);
+}
+
+/* 温度刻度文字与轨道刻度线对齐：固定满刻度宽，不随当前 temp_idx 变化 */
+static s16 new_heat_temp_tick_x(u8 idx)
+{
+    u8 max_idx = NEW_HEAT_TEMP_CNT - 1;
+    u16 track_w = NEW_HEAT_SLIDER_W;
+    s16 left = new_heat_track_left(track_w);
+
+    if (max_idx == 0) {
+        return (s16)(left + track_w / 2);
+    }
+    return (s16)(left + (u32)idx * track_w / max_idx);
 }
 
 static s16 new_heat_point_x(u8 idx, u8 max_idx, u16 track_w)
@@ -474,6 +481,19 @@ static void new_heat_point_repos(compo_picturebox_t *pic, u8 idx, u8 max_idx,
     compo_picturebox_set_visible(pic, true);
 }
 
+static void new_heat_temp_point_repos(compo_picturebox_t *pic, u8 idx, s16 y, bool visible)
+{
+    if (pic == NULL) {
+        return;
+    }
+    if (!visible) {
+        compo_picturebox_set_visible(pic, false);
+        return;
+    }
+    compo_picturebox_set_pos(pic, new_heat_temp_tick_x(idx), y);
+    compo_picturebox_set_visible(pic, true);
+}
+
 static void new_heat_temp_track_apply(f_new_heat_t *f);
 static void new_heat_time_track_apply(f_new_heat_t *f);
 
@@ -487,9 +507,7 @@ static void new_heat_slider_focus_apply(f_new_heat_t *f)
     elunchbox_te_block_flag = 1;
     if (f->focus == NEW_HEAT_FOCUS_TEMP) {
         new_heat_temp_track_apply(f);
-        new_heat_point_repos(f->pic_temp_point, f->temp_idx, NEW_HEAT_TEMP_CNT - 1,
-                             new_heat_temp_track_w(f->temp_idx), NEW_HEAT_TEMP_SLIDER_Y,
-                             true);
+        new_heat_temp_point_repos(f->pic_temp_point, f->temp_idx, NEW_HEAT_TEMP_SLIDER_Y, true);
         if (f->txt_temp_val != NULL) {
             new_heat_format_temp(buf, tbl_new_heat_temp_f[f->temp_idx]);
             compo_textbox_set(f->txt_temp_val, buf);
@@ -531,14 +549,17 @@ static void new_heat_time_track_apply(f_new_heat_t *f)
 
 static void new_heat_temp_point_apply(f_new_heat_t *f)
 {
-    u16 temp_w;
-
     if (f == NULL) {
         return;
     }
-    temp_w = new_heat_temp_track_w(f->temp_idx);
-    new_heat_point_apply(f->pic_temp_point, f->temp_idx, NEW_HEAT_TEMP_CNT - 1, temp_w,
-                         NEW_HEAT_TEMP_SLIDER_Y, f->focus == NEW_HEAT_FOCUS_TEMP);
+    if (f->focus != NEW_HEAT_FOCUS_TEMP) {
+        new_heat_temp_point_repos(f->pic_temp_point, f->temp_idx, NEW_HEAT_TEMP_SLIDER_Y, false);
+        return;
+    }
+    new_heat_pic_apply(f->pic_temp_point, UI_BUF_NEW_UI_NEW_POINT_BIN, UI_LEN_NEW_UI_NEW_POINT_BIN,
+                       NEW_HEAT_RAM_POINT, NEW_HEAT_RAM_POINT_CAP,
+                       NEW_HEAT_POINT_W, NEW_HEAT_POINT_H,
+                       new_heat_temp_tick_x(f->temp_idx), NEW_HEAT_TEMP_SLIDER_Y);
 }
 
 static void new_heat_time_point_apply(f_new_heat_t *f)
@@ -674,6 +695,7 @@ static void new_heat_text_apply(f_new_heat_t *f)
 
     temp_w = new_heat_temp_track_w(f->temp_idx);
     time_w = new_heat_time_track_w(f->time_idx);
+    (void)temp_w;
 
     if (f->txt_temp_label != NULL) {
         compo_textbox_set(f->txt_temp_label, "Heating Temp");
@@ -705,8 +727,9 @@ static void new_heat_text_apply(f_new_heat_t *f)
             new_heat_format_temp(buf, tbl_new_heat_temp_f[i]);
             compo_textbox_set(f->txt_temp_scale[i], buf);
             widget_text_set_client(f->txt_temp_scale[i]->txt, 0, 5);
+            compo_textbox_set_align_center(f->txt_temp_scale[i], true);
             compo_textbox_set_pos(f->txt_temp_scale[i],
-                                  new_heat_point_x(i, NEW_HEAT_TEMP_CNT - 1, temp_w),
+                                  new_heat_temp_tick_x(i),
                                   NEW_HEAT_TEMP_SCALE_Y);
             compo_textbox_set_visible(f->txt_temp_scale[i], true);
         }
@@ -854,13 +877,15 @@ static void new_heat_text_apply_scales(f_new_heat_t *f)
     }
     temp_w = new_heat_temp_track_w(f->temp_idx);
     time_w = new_heat_time_track_w(f->time_idx);
+    (void)temp_w;
     for (i = 0; i < NEW_HEAT_TEMP_CNT; i++) {
         if (f->txt_temp_scale[i] != NULL) {
             new_heat_format_temp(buf, tbl_new_heat_temp_f[i]);
             compo_textbox_set(f->txt_temp_scale[i], buf);
             widget_text_set_client(f->txt_temp_scale[i]->txt, 0, 5);
+            compo_textbox_set_align_center(f->txt_temp_scale[i], true);
             compo_textbox_set_pos(f->txt_temp_scale[i],
-                                  new_heat_point_x(i, NEW_HEAT_TEMP_CNT - 1, temp_w),
+                                  new_heat_temp_tick_x(i),
                                   NEW_HEAT_TEMP_SCALE_Y);
             compo_textbox_set_visible(f->txt_temp_scale[i], true);
         }
@@ -1101,6 +1126,7 @@ static compo_textbox_t *new_heat_txt_create(compo_form_t *frm, u16 id, u32 font_
 #if ELUNCHBOX_PANEL_EN
     /* 禁用 autosize → 后续 compo_textbox_set() 不读字体 Flash，避免 C281 */
     compo_textbox_set_autosize(txt, false);
+    compo_textbox_set_align_center(txt, center);
     compo_textbox_set_visible(txt, false);
 #else
     compo_textbox_set_font(txt, font_addr ? font_addr : NEW_HEAT_FONT);
