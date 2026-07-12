@@ -1044,7 +1044,7 @@ static void new_heat_ok_key(f_new_heat_t *f)
         /* 预约模式：保存加热参数，提交预约串口指令 */
         g_res.heat_hour = (u8)(total_min / 60);
         g_res.heat_min = (u8)(total_min % 60);
-        g_res.temp_idx = f->temp_idx;
+        g_res.temp_idx = lunchbox_temp_f_to_idx(temp_f);
         /* pt8028_release_clear 会清零 key_notify_pending，须先发送 lunchbox 按键通知 */
         {
             u8 lunchbox_key = pt8028_tch_to_lunchbox_key(PT8028_KEY_TCH4);
