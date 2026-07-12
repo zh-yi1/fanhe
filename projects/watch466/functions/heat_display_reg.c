@@ -252,7 +252,12 @@ static bool heat_display_unplug_should_resume_heat(u8 mode, bool got_enable, boo
     if (!heat_display_mcu_still_heating(got_enable, heating)) {
         return false;
     }
-    if (heat_display_mcu_mode_is_heating(mode) || heat_display_mcu_mode_is_warm(mode)) {
+    if (heat_display_mcu_mode_is_heating(mode)) {
+        return true;
+    }
+    /* mode=5(保温) 仅在充电转保温后拔电时才应回加热页；
+     * 加热自然结束进保温时 MCU 也会回复 mode=5，此乃保温正常状态，勿跳回加热 */
+    if (heat_display_mcu_mode_is_warm(mode) && func_elunchbox_warm_from_charging()) {
         return true;
     }
 #if ELUNCHBOX_PANEL_EN
@@ -502,6 +507,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
 {
 #if ELUNCHBOX_PANEL_EN
     bool ui_ok = heat_display_ui_ok();
+    u8 prev_sta = func_cb.sta;   /* 记录入口页面：若本包触发了保温跳转，后续 mode 路由须跳过 */
 #endif
     u16 off = 0;
     u32 remain_min = 0;
@@ -513,8 +519,10 @@ void heat_display_feed_dp(u8 *data, u16 len)
     bool got_mode = false;
     bool got_heat_stop = false;
     bool got_duration = false;
+    bool got_battery = false;
     bool heating = false;
     u8 charge_val = 0;
+    u8 battery_val = 4;
     u8 mcu_mode = 0;
     u32 duration_min = 0;
 
@@ -582,6 +590,16 @@ void heat_display_feed_dp(u8 *data, u16 len)
                 if (ui_ok)
 #endif
                 printf("[LCD_REG] feed_dp: HEAT_MODE=%u\n", val[0]);
+            }
+            break;
+        case LB_DPID_BATTERY:
+            if (val_len >= 1) {
+                battery_val = val[0];
+                got_battery = true;
+#if ELUNCHBOX_PANEL_EN
+                if (ui_ok)
+#endif
+                printf("[LCD_REG] feed_dp: BATTERY=%u\n", battery_val);
             }
             break;
         case LB_DPID_CHARGE_STATUS:
@@ -682,6 +700,13 @@ void heat_display_feed_dp(u8 *data, u16 len)
         heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
     }
 
+    /* 若回调已驱动进入保温页，该包后续 mode 路由/停止检测均不应再处理，
+     * 否则同一个 DP10=0 会在 warm→home 回路中把保温页立即退出（日志中
+     * heat_finish -> warm panel 后紧跟 MCU mode=1 warm->home） */
+    if (prev_sta != FUNC_NEW_WARM && func_cb.sta == FUNC_NEW_WARM) {
+        return;
+    }
+
     /* 预约到点：Home 等页面跳加热；已在保温页则交给 mode 路由（拔电回预约加热） */
     if (got_enable && heating && g_res.setup_done
         && func_cb.sta != FUNC_NEW_HEAT && func_cb.sta != FUNC_HEAT) {
@@ -692,6 +717,27 @@ void heat_display_feed_dp(u8 *data, u16 len)
         } else {
             printf("[LCD_REG] feed_dp: reservation on sta=%u, try mode route (mode=%u)\n",
                    func_cb.sta, got_mode ? mcu_mode : heat_display_cached_mcu_mode);
+        }
+    }
+
+    /* ── 低电优先：电量低且非充电时，阻止加热/保温页路由，回主页 ───── */
+    {
+        bool low_bat = got_battery ? (battery_val <= 1)
+                      : home_ui_shared_battery_is_low();
+        if (low_bat && !heat_display_charging_now(got_charge, charge_val)) {
+            if (func_cb.sta == FUNC_NEW_WARM) {
+                printf("[LCD_ROUTE] low battery warm->home (sta=%u bat=%u)\n",
+                       func_cb.sta, got_battery ? battery_val : 99u);
+                func_elunchbox_uart_stop_and_home();
+                return;
+            }
+            /* 加热/预约场景：不跳保温也不回加热，直接回主页 */
+            if (got_enable && heating
+                && func_cb.sta != FUNC_HEAT && func_cb.sta != FUNC_NEW_HEAT) {
+                printf("[LCD_ROUTE] low battery block heat entry (sta=%u bat=%u)\n",
+                       func_cb.sta, got_battery ? battery_val : 99u);
+                return;
+            }
         }
     }
 

@@ -186,6 +186,7 @@ typedef struct f_heat_t_ {
     u32 heat_live_remain_min;   /* 加热中：回调推送的剩余分钟 */
     u16 heat_live_temp_f;       /* 加热中：回调推送的实时温度 °F */
     bool heat_live_ready;       /* 是否已收到至少一次回调 */
+    bool heat_live_seen_positive; /* 本段加热是否见过剩余时间>0 (防残留数据误触发) */
     u32 heat_total_sec;
     u32 heat_start_tick;
     bool screen_locked;
@@ -272,6 +273,7 @@ static void func_heat_display_refresh(f_heat_t *f_heat);
 static void func_heat_heating_finish_check(f_heat_t *f_heat);
 #if ELUNCHBOX_PANEL_EN
 static void func_heat_sync_mcu_snapshot(f_heat_t *f_heat);
+void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat);
 #endif
 void func_heat_countdown_set(u8 hour, u8 min);
 void func_heat_countdown_stop(void);
@@ -316,6 +318,7 @@ static void func_heat_reset_setup(f_heat_t *f_heat)
     f_heat->heat_live_remain_min = 0;
     f_heat->heat_live_temp_f = 0;
     f_heat->heat_live_ready = false;
+    f_heat->heat_live_seen_positive = false;
     f_heat->heat_total_sec = 0;
     f_heat->heat_start_tick = 0;
     f_heat->screen_locked = false;
@@ -730,6 +733,7 @@ static void func_heat_start_heating(f_heat_t *f_heat)
         f_heat->heat_total_sec = 60;
     }
     f_heat->heat_live_ready = false;
+    f_heat->heat_live_seen_positive = false;
     f_heat->heat_live_remain_min = 0;
     f_heat->heat_live_temp_f = 0;
     f_heat->last_timer_key = 0xffff;
@@ -796,6 +800,12 @@ void func_heat_ble_remote_restart(void)
     if (func_cb.sta != FUNC_HEAT || func_cb.f_cb == NULL) {
         return;
     }
+    /* 低电优先：电量低且非充电时，拒绝 BLE 远程启动加热 */
+    if (home_ui_shared_battery_is_low()
+        && !home_ui_shared_battery_is_charging()) {
+        printf("heat_ble_remote_restart: low battery, skip\n");
+        return;
+    }
     if (!lb_mode_to_heat_get(&preset)) {
         return;
     }
@@ -816,6 +826,7 @@ void func_heat_ble_remote_restart(void)
         f_heat->heat_total_sec = 60;
     }
     f_heat->heat_live_ready = false;
+    f_heat->heat_live_seen_positive = false;
     f_heat->heat_live_remain_min = 0;
     f_heat->heat_live_temp_f = 0;
     f_heat->last_timer_key = 0xffff;
@@ -1222,13 +1233,16 @@ static void func_heat_process(void)
 #endif
         func_heat_status_refresh(f_heat);
 #if ELUNCHBOX_PANEL_EN
-        /* 轮询兜底：回调链路因 g_hp_live_seen_positive 未就绪而丢失 remain=0
-         * 事件时，每帧检测加热结束条件，避免卡在加热界面不跳转保温页 */
+        /* 轮询兜底：回调链路丢失 remain=0 事件时，每帧检测加热结束条件。
+         * 必须见过正数 remain (heat_live_seen_positive) 才允许归零触发，
+         * 防止刚启动加热时读到 MCU 残留的 remain=0 误跳保温/主页。 */
         if (f_heat->ui_state == HEAT_UI_HEATING
             && f_heat->heat_live_ready
+            && f_heat->heat_live_seen_positive
             && f_heat->heat_live_remain_min == 0) {
-            printf("heat_process: poll finish remain=0 live_ready=%u\n",
-                   f_heat->heat_live_ready ? 1u : 0u);
+            printf("heat_process: poll finish remain=0 live_ready=%u seen_pos=%u\n",
+                   f_heat->heat_live_ready ? 1u : 0u,
+                   f_heat->heat_live_seen_positive ? 1u : 0u);
             func_heat_panel_heating_finish(f_heat);
         }
 #endif
@@ -1385,6 +1399,7 @@ void func_heat_enter(void)
     f_heat->heat_live_remain_min = 0;
     f_heat->heat_live_temp_f = 0;
     f_heat->heat_live_ready = false;
+    f_heat->heat_live_seen_positive = false;
     f_heat->heat_total_sec = 0;
     f_heat->heat_start_tick = 0;
     f_heat->screen_locked = false;
@@ -1413,6 +1428,13 @@ void func_heat_enter(void)
 
     if (lb_heat_autostart_consume()) {
         printf("heat_enter: autostart -> start_heating\n");
+        /* 低电优先：电量低且非充电时，不启动加热，回主页显示低电提醒 */
+        if (home_ui_shared_battery_is_low()
+            && !home_ui_shared_battery_is_charging()) {
+            printf("heat_enter: low battery, skip heating -> home\n");
+            func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            return;
+        }
         func_elunchbox_warm_from_charging_set(false);
         lb_heat_mcu_nav_set(false);
         func_heat_start_heating(f_heat);
@@ -1424,6 +1446,13 @@ void func_heat_enter(void)
                lb_heat_uart_remote_peek() ? 1u : 0u);
     } else if (f_heat->proto_mode != 1) {
         printf("heat_enter: proto_mode=%d -> start_heating\n", f_heat->proto_mode);
+        /* 低电优先：电量低且非充电时，不启动加热，回主页 */
+        if (home_ui_shared_battery_is_low()
+            && !home_ui_shared_battery_is_charging()) {
+            printf("heat_enter: low battery, skip mode heating -> home\n");
+            func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            return;
+        }
         func_heat_start_heating(f_heat);
         func_heat_sync_mcu_snapshot(f_heat);
         printf("heat_enter: start_heating done\n");
@@ -1701,6 +1730,15 @@ static void func_heat_sync_mcu_snapshot(f_heat_t *f_heat)
     }
     if (!heat_display_get_last(&snap)) {
         return;
+    }
+    /* 刚启动加热时 MCU 缓存可能是上轮残留的 remain=0，在见到正数
+     * 之前一律忽略 remain=0，避免误触加热结束跳转保温/主页 */
+    if (snap.remain_min == 0 && !f_heat->heat_live_seen_positive) {
+        printf("heat_sync_mcu: remain=0 ignored (no positive seen yet)\n");
+        return;
+    }
+    if (snap.remain_min > 0) {
+        f_heat->heat_live_seen_positive = true;
     }
     func_heat_panel_set_live(f_heat, snap.remain_min, snap.temp_f);
     f_heat->temp_idx = func_heat_temp_f_to_idx(snap.temp_f);
