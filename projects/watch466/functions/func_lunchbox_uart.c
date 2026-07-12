@@ -1115,8 +1115,9 @@ void lb_heating_sync_from_dp(u8 *data, u16 len)
  * @param uart_cmd  UART 命令字 (LB_UART_CMD_*)
  * @param data      数据载荷
  * @param data_len  数据长度
+ * @param no_wait   true=发送后不等回应、不重试 (关机等关键指令用)
  */
-void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
+void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait)
 {
     if (lb_uart_tx_blocked) {
         return;  /* 手动关机期间禁止 UART TX */
@@ -1134,6 +1135,7 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
             q->cmd = uart_cmd;
             q->data_len = (data_len <= sizeof(q->data)) ? data_len : sizeof(q->data);
             if (data && q->data_len) memcpy(q->data, data, q->data_len);
+            q->no_wait = no_wait;
             lb_send_q_tail = (lb_send_q_tail + 1) % LB_SEND_QUEUE_SIZE;
             lb_send_q_count++;
         } else {
@@ -1170,6 +1172,13 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len)
     }
 
     uart_bufs_tx(UART_TYPE_1, buf, off);
+
+    // no_wait: 发完即走，不等待回应、不进入重试流程 (关机等关键指令用)
+    if (no_wait) {
+        printf("LCD->UART==>TX[no_wait]: cmd=0x%02X sent, skip response\n", uart_cmd);
+        lb_uart_raw_msg_flag++;
+        return;
+    }
 
     // 标记等待加热模块回应 (等待的 msg_flag = 自增前的 lb_uart_raw_msg_flag)
     lb_send_waiting   = true;
@@ -1910,16 +1919,22 @@ static void lb_uart_send_process(void)
 
         uart_bufs_tx(UART_TYPE_1, buf, off);
 
-        // 标记等待回应
-        lb_send_waiting  = true;
-        lb_send_wait_msg = lb_uart_raw_msg_flag;
-        lb_send_retry    = 0;
-        lb_send_tick     = tick_get();
-        lb_send_cur_cmd  = q->cmd;
-        lb_send_cur_dlen = q->data_len;
-        if (q->data_len) memcpy(lb_send_cur_data, q->data, q->data_len);
+        // no_wait: 发完即走，不等待回应 (关机等关键指令用)
+        if (q->no_wait) {
+            printf("LCD->UART==>TX[no_wait]: cmd=0x%02X sent (dequeued), skip response\n", q->cmd);
+            lb_uart_raw_msg_flag++;
+        } else {
+            // 标记等待回应
+            lb_send_waiting  = true;
+            lb_send_wait_msg = lb_uart_raw_msg_flag;
+            lb_send_retry    = 0;
+            lb_send_tick     = tick_get();
+            lb_send_cur_cmd  = q->cmd;
+            lb_send_cur_dlen = q->data_len;
+            if (q->data_len) memcpy(lb_send_cur_data, q->data, q->data_len);
 
-        lb_uart_raw_msg_flag++;
+            lb_uart_raw_msg_flag++;
+        }
     }
 }
 
