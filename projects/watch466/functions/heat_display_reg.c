@@ -253,7 +253,8 @@ static bool heat_display_unplug_should_resume_heat(u8 mode, bool got_enable, boo
     if (!heat_display_mcu_still_heating(got_enable, heating)) {
         return false;
     }
-    if (heat_display_mcu_mode_is_heating(mode) || heat_display_mcu_mode_is_warm(mode)) {
+    /* 仅 MCU 模式 1~4 回加热；mode=5 为正常保温，留在保温页 */
+    if (heat_display_mcu_mode_is_heating(mode)) {
         return true;
     }
 #if ELUNCHBOX_PANEL_EN
