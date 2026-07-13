@@ -337,6 +337,12 @@ static void new_res_roller_content_apply(f_new_reservation_t *f)
         compo_textbox_set_visible(f->txt_title, true);
     }
 
+    printf("[ROLLER_APPLY] cur: hour=%u min=%u sec=%u focus=%u\n",
+           new_res_col_value(f, NEW_RES_FOCUS_HOUR),
+           new_res_col_value(f, NEW_RES_FOCUS_MIN),
+           new_res_col_value(f, NEW_RES_FOCUS_SEC),
+           f->focus_col);
+
     for (col = 0; col < NEW_RES_ROLL_COLS; col++) {
         u8 cur = new_res_col_value(f, col);
 
@@ -426,6 +432,7 @@ static void new_res_ok_key(f_new_reservation_t *f)
     g_res.setup_done = true;
     g_res.appt_hour = f->appt_hour;
     g_res.appt_min = f->appt_min;
+    g_res.appt_sec = f->appt_sec;
     g_res.heat_hour = 0;
     g_res.heat_min = 0;
     g_res.temp_idx = 0;
@@ -757,6 +764,8 @@ void func_new_reservation_enter(void)
     f = (f_new_reservation_t *)func_cb.f_cb;
     g_res_heat_pending = false;  /* 新一次预约流程，清除上次残留 */
     func_reservation_new_ui_load_time(&f->appt_hour, &f->appt_min, &f->appt_sec);
+    printf("[ENTER] after load_time: appt_hour=%u appt_min=%u appt_sec=%u setup_done=%d phase=%d\n",
+           f->appt_hour, f->appt_min, f->appt_sec, g_res.setup_done, g_res.phase);
     f->focus_col = NEW_RES_FOCUS_HOUR;
 #if ELUNCHBOX_PANEL_EN
     f->display_pending = true;   /* 首帧完成全部字体绑定+内容刷新，参照 func_new_heat */
