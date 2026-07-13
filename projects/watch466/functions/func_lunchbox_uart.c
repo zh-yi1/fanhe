@@ -290,7 +290,12 @@ static bool lb_frame_parse(void)
         if (!elunchbox_lowbat_should_block_ui_route()) {
 #endif
         heat_display_feed_dp(rx.data, rx.data_len, rx.msg_flag);
-        lunchbox_control_apply_panel(rx.data, rx.data_len);
+        /* 加热自然结束后 heat_display_feed_dp 已将 sta 切为 FUNC_NEW_WARM；
+         * 同一帧 MCU 数据中的 DP10=0 是加热结束的残留状态，不应再触发
+         * stop_and_home 把保温页立即退出。保温页的停止由自身按键/BLE 处理。 */
+        if (func_cb.sta != FUNC_NEW_WARM) {
+            lunchbox_control_apply_panel(rx.data, rx.data_len);
+        }
 #if ELUNCHBOX_PANEL_EN
         }
 #endif
