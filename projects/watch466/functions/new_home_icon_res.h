@@ -31,6 +31,22 @@
 #define NEW_HOME_BAT_DL4_H                 18
 #define NEW_HOME_BAT_DL4_RAM_SIZE          (8 + 31 * 18 * 2)
 
+#define NEW_HOME_BAT_CHG1_W                 31
+#define NEW_HOME_BAT_CHG1_H                 17
+#define NEW_HOME_BAT_CHG1_RAM_SIZE          (8 + 31 * 17 * 2)
+
+#define NEW_HOME_BAT_CHG2_W                 31
+#define NEW_HOME_BAT_CHG2_H                 17
+#define NEW_HOME_BAT_CHG2_RAM_SIZE          (8 + 31 * 17 * 2)
+
+#define NEW_HOME_BAT_CHG3_W                 31
+#define NEW_HOME_BAT_CHG3_H                 17
+#define NEW_HOME_BAT_CHG3_RAM_SIZE          (8 + 31 * 17 * 2)
+
+#define NEW_HOME_BAT_CHG4_W                 31
+#define NEW_HOME_BAT_CHG4_H                 17
+#define NEW_HOME_BAT_CHG4_RAM_SIZE          (8 + 31 * 17 * 2)
+
 #define NEW_UI_LOCK_W                 80
 #define NEW_UI_LOCK_H                 100
 #define NEW_UI_LOCK_RAM_SIZE          (8 + 80 * 100 * 2)

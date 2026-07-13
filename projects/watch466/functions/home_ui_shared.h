@@ -58,6 +58,8 @@ bool home_ui_shared_battery_is_charging(void);
 void home_ui_shared_battery_charge_apply(u8 charge_sta);
 /** 按当前电量/充电状态重载右上角电池图标 RAM */
 void home_ui_shared_battery_icon_refresh(void);
+/** 主循环 poll：充电中每 500ms 切换 new_charging_1~4 动画帧 */
+void home_ui_shared_battery_chg_poll(void);
 
 /* Heat / Mode 中部倒计时共享 RAM（互斥使用，不增加 BSS 总量） */
 extern u8 home_ui_shared_timer_colon_ram[HEAT_WBX_RAM_SIZE];
