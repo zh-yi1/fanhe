@@ -3,6 +3,7 @@
 #include "func_heat_panel.h"
 #include "heat_display_reg.h"
 #include "new_heat_res.h"
+#include "new_heat_point_util.h"
 #include "home_ui_shared.h"
 #include "home_icon_res.h"
 #include "new_home_icon_res.h"
@@ -153,8 +154,7 @@ static bool g_hp_live_seen_positive;
 /* 内存布局（单缓冲合成，无 Flash、无动态分配）：
  *   heat_bg → 灰轨 + 蓝弧 CPU 合成后一次 set_ram
  *   colon_ram → 圆点
- *   show_ram BSS → show 条 */
-static u8 heat_panel_show_ram[NEW_HEAT_SHOW_RAM_SIZE];
+ *   home_ui_show_ram → show 条（与保温页共用，互斥） */
 
 #define HEAT_PANEL_OVERLAY_SKIP565      0xFFFF
 #define HEAT_PANEL_OVERLAY_ROW_MAX      192
@@ -526,6 +526,7 @@ static void heat_panel_point_bind(u8 progress_idx)
 {
     s16 px;
     s16 py;
+    new_heat_point_bg_t bg;
 
     if (g_hp.pic_point == NULL) {
         printf("point_bind: skip pic=NULL\n");
@@ -533,10 +534,19 @@ static void heat_panel_point_bind(u8 progress_idx)
     }
     heat_panel_point_pos(progress_idx, &px, &py);
     heat_panel_point_tip_near_full(progress_idx, &px, &py);
-    if (!heat_panel_gpu_ram_bind(g_hp.pic_point, UI_BUF_NEW_UI_NEW_POINT_BIN,
-                                  UI_LEN_NEW_UI_NEW_POINT_BIN,
-                                  home_ui_colon_ram, HOME_COLON_RAM_SIZE,
-                                  NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py)) {
+
+    memset(&bg, 0, sizeof(bg));
+    if (g_hp.track_ready && gui_set_ram_check(home_ui_heat_bg_ram, __func__)) {
+        bg.bg_ram = home_ui_heat_bg_ram;
+        bg.bg_ram_len = NEW_HEAT_NEW_PROGRESS_BG_RAM_SIZE;
+        bg.bg_w = GET_LE16(&home_ui_heat_bg_ram[4]);
+        bg.bg_h = GET_LE16(&home_ui_heat_bg_ram[6]);
+        bg.bg_anchor_x = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X;
+        bg.bg_anchor_y = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y;
+    }
+
+    if (!new_heat_point_gpu_ram_bind(g_hp.pic_point, home_ui_colon_ram, HOME_COLON_RAM_SIZE,
+                                     NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py, &bg)) {
         printf("point_bind: fail idx=%u tip=(%d,%d)\n", progress_idx, px, py);
         return;
     }
@@ -572,7 +582,7 @@ static void heat_panel_show_apply(void)
     }
     if (!heat_panel_gpu_ram_bind(g_hp.pic_show, UI_BUF_NEW_UI_NEW_SHOW_BIN,
                                   UI_LEN_NEW_UI_NEW_SHOW_BIN,
-                                  heat_panel_show_ram, sizeof(heat_panel_show_ram),
+                                  home_ui_show_ram, sizeof(home_ui_show_ram),
                                   NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H,
                                   GUI_SCREEN_CENTER_X, HEAT_PANEL_SHOW_Y)) {
         printf("show_apply: fail\n");
@@ -864,6 +874,7 @@ compo_form_t *func_heat_panel_form_create(void)
     g_hp.pic_progress = pic;
 
     pic = heat_panel_pic_hidden(frm, HEAT_PANEL_ID_POINT);
+    compo_picturebox_set_size(pic, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H);
     g_hp.pic_point = pic;
 
     pic = heat_panel_pic_hidden(frm, HEAT_PANEL_ID_SHOW);
@@ -982,6 +993,7 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
 
     printf("heat_panel_enter: start\n");
     home_gpu_wait_idle();
+    memset(home_ui_colon_ram, 0, HOME_COLON_RAM_SIZE);
     printf("heat_panel_enter: wait1 done\n");
     home_ui_shared_status_init();
     func_heat_panel_status_refresh(f_heat);

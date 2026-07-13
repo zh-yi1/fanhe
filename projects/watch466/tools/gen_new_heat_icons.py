@@ -40,6 +40,10 @@ def rgba565(r: int, g: int, b: int) -> int:
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
 
 
+POINT_BLUE565 = rgba565(68, 95, 255)
+POINT_SHADOW565 = rgba565(190, 190, 190)
+
+
 def pack_gpu(w: int, h: int, pixels: list[int]) -> bytes:
     buf = bytearray()
     buf += struct.pack("<IHH", 0x24150, w, h)
@@ -72,6 +76,41 @@ def png_to_gpu(path: Path) -> tuple[bytes, int, int]:
     im = Image.open(path).convert("RGBA")
     w, h, pixels = pixels_from_rgba(im, BG_WHITE)
     return pack_gpu(w, h, pixels), w, h
+
+
+def point_to_gpu() -> tuple[bytes, int, int]:
+    """27x27 占位 bin（ui 打包用）；实际圆点由 new_heat_point_util 运行时绘制。"""
+    size = 27
+    cx = cy = size // 2
+    blue_r = 6.1
+    ring_outer = 10.3
+    pixels: list[int] = []
+    for y in range(size):
+        for x in range(size):
+            dist = math.hypot(x - cx + 0.5, y - cy + 0.5)
+            if dist <= blue_r:
+                pixels.append(POINT_BLUE565)
+            elif dist <= ring_outer:
+                pixels.append(WHITE565)
+            else:
+                pixels.append(WHITE565)
+    return pack_gpu(size, size, pixels), size, size
+
+
+def track_tips_from_bin(path: Path) -> tuple[int, int] | None:
+    if not path.exists():
+        return None
+    w, h, pixels = load_gpu_bin(path)
+    filled: list[tuple[int, int]] = []
+    for y in range(h):
+        for x in range(w):
+            if pixels[y * w + x] != WHITE565:
+                filled.append((x, y))
+    if not filled:
+        return None
+    left_x = min(x for x, _ in filled)
+    right_x = max(x for x, _ in filled)
+    return left_x, right_x
 
 
 def load_gpu_bin(path: Path) -> tuple[int, int, list[int]]:
@@ -486,6 +525,7 @@ def main() -> None:
     sizes: dict[str, tuple[int, int, int]] = {}
     progress_anchors: dict[str, tuple[int, int]] = {}
     progress_tips: dict[str, tuple[int, int]] = {}
+    track_tips: dict[str, tuple[int, int]] = {}
     track_max = 0
     badge_max = 0
     point_sz = 0
@@ -498,6 +538,14 @@ def main() -> None:
     for png_name in HEAT_ITEMS:
         src = BIN_DIR / png_name
         stem = stem_from_png(png_name)
+        if stem == "new_point":
+            data, w, h = point_to_gpu()
+            out = BIN_DIR / f"{stem}.bin"
+            out.write_bytes(data)
+            sizes[stem] = (w, h, len(data))
+            point_sz = len(data)
+            print(f"{stem}.bin: {len(data)} bytes ({w}x{h}) <- generated")
+            continue
         if not src.exists():
             cached = parse_item_size(existing, stem)
             if cached is not None:
@@ -514,6 +562,9 @@ def main() -> None:
         print(f"{stem}.bin: {len(data)} bytes ({w}x{h}) <- {png_name}")
         if stem.startswith("new_temp_") or stem.startswith("new_time_"):
             track_max = max(track_max, len(data))
+            tips = track_tips_from_bin(out)
+            if tips is not None:
+                track_tips[stem] = tips
         elif stem in ("new_blue_time", "new_white_time"):
             badge_max = max(badge_max, len(data))
         elif stem == "new_point":
@@ -548,6 +599,21 @@ def main() -> None:
             overlay_max = max(overlay_max, pack.ram_size)
 
     fill_progress_metadata(existing, sizes, progress_anchors, progress_tips)
+
+    for i in range(1, 8):
+        stem = f"new_temp_{i}"
+        if stem in track_tips:
+            continue
+        tips = track_tips_from_bin(BIN_DIR / f"{stem}.bin")
+        if tips is not None:
+            track_tips[stem] = tips
+    for i in range(1, 14):
+        stem = f"new_time_{i}"
+        if stem in track_tips:
+            continue
+        tips = track_tips_from_bin(BIN_DIR / f"{stem}.bin")
+        if tips is not None:
+            track_tips[stem] = tips
 
     for stem, (_, _, sz) in sizes.items():
         if stem.startswith("new_temp_") or stem.startswith("new_time_"):
@@ -598,6 +664,10 @@ def main() -> None:
                 tx, ty = progress_tips[stem]
                 lines.append(f"#define {tag}_TIP_X            {tx}")
                 lines.append(f"#define {tag}_TIP_Y            {ty}")
+        if stem in track_tips:
+            left_x, right_x = track_tips[stem]
+            lines.append(f"#define {tag}_TIP_LEFT_X            {left_x}")
+            lines.append(f"#define {tag}_TIP_RIGHT_X           {right_x}")
         lines.append("")
 
     if "new_point" in sizes:

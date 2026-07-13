@@ -27,7 +27,11 @@ u8 home_ui_shared_timer_digit_ram[4][HEAT_B_DIGIT_RAM_MAX_SIZE];
 static u8 home_bat_level = 4;
 static u8 home_bat_charge = 0;
 static u8 home_bat_icon_idx = 0xFF;
+static u8 home_bat_chg_frame = 0;
+static u32 home_bat_chg_tick = 0;
 static compo_picturebox_t *home_bat_pic;
+
+#define HOME_BAT_CHG_ANIM_MS            500
 
 static void home_ui_shared_battery_refresh_attached(void);
 
@@ -36,16 +40,19 @@ enum {
     HOME_BAT_ICON_DL2 = 2,
     HOME_BAT_ICON_DL3 = 3,
     HOME_BAT_ICON_DL4 = 4,
-    HOME_BAT_ICON_CHG = 5,
+    HOME_BAT_ICON_CHG1 = 5,
+    HOME_BAT_ICON_CHG2 = 6,
+    HOME_BAT_ICON_CHG3 = 7,
+    HOME_BAT_ICON_CHG4 = 8,
 };
 
 static u8 home_bat_pick_icon(void)
 {
-    if (home_bat_charge == 1) {
-        return HOME_BAT_ICON_CHG;
-    }
     if (home_bat_charge == 2) {
-        return HOME_BAT_ICON_DL4;
+        return HOME_BAT_ICON_CHG4;
+    }
+    if (home_bat_charge == 1) {
+        return (u8)(HOME_BAT_ICON_CHG1 + home_bat_chg_frame);
     }
     if (home_bat_level == 0) {
         return HOME_BAT_ICON_DL1;
@@ -56,13 +63,44 @@ static u8 home_bat_pick_icon(void)
     return HOME_BAT_ICON_DL4;
 }
 
+static void home_bat_chg_anim_reset(void)
+{
+    home_bat_chg_frame = 0;
+    home_bat_chg_tick = tick_get();
+}
+
+static void home_bat_charge_state_apply(u8 charge_sta)
+{
+    u8 prev = home_bat_charge;
+
+    if (charge_sta > 2) {
+        charge_sta = 0;
+    }
+    home_bat_charge = charge_sta;
+    if (charge_sta == 1 && prev != 1) {
+        home_bat_chg_anim_reset();
+    }
+}
+
 static bool home_bat_icon_flash(u8 icon, u32 *addr, u32 *len)
 {
 #ifdef UI_BUF_NEW_UI_NEW_DL4_BIN
     switch (icon) {
-    case HOME_BAT_ICON_CHG:
-        *addr = UI_BUF_NEW_UI_NEW_DL_BIN;
-        *len = UI_LEN_NEW_UI_NEW_DL_BIN;
+    case HOME_BAT_ICON_CHG1:
+        *addr = UI_BUF_NEW_UI_NEW_CHARGING_1_BIN;
+        *len = UI_LEN_NEW_UI_NEW_CHARGING_1_BIN;
+        return true;
+    case HOME_BAT_ICON_CHG2:
+        *addr = UI_BUF_NEW_UI_NEW_CHARGING_2_BIN;
+        *len = UI_LEN_NEW_UI_NEW_CHARGING_2_BIN;
+        return true;
+    case HOME_BAT_ICON_CHG3:
+        *addr = UI_BUF_NEW_UI_NEW_CHARGING_3_BIN;
+        *len = UI_LEN_NEW_UI_NEW_CHARGING_3_BIN;
+        return true;
+    case HOME_BAT_ICON_CHG4:
+        *addr = UI_BUF_NEW_UI_NEW_CHARGING_4_BIN;
+        *len = UI_LEN_NEW_UI_NEW_CHARGING_4_BIN;
         return true;
     case HOME_BAT_ICON_DL1:
         *addr = UI_BUF_NEW_UI_NEW_DL1_BIN;
@@ -84,9 +122,21 @@ static bool home_bat_icon_flash(u8 icon, u32 *addr, u32 *len)
     }
 #elif defined(UI_BUF_HOME_DL4_BIN)
     switch (icon) {
-    case HOME_BAT_ICON_CHG:
+    case HOME_BAT_ICON_CHG1:
         *addr = UI_BUF_HOME_DL_BIN;
         *len = UI_LEN_HOME_DL_BIN;
+        return true;
+    case HOME_BAT_ICON_CHG2:
+        *addr = UI_BUF_HOME_DL1_BIN;
+        *len = UI_LEN_HOME_DL1_BIN;
+        return true;
+    case HOME_BAT_ICON_CHG3:
+        *addr = UI_BUF_HOME_DL2_BIN;
+        *len = UI_LEN_HOME_DL2_BIN;
+        return true;
+    case HOME_BAT_ICON_CHG4:
+        *addr = UI_BUF_HOME_DL3_BIN;
+        *len = UI_LEN_HOME_DL3_BIN;
         return true;
     case HOME_BAT_ICON_DL1:
         *addr = UI_BUF_HOME_DL1_BIN;
@@ -167,6 +217,7 @@ void home_ui_shared_battery_boot_init(void)
     home_bat_level = 4;
     home_bat_charge = 0;
     home_bat_icon_idx = 0xFF;
+    home_bat_chg_anim_reset();
     home_ui_shared_battery_reload();
 }
 
@@ -237,7 +288,7 @@ void home_ui_shared_battery_feed_dp(u8 *data, u16 len)
     }
 
     home_bat_level = bat;
-    home_bat_charge = chg;
+    home_bat_charge_state_apply(chg);
     home_bat_icon_idx = 0xFF;
 
 #if ELUNCHBOX_PANEL_EN
@@ -271,7 +322,30 @@ void home_ui_shared_battery_charge_apply(u8 charge_sta)
     if (home_bat_charge == charge_sta) {
         return;
     }
-    home_bat_charge = charge_sta;
+    home_bat_charge_state_apply(charge_sta);
+    home_bat_icon_idx = 0xFF;
+    home_ui_shared_battery_reload();
+}
+
+void home_ui_shared_battery_chg_poll(void)
+{
+    u8 icon;
+
+    if (home_bat_charge != 1) {
+        return;
+    }
+    if (!elunchbox_ui_is_live() || sys_cb.flag_swithing) {
+        return;
+    }
+    if (!tick_check_expire(home_bat_chg_tick, HOME_BAT_CHG_ANIM_MS)) {
+        return;
+    }
+    home_bat_chg_tick = tick_get();
+    home_bat_chg_frame = (u8)((home_bat_chg_frame + 1u) & 3u);
+    icon = home_bat_pick_icon();
+    if (icon == home_bat_icon_idx) {
+        return;
+    }
     home_bat_icon_idx = 0xFF;
     home_ui_shared_battery_reload();
 }
@@ -362,6 +436,10 @@ void home_ui_shared_battery_charge_apply(u8 charge_sta)
 }
 
 void home_ui_shared_battery_icon_refresh(void)
+{
+}
+
+void home_ui_shared_battery_chg_poll(void)
 {
 }
 

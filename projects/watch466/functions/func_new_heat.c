@@ -2,6 +2,7 @@
 #include "func.h"
 #include "new_home_icon_res.h"
 #include "new_heat_res.h"
+#include "new_heat_point_util.h"
 #include "home_top_time_txt.h"
 #include "home_ui_shared.h"
 #include "home_ui_gpu_detach.h"
@@ -144,13 +145,49 @@ static const u16 tbl_new_heat_time_min[NEW_HEAT_TIME_CNT] = {
 
 /* 时间刻度尺显示三档：索引 0(1H)、6(1H30min)、12(2H) */
 static const u8 tbl_new_heat_time_scale_idx[3] = {
-    NEW_HEAT_TIME_IDX_MIN, 6, NEW_HEAT_TIME_IDX_MAX,
+    0, 6, 12,
+};
+
+static const u16 tbl_new_heat_temp_tip_left[NEW_HEAT_TEMP_CNT] = {
+    NEW_HEAT_NEW_TEMP_1_TIP_LEFT_X,
+    NEW_HEAT_NEW_TEMP_2_TIP_LEFT_X,
+    NEW_HEAT_NEW_TEMP_3_TIP_LEFT_X,
+    NEW_HEAT_NEW_TEMP_4_TIP_LEFT_X,
+    NEW_HEAT_NEW_TEMP_5_TIP_LEFT_X,
+};
+
+static const u16 tbl_new_heat_temp_tip_right[NEW_HEAT_TEMP_CNT] = {
+    NEW_HEAT_NEW_TEMP_1_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TEMP_2_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TEMP_3_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TEMP_4_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TEMP_5_TIP_RIGHT_X,
+};
+
+static const u16 tbl_new_heat_time_tip_left[NEW_HEAT_TIME_CNT] = {
+    NEW_HEAT_NEW_TIME_1_TIP_LEFT_X,  NEW_HEAT_NEW_TIME_2_TIP_LEFT_X,
+    NEW_HEAT_NEW_TIME_3_TIP_LEFT_X,  NEW_HEAT_NEW_TIME_4_TIP_LEFT_X,
+    NEW_HEAT_NEW_TIME_5_TIP_LEFT_X,  NEW_HEAT_NEW_TIME_6_TIP_LEFT_X,
+    NEW_HEAT_NEW_TIME_7_TIP_LEFT_X,  NEW_HEAT_NEW_TIME_8_TIP_LEFT_X,
+    NEW_HEAT_NEW_TIME_9_TIP_LEFT_X,  NEW_HEAT_NEW_TIME_10_TIP_LEFT_X,
+    NEW_HEAT_NEW_TIME_11_TIP_LEFT_X, NEW_HEAT_NEW_TIME_12_TIP_LEFT_X,
+    NEW_HEAT_NEW_TIME_13_TIP_LEFT_X,
+};
+
+static const u16 tbl_new_heat_time_tip_right[NEW_HEAT_TIME_CNT] = {
+    NEW_HEAT_NEW_TIME_1_TIP_RIGHT_X,  NEW_HEAT_NEW_TIME_2_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TIME_3_TIP_RIGHT_X,  NEW_HEAT_NEW_TIME_4_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TIME_5_TIP_RIGHT_X,  NEW_HEAT_NEW_TIME_6_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TIME_7_TIP_RIGHT_X,  NEW_HEAT_NEW_TIME_8_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TIME_9_TIP_RIGHT_X,  NEW_HEAT_NEW_TIME_10_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TIME_11_TIP_RIGHT_X, NEW_HEAT_NEW_TIME_12_TIP_RIGHT_X,
+    NEW_HEAT_NEW_TIME_13_TIP_RIGHT_X,
 };
 
 /* 模式页（func_new_mode.c）进入时通过以下全局变量传递模式名称和默认参数 */
 const char *g_new_heat_mode_name = NULL;
 u8 g_new_heat_temp_idx = 0;
-u8 g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
+u8 g_new_heat_time_idx = 0;    /* 1H */
 u8 g_new_heat_proto_mode = 1;
 
 static void new_heat_white_bg_create(compo_form_t *frm)
@@ -224,6 +261,9 @@ static bool new_heat_gpu_ram_bind(u8 *ram, u16 buf_size, u32 addr, u16 len,
     compo_picturebox_set_visible(pic, true);
     return true;
 }
+
+/* 前向声明 */
+static s16 new_heat_track_left(u16 track_w);
 
 static void new_heat_pic_apply(compo_picturebox_t *pic, u32 addr, u16 len,
                                u8 *ram, u16 ram_cap, u16 w, u16 h, s16 x, s16 y)
@@ -390,17 +430,40 @@ static s16 new_heat_temp_tick_x(u8 idx)
     return (s16)(left + (u32)idx * track_w / max_idx);
 }
 
-static s16 new_heat_point_x(u8 idx, u8 max_idx, u16 track_w)
+static s16 new_heat_point_tip_x(u8 idx, u8 max_idx, u16 track_w, u16 tip_left, u16 tip_right)
 {
-    u16 span;
-    s16 left;
+    s16 base = new_heat_track_left(track_w);
 
     if (max_idx == 0) {
-        return (s16)(NEW_HEAT_SLIDER_SLOT_X + NEW_HEAT_SLIDER_W / 2);
+        return (s16)(base + tip_left);
     }
-    left = new_heat_track_left(track_w);
-    span = track_w > NEW_HEAT_POINT_W ? (u16)(track_w - NEW_HEAT_POINT_W) : 0;
-    return (s16)(left + NEW_HEAT_POINT_W / 2 + (u32)idx * span / max_idx);
+    return (s16)(base + tip_left + (u32)idx * (tip_right - tip_left) / max_idx);
+}
+
+static s16 new_heat_temp_point_x(u8 idx)
+{
+    u16 track_w;
+
+    if (idx >= NEW_HEAT_TEMP_CNT) {
+        idx = NEW_HEAT_TEMP_CNT - 1;
+    }
+    track_w = new_heat_temp_track_w(idx);
+    return new_heat_point_tip_x(idx, NEW_HEAT_TEMP_CNT - 1, track_w,
+                                tbl_new_heat_temp_tip_left[idx],
+                                tbl_new_heat_temp_tip_right[idx]);
+}
+
+static s16 new_heat_time_point_x(u8 idx)
+{
+    u16 track_w;
+
+    if (idx >= NEW_HEAT_TIME_CNT) {
+        idx = NEW_HEAT_TIME_CNT - 1;
+    }
+    track_w = new_heat_time_track_w(idx);
+    return new_heat_point_tip_x(idx, NEW_HEAT_TIME_CNT - 1, track_w,
+                                tbl_new_heat_time_tip_left[idx],
+                                tbl_new_heat_time_tip_right[idx]);
 }
 
 static void new_heat_format_temp(char *buf, u16 temp_f)
@@ -453,8 +516,14 @@ static void new_heat_track_apply(compo_picturebox_t *pic, u32 addr, u16 len,
                        (s16)(new_heat_track_left(track_w) + track_w / 2), y);
 }
 
-static void new_heat_point_apply(compo_picturebox_t *pic, u8 idx, u8 max_idx, u16 track_w, s16 y, bool visible)
+static void new_heat_point_bind(compo_picturebox_t *pic, u8 idx, u8 max_idx,
+                                u16 track_w, u16 tip_left, u16 tip_right,
+                                s16 y, const u8 *track_ram, u16 track_ram_len,
+                                bool visible)
 {
+    s16 px;
+    new_heat_point_bg_t bg;
+
     if (pic == NULL) {
         return;
     }
@@ -462,38 +531,50 @@ static void new_heat_point_apply(compo_picturebox_t *pic, u8 idx, u8 max_idx, u1
         compo_picturebox_set_visible(pic, false);
         return;
     }
+    px = new_heat_point_tip_x(idx, max_idx, track_w, tip_left, tip_right);
+    bg.bg_ram = track_ram;
+    bg.bg_ram_len = track_ram_len;
+    bg.bg_w = track_w;
+    bg.bg_h = NEW_HEAT_TRACK_H;
+    bg.bg_anchor_x = (s16)(new_heat_track_left(track_w) + track_w / 2);
+    bg.bg_anchor_y = y;
+#if ELUNCHBOX_PANEL_EN
+    (void)new_heat_point_gpu_ram_bind(pic, NEW_HEAT_RAM_POINT, NEW_HEAT_RAM_POINT_CAP,
+                                      NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, y, &bg);
+#else
     new_heat_pic_apply(pic, UI_BUF_NEW_UI_NEW_POINT_BIN, UI_LEN_NEW_UI_NEW_POINT_BIN,
-                       NEW_HEAT_RAM_POINT, NEW_HEAT_RAM_POINT_CAP,
-                       NEW_HEAT_POINT_W, NEW_HEAT_POINT_H,
-                       new_heat_point_x(idx, max_idx, track_w), y);
+                       NULL, 0, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, y);
+    (void)bg;
+#endif
 }
 
-/* 圆点图已在 RAM：加减键只改位置，勿重复读 Flash */
-static void new_heat_point_repos(compo_picturebox_t *pic, u8 idx, u8 max_idx,
-                                 u16 track_w, s16 y, bool visible)
+static void new_heat_point_apply(compo_picturebox_t *pic, u8 idx, u8 max_idx, u16 track_w,
+                                 u16 tip_left, u16 tip_right, s16 y,
+                                 const u8 *track_ram, u16 track_ram_len, bool visible)
 {
-    if (pic == NULL) {
-        return;
-    }
-    if (!visible) {
-        compo_picturebox_set_visible(pic, false);
-        return;
-    }
-    compo_picturebox_set_pos(pic, new_heat_point_x(idx, max_idx, track_w), y);
-    compo_picturebox_set_visible(pic, true);
+    new_heat_point_bind(pic, idx, max_idx, track_w, tip_left, tip_right, y,
+                        track_ram, track_ram_len, visible);
+}
+
+static void new_heat_point_repos(compo_picturebox_t *pic, u8 idx, u8 max_idx,
+                                 u16 track_w, u16 tip_left, u16 tip_right, s16 y,
+                                 const u8 *track_ram, u16 track_ram_len, bool visible)
+{
+    new_heat_point_bind(pic, idx, max_idx, track_w, tip_left, tip_right, y,
+                        track_ram, track_ram_len, visible);
 }
 
 static void new_heat_temp_point_repos(compo_picturebox_t *pic, u8 idx, s16 y, bool visible)
 {
-    if (pic == NULL) {
-        return;
+    u16 track_w;
+
+    if (idx >= NEW_HEAT_TEMP_CNT) {
+        idx = NEW_HEAT_TEMP_CNT - 1;
     }
-    if (!visible) {
-        compo_picturebox_set_visible(pic, false);
-        return;
-    }
-    compo_picturebox_set_pos(pic, new_heat_temp_tick_x(idx), y);
-    compo_picturebox_set_visible(pic, true);
+    track_w = new_heat_temp_track_w(idx);
+    new_heat_point_repos(pic, idx, NEW_HEAT_TEMP_CNT - 1, track_w,
+                         tbl_new_heat_temp_tip_left[idx], tbl_new_heat_temp_tip_right[idx],
+                         y, NEW_HEAT_RAM_TEMP_TRACK, new_heat_temp_track_len(idx), visible);
 }
 
 static void new_heat_temp_track_apply(f_new_heat_t *f);
@@ -517,7 +598,11 @@ static void new_heat_slider_focus_apply(f_new_heat_t *f)
     } else {
         new_heat_time_track_apply(f);
         new_heat_point_repos(f->pic_time_point, f->time_idx, NEW_HEAT_TIME_CNT - 1,
-                             new_heat_time_track_w(f->time_idx), NEW_HEAT_TIME_SLIDER_Y,
+                             new_heat_time_track_w(f->time_idx),
+                             tbl_new_heat_time_tip_left[f->time_idx],
+                             tbl_new_heat_time_tip_right[f->time_idx],
+                             NEW_HEAT_TIME_SLIDER_Y,
+                             NEW_HEAT_RAM_TIME_TRACK, new_heat_time_track_len(f->time_idx),
                              true);
         if (f->txt_time_val != NULL) {
             new_heat_format_duration(buf, tbl_new_heat_time_min[f->time_idx]);
@@ -558,10 +643,13 @@ static void new_heat_temp_point_apply(f_new_heat_t *f)
         new_heat_temp_point_repos(f->pic_temp_point, f->temp_idx, NEW_HEAT_TEMP_SLIDER_Y, false);
         return;
     }
-    new_heat_pic_apply(f->pic_temp_point, UI_BUF_NEW_UI_NEW_POINT_BIN, UI_LEN_NEW_UI_NEW_POINT_BIN,
-                       NEW_HEAT_RAM_POINT, NEW_HEAT_RAM_POINT_CAP,
-                       NEW_HEAT_POINT_W, NEW_HEAT_POINT_H,
-                       new_heat_temp_tick_x(f->temp_idx), NEW_HEAT_TEMP_SLIDER_Y);
+    new_heat_point_bind(f->pic_temp_point, f->temp_idx, NEW_HEAT_TEMP_CNT - 1,
+                        new_heat_temp_track_w(f->temp_idx),
+                        tbl_new_heat_temp_tip_left[f->temp_idx],
+                        tbl_new_heat_temp_tip_right[f->temp_idx],
+                        NEW_HEAT_TEMP_SLIDER_Y,
+                        NEW_HEAT_RAM_TEMP_TRACK, new_heat_temp_track_len(f->temp_idx),
+                        f->focus == NEW_HEAT_FOCUS_TEMP);
 }
 
 static void new_heat_time_point_apply(f_new_heat_t *f)
@@ -573,7 +661,11 @@ static void new_heat_time_point_apply(f_new_heat_t *f)
     }
     time_w = new_heat_time_track_w(f->time_idx);
     new_heat_point_apply(f->pic_time_point, f->time_idx, NEW_HEAT_TIME_CNT - 1, time_w,
-                         NEW_HEAT_TIME_SLIDER_Y, f->focus == NEW_HEAT_FOCUS_TIME);
+                         tbl_new_heat_time_tip_left[f->time_idx],
+                         tbl_new_heat_time_tip_right[f->time_idx],
+                         NEW_HEAT_TIME_SLIDER_Y,
+                         NEW_HEAT_RAM_TIME_TRACK, new_heat_time_track_len(f->time_idx),
+                         f->focus == NEW_HEAT_FOCUS_TIME);
 }
 
 static void new_heat_temp_badge_apply(f_new_heat_t *f)
@@ -745,7 +837,7 @@ static void new_heat_text_apply(f_new_heat_t *f)
             compo_textbox_set(f->txt_time_scale[i], buf);
             widget_text_set_client(f->txt_time_scale[i]->txt, 0, 5);
             compo_textbox_set_pos(f->txt_time_scale[i],
-                                  new_heat_point_x(tidx, NEW_HEAT_TIME_CNT - 1, time_w),
+                                  new_heat_time_point_x(tidx),
                                   NEW_HEAT_TIME_SCALE_Y);
             compo_textbox_set_visible(f->txt_time_scale[i], true);
         }
@@ -901,7 +993,7 @@ static void new_heat_text_apply_scales(f_new_heat_t *f)
             compo_textbox_set(f->txt_time_scale[i], buf);
             widget_text_set_client(f->txt_time_scale[i]->txt, 0, 5);
             compo_textbox_set_pos(f->txt_time_scale[i],
-                                  new_heat_point_x(tidx, NEW_HEAT_TIME_CNT - 1, time_w),
+                                  new_heat_time_point_x(tidx),
                                   NEW_HEAT_TIME_SCALE_Y);
             compo_textbox_set_visible(f->txt_time_scale[i], true);
         }
@@ -961,6 +1053,12 @@ static void new_heat_value_inc(f_new_heat_t *f)
         return;
     }
     if (f->focus == NEW_HEAT_FOCUS_TEMP) {
+#if ELUNCHBOX_PANEL_EN
+        /* 鸡腿/意面模式温度固定，不可调节 */
+        if (g_new_heat_proto_mode != 1) {
+            return;
+        }
+#endif
         if (f->temp_idx + 1 < NEW_HEAT_TEMP_CNT) {
             f->temp_idx++;
 #if ELUNCHBOX_PANEL_EN
@@ -987,6 +1085,12 @@ static void new_heat_value_dec(f_new_heat_t *f)
         return;
     }
     if (f->focus == NEW_HEAT_FOCUS_TEMP) {
+#if ELUNCHBOX_PANEL_EN
+        /* 鸡腿/意面模式温度固定，不可调节 */
+        if (g_new_heat_proto_mode != 1) {
+            return;
+        }
+#endif
         if (f->temp_idx > 0) {
             f->temp_idx--;
 #if ELUNCHBOX_PANEL_EN
@@ -1069,7 +1173,7 @@ static void new_heat_ok_key(f_new_heat_t *f)
     lb_heat_autostart_set(true);
     g_new_heat_mode_name = NULL;
     g_new_heat_temp_idx = 0;
-    g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
+    g_new_heat_time_idx = 0;    /* 1H */
     g_new_heat_proto_mode = 1;
     func_cb.sta = FUNC_HEAT;
 }
@@ -1081,6 +1185,12 @@ static void new_heat_power_key(f_new_heat_t *f)
         return;
     }
     if (f->focus == NEW_HEAT_FOCUS_TIME) {
+#if ELUNCHBOX_PANEL_EN
+        /* 鸡腿/意面模式温度固定，从时间返回直接回到主页 */
+        if (g_new_heat_proto_mode != 1) {
+            goto do_home;
+        }
+#endif
         f->focus = NEW_HEAT_FOCUS_TEMP;
 #if ELUNCHBOX_PANEL_EN
         f->display_pending = true;
@@ -1090,9 +1200,10 @@ static void new_heat_power_key(f_new_heat_t *f)
 #endif
         return;
     }
+do_home:
     g_new_heat_mode_name = NULL;
     g_new_heat_temp_idx = 0;
-    g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
+    g_new_heat_time_idx = 0;    /* 1H */
     g_new_heat_proto_mode = 1;
     g_res_heat_pending = false;  /* 退出预约温度设置，清除预约 pending 标记 */
     /* 不调 func_switch_to：让 func_exit() 安全路径做清理 */
@@ -1475,7 +1586,7 @@ void func_new_heat_enter(void)
     WDT_CLR();
 
     f = (f_new_heat_t *)func_cb.f_cb;
-    f->focus = NEW_HEAT_FOCUS_TEMP;
+    f->focus = (g_new_heat_proto_mode != 1) ? NEW_HEAT_FOCUS_TIME : NEW_HEAT_FOCUS_TEMP;
     f->temp_idx = g_new_heat_temp_idx;
     f->time_idx = g_new_heat_time_idx;
     f->last_top_min = 0xff;
@@ -1513,7 +1624,7 @@ void func_new_heat_exit(void)
 {
     g_new_heat_mode_name = NULL;
     g_new_heat_temp_idx = 0;
-    g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
+    g_new_heat_time_idx = 0;    /* 1H */
     g_new_heat_proto_mode = 1;
     /* GPU 资源由 func_exit() 的 compo_form_destroy() + compos_init() 统一清理。
      * 此处不做 GPU detach，避免：

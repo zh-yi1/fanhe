@@ -1280,6 +1280,9 @@ void func_process(void)
 #if ELUNCHBOX_PANEL_EN && LE_EN
                 home_ui_shared_ble_status_poll();
 #endif
+#if ELUNCHBOX_PANEL_EN
+                home_ui_shared_battery_chg_poll();
+#endif
                 if (gui_do_refresh) {
                     gui_process();    // 实际刷新屏幕
                 }

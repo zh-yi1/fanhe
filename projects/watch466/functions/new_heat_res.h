@@ -15,11 +15,6 @@
 #define NEW_HEAT_TEMP_CNT                 5
 #define NEW_HEAT_TIME_CNT                 13
 
-/* 时长刻度相关索引 */
-#define NEW_HEAT_TIME_IDX_MIN             0       // 60min
-#define NEW_HEAT_TIME_IDX_MAX             12      // 120min
-#define NEW_HEAT_TIME_IDX_1H              0       // 默认1H
-
 #define NEW_HEAT_NEW_BLUE_TIME_W                 55
 #define NEW_HEAT_NEW_BLUE_TIME_H                 27
 #define NEW_HEAT_NEW_BLUE_TIME_RAM_SIZE          2978
@@ -145,74 +140,110 @@
 #define NEW_HEAT_NEW_TEMP_1_W                 245
 #define NEW_HEAT_NEW_TEMP_1_H                 7
 #define NEW_HEAT_NEW_TEMP_1_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TEMP_1_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TEMP_1_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TEMP_2_W                 252
 #define NEW_HEAT_NEW_TEMP_2_H                 7
 #define NEW_HEAT_NEW_TEMP_2_RAM_SIZE          3536
+#define NEW_HEAT_NEW_TEMP_2_TIP_LEFT_X            7
+#define NEW_HEAT_NEW_TEMP_2_TIP_RIGHT_X           251
 
 #define NEW_HEAT_NEW_TEMP_3_W                 252
 #define NEW_HEAT_NEW_TEMP_3_H                 7
 #define NEW_HEAT_NEW_TEMP_3_RAM_SIZE          3536
+#define NEW_HEAT_NEW_TEMP_3_TIP_LEFT_X            7
+#define NEW_HEAT_NEW_TEMP_3_TIP_RIGHT_X           251
 
 #define NEW_HEAT_NEW_TEMP_4_W                 252
 #define NEW_HEAT_NEW_TEMP_4_H                 7
 #define NEW_HEAT_NEW_TEMP_4_RAM_SIZE          3536
+#define NEW_HEAT_NEW_TEMP_4_TIP_LEFT_X            7
+#define NEW_HEAT_NEW_TEMP_4_TIP_RIGHT_X           251
 
 #define NEW_HEAT_NEW_TEMP_5_W                 245
 #define NEW_HEAT_NEW_TEMP_5_H                 7
 #define NEW_HEAT_NEW_TEMP_5_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TEMP_5_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TEMP_5_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_1_W                 245
 #define NEW_HEAT_NEW_TIME_1_H                 7
 #define NEW_HEAT_NEW_TIME_1_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_1_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_1_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_10_W                 245
 #define NEW_HEAT_NEW_TIME_10_H                 7
 #define NEW_HEAT_NEW_TIME_10_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_10_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_10_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_11_W                 245
 #define NEW_HEAT_NEW_TIME_11_H                 7
 #define NEW_HEAT_NEW_TIME_11_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_11_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_11_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_12_W                 245
 #define NEW_HEAT_NEW_TIME_12_H                 7
 #define NEW_HEAT_NEW_TIME_12_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_12_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_12_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_13_W                 245
 #define NEW_HEAT_NEW_TIME_13_H                 7
 #define NEW_HEAT_NEW_TIME_13_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_13_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_13_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_2_W                 245
 #define NEW_HEAT_NEW_TIME_2_H                 7
 #define NEW_HEAT_NEW_TIME_2_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_2_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_2_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_3_W                 245
 #define NEW_HEAT_NEW_TIME_3_H                 7
 #define NEW_HEAT_NEW_TIME_3_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_3_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_3_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_4_W                 245
 #define NEW_HEAT_NEW_TIME_4_H                 7
 #define NEW_HEAT_NEW_TIME_4_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_4_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_4_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_5_W                 245
 #define NEW_HEAT_NEW_TIME_5_H                 7
 #define NEW_HEAT_NEW_TIME_5_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_5_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_5_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_6_W                 245
 #define NEW_HEAT_NEW_TIME_6_H                 7
 #define NEW_HEAT_NEW_TIME_6_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_6_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_6_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_7_W                 245
 #define NEW_HEAT_NEW_TIME_7_H                 7
 #define NEW_HEAT_NEW_TIME_7_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_7_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_7_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_8_W                 245
 #define NEW_HEAT_NEW_TIME_8_H                 7
 #define NEW_HEAT_NEW_TIME_8_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_8_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_8_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_TIME_9_W                 245
 #define NEW_HEAT_NEW_TIME_9_H                 7
 #define NEW_HEAT_NEW_TIME_9_RAM_SIZE          3438
+#define NEW_HEAT_NEW_TIME_9_TIP_LEFT_X            0
+#define NEW_HEAT_NEW_TIME_9_TIP_RIGHT_X           244
 
 #define NEW_HEAT_NEW_WHITE_TIME_W                 55
 #define NEW_HEAT_NEW_WHITE_TIME_H                 27
