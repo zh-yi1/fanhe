@@ -961,6 +961,12 @@ static void new_heat_value_inc(f_new_heat_t *f)
         return;
     }
     if (f->focus == NEW_HEAT_FOCUS_TEMP) {
+#if ELUNCHBOX_PANEL_EN
+        /* 鸡腿/意面模式温度固定，不可调节 */
+        if (g_new_heat_proto_mode != 1) {
+            return;
+        }
+#endif
         if (f->temp_idx + 1 < NEW_HEAT_TEMP_CNT) {
             f->temp_idx++;
 #if ELUNCHBOX_PANEL_EN
@@ -987,6 +993,12 @@ static void new_heat_value_dec(f_new_heat_t *f)
         return;
     }
     if (f->focus == NEW_HEAT_FOCUS_TEMP) {
+#if ELUNCHBOX_PANEL_EN
+        /* 鸡腿/意面模式温度固定，不可调节 */
+        if (g_new_heat_proto_mode != 1) {
+            return;
+        }
+#endif
         if (f->temp_idx > 0) {
             f->temp_idx--;
 #if ELUNCHBOX_PANEL_EN
@@ -1081,6 +1093,12 @@ static void new_heat_power_key(f_new_heat_t *f)
         return;
     }
     if (f->focus == NEW_HEAT_FOCUS_TIME) {
+#if ELUNCHBOX_PANEL_EN
+        /* 鸡腿/意面模式温度固定，从时间返回直接回到主页 */
+        if (g_new_heat_proto_mode != 1) {
+            goto do_home;
+        }
+#endif
         f->focus = NEW_HEAT_FOCUS_TEMP;
 #if ELUNCHBOX_PANEL_EN
         f->display_pending = true;
@@ -1090,6 +1108,7 @@ static void new_heat_power_key(f_new_heat_t *f)
 #endif
         return;
     }
+do_home:
     g_new_heat_mode_name = NULL;
     g_new_heat_temp_idx = 0;
     g_new_heat_time_idx = NEW_HEAT_TIME_IDX_1H;
@@ -1475,7 +1494,7 @@ void func_new_heat_enter(void)
     WDT_CLR();
 
     f = (f_new_heat_t *)func_cb.f_cb;
-    f->focus = NEW_HEAT_FOCUS_TEMP;
+    f->focus = (g_new_heat_proto_mode != 1) ? NEW_HEAT_FOCUS_TIME : NEW_HEAT_FOCUS_TEMP;
     f->temp_idx = g_new_heat_temp_idx;
     f->time_idx = g_new_heat_time_idx;
     f->last_top_min = 0xff;
