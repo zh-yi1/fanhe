@@ -19,6 +19,7 @@ typedef struct reservation_global_t_ {
     reservation_phase_t phase;
     u8 appt_hour;
     u8 appt_min;
+    u8 appt_sec;
     u8 heat_hour;
     u8 heat_min;
     u8 temp_idx;

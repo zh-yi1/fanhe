@@ -1290,25 +1290,28 @@ u8 func_reservation_new_ui_load_hour(void)
 
 void func_reservation_new_ui_load_time(u8 *hour, u8 *min, u8 *sec)
 {
+    tm_t tm;
+
     if (hour == NULL || min == NULL || sec == NULL) {
         return;
     }
-    if (g_res.setup_done && g_res.phase == RES_PHASE_WAITING) {
-        *hour = g_res.appt_hour;
-        if (*hour > FUNC_RES_APPT_HOUR_MAX) {
-            *hour = FUNC_RES_APPT_HOUR_MAX;
-        }
-        *min = g_res.appt_min - (g_res.appt_min % 5);
-        *sec = 0;
-        return;
-    }
-    {
-        tm_t tm = rtc_clock_get();
 
-        *hour = (u8)((tm.hour + 1) % 24);
-        *min = (u8)((tm.min / 5) * 5);
+    /* 时和分始终读取当前实时时间（与首页右上角同源：BLE > 加热模块 > 本地RTC） */
+    tm = lb_get_display_tm();
+    *hour = (u8)(tm.hour);
+    *min  = (u8)((tm.min / 5) * 5);
+    printf("[LOAD_TIME] RTC raw: %04u-%02u-%02u %02u:%02u:%02u\n",
+           tm.year, tm.mon, tm.day, tm.hour, tm.min, tm.sec);
+
+    /* 秒的位置不用动，保持原本保存的值 */
+    if (g_res.setup_done && g_res.phase == RES_PHASE_WAITING) {
+        *sec = g_res.appt_sec;
+        printf("[LOAD_TIME] waiting resv: keep sec=%u\n", *sec);
+    } else {
         *sec = 0;
+        printf("[LOAD_TIME] no waiting resv: sec=0\n");
     }
+    printf("[LOAD_TIME] final: hour=%u min=%u sec=%u\n", *hour, *min, *sec);
 }
 
 void func_reservation_new_ui_submit_time(u8 hour, u8 min, u8 sec)
@@ -1317,7 +1320,6 @@ void func_reservation_new_ui_submit_time(u8 hour, u8 min, u8 sec)
     u8 duration;
     u32 now;
 
-    (void)sec;
     if (hour > FUNC_RES_APPT_HOUR_MAX) {
         hour = FUNC_RES_APPT_HOUR_MAX;
     }
@@ -1330,6 +1332,7 @@ void func_reservation_new_ui_submit_time(u8 hour, u8 min, u8 sec)
     g_res.phase = RES_PHASE_WAITING;
     g_res.appt_hour = hour;
     g_res.appt_min = min;
+    g_res.appt_sec = sec;
     g_res.heat_hour = 1;
     g_res.heat_min = 0;
     g_res.temp_idx = 5;
