@@ -11,6 +11,17 @@
 #include "func_lunchbox_uart.h"
 #include "new_heat_res.h"
 
+/* 时间刻度索引（new_heat_res.h 由脚本生成可能丢失，在此兜底） */
+#ifndef NEW_HEAT_TIME_IDX_MIN
+#define NEW_HEAT_TIME_IDX_MIN             0
+#endif
+#ifndef NEW_HEAT_TIME_IDX_MAX
+#define NEW_HEAT_TIME_IDX_MAX             12
+#endif
+#ifndef NEW_HEAT_TIME_IDX_1H
+#define NEW_HEAT_TIME_IDX_1H              0
+#endif
+
 #if ELUNCHBOX_PANEL_EN
 extern volatile u8 elunchbox_te_block_flag;
 #endif
