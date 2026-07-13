@@ -3,13 +3,11 @@
 #include "func_lunchbox_uart.h"
 #include "func.h"
 #include "home_ui_shared.h"
-#if !LB_BRIDGE_MODE
-#include "func_lunchbox_uart_internal.h"
-#endif
 #if ELUNCHBOX_PANEL_EN
 #include "func_reservation.h"
 #include "func_lowbat.h"
 #endif
+#include "func_lunchbox_uart_internal.h"
 
 static heat_display_cb_t heat_display_cb;
 static heat_display_info_t heat_display_last;
@@ -515,7 +513,7 @@ static void heat_display_feed_apply(u32 remain_min, bool got_remain,
  *   - UART: lb_frame_parse() 收到 LB_UART_CMD_DYNAMIC (0x01)
  *   - BLE:  lunchbox_ble_rx_handle() 收到控制/状态相关 DataPoints
  */
-void heat_display_feed_dp(u8 *data, u16 len)
+void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
 {
 #if ELUNCHBOX_PANEL_EN
     if (elunchbox_lowbat_should_block_ui_route()) {
@@ -648,6 +646,22 @@ void heat_display_feed_dp(u8 *data, u16 len)
         heat_display_heat_pending = true;
     }
 
+    /* 加热自然结束 (预约到期 / 直接加热完成):
+     * 加热模块主动上报 mode=0 + remain=0 + HeatEn=OFF → 进入保温流程
+     * 区别于用户手动停止: 手动停止时 lb_heat_lcd_active 已被 lunchbox_heat_stop() 清除 */
+    if (got_mode && mcu_mode == 0 && got_remain && remain_min == 0
+        && got_enable && !heating
+#if ELUNCHBOX_PANEL_EN
+        && !heat_display_charging_now(got_charge, charge_val)
+        && func_cb.sta != FUNC_NEW_WARM
+#endif
+        && lb_heat_lcd_active) {
+        printf("[LCD_REG] feed_dp: heat finished (mode=0 remain=0 HeatEn=OFF) -> warm "
+               "(sta=%u lcd_active=%d)\n", func_cb.sta, lb_heat_lcd_active ? 1 : 0);
+        func_elunchbox_enter_warm_from_heat();
+        return;
+    }
+
 #if ELUNCHBOX_PANEL_EN
     if (got_charge) {
         home_ui_shared_battery_charge_apply(charge_val);
@@ -708,11 +722,24 @@ void heat_display_feed_dp(u8 *data, u16 len)
         }
         /* 熄屏时先缓存剩余时间，唤醒跳加热页后 func_heat_sync_mcu_snapshot 可读 */
         heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
-        (void)heat_display_mcu_mode_route(got_mode, mcu_mode,
-                                          remain_min, got_remain, temp_f, got_temp,
-                                          duration_min, got_duration,
-                                          got_enable, heating,
-                                          got_charge, charge_val);
+        /* 保温状态下收到非保温应答的过时数据: 跳过路由, 仅更新缓存 */
+        if (!(func_cb.sta == FUNC_NEW_WARM && lb_keep_warm_msg_flag != 0
+              && msg_flag != lb_keep_warm_msg_flag)) {
+            (void)heat_display_mcu_mode_route(got_mode, mcu_mode,
+                                              remain_min, got_remain, temp_f, got_temp,
+                                              duration_min, got_duration,
+                                              got_enable, heating,
+                                              got_charge, charge_val);
+        }
+        return;
+    }
+
+    /* 保温状态下: 仅接受保温指令应答, 忽略其他 msg_flag 的过时数据
+     * (加热模块可能在保温指令到达前发出 mode=0/HeatEn=OFF 的残留报告,
+     *  误将保温页杀回主页) */
+    if (func_cb.sta == FUNC_NEW_WARM && lb_keep_warm_msg_flag != 0
+        && msg_flag != lb_keep_warm_msg_flag) {
+        heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
         return;
     }
 
@@ -763,6 +790,7 @@ void heat_display_feed_dp(u8 *data, u16 len)
                func_cb.sta,
                func_heat_uart_finish_ok() ? 1 : 0,
                sys_cb.flag_swithing ? 1 : 0);
+        lb_keep_warm_msg_flag = 0;
         func_elunchbox_enter_warm_from_heat();
         return;
     }

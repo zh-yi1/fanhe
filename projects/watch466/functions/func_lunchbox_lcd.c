@@ -238,6 +238,10 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
         goto heat_start_local_done;
     }
 #endif
+    // 保温指令: 记录 msg_flag, 用于等待应答时过滤过时数据
+    if (lb_keep_warm_active) {
+        lb_keep_warm_msg_flag = lb_uart_raw_msg_flag;
+    }
     lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len, false);
 
 heat_start_local_done:
@@ -451,7 +455,7 @@ void lunchbox_key_notify(u8 key_val)
 {
     u8 data[8];
     u16 len = lb_dp_encode_enum(data, LB_DPID_KEY_NOTIFY, key_val);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
+    lb_uart_send_raw_noreport(LB_UART_CMD_DYNAMIC, data, len, false);
 }
 
 void lunchbox_power_off(void)

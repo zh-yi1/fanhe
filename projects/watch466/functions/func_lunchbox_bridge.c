@@ -132,11 +132,6 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
             }
 
             *out_len = p - out_data;
-
-            heat_display_feed_dp(rx->data, rx->data_len);
-#if ELUNCHBOX_PANEL_EN
-            home_ui_shared_battery_feed_dp(rx->data, rx->data_len);
-#endif
             return true;
         }
         return false;
@@ -357,25 +352,16 @@ bool lb_translate_uart_to_ble(lb_rx_frame_t *rx, u8 *out_buf, u16 *out_len)
     bool is_async = false;
     u8 ble_cmd = 0;
 
-    if (rx->cmd != LB_UART_CMD_DYNAMIC || lb_uart_sync_pending) {
-        ble_cmd = lb_pending_ble_cmd[rx->msg_flag];
-        if (ble_cmd != 0) {
-            lb_pending_ble_cmd[rx->msg_flag] = 0;
-            if (rx->cmd == LB_UART_CMD_DYNAMIC) {
-                lb_uart_sync_pending = false;
-            }
-        }
+    // 直接按 msg_flag 查 BLE cmd 映射 (msg_flag 唯一索引, 无需门控)
+    ble_cmd = lb_pending_ble_cmd[rx->msg_flag];
+    if (ble_cmd != 0) {
+        lb_pending_ble_cmd[rx->msg_flag] = 0;
     }
 
     if (ble_cmd == 0) {
         if (rx->cmd == LB_UART_CMD_DYNAMIC) {
-            if (lb_uart_sync_pending) {
-                lb_uart_sync_pending = false;
-                ble_cmd = LB_CMD_DYNAMIC_ATTR;
-            } else {
-                is_async = true;
-                ble_cmd = LB_CMD_STATUS_REPORT;
-            }
+            is_async = true;
+            ble_cmd = LB_CMD_STATUS_REPORT;
         } else {
             ble_cmd = lb_uart_cmd_to_ble_cmd(rx->cmd, false);
         }
