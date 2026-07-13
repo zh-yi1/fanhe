@@ -23,7 +23,6 @@ OUT_H = ROOT / "functions" / "new_heat_res.h"
 
 BG_WHITE = (255, 255, 255)
 WHITE565 = 0xFFFF
-POINT_SKIP565 = 0xFFFF
 PROGRESS_FULL_W = 300
 
 HEAT_ITEMS = (
@@ -79,36 +78,22 @@ def png_to_gpu(path: Path) -> tuple[bytes, int, int]:
     return pack_gpu(w, h, pixels), w, h
 
 
-def point_png_to_gpu(path: Path) -> tuple[bytes, int, int]:
-    """透明底 PNG → GPU bin；透明像素记为 0xFFFF 供运行时合成。"""
-    im = Image.open(path).convert("RGBA")
-    w, h = im.size
-    px = im.load()
-    pixels: list[int] = []
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a < 32:
-                pixels.append(POINT_SKIP565)
-            else:
-                pixels.append(rgba565(r, g, b))
-    return pack_gpu(w, h, pixels), w, h
-
-
 def point_to_gpu() -> tuple[bytes, int, int]:
-    """蓝圆心 + 白圆环（无阴影）；外围 0xFFFF 供运行时与轨道合成。"""
+    """27x27 占位 bin（ui 打包用）；实际圆点由 new_heat_point_util 运行时绘制。"""
     size = 27
     cx = cy = size // 2
-    blue_r = 6.2
-    ring_outer = 10.0
-    pixels = [POINT_SKIP565] * (size * size)
+    blue_r = 6.1
+    ring_outer = 10.3
+    pixels: list[int] = []
     for y in range(size):
         for x in range(size):
             dist = math.hypot(x - cx + 0.5, y - cy + 0.5)
             if dist <= blue_r:
-                pixels[y * size + x] = POINT_BLUE565
+                pixels.append(POINT_BLUE565)
             elif dist <= ring_outer:
-                pixels[y * size + x] = WHITE565
+                pixels.append(WHITE565)
+            else:
+                pixels.append(WHITE565)
     return pack_gpu(size, size, pixels), size, size
 
 
@@ -554,18 +539,12 @@ def main() -> None:
         src = BIN_DIR / png_name
         stem = stem_from_png(png_name)
         if stem == "new_point":
-            src_png = BIN_DIR / "new_point.png"
-            if src_png.exists():
-                data, w, h = point_png_to_gpu(src_png)
-                src_label = "new_point.png"
-            else:
-                data, w, h = point_to_gpu()
-                src_label = "generated"
+            data, w, h = point_to_gpu()
             out = BIN_DIR / f"{stem}.bin"
             out.write_bytes(data)
             sizes[stem] = (w, h, len(data))
             point_sz = len(data)
-            print(f"{stem}.bin: {len(data)} bytes ({w}x{h}) <- {src_label}")
+            print(f"{stem}.bin: {len(data)} bytes ({w}x{h}) <- generated")
             continue
         if not src.exists():
             cached = parse_item_size(existing, stem)

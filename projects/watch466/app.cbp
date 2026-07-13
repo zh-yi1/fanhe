@@ -936,6 +936,10 @@
 		<Unit filename="functions/func_new_heat.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_heat_point_util.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/new_heat_point_util.h" />
 		<Unit filename="functions/func_new_warm.c">
 			<Option compilerVar="CC" />
 		</Unit>

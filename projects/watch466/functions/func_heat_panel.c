@@ -3,6 +3,7 @@
 #include "func_heat_panel.h"
 #include "heat_display_reg.h"
 #include "new_heat_res.h"
+#include "new_heat_point_util.h"
 #include "home_ui_shared.h"
 #include "home_icon_res.h"
 #include "new_home_icon_res.h"
@@ -526,6 +527,7 @@ static void heat_panel_point_bind(u8 progress_idx)
 {
     s16 px;
     s16 py;
+    new_heat_point_bg_t bg;
 
     if (g_hp.pic_point == NULL) {
         printf("point_bind: skip pic=NULL\n");
@@ -533,10 +535,19 @@ static void heat_panel_point_bind(u8 progress_idx)
     }
     heat_panel_point_pos(progress_idx, &px, &py);
     heat_panel_point_tip_near_full(progress_idx, &px, &py);
-    if (!heat_panel_gpu_ram_bind(g_hp.pic_point, UI_BUF_NEW_UI_NEW_POINT_BIN,
-                                  UI_LEN_NEW_UI_NEW_POINT_BIN,
-                                  home_ui_colon_ram, HOME_COLON_RAM_SIZE,
-                                  NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py)) {
+
+    memset(&bg, 0, sizeof(bg));
+    if (g_hp.track_ready && gui_set_ram_check(home_ui_heat_bg_ram, __func__)) {
+        bg.bg_ram = home_ui_heat_bg_ram;
+        bg.bg_ram_len = NEW_HEAT_NEW_PROGRESS_BG_RAM_SIZE;
+        bg.bg_w = GET_LE16(&home_ui_heat_bg_ram[4]);
+        bg.bg_h = GET_LE16(&home_ui_heat_bg_ram[6]);
+        bg.bg_anchor_x = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X;
+        bg.bg_anchor_y = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y;
+    }
+
+    if (!new_heat_point_gpu_ram_bind(g_hp.pic_point, home_ui_colon_ram, HOME_COLON_RAM_SIZE,
+                                     NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py, &bg)) {
         printf("point_bind: fail idx=%u tip=(%d,%d)\n", progress_idx, px, py);
         return;
     }
@@ -864,6 +875,7 @@ compo_form_t *func_heat_panel_form_create(void)
     g_hp.pic_progress = pic;
 
     pic = heat_panel_pic_hidden(frm, HEAT_PANEL_ID_POINT);
+    compo_picturebox_set_size(pic, NEW_HEAT_POINT_W, NEW_HEAT_POINT_H);
     g_hp.pic_point = pic;
 
     pic = heat_panel_pic_hidden(frm, HEAT_PANEL_ID_SHOW);
@@ -982,6 +994,7 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
 
     printf("heat_panel_enter: start\n");
     home_gpu_wait_idle();
+    memset(home_ui_colon_ram, 0, HOME_COLON_RAM_SIZE);
     printf("heat_panel_enter: wait1 done\n");
     home_ui_shared_status_init();
     func_heat_panel_status_refresh(f_heat);

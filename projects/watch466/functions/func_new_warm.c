@@ -1,6 +1,7 @@
 #include "include.h"
 #include "func.h"
 #include "new_heat_res.h"
+#include "new_heat_point_util.h"
 #include "new_home_icon_res.h"
 #include "home_top_time_txt.h"
 #include "home_ui_shared.h"
@@ -365,6 +366,7 @@ static void new_warm_point_bind(f_new_warm_t *f, u8 progress_idx)
     u8 step;
     s16 px;
     s16 py;
+    new_heat_point_bg_t bg;
 
     if (f == NULL || f->pic_point == NULL) {
         return;
@@ -372,10 +374,19 @@ static void new_warm_point_bind(f_new_warm_t *f, u8 progress_idx)
     step = new_warm_clamp_progress_idx(progress_idx) - 1;
     px = tbl_warm_progress_tip_x[step];
     py = tbl_warm_progress_tip_y[step];
-    (void)new_warm_gpu_ram_bind(f->pic_point, UI_BUF_NEW_UI_NEW_POINT_BIN,
-                                UI_LEN_NEW_UI_NEW_POINT_BIN,
-                                home_ui_colon_ram, HOME_COLON_RAM_SIZE,
-                                NEW_HEAT_NEW_POINT_W, NEW_HEAT_NEW_POINT_H, px, py);
+
+    memset(&bg, 0, sizeof(bg));
+    if (gui_set_ram_check(home_ui_heat_bg_ram, __func__)) {
+        bg.bg_ram = home_ui_heat_bg_ram;
+        bg.bg_ram_len = NEW_HEAT_NEW_PROGRESS_BG_RAM_SIZE;
+        bg.bg_w = GET_LE16(&home_ui_heat_bg_ram[4]);
+        bg.bg_h = GET_LE16(&home_ui_heat_bg_ram[6]);
+        bg.bg_anchor_x = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X;
+        bg.bg_anchor_y = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y;
+    }
+
+    (void)new_heat_point_gpu_ram_bind(f->pic_point, home_ui_colon_ram, HOME_COLON_RAM_SIZE,
+                                      NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py, &bg);
 }
 
 static void new_warm_track_apply(f_new_warm_t *f)
