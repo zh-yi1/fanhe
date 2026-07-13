@@ -14,6 +14,7 @@ typedef union {
 
 extern home_ui_heat_pool_t home_ui_heat_pool;
 extern u8 home_ui_colon_ram[HOME_COLON_RAM_SIZE];
+extern u8 home_ui_show_ram[NEW_HEAT_SHOW_RAM_SIZE];
 
 #define home_ui_digit_ram               home_ui_heat_pool.digit
 #define home_ui_heat_bg_ram             home_ui_heat_pool.heat_bg

@@ -28,6 +28,9 @@ extern volatile u8 elunchbox_te_block_flag;
 #ifndef UI_BUF_0FONT_FONT_TEST_BIN
 #error "UI_BUF_0FONT_FONT_TEST_BIN missing: add font_test.bin to ui.bin then Output/bin/prebuild.bat"
 #endif
+#ifndef UI_BUF_NEW_UI_NEW_SHOW_BIN
+#error "Missing new_show.bin in ui/new_ui"
+#endif
 #define NEW_WARM_FONT                       UI_BUF_0FONT_FONT_TEST_BIN
 
 /*
@@ -48,6 +51,13 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_WARM_TIME_Y                   115
 #define NEW_WARM_TIME_LBL_Y               140
 
+#define NEW_WARM_SHOW_Y                   212
+#define NEW_WARM_SHOW_VAL_Y               200
+#define NEW_WARM_SHOW_LBL_Y               220
+#define NEW_WARM_SHOW_VAL_W               160
+#define NEW_WARM_SHOW_LBL_W               200
+#define NEW_WARM_WARM_TEMP_F              194
+
 #define NEW_WARM_COLOR_TITLE              COLOR_BLACK
 #define NEW_WARM_COLOR_VALUE              0x2BF4
 #define NEW_WARM_COLOR_LABEL              0x0AD8
@@ -65,8 +75,11 @@ enum {
     COMPO_ID_PIC_PROGRESS_BG,
     COMPO_ID_PIC_PROGRESS,
     COMPO_ID_PIC_POINT,
+    COMPO_ID_PIC_SHOW,
     COMPO_ID_TXT_ELAPSED,
     COMPO_ID_TXT_ELAPSED_LBL,
+    COMPO_ID_TXT_SHOW_TEMP,
+    COMPO_ID_TXT_SHOW_TEMP_LBL,
 };
 
 typedef struct {
@@ -86,10 +99,19 @@ typedef struct {
     compo_picturebox_t *pic_progress_bg;
     compo_picturebox_t *pic_progress;
     compo_picturebox_t *pic_point;
+    compo_picturebox_t *pic_show;
     compo_textbox_t *txt_title;
     compo_textbox_t *txt_elapsed;
     compo_textbox_t *txt_elapsed_lbl;
+    compo_textbox_t *txt_show_temp;
+    compo_textbox_t *txt_show_temp_lbl;
 } f_new_warm_t;
+
+static bool new_warm_show_ready;
+
+#if ELUNCHBOX_PANEL_EN
+static void new_warm_font_apply_once(f_new_warm_t *f);
+#endif
 
 static const u16 tbl_warm_progress_w[NEW_HEAT_PROGRESS_CNT] = {
     NEW_HEAT_NEW_PROGRESS_1_W, NEW_HEAT_NEW_PROGRESS_2_W, NEW_HEAT_NEW_PROGRESS_3_W,
@@ -389,6 +411,47 @@ static void new_warm_point_bind(f_new_warm_t *f, u8 progress_idx)
                                       NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py, &bg);
 }
 
+static void new_warm_show_apply(f_new_warm_t *f)
+{
+    if (f == NULL || f->pic_show == NULL || new_warm_show_ready) {
+        return;
+    }
+    if (!new_warm_gpu_ram_bind(f->pic_show, UI_BUF_NEW_UI_NEW_SHOW_BIN,
+                               UI_LEN_NEW_UI_NEW_SHOW_BIN,
+                               home_ui_show_ram, sizeof(home_ui_show_ram),
+                               NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H,
+                               GUI_SCREEN_CENTER_X, NEW_WARM_SHOW_Y)) {
+        return;
+    }
+    new_warm_show_ready = true;
+}
+
+static void new_warm_show_text_apply(f_new_warm_t *f)
+{
+    char buf[16];
+
+    if (f == NULL) {
+        return;
+    }
+
+#if ELUNCHBOX_PANEL_EN
+    new_warm_font_apply_once(f);
+#endif
+
+    sprintf(buf, "%uF", (unsigned)NEW_WARM_WARM_TEMP_F);
+    if (f->txt_show_temp != NULL) {
+        compo_textbox_set_align_center(f->txt_show_temp, true);
+        compo_textbox_set(f->txt_show_temp, buf);
+        compo_textbox_set_visible(f->txt_show_temp, true);
+    }
+    if (f->txt_show_temp_lbl != NULL) {
+        compo_textbox_set_align_center(f->txt_show_temp_lbl, true);
+        compo_textbox_set(f->txt_show_temp_lbl, "Heating Temp");
+        widget_text_set_client(f->txt_show_temp_lbl->txt, 0, 7);
+        compo_textbox_set_visible(f->txt_show_temp_lbl, true);
+    }
+}
+
 static void new_warm_track_apply(f_new_warm_t *f)
 {
     if (f == NULL || f->pic_progress_bg == NULL) {
@@ -481,10 +544,13 @@ static void new_warm_font_apply_once(f_new_warm_t *f)
     new_warm_font_bind_txt(f->txt_title);
     new_warm_font_bind_txt(f->txt_elapsed);
     new_warm_font_bind_txt(f->txt_elapsed_lbl);
+    new_warm_font_bind_txt(f->txt_show_temp);
+    new_warm_font_bind_txt(f->txt_show_temp_lbl);
     new_warm_font_ready = true;
 
-    /* 方式 3：覆盖 "Total Warm Time" 标签为 14px 字体 */
+    /* 方式 3：覆盖标签为 14px / 12px 字体 */
     compo_textbox_set_font(f->txt_elapsed_lbl, UI_BUF_0FONT_FONT_TEST_14_BIN);
+    compo_textbox_set_font(f->txt_show_temp_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
 }
 #endif
 
@@ -551,8 +617,11 @@ static void new_warm_bind_objects(f_new_warm_t *f)
     f->pic_progress_bg = compo_getobj_byid(COMPO_ID_PIC_PROGRESS_BG);
     f->pic_progress = compo_getobj_byid(COMPO_ID_PIC_PROGRESS);
     f->pic_point = compo_getobj_byid(COMPO_ID_PIC_POINT);
+    f->pic_show = compo_getobj_byid(COMPO_ID_PIC_SHOW);
     f->txt_elapsed = compo_getobj_byid(COMPO_ID_TXT_ELAPSED);
     f->txt_elapsed_lbl = compo_getobj_byid(COMPO_ID_TXT_ELAPSED_LBL);
+    f->txt_show_temp = compo_getobj_byid(COMPO_ID_TXT_SHOW_TEMP);
+    f->txt_show_temp_lbl = compo_getobj_byid(COMPO_ID_TXT_SHOW_TEMP_LBL);
 }
 
 static void new_warm_heating_start(f_new_warm_t *f)
@@ -626,6 +695,8 @@ static void new_warm_ui_apply_visual(f_new_warm_t *f)
     elapsed_min = new_warm_elapsed_min(f);
     progress_idx = new_warm_calc_progress_idx(elapsed_min);
     new_warm_progress_apply(f, progress_idx);
+    new_warm_show_apply(f);
+    new_warm_show_text_apply(f);
 
     if (elapsed_min != f->last_elapsed_min) {
         new_warm_text_apply(f);
@@ -655,6 +726,7 @@ static void new_warm_gpu_detach_before_leave(f_new_warm_t *f)
     home_ui_gpu_pic_detach_light(f->pic_progress_bg);
     home_ui_gpu_pic_detach_light(f->pic_progress);
     home_ui_gpu_pic_detach_light(f->pic_point);
+    home_ui_gpu_pic_detach_light(f->pic_show);
     home_ui_shared_battery_detach_pic();
     WDT_CLR();
 }
@@ -708,6 +780,9 @@ compo_form_t *func_new_warm_form_create(void)
     (void)new_warm_pic_create_hidden(frm, COMPO_ID_PIC_PROGRESS);
     (void)new_warm_pic_create_hidden(frm, COMPO_ID_PIC_POINT);
 
+    pic = new_warm_pic_create_hidden(frm, COMPO_ID_PIC_SHOW);
+    compo_picturebox_set_size(pic, NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H);
+
     txt = new_warm_txt_create(frm, COMPO_ID_TXT_ELAPSED, NEW_WARM_FONT,
                                GUI_SCREEN_CENTER_X, NEW_WARM_TIME_Y,
                                NEW_WARM_COLOR_VALUE, true);
@@ -716,6 +791,17 @@ compo_form_t *func_new_warm_form_create(void)
                                GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y,
                                NEW_WARM_COLOR_LABEL, true);
     compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_WARM_TIME_LBL_Y, 280, 40);
+
+    txt = new_warm_txt_create(frm, COMPO_ID_TXT_SHOW_TEMP, NEW_WARM_FONT,
+                              GUI_SCREEN_CENTER_X, NEW_WARM_SHOW_VAL_Y,
+                              NEW_WARM_COLOR_VALUE, true);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_WARM_SHOW_VAL_Y,
+                               NEW_WARM_SHOW_VAL_W, 28);
+    txt = new_warm_txt_create(frm, COMPO_ID_TXT_SHOW_TEMP_LBL, NEW_WARM_FONT,
+                              GUI_SCREEN_CENTER_X, NEW_WARM_SHOW_LBL_Y,
+                              NEW_WARM_COLOR_LABEL, true);
+    compo_textbox_set_location(txt, GUI_SCREEN_CENTER_X, NEW_WARM_SHOW_LBL_Y,
+                               NEW_WARM_SHOW_LBL_W, 50);
 
     return frm;
 }
@@ -844,6 +930,7 @@ void func_new_warm_enter(void)
 
     printf("func_new_warm_enter\n");
     heat_display_warm_exit_reset();
+    new_warm_show_ready = false;
 
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_set_home_msg_block(1);
@@ -904,6 +991,7 @@ void func_new_warm_exit(void)
     f_new_warm_t *f = (f_new_warm_t *)func_cb.f_cb;
 
     new_warm_heating_stop();
+    new_warm_show_ready = false;
 #if ELUNCHBOX_PANEL_EN
     if (f != NULL) {
         new_warm_gpu_detach_before_leave(f);

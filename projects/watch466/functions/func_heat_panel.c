@@ -154,8 +154,7 @@ static bool g_hp_live_seen_positive;
 /* 内存布局（单缓冲合成，无 Flash、无动态分配）：
  *   heat_bg → 灰轨 + 蓝弧 CPU 合成后一次 set_ram
  *   colon_ram → 圆点
- *   show_ram BSS → show 条 */
-static u8 heat_panel_show_ram[NEW_HEAT_SHOW_RAM_SIZE];
+ *   home_ui_show_ram → show 条（与保温页共用，互斥） */
 
 #define HEAT_PANEL_OVERLAY_SKIP565      0xFFFF
 #define HEAT_PANEL_OVERLAY_ROW_MAX      192
@@ -583,7 +582,7 @@ static void heat_panel_show_apply(void)
     }
     if (!heat_panel_gpu_ram_bind(g_hp.pic_show, UI_BUF_NEW_UI_NEW_SHOW_BIN,
                                   UI_LEN_NEW_UI_NEW_SHOW_BIN,
-                                  heat_panel_show_ram, sizeof(heat_panel_show_ram),
+                                  home_ui_show_ram, sizeof(home_ui_show_ram),
                                   NEW_HEAT_NEW_SHOW_W, NEW_HEAT_NEW_SHOW_H,
                                   GUI_SCREEN_CENTER_X, HEAT_PANEL_SHOW_Y)) {
         printf("show_apply: fail\n");
