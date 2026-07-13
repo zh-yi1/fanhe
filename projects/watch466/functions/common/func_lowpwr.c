@@ -608,7 +608,13 @@ static void sfunc_sleep(void)
     sysclk = sys_clk_get();
     sys_clk_set(SYS_24M);
     DACDIGCON0 &= ~BIT(0);                      //disable digital dac
-    adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    /* manual_off: 无音频/无BLE, ADDA不需要xosc52m; 跳过可让硬件自动关断52MHz晶振省 100-300μA */
+    if (!elunchbox_manual_off_slp)
+#endif
+    {
+        adda_clk_source_sel(1);                 //adda_clk48_a select xosc52m
+    }
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     PLL1CON0 &= ~0x03;                          //disable pll1
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
@@ -642,8 +648,9 @@ static void sfunc_sleep(void)
         } else {
             GPIOBDE = BIT(3) | BIT(8) | BIT(9); /* PB3 日志 / PB8 PB9 UART1 */
         }
-        /* PE0+PE1(FLAG) 数字输入; PE2~PE4(BCD) 模拟输入 — 省电+防误唤醒*/
-        GPIOEDE = (BIT(0) | BIT(1));
+        /* manual_off: PE1(FLAG) only — poll只读FLAG, I2C/BCD不需; PE0 analog 省 3-5μA
+         * auto guioff: PE0+PE1 digital — UART/I2C 交互需要 */
+        GPIOEDE = elunchbox_manual_off_slp ? BIT(1) : (BIT(0) | BIT(1));
         GPIOFDE = 0;
     } else
 #endif
@@ -798,6 +805,23 @@ static void sfunc_sleep(void)
             gpu_init();
         }
     }
+
+    /* 【ELUNCHBOX】manual_off key wake: restore GPU now in sfunc_sleep() context.
+     * At this point the system is still single-threaded — no ISR/timer races.
+     * lunchbox_display_on() deferred to main loop after 3s hold verification.
+     * Calling gui_wakeup() from the main loop (via elunchbox_screen_wake) causes
+     * a timer ISR crash at 0x1001201e (halt:8001) due to post-sleep race.
+     *
+     * NOTE: gui_wakeup() checks elunchbox_pwr_manual_off_gui_wake_ok() which
+     * requires elunchbox_pwr_intentional_wake=true when manual_off is set.
+     * Set it temporarily so the GPU restore actually runs; clear it after. */
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_manual_off_slp && gui_need_wkp && sys_cb.gui_sleep_sta) {
+        elunchbox_pwr_intentional_wake_set(true);
+        gui_wakeup();
+        elunchbox_pwr_intentional_wake_set(false);
+    }
+#endif
 
 #if LE_EN
     if (elunchbox_manual_off_slp && !gui_need_wkp) {

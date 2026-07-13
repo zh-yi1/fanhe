@@ -629,6 +629,13 @@ bool elunchbox_pwr_manual_off_gui_wake_ok(void)
 #endif
 }
 
+#if ELUNCHBOX_PANEL_EN
+void elunchbox_pwr_intentional_wake_set(bool on)
+{
+    elunchbox_pwr_intentional_wake = on;
+}
+#endif
+
 static void elunchbox_pwr_shutdown_yield(void)
 {
     WDT_CLR();
@@ -731,15 +738,12 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
     elunchbox_guioff_sleep_mode = 0;
     pt8028_port_gpio_init();
     pt8028_key_scan();
-    /* 浅睡循环内只置 pending，此处退出 sleep 后直接亮屏。
-     * 仅做 GPU 恢复 + 物理亮屏 + 清标志位，不调 elunchbox_pwr_gui_wake() →
-     * elunchbox_screen_wake()。
-     * 原因：本函数在 sfunc_sleep() 内调用，此时 bsp_saradc_init() / bt_exit_sleep()
-     * 等尚未执行，外设处于半初始化态。elunchbox_screen_wake() 内
-     * home_ui_shared_battery_boot_init() 访问 SARADC、CLKGAT0 恢复等会触发硬件异常。
-     * PT8028 重初始化/CLKGAT0/电池等完整恢复由主循环 func_process() 负责。 */
+    /* 浅睡循环内 manual_off_sleep_poll 检测到 FLAG 下降沿 → 设 pending → 退出深睡。
+     * manual_off: 只退出睡眠，不亮屏。主循环 func_elunchbox_guioff_wake_poll()
+     *   执行 3 秒长按判断后才调 elunchbox_pwr_gui_wake()。
+     * auto guioff: 短按直接亮屏（保持原有行为）。 */
     if (elunchbox_manual_wake_pending_take()) {
-        if (elunchbox_is_guioff()) {
+        if (elunchbox_is_guioff() && !elunchbox_pwr_is_manual_off()) {
             printf("elunchbox: sleep_post_wake -> gui_wake (key_wake=%u)\n", key_wake ? 1u : 0u);
             elunchbox_pwr_gui_off = false;
             elunchbox_pwr_manual_off = false;
@@ -751,7 +755,8 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
         }
     }
 #if USER_PT8028_KEY
-    if (elunchbox_is_guioff()) {
+    /* manual_off: 3s 长按判断延后到主循环，此处不重复启动计时 */
+    if (elunchbox_is_guioff() && !elunchbox_pwr_is_manual_off()) {
         func_elunchbox_guioff_wake_poll();
 #if SOFT_POWER_ON_OFF
         func_elunchbox_pwr_long_poll();
@@ -862,23 +867,22 @@ static void elunchbox_screen_wake(void)
     elunchbox_pwr_manual_off = false;
     elunchbox_guioff_sleep_delay_reset();
 
+    CLKGAT0 = elunchbox_saved_clkgat0;
+
     if (sys_cb.gui_sleep_sta) {
         printf("elunchbox: [DBG] screen_wake calling gui_wakeup()\n");
         gui_wakeup();
     }
     printf("elunchbox: [DBG] screen_wake calling lunchbox_display_on()\n");
-    lunchbox_display_on();  // 先开 VDDLCD → 再恢复背光（与 lunchbox_display_off 配对）
+    lunchbox_display_on();
     printf("elunchbox: [DBG] screen_wake display_on done\n");
     elunchbox_user_activity_reset();
+
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    pt8028_port_gpio_init();
-    pt8028_key_scan();
     pt8028_pwr_long_consume();
     pt8028_release_clear();
     pt8028_set_home_msg_block(1);
 #endif
-    /* 恢复 printf 口和 debug dump 口时钟 */
-    CLKGAT0 = elunchbox_saved_clkgat0;
 
 #if ELUNCHBOX_PANEL_EN
     home_ui_shared_status_inited = false;
@@ -888,10 +892,6 @@ static void elunchbox_screen_wake(void)
     if (bat_was_charging) {
         home_ui_shared_battery_charge_apply(1);
     }
-    func_home_gui_mark_dirty();
-    if (func_cb.sta == FUNC_HOME) {
-        func_home_force_ui_refresh_after_wake();
-    }
 #endif
 #if BT_BACKSTAGE_EN
     bt_update_bt_scan_param_default();
@@ -900,6 +900,7 @@ static void elunchbox_screen_wake(void)
 #if USER_PANEL_LED
     panel_led_scan();
 #endif
+    printf("elunchbox: [DBG] screen_wake COMPLETE\n");
 }
 
 static void elunchbox_pwr_gui_off_exit(void)
@@ -1235,10 +1236,18 @@ void func_process(void)
         }
 #endif
 
-        /* 用户 TCH5 长按唤醒优先于预约/加热 UART 自动跳页 */
+        /* 用户 TCH5 长按唤醒：先清 manual_off → gui_wakeup() 不阻塞 → 再亮屏 */
         if (elunchbox_manual_wake_pending_take()) {
             printf("elunchbox: TCH5 3s hold wakes screen from manual off\n");
-            elunchbox_pwr_gui_wake();
+            elunchbox_pwr_gui_off = false;
+            elunchbox_pwr_manual_off = false;
+            elunchbox_guioff_sleep_delay_reset();
+            CLKGAT0 = elunchbox_saved_clkgat0;
+            if (sys_cb.gui_sleep_sta) {
+                gui_wakeup();
+            }
+            lunchbox_display_on();
+            elunchbox_user_activity_reset();
             return;
         }
 
