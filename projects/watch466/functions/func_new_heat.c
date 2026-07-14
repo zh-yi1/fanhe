@@ -60,10 +60,10 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_HEAT_TIME_SLIDER_Y            166
 #define NEW_HEAT_TIME_SCALE_Y             184
 
-#define NEW_HEAT_BADGE_TXT_W              80
-
 #define NEW_HEAT_BADGE_X                  ((s16)(GUI_SCREEN_WIDTH - NEW_HEAT_STATUS_RIGHT_MARGIN - NEW_HEAT_BADGE_W / 2))
-#define NEW_HEAT_BADGE_TXT_X              ((s16)(NEW_HEAT_BADGE_X - (NEW_HEAT_BADGE_TXT_W - NEW_HEAT_BADGE_W) / 2 +12))
+#define NEW_HEAT_BADGE_VAL_Y_ADJ          (-4)   /* 徽章内文字上移（负值向上） */
+#define NEW_HEAT_TEMP_BADGE_VAL_Y         ((s16)(NEW_HEAT_TEMP_LABEL_Y + NEW_HEAT_BADGE_VAL_Y_ADJ))
+#define NEW_HEAT_TIME_BADGE_VAL_Y         ((s16)(NEW_HEAT_TIME_LABEL_Y + NEW_HEAT_BADGE_VAL_Y_ADJ))
 #define NEW_HEAT_SLIDER_SLOT_X            ((s16)((GUI_SCREEN_WIDTH - NEW_HEAT_SLIDER_W) / 2))
 #define NEW_HEAT_LABEL_X                  ((s16)(NEW_HEAT_SLIDER_SLOT_X - 27))
 
@@ -487,6 +487,56 @@ static void new_heat_format_duration(char *buf, u16 total_min)
     }
 }
 
+static void new_heat_badge_val_layout(compo_textbox_t *txt, s16 badge_y)
+{
+    widget_text_t *widget;
+    rect_t rect;
+    area_t text_area;
+    s16 client_y;
+    u8 font_h;
+    u8 pass;
+
+    if (txt == NULL) {
+        return;
+    }
+    widget = txt->txt;
+    if (widget == NULL) {
+        return;
+    }
+    compo_textbox_set_align_center(txt, true);
+    widget_set_align_center(widget, true);
+    compo_textbox_set_wholewrap(txt, false);
+    compo_textbox_set_autosize(txt, false);
+    compo_textbox_set_autoroll(txt, false);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    widget_text_set_ellipsis(widget, false);
+    compo_textbox_set_location(txt, NEW_HEAT_BADGE_X, badge_y,
+                               NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
+
+    font_h = widget_text_get_max_height();
+    for (pass = 0; pass < 2; pass++) {
+        rect = widget_get_location(widget);
+        text_area = widget_text_get_area(widget);
+        if (font_h > 0 && rect.hei > font_h) {
+            client_y = (s16)((rect.hei - font_h) >> 1);
+        } else if (rect.hei > text_area.hei) {
+            client_y = (s16)((rect.hei - text_area.hei) >> 1);
+        } else {
+            client_y = 0;
+        }
+        widget_text_set_client(widget, 0, client_y);
+    }
+}
+
+static void new_heat_badge_val_apply(compo_textbox_t *txt, s16 badge_y, const char *text)
+{
+    if (txt == NULL || text == NULL) {
+        return;
+    }
+    compo_textbox_set(txt, text);
+    new_heat_badge_val_layout(txt, badge_y);
+}
+
 static void new_heat_status_icons_apply(f_new_heat_t *f)
 {
     if (f == NULL) {
@@ -593,7 +643,7 @@ static void new_heat_slider_focus_apply(f_new_heat_t *f)
         new_heat_temp_point_repos(f->pic_temp_point, f->temp_idx, NEW_HEAT_TEMP_SLIDER_Y, true);
         if (f->txt_temp_val != NULL) {
             new_heat_format_temp(buf, tbl_new_heat_temp_f[f->temp_idx]);
-            compo_textbox_set(f->txt_temp_val, buf);
+            new_heat_badge_val_apply(f->txt_temp_val, NEW_HEAT_TEMP_BADGE_VAL_Y, buf);
         }
     } else {
         new_heat_time_track_apply(f);
@@ -606,7 +656,7 @@ static void new_heat_slider_focus_apply(f_new_heat_t *f)
                              true);
         if (f->txt_time_val != NULL) {
             new_heat_format_duration(buf, tbl_new_heat_time_min[f->time_idx]);
-            compo_textbox_set(f->txt_time_val, buf);
+            new_heat_badge_val_apply(f->txt_time_val, NEW_HEAT_TIME_BADGE_VAL_Y, buf);
         }
     }
     elunchbox_te_block_flag = 0;
@@ -801,18 +851,16 @@ static void new_heat_text_apply(f_new_heat_t *f)
     }
     if (f->txt_temp_val != NULL) {
         new_heat_format_temp(buf, tbl_new_heat_temp_f[f->temp_idx]);
-        compo_textbox_set(f->txt_temp_val, buf);
         compo_textbox_set_forecolor(f->txt_temp_val,
             f->focus == NEW_HEAT_FOCUS_TEMP ? NEW_HEAT_COLOR_ON_BADGE : NEW_HEAT_COLOR_OFF_BADGE);
-        compo_textbox_set_align_center(f->txt_temp_val, true);
+        new_heat_badge_val_apply(f->txt_temp_val, NEW_HEAT_TEMP_BADGE_VAL_Y, buf);
         compo_textbox_set_visible(f->txt_temp_val, true);
     }
     if (f->txt_time_val != NULL) {
         new_heat_format_duration(buf, tbl_new_heat_time_min[f->time_idx]);
-        compo_textbox_set(f->txt_time_val, buf);
         compo_textbox_set_forecolor(f->txt_time_val,
             f->focus == NEW_HEAT_FOCUS_TIME ? NEW_HEAT_COLOR_ON_BADGE : NEW_HEAT_COLOR_OFF_BADGE);
-        compo_textbox_set_align_center(f->txt_time_val, true);
+        new_heat_badge_val_apply(f->txt_time_val, NEW_HEAT_TIME_BADGE_VAL_Y, buf);
         compo_textbox_set_visible(f->txt_time_val, true);
     }
 
@@ -883,7 +931,8 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
             compo_setid(t, COMPO_ID_TXT_TEMP_VAL);
             compo_textbox_set_wholewrap(t, false);
             compo_textbox_set_autosize(t, false);
-            compo_textbox_set_pos(t, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y);
+            compo_textbox_set_align_center(t, true);
+            new_heat_badge_val_layout(t, NEW_HEAT_TEMP_BADGE_VAL_Y);
             compo_textbox_set_forecolor(t, NEW_HEAT_COLOR_ON_BADGE);
         }
         f->txt_temp_val = t;
@@ -895,7 +944,8 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
             compo_setid(t, COMPO_ID_TXT_TIME_VAL);
             compo_textbox_set_wholewrap(t, false);
             compo_textbox_set_autosize(t, false);
-            compo_textbox_set_pos(t, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y);
+            compo_textbox_set_align_center(t, true);
+            new_heat_badge_val_layout(t, NEW_HEAT_TIME_BADGE_VAL_Y);
             compo_textbox_set_forecolor(t, NEW_HEAT_COLOR_OFF_BADGE);
         }
         f->txt_time_val = t;
@@ -917,16 +967,16 @@ static void new_heat_text_apply_main(f_new_heat_t *f)
     }
     if (f->txt_temp_val != NULL) {
         new_heat_format_temp(buf, tbl_new_heat_temp_f[f->temp_idx]);
-        compo_textbox_set(f->txt_temp_val, buf);
         compo_textbox_set_forecolor(f->txt_temp_val,
             f->focus == NEW_HEAT_FOCUS_TEMP ? NEW_HEAT_COLOR_ON_BADGE : NEW_HEAT_COLOR_OFF_BADGE);
+        new_heat_badge_val_apply(f->txt_temp_val, NEW_HEAT_TEMP_BADGE_VAL_Y, buf);
         compo_textbox_set_visible(f->txt_temp_val, true);
     }
     if (f->txt_time_val != NULL) {
         new_heat_format_duration(buf, tbl_new_heat_time_min[f->time_idx]);
-        compo_textbox_set(f->txt_time_val, buf);
         compo_textbox_set_forecolor(f->txt_time_val,
             f->focus == NEW_HEAT_FOCUS_TIME ? NEW_HEAT_COLOR_ON_BADGE : NEW_HEAT_COLOR_OFF_BADGE);
+        new_heat_badge_val_apply(f->txt_time_val, NEW_HEAT_TIME_BADGE_VAL_Y, buf);
         compo_textbox_set_visible(f->txt_time_val, true);
     }
 }
@@ -1309,11 +1359,11 @@ compo_form_t *func_new_heat_form_create(void)
     compo_picturebox_set_size(pic, NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
 
     txt = new_heat_txt_create(frm, COMPO_ID_TXT_TEMP_VAL, NEW_HEAT_FONT,
-                              NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_COLOR_ON_BADGE, true);
-    compo_textbox_set_location(txt, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TEMP_LABEL_Y, NEW_HEAT_BADGE_TXT_W, NEW_HEAT_BADGE_H);
+                              NEW_HEAT_BADGE_X, NEW_HEAT_TEMP_BADGE_VAL_Y, NEW_HEAT_COLOR_ON_BADGE, true);
+    new_heat_badge_val_layout(txt, NEW_HEAT_TEMP_BADGE_VAL_Y);
     txt = new_heat_txt_create(frm, COMPO_ID_TXT_TIME_VAL, NEW_HEAT_FONT,
-                              NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_COLOR_OFF_BADGE, true);
-    compo_textbox_set_location(txt, NEW_HEAT_BADGE_TXT_X, NEW_HEAT_TIME_LABEL_Y, NEW_HEAT_BADGE_TXT_W, NEW_HEAT_BADGE_H);
+                              NEW_HEAT_BADGE_X, NEW_HEAT_TIME_BADGE_VAL_Y, NEW_HEAT_COLOR_OFF_BADGE, true);
+    new_heat_badge_val_layout(txt, NEW_HEAT_TIME_BADGE_VAL_Y);
 
     pic = new_heat_pic_create_hidden(frm, COMPO_ID_PIC_TEMP_TRACK);
     compo_picturebox_set_pos(pic, NEW_HEAT_SLIDER_SLOT_X, NEW_HEAT_TEMP_SLIDER_Y);

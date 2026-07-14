@@ -45,7 +45,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define HEAT_PANEL_COLOR_LABEL          0x0AD8
 
 #define HEAT_PANEL_REMAIN_Y             100
-#define HEAT_PANEL_REMAIN_LBL_Y         130
+#define HEAT_PANEL_REMAIN_LBL_Y         138
 #define HEAT_PANEL_SHOW_Y               212
 #define HEAT_PANEL_TEMP_X               72
 #define HEAT_PANEL_DUR_X                233
@@ -772,7 +772,7 @@ static void heat_panel_font_apply_once(void)
     g_hp.font_ready = true;
 
     /* 方式 3：覆盖标签为 14px 字体 */
-    compo_textbox_set_font(g_hp.txt_remain_lbl, UI_BUF_0FONT_FONT_TEST_10_BIN);
+    compo_textbox_set_font(g_hp.txt_remain_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
     compo_textbox_set_font(g_hp.txt_temp_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
     compo_textbox_set_font(g_hp.txt_dur_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
 }
@@ -802,7 +802,7 @@ static void heat_panel_text_apply(const void *f_heat)
         compo_textbox_set_visible(g_hp.txt_remain, true);
     }
     if (g_hp.txt_remain_lbl != NULL) {
-        compo_textbox_set(g_hp.txt_remain_lbl, "Heating Time Remaining");
+        compo_textbox_set(g_hp.txt_remain_lbl, "Heating Time \n Remaining");
         compo_textbox_set_visible(g_hp.txt_remain_lbl, true);
     }
 
