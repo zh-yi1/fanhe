@@ -8,6 +8,7 @@
 #include "func_lunchbox_off.h"
 #include "func_lowbat.h"
 #include "func_lunchbox_wake.h"
+#include "func_lowpwr.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "home_ui_lowbat_overlay.h"
@@ -738,6 +739,12 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
     elunchbox_guioff_sleep_mode = 0;
     pt8028_port_gpio_init();
     pt8028_key_scan();
+    /* manual_off: 立刻丢弃唤醒时读到的按键状态，防止亮屏后主循环
+     * pt8028_key_scan() 看到松手边沿 → 误入队 → 误触发加热等界面。
+     * 真正的 3s 长按判断在主循环通过 GPIO 电平独立判断，不依赖此处状态。 */
+    if (elunchbox_pwr_is_manual_off()) {
+        pt8028_release_clear();
+    }
     /* 浅睡循环内 manual_off_sleep_poll 检测到 FLAG 下降沿 → 设 pending → 退出深睡。
      * manual_off: 只退出睡眠，不亮屏。主循环 func_elunchbox_guioff_wake_poll()
      *   执行 3 秒长按判断后才调 elunchbox_pwr_gui_wake()。
@@ -866,6 +873,7 @@ static void elunchbox_screen_wake(void)
     elunchbox_pwr_gui_off = false;
     elunchbox_pwr_manual_off = false;
     elunchbox_guioff_sleep_delay_reset();
+    elunchbox_pwroff_sent_reset();  /* 屏真亮了 → 允许下次 manual_off 重发 PowerSwitch=OFF */
 
     CLKGAT0 = elunchbox_saved_clkgat0;
 
@@ -1242,6 +1250,7 @@ void func_process(void)
             elunchbox_pwr_gui_off = false;
             elunchbox_pwr_manual_off = false;
             elunchbox_guioff_sleep_delay_reset();
+            elunchbox_pwroff_sent_reset();  /* 屏真亮了 → 允许下次 manual_off 重发 PowerSwitch=OFF */
             CLKGAT0 = elunchbox_saved_clkgat0;
             if (sys_cb.gui_sleep_sta) {
                 gui_wakeup();
