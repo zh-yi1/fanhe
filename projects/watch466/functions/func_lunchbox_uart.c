@@ -290,7 +290,14 @@ static bool lb_frame_parse(void)
         if (!elunchbox_lowbat_should_block_ui_route()) {
 #endif
         heat_display_feed_dp(rx.data, rx.data_len, rx.msg_flag);
-        lunchbox_control_apply_panel(rx.data, rx.data_len);
+        /* 保温页的 UART 数据路由已由 heat_display_feed_dp 完整处理；
+         * lunchbox_control_apply_panel 是为 BLE 0x04 控制指令设计的，
+         * 若在保温页被 UART 帧触发，会导致：
+         * 1) heat_finish→warm 后同帧 DP10=0 误杀回主页
+         * 2) Mode=5 帧触发 func_new_warm_ble_restart→lunchbox_heat_stop→HeatEn=OFF 死循环 */
+        if (func_cb.sta != FUNC_NEW_WARM) {
+            lunchbox_control_apply_panel(rx.data, rx.data_len);
+        }
 #if ELUNCHBOX_PANEL_EN
         }
 #endif

@@ -8,6 +8,7 @@
 #include "home_ui_gpu_detach.h"
 #include "home_ui_ram.h"
 #include "func_lunchbox_uart.h"
+#include "func_lunchbox_uart_internal.h"
 #include "heat_display_reg.h"
 #include "func_key_lock.h"
 
@@ -633,12 +634,14 @@ static void new_warm_heating_start(f_new_warm_t *f)
 #if ELUNCHBOX_PANEL_EN
     if (home_ui_shared_battery_is_charging()) {
         lunchbox_warm_mark_active();
-    } else {
-        lunchbox_keep_warm_apply();
-    }
-#else
-    lunchbox_keep_warm_apply();
+    } else
 #endif
+    {
+        /* func_elunchbox_enter_warm_common_prep 已下发保温指令时跳过重复发送 */
+        if (lb_keep_warm_msg_flag == 0) {
+            lunchbox_keep_warm_apply();
+        }
+    }
 #endif
     f->heating = true;
     f->start_tick = tick_get();
