@@ -895,7 +895,6 @@ void lunchbox_control_apply_panel(const u8 *data, u16 len)
         return;
     }
 #endif
-    lunchbox_control_apply_power_switch(data, len);
     if (lunchbox_control_apply_stop_heat(data, len)) {
         return;
     }

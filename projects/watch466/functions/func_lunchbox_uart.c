@@ -1628,8 +1628,10 @@ static u8 lb_handler_control(lb_rx_frame_t *rx)
     if (!elunchbox_ui_is_live()) {
         return;
     }
+    lunchbox_control_apply_power_switch(rx->data, rx->data_len);
     lunchbox_control_apply_panel(rx->data, rx->data_len);
 #else
+    lunchbox_control_apply_power_switch(rx->data, rx->data_len);
     lunchbox_control_apply_panel(rx->data, rx->data_len);
 #endif
 
