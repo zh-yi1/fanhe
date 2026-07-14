@@ -774,7 +774,12 @@ static void sfunc_sleep(void)
     if (elunchbox_guioff_slp) {
         if (elunchbox_manual_off_slp) {
             printf("elunchbox: sfunc_sleep manual_off GPIOBDE PB9 only\n");
-            GPIOEDE = BIT(1);                          /* PE1 FLAG only */
+            /* PE1(FLAG) + PE2~4(D0~D2) 全数字输入。
+             * PE2~4 保留 200K 弱上拉 —— 匹配 PT8028 空闲态 BCD=111,
+             * 防止 PT8028 扫描间隙 tri-state 时引脚浮空漏电。
+             * PT8028 推挽输出, idle 全高 → 上拉无 DC 冲突。
+             * 按下时个别线拉低 → 3.3V/200K=16.5μA/pin, 瞬态可接受。 */
+            GPIOEDE = BIT(1) | BIT(2) | BIT(3) | BIT(4);
             GPIOBDE = BIT(9);                   /* PB9 UART1 RX only; PB3 debug TX analog */
             /* PB9: pull-up for idle HIGH, wait heat module pull LOW */
             GPIOBDIR = 0;
@@ -784,11 +789,15 @@ static void sfunc_sleep(void)
             GPIOBPD200K = 0;
             GPIOBPU300  = 0;
             GPIOBPD300  = 0;
-            /* PE2~4/PF/PH analog, explicit pull clear to save power.
+            /* PE2~4: 200K 弱上拉, 清强上下拉。
              * PB9 pull-up already set above — do NOT clear. Floating PB9
              * picks up noise → spurious LOW → port wakeup → 20mA burn. */
             GPIOEPU &= ~(BIT(2) | BIT(3) | BIT(4));
             GPIOEPD &= ~(BIT(2) | BIT(3) | BIT(4));
+            GPIOEPU200K |= (BIT(2) | BIT(3) | BIT(4));
+            GPIOEPD200K &= ~(BIT(2) | BIT(3) | BIT(4));
+            GPIOEPU300  &= ~(BIT(2) | BIT(3) | BIT(4));
+            GPIOEPD300  &= ~(BIT(2) | BIT(3) | BIT(4));
             GPIOFPU = 0;
             GPIOFPD = 0;
             GPIOHPU = 0;
@@ -800,9 +809,9 @@ static void sfunc_sleep(void)
         } else {
             GPIOBDE = BIT(3) | BIT(8) | BIT(9); /* PB3 日志 / PB8 PB9 UART1 */
         }
-        /* manual_off: PE1(FLAG) only — poll只读FLAG, I2C/BCD不需; PE0 analog 省 3-5μA
+        /* manual_off: PE1~4 digital (PE2~4 200K 上拉防浮空); PE0 analog 省 3-5μA
          * auto guioff: PE0+PE1 digital — UART/I2C 交互需要 */
-        GPIOEDE = elunchbox_manual_off_slp ? BIT(1) : (BIT(0) | BIT(1));
+        GPIOEDE = elunchbox_manual_off_slp ? (BIT(1) | BIT(2) | BIT(3) | BIT(4)) : (BIT(0) | BIT(1));
         GPIOFDE = 0;
         GPIOHDE = 0;                                 /* Port H all analog, save power */
     } else
