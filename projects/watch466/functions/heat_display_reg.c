@@ -349,8 +349,14 @@ static bool heat_display_mcu_mode_route(bool got_mode, u8 mcu_mode,
     if (!charging && func_cb.sta == FUNC_NEW_WARM
         && func_elunchbox_warm_from_charging()) {
         /* 先判断是否应回主页(在 exit_reset 清除标志前检查) */
-        bool remain_is_zero = (got_remain && remain_min == 0)
+        bool remain_is_zero;
+        if (got_remain && remain_min > 0) {
+            /* MCU 明确上报 remain>0: 加热仍在进行，忽略任何遗留的 remain=0 标志 */
+            remain_is_zero = false;
+        } else {
+            remain_is_zero = (got_remain && remain_min == 0)
                            || heat_display_warm_charge_remain_zero;
+        }
         if (got_charge && charge_val == 0) {
             heat_display_warm_exit_reset();
         }
@@ -679,7 +685,7 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
         && got_enable && !heating
 #if ELUNCHBOX_PANEL_EN
         && !heat_display_charging_now(got_charge, charge_val)
-        && func_cb.sta != FUNC_NEW_WARM
+        && func_cb.sta == FUNC_HEAT
 #endif
         && lb_heat_lcd_active) {
         printf("[LCD_REG] feed_dp: heat finished (mode=0 remain=0 HeatEn=OFF) -> warm "
@@ -812,6 +818,7 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
     if (got_mode && mcu_mode == 5 && got_remain && remain_min == 0
         && !heat_display_charging_now(got_charge, charge_val)
         && func_cb.sta != FUNC_NEW_WARM
+        && lb_heat_lcd_active
         && !(lb_keep_warm_msg_flag != 0 && msg_flag == lb_keep_warm_msg_flag)) {
         printf("[LCD_REG] feed_dp: Mode=5 + Remain=0 -> enter warm "
                "(sta=%u live_ok=%d switching=%d)\n",

@@ -1774,6 +1774,7 @@ void func_elunchbox_enter_warm_from_charging(void)
 {
     func_elunchbox_warm_from_charging_set(true);
     lb_heat_mcu_nav_set(true);
+    heat_display_warm_exit_reset();  /* 新一次充电保温: 清除上次遗留的 remain=0 标志 */
     printf("[LCD_ROUTE] MCU DP02=5 charge -> warm (sta=%u)\n", func_cb.sta);
     func_elunchbox_enter_warm_from_heat_body();
 }
