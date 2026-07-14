@@ -2,6 +2,7 @@
 #include "func.h"
 #if ELUNCHBOX_PANEL_EN
 #include "func_lunchbox_uart_internal.h"
+extern bool lb_send_waiting;
 #endif
 #if ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
 #include "func_reservation.h"
@@ -426,42 +427,10 @@ bool sfunc_sleep_proc(void)
             hw_has_event = (wkpnd != 0);
 
             if (sw_has_event || hw_has_event) {
-                printf("lp: EVENT sw=%d hw=%d wkpnd=0x%x\n", sw_has_event, hw_has_event, wkpnd);
-
-                /* Step 3: 读 PB9（在动 GPIOEDE 之前，避免干扰） */
-                bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
-
-                /* Step 4: 读 PE1 + BCD 键值 */
-                u8 bcd;
-                bool pe1_lo = sleep_read_bcd_pe1(&bcd);
-                printf("lp: pb9=%d pe1=%d bcd=%d\n", pb9_lo, pe1_lo, bcd);
-
-                /* Step 5: 判断唤醒源 */
-                if (pb9_lo) {
-                    printf("lp: -> UART wake\n");
-                    gui_need_wkp = true;
-                    break;
-                }
-
-                if (pe1_lo && bcd == 5) {
-                    printf("lp: -> TCH5 wake\n");
-                    gui_need_wkp = true;
-                    break;
-                }
-
-                if (pe1_lo) {
-                    printf("lp: -> non-TCH5, back to sleep\n");
-                    delay_us(200);  /* BCD 脚恢复模拟后稳定 */
-                } else {
-                    printf("lp: -> stale/noise, ignore\n");
-                }
-
-                /* 【关键】清 port wakeup pending，否则 sys_enter_sleep()
-                 * 看到残留 pending → 立即唤醒 → 无限循环 → 功耗失控。 */
-                RTCCON9 = BIT(2);   /* clr port wakeup pending */
-
-                /* 消费 sw pending（如果存在），防止残留 */
-                elunchbox_manual_wake_pending_take();
+                /* PE1(按键) + PB9(门铃) 都可唤醒, 主循环判断唤醒原因. */
+                printf("lp: EVENT sw=%d hw=%d → wake\n", sw_has_event, hw_has_event);
+                gui_need_wkp = true;
+                break;
             }
 
         }
@@ -477,15 +446,9 @@ bool sfunc_sleep_proc(void)
         if (wkpnd) {
 #if ELUNCHBOX_PANEL_EN
             if (manual_off) {
-                /* manual_off: 已在上面处理过，此处 wkpnd 是新事件 */
-                bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
-                u8 bcd;
-                bool pe1_lo = sleep_read_bcd_pe1(&bcd);
-                if (pb9_lo || (pe1_lo && bcd == 5)) {
-                    gui_need_wkp = true;
-                    break;
-                }
-                RTCCON9 = BIT(2);
+                /* PE1+PB9 任一端口事件 → 醒, 主循环判断来源 */
+                gui_need_wkp = true;
+                break;
             } else
 #endif
             {
@@ -568,6 +531,9 @@ static bool s_pwroff_sent = false;
 void elunchbox_pwroff_sent_reset(void)
 {
     s_pwroff_sent = false;
+    /* manual_off 休眠后 TX 保持 block, 确认真唤醒时在此恢复.
+     * 调用路径: elunchbox_screen_wake() / TCH5 3s 长按 都经过此处. */
+    lb_uart_tx_block(false);
 }
 
 /* 【休眠主函数】sfunc_sleep — 熄屏 + 关外设 + sfunc_sleep_proc 深度休眠
@@ -628,11 +594,48 @@ static void sfunc_sleep(void)
      * 加热模块回 ACK → PB9 LOW → drain 后唤醒 → 死循环 → 500μA+。
      * 真唤醒(gui_need_wkp=true)后重置标记，下次进 manual_off 再发。 */
     if (elunchbox_guioff_slp && !s_pwroff_sent) {
-        u8 data[8];
-        u16 len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, 0);
-        lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, true);  /* true=fire-and-forget, 无重试 */
+        /* 两步握手: ①发停加热→等ACK ②发关开关→等ACK
+         * 确保加热模块完全处理完才进休眠, 避免残留应答导致睡/醒风暴. */
+        int timeout;
+
+        /* Step ①: 停加热 */
+        {
+            u8 data[8];
+            u16 len = lb_dp_encode_bool(data, LB_DPID_HEAT_ENABLE, 0);
+            lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);  /* false=等ACK */
+            printf("elunchbox: sfunc_sleep step1 HeatEnable=0 (wait ACK)\n");
+            timeout = 0;
+            while (lb_send_waiting && timeout < 200) {
+                lunchbox_uart_process();
+                delay_5ms(5);
+                timeout++;
+            }
+            if (lb_send_waiting) {
+                printf("elunchbox: HeatEnable=0 ACK timeout, force clear\n");
+                lb_send_waiting = false;
+            }
+        }
+
+        /* Step ②: 关总开关 */
+        {
+            u8 data[8];
+            u16 len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, 0);
+            lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);  /* false=等ACK */
+            printf("elunchbox: sfunc_sleep step2 PowerSwitch=OFF (wait ACK)\n");
+            timeout = 0;
+            while (lb_send_waiting && timeout < 200) {
+                lunchbox_uart_process();
+                delay_5ms(5);
+                timeout++;
+            }
+            if (lb_send_waiting) {
+                printf("elunchbox: PowerSwitch=OFF ACK timeout, force clear\n");
+                lb_send_waiting = false;
+            }
+        }
+
         s_pwroff_sent = true;
-        printf("elunchbox: sfunc_sleep sent PowerSwitch=OFF to heat module\n");
+        printf("elunchbox: sfunc_sleep handshake done, entering sleep\n");
     }
 #endif
 
@@ -773,15 +776,15 @@ static void sfunc_sleep(void)
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_guioff_slp) {
         if (elunchbox_manual_off_slp) {
-            printf("elunchbox: sfunc_sleep manual_off GPIOBDE PB9 only\n");
+            printf("elunchbox: sfunc_sleep manual_off GPIOE PE1~4 digital, GPIOB PB9 only\n");
             /* PE1(FLAG) + PE2~4(D0~D2) 全数字输入。
              * PE2~4 保留 200K 弱上拉 —— 匹配 PT8028 空闲态 BCD=111,
              * 防止 PT8028 扫描间隙 tri-state 时引脚浮空漏电。
              * PT8028 推挽输出, idle 全高 → 上拉无 DC 冲突。
              * 按下时个别线拉低 → 3.3V/200K=16.5μA/pin, 瞬态可接受。 */
             GPIOEDE = BIT(1) | BIT(2) | BIT(3) | BIT(4);
-            GPIOBDE = BIT(9);                   /* PB9 UART1 RX only; PB3 debug TX analog */
-            /* PB9: pull-up for idle HIGH, wait heat module pull LOW */
+            GPIOBDE = BIT(9);                   /* PB9 下降沿唤醒(门铃); PB3/PB8 analog */
+            /* PB9: pull-up, 下降沿唤醒. 不收数据, 第一包丢了算了. */
             GPIOBDIR = 0;
             GPIOBPU  = BIT(9);
             GPIOBPD  = 0;
@@ -789,9 +792,7 @@ static void sfunc_sleep(void)
             GPIOBPD200K = 0;
             GPIOBPU300  = 0;
             GPIOBPD300  = 0;
-            /* PE2~4: 200K 弱上拉, 清强上下拉。
-             * PB9 pull-up already set above — do NOT clear. Floating PB9
-             * picks up noise → spurious LOW → port wakeup → 20mA burn. */
+            /* PE2~4: 200K 弱上拉, 清强上下拉. */
             GPIOEPU &= ~(BIT(2) | BIT(3) | BIT(4));
             GPIOEPD &= ~(BIT(2) | BIT(3) | BIT(4));
             GPIOEPU200K |= (BIT(2) | BIT(3) | BIT(4));
@@ -849,14 +850,10 @@ static void sfunc_sleep(void)
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_guioff_slp) {
-        /* 【UART 应答排空】PowerSwitch=OFF 会触发加热模块回 ACK
-         * (~14 bytes @ 115200 ≈ 1.2ms).
-         * 先等 TX 完成 + 等 PB9 RX 回到 HIGH (UART idle),
-         * 确认 ACK 已收完/超时, 再配 PB9 下降沿唤醒.
-         * 顺序错了 → 休眠被自己的 UART 应答唤醒 → 睡/醒风暴 → 500μA+. */
-        delay_5ms(6);   /* 30ms: TX(1.2ms) + 模块处理 + RX(1.2ms) 的往返余量 */
+        /* 【UART 应答排空】两步握手已等 ACK, 此处排空残留.
+         * Poll PB9 until HIGH (UART idle), timeout ~400ms. */
+        delay_5ms(6);
 
-        /* Poll PB9 until HIGH (UART idle = HIGH), timeout ~400ms */
         {
             int drain = 0;
             while (((GPIOB >> 9) & 1) == 0 && drain < 4000) {
@@ -865,13 +862,31 @@ static void sfunc_sleep(void)
             }
         }
 
+        /* 【UART 排空】握手后加热模块可能发状态更新, 处理掉并 ACK,
+         * 确保对方收到回应 → 安心进休眠, 不再重试 → PB9 不会误唤醒. */
+        {
+            int drain = 0;
+            while (drain < 20) {
+                lunchbox_uart_process();
+                delay_5ms(1);
+                drain++;
+            }
+        }
+
         if (elunchbox_manual_off_slp) {
-            /* 手动关机: 关 UART1 硬件, 禁止 RX ISR, 清 ring buffer.
-             * 仅保留 PE1+PB9 下降沿唤醒 —— 深度休眠期间不处理 UART 数据. */
-            lunchbox_uart_suspend();
+            /* 手动关机: block TX → 关 UART 硬件(释放 PB9 从 UART RX 回到 GPIO)
+             * → 配 port wakeup 下降沿唤醒(此时 PB9 已经是纯 GPIO).
+             * PB9 做"门铃": 只检测边沿唤醒, 不收数据, 第一包丢了.
+             * 对方发数据, 起始位下降沿(HIGH→LOW)触发 port wakeup → 唤醒芯片.
+             * 唤醒后 UART resume, TX 保持 block, 主循环确认真开机后开 TX. */
+            lb_uart_tx_block(true);
+            lunchbox_uart_suspend();   /* 先关 UART + 释放 FUNCMCON0, PB9 回到 GPIO */
             port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
-            port_wakeup_init(IO_PB9, 1, 1);
-            printf("elunchbox: sfunc_sleep manual_off wakeup PE1+PB9 configured\n");
+            port_wakeup_init(IO_PB9, 1, 1);  /* PB9 已是 GPIO, 下降沿检测生效 */
+            delay_5ms(10);
+            RTCCON9 = BIT(2);
+
+            printf("elunchbox: sfunc_sleep manual_off wakeup PE1+PB9 configured, UART suspended\n");
         } else {
             /* 自动息屏: 保留 UART1 活跃以接收加热/预约数据,
              * 但限制唤醒源仅 PE1+PB9. PB3(调试TX)/PB8(UART TX)/PE0
@@ -972,6 +987,10 @@ static void sfunc_sleep(void)
     /* manual_off: 恢复 UART1 硬件 (sfunc_sleep 中 suspend 的) */
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     lunchbox_uart_resume();
+    if (!elunchbox_manual_off_slp) {
+        lb_uart_tx_block(false);    /* auto guioff: 恢复 TX */
+    }
+    /* manual_off: TX 保持 block, 主循环确认真开机(on TCH5/充电/加热事件)后再开 */
 #endif
     saradc_set_channel(adc_ch);
     bsp_saradc_init();
