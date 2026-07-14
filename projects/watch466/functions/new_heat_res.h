@@ -36,7 +36,7 @@
 #define NEW_HEAT_NEW_PROGRESS_10_RAM_SIZE          39454
 #define NEW_HEAT_NEW_PROGRESS_10_ANCHOR_X            168
 #define NEW_HEAT_NEW_PROGRESS_10_ANCHOR_Y            108
-#define NEW_HEAT_NEW_PROGRESS_10_TIP_X            89
+#define NEW_HEAT_NEW_PROGRESS_10_TIP_X            91
 #define NEW_HEAT_NEW_PROGRESS_10_TIP_Y            85
 
 #define NEW_HEAT_NEW_PROGRESS_11_W                 176
@@ -76,15 +76,15 @@
 #define NEW_HEAT_NEW_PROGRESS_3_RAM_SIZE          2312
 #define NEW_HEAT_NEW_PROGRESS_3_ANCHOR_X            241
 #define NEW_HEAT_NEW_PROGRESS_3_ANCHOR_Y            137
-#define NEW_HEAT_NEW_PROGRESS_3_TIP_X            245
-#define NEW_HEAT_NEW_PROGRESS_3_TIP_Y            115
+#define NEW_HEAT_NEW_PROGRESS_3_TIP_X            242
+#define NEW_HEAT_NEW_PROGRESS_3_TIP_Y            114
 
 #define NEW_HEAT_NEW_PROGRESS_4_W                 30
 #define NEW_HEAT_NEW_PROGRESS_4_H                 87
 #define NEW_HEAT_NEW_PROGRESS_4_RAM_SIZE          5228
 #define NEW_HEAT_NEW_PROGRESS_4_ANCHOR_X            235
 #define NEW_HEAT_NEW_PROGRESS_4_ANCHOR_Y            125
-#define NEW_HEAT_NEW_PROGRESS_4_TIP_X            233
+#define NEW_HEAT_NEW_PROGRESS_4_TIP_X            230
 #define NEW_HEAT_NEW_PROGRESS_4_TIP_Y            88
 
 #define NEW_HEAT_NEW_PROGRESS_5_W                 48
@@ -92,8 +92,8 @@
 #define NEW_HEAT_NEW_PROGRESS_5_RAM_SIZE          10088
 #define NEW_HEAT_NEW_PROGRESS_5_ANCHOR_X            226
 #define NEW_HEAT_NEW_PROGRESS_5_ANCHOR_Y            116
-#define NEW_HEAT_NEW_PROGRESS_5_TIP_X            213
-#define NEW_HEAT_NEW_PROGRESS_5_TIP_Y            67
+#define NEW_HEAT_NEW_PROGRESS_5_TIP_X            212
+#define NEW_HEAT_NEW_PROGRESS_5_TIP_Y            70
 
 #define NEW_HEAT_NEW_PROGRESS_6_W                 71
 #define NEW_HEAT_NEW_PROGRESS_6_H                 117
@@ -101,7 +101,7 @@
 #define NEW_HEAT_NEW_PROGRESS_6_ANCHOR_X            214
 #define NEW_HEAT_NEW_PROGRESS_6_ANCHOR_Y            110
 #define NEW_HEAT_NEW_PROGRESS_6_TIP_X            186
-#define NEW_HEAT_NEW_PROGRESS_6_TIP_Y            53
+#define NEW_HEAT_NEW_PROGRESS_6_TIP_Y            56
 
 #define NEW_HEAT_NEW_PROGRESS_7_W                 97
 #define NEW_HEAT_NEW_PROGRESS_7_H                 121
@@ -109,7 +109,7 @@
 #define NEW_HEAT_NEW_PROGRESS_7_ANCHOR_X            201
 #define NEW_HEAT_NEW_PROGRESS_7_ANCHOR_Y            108
 #define NEW_HEAT_NEW_PROGRESS_7_TIP_X            158
-#define NEW_HEAT_NEW_PROGRESS_7_TIP_Y            49
+#define NEW_HEAT_NEW_PROGRESS_7_TIP_Y            52
 
 #define NEW_HEAT_NEW_PROGRESS_8_W                 122
 #define NEW_HEAT_NEW_PROGRESS_8_H                 121
@@ -117,15 +117,15 @@
 #define NEW_HEAT_NEW_PROGRESS_8_ANCHOR_X            189
 #define NEW_HEAT_NEW_PROGRESS_8_ANCHOR_Y            108
 #define NEW_HEAT_NEW_PROGRESS_8_TIP_X            131
-#define NEW_HEAT_NEW_PROGRESS_8_TIP_Y            54
+#define NEW_HEAT_NEW_PROGRESS_8_TIP_Y            57
 
 #define NEW_HEAT_NEW_PROGRESS_9_W                 145
 #define NEW_HEAT_NEW_PROGRESS_9_H                 121
 #define NEW_HEAT_NEW_PROGRESS_9_RAM_SIZE          35098
 #define NEW_HEAT_NEW_PROGRESS_9_ANCHOR_X            177
 #define NEW_HEAT_NEW_PROGRESS_9_ANCHOR_Y            108
-#define NEW_HEAT_NEW_PROGRESS_9_TIP_X            107
-#define NEW_HEAT_NEW_PROGRESS_9_TIP_Y            66
+#define NEW_HEAT_NEW_PROGRESS_9_TIP_X            111
+#define NEW_HEAT_NEW_PROGRESS_9_TIP_Y            67
 
 #define NEW_HEAT_NEW_PROGRESS_BG_W                 182
 #define NEW_HEAT_NEW_PROGRESS_BG_H                 122
