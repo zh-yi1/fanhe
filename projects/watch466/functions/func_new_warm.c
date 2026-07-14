@@ -44,12 +44,12 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_WARM_STATUS_Y                 20
 #define NEW_WARM_STATUS_RIGHT_MARGIN      10
 #define NEW_WARM_STATUS_GAP               6
-#define NEW_WARM_TITLE_Y                  25
+#define NEW_WARM_TITLE_Y                  15
 #define NEW_WARM_TITLE_W                  120
 #define NEW_WARM_TITLE_H                  36
 
-#define NEW_WARM_TIME_Y                   115
-#define NEW_WARM_TIME_LBL_Y               140
+#define NEW_WARM_TIME_Y                   100
+#define NEW_WARM_TIME_LBL_Y               125
 
 #define NEW_WARM_SHOW_Y                   212
 #define NEW_WARM_SHOW_VAL_Y               200
@@ -549,7 +549,7 @@ static void new_warm_font_apply_once(f_new_warm_t *f)
     new_warm_font_ready = true;
 
     /* 方式 3：覆盖标签为 14px / 12px 字体 */
-    compo_textbox_set_font(f->txt_elapsed_lbl, UI_BUF_0FONT_FONT_TEST_14_BIN);
+    compo_textbox_set_font(f->txt_elapsed_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
     compo_textbox_set_font(f->txt_show_temp_lbl, UI_BUF_0FONT_FONT_TEST_12_BIN);
 }
 #endif
