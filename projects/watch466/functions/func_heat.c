@@ -777,6 +777,12 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     func_heat_led_sync(true);
     func_heat_display_refresh(f_heat);
     printf("start_heating: display_refresh done\n");
+
+    /* 充电中启动加热：跳过加热页，直接进入保温界面 */
+    if (home_ui_shared_battery_is_charging()) {
+        f_heat->heat_live_ready = true;
+        func_elunchbox_enter_warm_from_charging();
+    }
 }
 
 #if ELUNCHBOX_PANEL_EN

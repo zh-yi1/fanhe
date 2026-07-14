@@ -879,22 +879,6 @@ static bool lunchbox_control_apply_stop_heat(const u8 *data, u16 len)
         return false;
     }
 
-#if ELUNCHBOX_PANEL_EN
-    /* 已在保温页：无需处理 */
-    if (func_cb.sta == FUNC_NEW_WARM) {
-        return false;
-    }
-    /* 加热自然结束（LCD 侧曾主动发起加热）：优先跳转保温界面。
-     * 区别于用户手动停止：手动停止时 lunchbox_heat_stop() 已将
-     * lb_heat_lcd_active 清零，故此条件不成立，正常回 Home。 */
-    if (lb_heat_lcd_active || lb_keep_warm_active) {
-        printf("BLE control: heat finished -> warm (sta=%u lcd=%d warm=%d)\n",
-               func_cb.sta, lb_heat_lcd_active ? 1 : 0, lb_keep_warm_active ? 1 : 0);
-        func_elunchbox_enter_warm_from_heat();
-        return true;
-    }
-#endif
-
     printf("BLE control: stop heat (sta=%u)\n", func_cb.sta);
     func_elunchbox_uart_stop_and_home();
     return true;
