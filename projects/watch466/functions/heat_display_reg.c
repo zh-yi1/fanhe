@@ -694,7 +694,7 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
         if (ui_ok) {
             home_ui_shared_battery_icon_refresh();
         }
-        if (charge_val == 1) {
+        if (charge_val == 1 && !ui_ok) {
             heat_display_charge_pending = true;
         }
     }
