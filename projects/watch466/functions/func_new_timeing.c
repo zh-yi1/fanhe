@@ -128,6 +128,8 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_COLON_X                 GUI_SCREEN_CENTER_X
 #define NEW_TIMEING_BTN_NO_X                ((s16)(GUI_SCREEN_CENTER_X - NEW_TIMEING_BTN_CENTER_DIST / 2))
 #define NEW_TIMEING_BTN_YES_X               ((s16)(GUI_SCREEN_CENTER_X + NEW_TIMEING_BTN_CENTER_DIST / 2))
+#define NEW_TIMEING_BTN_LABEL_Y_ADJ         (-4)   /* NO/YES 相对按钮底图上移 */
+#define NEW_TIMEING_BTN_LABEL_Y             ((s16)(NEW_TIMEING_BTN_BOTTOM_Y + NEW_TIMEING_BTN_LABEL_Y_ADJ))
 
 #define NEW_TIMEING_STATUS_BAT_X            (GUI_SCREEN_WIDTH - NEW_TIMEING_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2)
 #define NEW_TIMEING_STATUS_BT_X             (NEW_TIMEING_STATUS_BAT_X - NEW_HOME_BAT_W / 2 - NEW_TIMEING_STATUS_GAP - NEW_HOME_BT_W / 2)
@@ -729,9 +731,9 @@ static void new_timeing_text_apply(f_new_timeing_t *f)
         no_color = NEW_TIMEING_COLOR_OFF;
         yes_color = NEW_TIMEING_COLOR_ON;
     }
-    new_timeing_btn_label_show(f->txt_no, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_BOTTOM_Y,
+    new_timeing_btn_label_show(f->txt_no, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_LABEL_Y,
                                "NO", no_color);
-    new_timeing_btn_label_show(f->txt_yes, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_BOTTOM_Y,
+    new_timeing_btn_label_show(f->txt_yes, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_LABEL_Y,
                                "YES", yes_color);
 }
 
@@ -1013,13 +1015,13 @@ compo_form_t *func_new_timeing_form_create(void)
 
         txt = compo_textbox_create(frm, 4);
         compo_setid(txt, COMPO_ID_TXT_NO);
-        compo_textbox_set_location(txt, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_BOTTOM_Y,
+        compo_textbox_set_location(txt, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_LABEL_Y,
                                    NEW_TIME_BTN_W, NEW_TIME_BTN_H);
         compo_textbox_set_visible(txt, false);
 
         txt = compo_textbox_create(frm, 4);
         compo_setid(txt, COMPO_ID_TXT_YES);
-        compo_textbox_set_location(txt, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_BOTTOM_Y,
+        compo_textbox_set_location(txt, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_LABEL_Y,
                                    NEW_TIME_BTN_W, NEW_TIME_BTN_H);
         compo_textbox_set_visible(txt, false);
     }
