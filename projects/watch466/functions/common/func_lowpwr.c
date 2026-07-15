@@ -19,6 +19,8 @@ u8 sys_backup_buf[32 * 1024 - 8];
 static bool elunchbox_manual_off_in_sleep;
 /* PB9(UART/门铃)唤醒标志：sfunc_sleep 内直接亮屏，不走 3s 长按 */
 static bool elunchbox_pb9_wake_source;
+/* 非TCH5按键按住期间：PE1 wakeup已切为上升沿，等松手后恢复下降沿，解决PE1=LOW时清pending无法深睡的问题 */
+static bool elunchbox_waiting_key_release;
 
 extern u8 *cache_backup;
 extern u32 __dynamic_pool_start, __dynamic_pool_end;
@@ -468,6 +470,33 @@ bool sfunc_sleep_proc(void)
             bool sw_has_event;
             bool hw_has_event;
 
+            /* 【非TCH5按键-松手检测】PE1已切为上升沿，唤醒=松手→恢复下降沿→重睡 */
+            if (elunchbox_waiting_key_release) {
+                wkpnd = port_wakeup_get_status();
+                bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
+                u8 flag = pt8028_read_flag_raw();
+
+                if (pb9_lo) {
+                    /* PB9(门铃)在等松手期间唤醒 → 真唤醒亮屏 */
+                    printf("lp: -> PB9 wake during wait-release\n");
+                    gui_need_wkp = true;
+                    elunchbox_pb9_wake_source = true;
+                    break;
+                }
+
+                if (flag != 0) {
+                    /* PE1 HIGH → 按键已松手 → 恢复下降沿唤醒，准备下一次按键 */
+                    printf("lp: -> key released, restore falling edge\n");
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
+                    elunchbox_waiting_key_release = false;
+                }
+                /* flag==0: PE1仍LOW，杂波唤醒 → 忽略，继续等松手 */
+
+                RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                elunchbox_manual_wake_pending_take();
+                continue;
+            }
+
             /* Step 1: 软件轮询 PE1 FLAG 下降沿 */
             elunchbox_manual_off_sleep_poll();
             sw_has_event = elunchbox_manual_wake_pending_peek();
@@ -516,6 +545,14 @@ bool sfunc_sleep_proc(void)
                 /* 无效唤醒: 清 pending → continue 不离 while，靠 bt_sleep_proc 重睡 */
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
                 elunchbox_manual_wake_pending_take();
+                /* 【非TCH5按键】若PE1仍LOW(键还按着)→切上升沿等松手。
+                 * 用 pt8028_read_flag_raw() 实时读，不用 sleep_read_bcd_pe1 的旧 pe1_lo：
+                 * TCH5 brief 场景 2s 等待期间可能已松手，旧值不准。 */
+                if (pt8028_read_flag_raw() == 0) {
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
+                    printf("lp: -> sw to rising edge, wait release\n");
+                }
                 continue;
             }
         }
@@ -557,6 +594,12 @@ bool sfunc_sleep_proc(void)
                 printf("lp: port_wkp2 non-wake (bcd=%d pe1=%d pb9=%d)\n",
                        bcd, pe1_lo ? 1 : 0, pb9_lo ? 1 : 0);
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                /* 【非TCH5按键】若PE1仍LOW(键还按着)→切上升沿等松手 */
+                if (pt8028_read_flag_raw() == 0) {
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
+                    printf("lp: -> sw to rising edge, wait release\n");
+                }
                 continue;
             } else
 #endif
@@ -615,6 +658,10 @@ bool sfunc_sleep_proc(void)
     }
     printf("lp: while exit loop=%u sleep_cnt=%u wkp=%u\n",
            lp_loop_cnt, lp_sleep_cnt, gui_need_wkp ? 1u : 0u);
+    /* 真唤醒 → 重置松手等待标志，确保下次进 manual_off 休眠使用下降沿唤醒 */
+    if (gui_need_wkp) {
+        elunchbox_waiting_key_release = false;
+    }
     PWRCON0 = (PWRCON0 & ~0x1ff) | vddio_vddcore_level;
 
     /* 【低功耗优化】恢复 VDDTK LDO */
