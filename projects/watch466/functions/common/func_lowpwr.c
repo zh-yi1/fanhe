@@ -13,7 +13,12 @@ extern bool lb_send_waiting;
 #endif
 
 AT(.sleep_backup.gui)
-u8 sys_backup_buf[32 * 1024];
+u8 sys_backup_buf[32 * 1024 - 8];
+
+/* manual_off 休眠标志：sys_sleep_cb 在 sys_enter_sleep 前关 BT wakeup */
+static bool elunchbox_manual_off_in_sleep;
+/* PB9(UART/门铃)唤醒标志：sfunc_sleep 内直接亮屏，不走 3s 长按 */
+static bool elunchbox_pb9_wake_source;
 
 extern u8 *cache_backup;
 extern u32 __dynamic_pool_start, __dynamic_pool_end;
@@ -125,6 +130,15 @@ void sys_sleep_cb(u8 lpclk_type)
         GPIOGDE = BIT(2) | BIT(4) | BIT(6);         //SPICS, SPICLK
     } else {
         GPIOGDE = BIT(2) | BIT(4);                  //SPICS, SPICLK
+    }
+
+    /* manual_off: 最后一刻关所有非 GPIO 唤醒源。
+     * RTCCON3[13] 不够 —— BT 栈还用 BTCON2/RTCCON 做 RTC 闹钟唤醒。
+     * 硬关机路径(sfunc_pwrdown_do)也是关这三处。只留 PE1+PB9 port wakeup。 */
+    if (elunchbox_manual_off_in_sleep) {
+        RTCCON3 &= ~BIT(13);        /* disable bt wakeup */
+        BTCON2 &= ~(3 << 10);       /* disable bt sleep wakeup */
+        RTCCON  &= ~(0xf << 7);     /* disable rtc sleep wakeup */
     }
 
     sys_enter_sleep(lpclk_type);                //enter sleep
@@ -263,12 +277,6 @@ AT(.sleep_text.rodata.wakeup)
 const char lp_enter_str[] = "lp: enter m=%u\n";
 
 AT(.sleep_text.rodata.wakeup)
-const char lp_poll_str[] = "lp: poll wakeup\n";
-
-AT(.sleep_text.rodata.wakeup)
-const char lp_ble_str[] = "lp: BLE wakeup\n";
-
-AT(.sleep_text.rodata.wakeup)
 const char lp_exit_str[] = "lp: exit wkp=%u m=%u\n";
 
 //AT(.sleep_text.rodata.osc)
@@ -362,7 +370,15 @@ bool sfunc_sleep_proc(void)
     u32 lp_loop_cnt = 0;
     u32 lp_sleep_cnt = 0;
     u8  lp_last_status = 0xFF;
-    while (bt_is_sleep()) {
+    /* manual_off: BT 栈可能因 BLE 定时醒来后 bt_is_sleep() 变 false，
+     * 若不处理→退出 while → 整个 sfunc_sleep 重进(gui_sleep/gpu_exit) → 死循环。
+     * manual_off 时忽略 bt_is_sleep() 的 false，继续 bt_sleep_proc()，
+     * 只靠 PE1/PB9 事件或低电退出。 */
+    while (bt_is_sleep()
+#if ELUNCHBOX_PANEL_EN
+           || manual_off
+#endif
+           ) {
         WDT_CLR();
         bt_thread_check_trigger();
         status = bt_sleep_proc();
@@ -392,7 +408,7 @@ bool sfunc_sleep_proc(void)
                 if (++sys_cb.sleep_counter >= 60) {
                     sys_cb.sleep_counter = 0;
                     ret = sleep_timer();
-                    if (ret == 2) break;        /* low battery → wake */
+                    if (ret == 2) { break; }        /* low battery → wake */
                 }
             } else
 #endif
@@ -411,7 +427,7 @@ bool sfunc_sleep_proc(void)
          * manual_off 唤醒源: 仅 PE1(TCH5按键) + PB9(UART RX) 两个。
          *   - 软件轮询 PE1 边沿 (防硬件边沿在进休眠时 PE1 已 LOW 漏检)
          *   - 硬件 port_wakeup_get_status() 确认 GPIO 唤醒 pending
-         *   两者合并为单次 PE1+PB9 检查，避免重复读 BCD。
+         *   - 读到事件后区分: TCH5(bcd=5)/PB9 → 真唤醒; 其他键 → 清pending继续睡
          * ================================================================ */
 #if ELUNCHBOX_PANEL_EN && USER_PT8028_KEY
         if (manual_off) {
@@ -427,12 +443,35 @@ bool sfunc_sleep_proc(void)
             hw_has_event = (wkpnd != 0);
 
             if (sw_has_event || hw_has_event) {
-                /* PE1(按键) + PB9(门铃) 都可唤醒, 主循环判断唤醒原因. */
-                printf("lp: EVENT sw=%d hw=%d → wake\n", sw_has_event, hw_has_event);
-                gui_need_wkp = true;
-                break;
-            }
+                /* Step 3: 读 PB9 + PE1/BCD，区分唤醒源 */
+                bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
+                u8 bcd;
+                bool pe1_lo = sleep_read_bcd_pe1(&bcd);
+                printf("lp: EVENT sw=%d hw=%d pb9=%d pe1=%d bcd=%d\n",
+                       sw_has_event, hw_has_event, pb9_lo, pe1_lo, bcd);
 
+                if (pb9_lo) {
+                    printf("lp: -> UART/PB9 wake\n");
+                    gui_need_wkp = true;
+                    elunchbox_pb9_wake_source = true;
+                    break;
+                }
+                if (pe1_lo && bcd == 5) {
+                    printf("lp: -> TCH5 wake\n");
+                    gui_need_wkp = true;
+                    break;
+                }
+                if (pe1_lo) {
+                    printf("lp: -> non-TCH5 (bcd=%d), back to sleep\n", bcd);
+                    delay_us(200);  /* BCD 脚稳定 */
+                } else {
+                    printf("lp: -> stale/noise, ignore\n");
+                }
+
+                /* 【关键】清 pending → 否则 sys_enter_sleep 看到残留 → 立即唤醒 → 死循环 */
+                RTCCON9 = BIT(2);   /* clr port wakeup pending */
+                elunchbox_manual_wake_pending_take();  /* 消费 sw pending */
+            }
         }
 #endif
 
@@ -442,13 +481,23 @@ bool sfunc_sleep_proc(void)
         port_int_sleep_process(&wkpnd);
         bsp_sensor_step_lowpwr_pro();
 
-        /* Port wakeup */
+        /* Port wakeup (manual_off: 上面已处理过, 此处是新事件) */
         if (wkpnd) {
 #if ELUNCHBOX_PANEL_EN
             if (manual_off) {
-                /* PE1+PB9 任一端口事件 → 醒, 主循环判断来源 */
-                gui_need_wkp = true;
-                break;
+                bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
+                u8 bcd;
+                bool pe1_lo = sleep_read_bcd_pe1(&bcd);
+                if (pb9_lo) {
+                    elunchbox_pb9_wake_source = true;
+                    gui_need_wkp = true;
+                    break;
+                }
+                if (pe1_lo && bcd == 5) {
+                    gui_need_wkp = true;
+                    break;
+                }
+                RTCCON9 = BIT(2);
             } else
 #endif
             {
@@ -551,14 +600,13 @@ static void sfunc_sleep(void)
     uint32_t sysclk;
     u32 wkie;
     bool gui_need_wkp = false;
+    elunchbox_pb9_wake_source = false;
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     bool elunchbox_guioff_slp = elunchbox_pwr_gui_off_is_on();  /* auto guioff or manual off */
     /* 【手动关机标志】guioff_slp && manual_off → 进入手动关机低功耗深度休眠路径 */
     bool elunchbox_manual_off_slp = elunchbox_guioff_slp && elunchbox_pwr_is_manual_off();
-    printf("elunchbox: sfunc_sleep guioff_slp=%u manual_off_slp=%u manual=%u guioff=%u\n",
-           elunchbox_guioff_slp ? 1u : 0u, elunchbox_manual_off_slp ? 1u : 0u,
-           elunchbox_pwr_is_manual_off() ? 1u : 0u,
-           elunchbox_pwr_gui_off_is_on() ? 1u : 0u);
+    printf("elunchbox: sfunc_sleep manual_off_slp=%u\n",
+           elunchbox_manual_off_slp ? 1u : 0u);
 #else
     bool elunchbox_guioff_slp = false;
     bool elunchbox_manual_off_slp = false;
@@ -776,17 +824,18 @@ static void sfunc_sleep(void)
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_guioff_slp) {
         if (elunchbox_manual_off_slp) {
-            printf("elunchbox: sfunc_sleep manual_off GPIOE PE1~4 digital, GPIOB PB9 only\n");
+            printf("elunchbox: sfunc_sleep manual_off GPIOE PE1~4 digital, GPIOB PB8+PB9 only\n");
             /* PE1(FLAG) + PE2~4(D0~D2) 全数字输入。
              * PE2~4 保留 200K 弱上拉 —— 匹配 PT8028 空闲态 BCD=111,
              * 防止 PT8028 扫描间隙 tri-state 时引脚浮空漏电。
              * PT8028 推挽输出, idle 全高 → 上拉无 DC 冲突。
              * 按下时个别线拉低 → 3.3V/200K=16.5μA/pin, 瞬态可接受。 */
             GPIOEDE = BIT(1) | BIT(2) | BIT(3) | BIT(4);
-            GPIOBDE = BIT(9);                   /* PB9 下降沿唤醒(门铃); PB3/PB8 analog */
-            /* PB9: pull-up, 下降沿唤醒. 不收数据, 第一包丢了算了. */
+            GPIOBDE = BIT(9) | BIT(8);              /* PB9 门铃唤醒 + PB8 TX 防浮空; PB3 analog */
+            /* PB8+PB9: 数字输入+上拉, 防浮空漏电.
+             * PB9 下降沿唤醒(门铃). PB8(UART TX) 加热模块断电后浮空, 上拉固定高电平. */
             GPIOBDIR = 0;
-            GPIOBPU  = BIT(9);
+            GPIOBPU  = BIT(9) | BIT(8);
             GPIOBPD  = 0;
             GPIOBPU200K = 0;
             GPIOBPD200K = 0;
@@ -874,36 +923,38 @@ static void sfunc_sleep(void)
         }
 
         if (elunchbox_manual_off_slp) {
-            /* 手动关机: block TX → 关 UART 硬件(释放 PB9 从 UART RX 回到 GPIO)
-             * → 配 port wakeup 下降沿唤醒(此时 PB9 已经是纯 GPIO).
+            /* 手动关机: block TX → 关 UART 硬件(释放 PB9 从 UART RX 回到 GPIO).
              * PB9 做"门铃": 只检测边沿唤醒, 不收数据, 第一包丢了.
              * 对方发数据, 起始位下降沿(HIGH→LOW)触发 port wakeup → 唤醒芯片.
              * 唤醒后 UART resume, TX 保持 block, 主循环确认真开机后开 TX. */
             lb_uart_tx_block(true);
             lunchbox_uart_suspend();   /* 先关 UART + 释放 FUNCMCON0, PB9 回到 GPIO */
-            port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
-            port_wakeup_init(IO_PB9, 1, 1);  /* PB9 已是 GPIO, 下降沿检测生效 */
             delay_5ms(10);
-            RTCCON9 = BIT(2);
-
-            printf("elunchbox: sfunc_sleep manual_off wakeup PE1+PB9 configured, UART suspended\n");
-        } else {
-            /* 自动息屏: 保留 UART1 活跃以接收加热/预约数据,
-             * 但限制唤醒源仅 PE1+PB9. PB3(调试TX)/PB8(UART TX)/PE0
-             * 若有跳变不应唤醒 CPU, 防止睡/醒风暴. */
-            port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
-            port_wakeup_init(IO_PB9, 1, 1);
-            printf("elunchbox: sfunc_sleep auto_guioff wakeup PE1+PB9 configured\n");
+            printf("elunchbox: sfunc_sleep manual_off UART suspended\n");
         }
     }
 #endif
 
-    printf("elunchbox: pre sleep_wakeup_config RTCCON3=0x%x RTCCON9=0x%x\n",
-           RTCCON3, RTCCON9);
     sleep_wakeup_config();
-    printf("elunchbox: post sleep_wakeup_config RTCCON3=0x%x RTCCON9=0x%x\n",
-           RTCCON3, RTCCON9);
     RTCCON9 = BIT(2);   /* clr spurious port pending from wakeup config */
+
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_guioff_slp) {
+        /* manual_off: 先关 BT wakeup，再配 port wakeup 仅 PE1+PB9.
+         * 必须在 sleep_wakeup_config() 之后 —— SDK 内部会覆盖 port wakeup 配置.
+         * BT wakeup 也在 sys_sleep_cb() 内最后一刻再清(防 BT 栈内部重开). */
+        if (elunchbox_manual_off_slp) {
+            RTCCON3 |= BIT(17);         /* re-enable port wakeup (上个循环 line932 关了) */
+            RTCCON3 &= ~BIT(13);        /* disable bt wakeup */
+            BTCON2 &= ~(3 << 10);       /* disable bt sleep wakeup */
+            RTCCON  &= ~(0xf << 7);     /* disable rtc sleep wakeup */
+        }
+        port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
+        port_wakeup_all_init(IO_PB9, 1, 1);
+        printf("elunchbox: sfunc_sleep %s wakeup PE1+PB9 configured\n",
+               elunchbox_manual_off_slp ? "manual_off" : "auto_guioff");
+    }
+#endif
 
     /* 【低功耗优化】manual_off: 切 BUCK→LDO 模式.
      * 此时所有外设已关(GPIO模拟/PLL/USB/DAC/SD0)、BT参数已降、wakeup已配，
@@ -918,7 +969,9 @@ static void sfunc_sleep(void)
     }
 #endif
 
+    elunchbox_manual_off_in_sleep = elunchbox_manual_off_slp;
     gui_need_wkp = sfunc_sleep_proc();          //进入休眠
+    elunchbox_manual_off_in_sleep = false;
 
     RTCCON9 = BIT(7) | BIT(5) | BIT(2);         //clr port, bt, wko wakeup pending
     RTCCON3 &= ~(BIT(17) | BIT(13));            //disable port, bt wakeup
@@ -1037,10 +1090,15 @@ static void sfunc_sleep(void)
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
         if (elunchbox_guioff_slp) {
             elunchbox_guioff_sleep_post_wake(true);
+            /* PB9(UART/门铃)唤醒 → 直接亮屏，不走 3s 长按 */
+            if (elunchbox_pb9_wake_source && elunchbox_manual_off_slp) {
+                printf("elunchbox: PB9 wake → screen on\n");
+                elunchbox_pwr_gui_wake_reason("PB9");
+                elunchbox_pwroff_sent_reset();
+            }
         } else
 #endif
         {
-            printf("gui_wakeup\n");
 //        func_create_form(func_cb.sta);
             gui_wakeup();
         }
@@ -1173,7 +1231,6 @@ bool sleep_process(is_sleep_func is_sleep)
                 }
             }
             sfunc_sleep();
-            printf("elunchbox: sleep_process sfunc_sleep returned, back to main loop\n");
             /* 不再调 ble_adv_dis() — 异步等完成会阻塞下次 bt_sleep_proc()。
              * 广播间隔已拉长到 1600，功耗可忽略。 */
             reset_sleep_delay_all();
@@ -1464,7 +1521,6 @@ void sfunc_lowbat(void)
 void func_pwroff(int pwroff_tone_en)
 {
     printf("%s\n", __func__);
-    printf("111111111111111111111111111111111111111111111111");
     if (bt_cb.bt_is_inited) {
         if (ble_is_connected()) {
             ble_disconnect();
