@@ -83,6 +83,9 @@ bool heat_display_reservation_can_switch_heat(void);
 #if ELUNCHBOX_PANEL_EN
 /** 进入保温页时调用，重置拔电退出去重状态 */
 void heat_display_warm_exit_reset(void);
+
+/** 获取当前 MCU 加热模式 (优先缓存, 桥模式下也不返回 0) */
+u8 heat_display_get_mcu_mode(void);
 #endif
 
 #endif

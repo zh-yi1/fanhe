@@ -18,6 +18,7 @@
 #include "func_lunchbox_partition.h"
 
 #include "func_lunchbox_lcd.h"
+#include "func_lid_confirm.h"
 #include "heat_display_reg.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
@@ -295,7 +296,8 @@ static bool lb_frame_parse(void)
          * 若在保温页被 UART 帧触发，会导致：
          * 1) heat_finish→warm 后同帧 DP10=0 误杀回主页
          * 2) Mode=5 帧触发 func_new_warm_ble_restart→lunchbox_heat_stop→HeatEn=OFF 死循环 */
-        if (func_cb.sta != FUNC_NEW_WARM && lb_heat_lcd_active) {
+        if (func_cb.sta != FUNC_NEW_WARM && func_cb.sta != FUNC_LID_CONFIRM
+            && !elunchbox_lid_confirm_is_armed() && lb_heat_lcd_active) {
             lunchbox_control_apply_panel(rx.data, rx.data_len);
         }
 #if ELUNCHBOX_PANEL_EN

@@ -867,6 +867,7 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
     if (got_mode && mcu_mode == 5 && got_remain && remain_min == 0
         && !heat_display_charging_now(got_charge, charge_val)
         && func_cb.sta != FUNC_NEW_WARM
+        && func_cb.sta != FUNC_LID_CONFIRM
         && lb_heat_lcd_active
         && !(lb_keep_warm_msg_flag != 0 && msg_flag == lb_keep_warm_msg_flag)) {
         printf("[LCD_REG] feed_dp: Mode=5 + Remain=0 -> enter warm "
@@ -924,7 +925,8 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
 
     heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
 #if ELUNCHBOX_PANEL_EN
-    if (got_remain && remain_min == 0 && func_heat_uart_finish_ok()) {
+    if (got_remain && remain_min == 0 && func_heat_uart_finish_ok()
+        && func_cb.sta != FUNC_LID_CONFIRM) {
         printf("[LCD_REG] feed_dp: remain=0 + finish_ok -> enter warm (sta=%u)\n",
                func_cb.sta);
         func_elunchbox_enter_warm_from_heat();
@@ -1016,5 +1018,13 @@ bool heat_display_reservation_can_switch_heat(void)
         return false;
     }
     return true;
+}
+
+u8 heat_display_get_mcu_mode(void)
+{
+    if (heat_display_has_cached_mcu_mode) {
+        return heat_display_cached_mcu_mode;
+    }
+    return lunchbox_get_heat_mode();
 }
 #endif

@@ -8,6 +8,7 @@
 #include "home_ui_gpu_detach.h"
 #include "func_key_lock.h"
 #include "func_lunchbox_uart.h"
+#include "heat_display_reg.h"
 
 #if ELUNCHBOX_PANEL_EN
 extern volatile u8 elunchbox_te_block_flag;
@@ -477,7 +478,7 @@ static void lid_confirm_finish(f_lid_confirm_t *f)
     }
     elunchbox_lid_confirm_disarm();
     if (f->sel == LID_CONFIRM_SEL_YES) {
-        mcu_mode = lunchbox_get_heat_mode();
+        mcu_mode = heat_display_get_mcu_mode();
         lb_heat_mcu_nav_set(true);
         lb_heat_uart_remote_set(true);
         if (mcu_mode == 5) {
@@ -706,6 +707,9 @@ void func_lid_confirm_enter(void)
 
     printf("func_lid_confirm_enter\n");
 
+    /* 弹窗已真正显示，此时 disarm，防止后续 UART 数据包抢切保温页 */
+    elunchbox_lid_confirm_disarm();
+
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_set_home_msg_block(1);
     func_home_drain_stale_key_msgs();
@@ -800,7 +804,8 @@ void func_elunchbox_switch_to_lid_confirm(void)
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
 #endif
-    s_lid_confirm_armed = false;
+    /* 清除残留的 warm/heat pending，防止 lid_confirm 弹窗后被覆盖 */
+    func_elunchbox_ble_cancel_pending_switch();
     home_gpu_wait_idle();
     WDT_CLR();
     printf("lid_confirm: show dialog (MCU heating on power-on)\n");
