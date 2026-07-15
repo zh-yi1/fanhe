@@ -532,9 +532,8 @@ static void lid_confirm_pt8028_keys_process(f_lid_confirm_t *f)
         lid_confirm_toggle_sel(f);
     } else if (press_tch == PT8028_KEY_TCH4) {
         lid_confirm_finish(f);
-    } else if (press_tch == PT8028_KEY_TCH5) {
-        lid_confirm_finish(f);
     }
+    /* 开关键(TCH5)：盖确认页不响应返回/切页 */
 }
 
 static void lid_confirm_keys_poll(f_lid_confirm_t *f)
@@ -583,7 +582,7 @@ static void func_lid_confirm_message(size_msg_t msg)
         lid_confirm_toggle_sel(f);
         break;
     case LID_CONFIRM_MSG_POWER:
-        lid_confirm_finish(f);
+        /* 开关键不可退出本页，须选 NO/YES 确认 */
         break;
     default:
         func_message(msg);
