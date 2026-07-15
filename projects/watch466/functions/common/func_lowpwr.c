@@ -118,11 +118,16 @@ u8 sys_enter_sleep_vddio_level(void)
 }
 
 
+/* 保存最近一次 sys_sleep_cb 用的 lpclk_type, manual_off 强制睡时复用 */
+static u8 s_lpclk_type_saved = 0;
+
 AT(.sleep_text.sleep)
 void sys_sleep_cb(u8 lpclk_type)
 {
     //注意！！！！！！！！！！！！！！！！！
     //此函数只能调用sleep_text或com_text函数
+
+    s_lpclk_type_saved = lpclk_type;            /* 保存供 manual_off 强制睡使用 */
 
     //此处关掉影响功耗的模块
     u32 gpiogde = GPIOGDE;
@@ -139,6 +144,7 @@ void sys_sleep_cb(u8 lpclk_type)
         RTCCON3 &= ~BIT(13);        /* disable bt wakeup */
         BTCON2 &= ~(3 << 10);       /* disable bt sleep wakeup */
         RTCCON  &= ~(0xf << 7);     /* disable rtc sleep wakeup */
+        RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr bt/wko/port pending, 防残留立即唤醒 */
     }
 
     sys_enter_sleep(lpclk_type);                //enter sleep
@@ -370,6 +376,9 @@ bool sfunc_sleep_proc(void)
     u32 lp_loop_cnt = 0;
     u32 lp_sleep_cnt = 0;
     u8  lp_last_status = 0xFF;
+#if ELUNCHBOX_PANEL_EN
+    u8  force_spin_cnt = 0;   /* manual_off: bt_sleep_proc 连续不睡计数 */
+#endif
     /* manual_off: BT 栈可能因 BLE 定时醒来后 bt_is_sleep() 变 false，
      * 若不处理→退出 while → 整个 sfunc_sleep 重进(gui_sleep/gpu_exit) → 死循环。
      * manual_off 时忽略 bt_is_sleep() 的 false，继续 bt_sleep_proc()，
@@ -386,14 +395,14 @@ bool sfunc_sleep_proc(void)
 
         /* debug: track BT sleep state transitions */
         if (status != lp_last_status) {
-            printf("lp: bt_sleep_proc %u→%u loop=%u sleep_cnt=%u\n",
-                   lp_last_status, status, lp_loop_cnt, lp_sleep_cnt);
+            printf("lp: bt_sleep_proc %u→%u loop=%u sleep_cnt=%u bt_sleep=%u\n",
+                   lp_last_status, status, lp_loop_cnt, lp_sleep_cnt, bt_is_sleep() ? 1u : 0u);
             lp_last_status = (u8)status;
         }
-        /* heartbeat: loop running long without sleep (every 1024 iters) */
-        if ((lp_loop_cnt & 0x3FF) == 0 && status != 1) {
-            printf("lp: AWAKE loop=%u status=%u sleep_cnt=%u\n",
-                   lp_loop_cnt, status, lp_sleep_cnt);
+        /* heartbeat: loop spinning without sleep (every 256 iters) */
+        if ((lp_loop_cnt & 0xFF) == 0 && status != 1) {
+            printf("lp: SPIN loop=%u status=%u sleep_cnt=%u bt_sleep=%u\n",
+                   lp_loop_cnt, status, lp_sleep_cnt, bt_is_sleep() ? 1u : 0u);
         }
 
 #if SENSOR_HUB_EN
@@ -403,6 +412,7 @@ bool sfunc_sleep_proc(void)
         if (status == 1) {
             lp_sleep_cnt++;
 #if ELUNCHBOX_PANEL_EN
+            force_spin_cnt = 0;     /* BT 栈正常睡了 → 复位强睡计数 */
             if (manual_off) {
                 /* Reduced ADC: every 60 rounds (~30s), low-battery only */
                 if (++sys_cb.sleep_counter >= 60) {
@@ -422,6 +432,30 @@ bool sfunc_sleep_proc(void)
                 }
             }
         }
+#if ELUNCHBOX_PANEL_EN
+        else if (manual_off) {
+            /* bt_sleep_proc 连续返回非1 → BT栈不睡 → 绕过直接强睡.
+             * 首次上电 BT 栈状态干净可正常睡; 唤醒后状态变化可能永远不睡.
+             * 用 sys_sleep_cb 保存的 lpclk_type 直接 sys_enter_sleep. */
+            force_spin_cnt++;
+            if (force_spin_cnt >= 5) {
+                force_spin_cnt = 0;
+                u32 gpiogde = GPIOGDE;
+                if (gpiogde & BIT(6)) {
+                    GPIOGDE = BIT(2) | BIT(4) | BIT(6);
+                } else {
+                    GPIOGDE = BIT(2) | BIT(4);
+                }
+                RTCCON3 &= ~BIT(13);        /* disable bt wakeup */
+                BTCON2 &= ~(3 << 10);       /* disable bt sleep wakeup */
+                RTCCON  &= ~(0xf << 7);     /* disable rtc sleep wakeup */
+                RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr bt/wko/port pending */
+                sys_enter_sleep(s_lpclk_type_saved);
+                GPIOGDE = gpiogde;
+                lp_sleep_cnt++;
+            }
+        }
+#endif
 
         /* ================================================================
          * manual_off 唤醒源: 仅 PE1(TCH5按键) + PB9(UART RX) 两个。
@@ -457,20 +491,79 @@ bool sfunc_sleep_proc(void)
                     break;
                 }
                 if (pe1_lo && bcd == 5) {
-                    printf("lp: -> TCH5 wake\n");
-                    gui_need_wkp = true;
-                    break;
+                    /* TCH5: 要求持续 LOW≥300ms 才当有效唤醒, 滤除轻触毛刺 */
+                    int tch5_cnt = 0;
+                    while (tch5_cnt < 60) {  /* 60*5ms=300ms */
+                        delay_5ms(1);
+                        WDT_CLR();
+                        if (pt8028_read_flag_raw() != 0) {
+                            break;  /* PE1 回 HIGH → 轻触 */
+                        }
+                        tch5_cnt++;
+                    }
+                    if (tch5_cnt >= 60) {
+                        printf("lp: -> TCH5 wake (held 300ms)\n");
+                        gui_need_wkp = true;
+                        break;
+                    }
+                    /* 轻触: 清 pending, 等 PE1 稳定, 回去睡 */
+                    printf("lp: -> TCH5 brief touch, back to sleep\n");
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
+                    elunchbox_manual_wake_pending_take();
+                    {
+                        int stable_cnt = 0;
+                        int total_cnt = 0;
+                        while (total_cnt < 5000) {
+                            delay_us(100);
+                            total_cnt++;
+                            if (pt8028_read_flag_raw() != 0) {
+                                stable_cnt++;
+                                if (stable_cnt >= 300) break;
+                            } else {
+                                stable_cnt = 0;
+                            }
+                        }
+                    }
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
+                    elunchbox_manual_wake_pending_take();
+                    continue;
                 }
                 if (pe1_lo) {
-                    printf("lp: -> non-TCH5 (bcd=%d), back to sleep\n", bcd);
-                    delay_us(200);  /* BCD 脚稳定 */
-                } else {
-                    printf("lp: -> stale/noise, ignore\n");
-                }
+                printf("lp: -> non-TCH5 (bcd=%d), back to sleep\n", bcd);
+                delay_us(200);  /* BCD 脚稳定 */
 
-                /* 【关键】清 pending → 否则 sys_enter_sleep 看到残留 → 立即唤醒 → 死循环 */
-                RTCCON9 = BIT(2);   /* clr port wakeup pending */
+                /* 【防假唤醒】清 pending 后等 PE1 连续 HIGH≥30ms。
+                 * PT8028 扫描会产生周期性毛刺 → 单次读 HIGH 不可靠 →
+                 * 必须连续 HIGH 一段时间确认扫描周期结束。 */
+                RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
                 elunchbox_manual_wake_pending_take();  /* 消费 sw pending */
+                {
+                    int stable_cnt = 0;
+                    int total_cnt = 0;
+                    while (total_cnt < 5000) {
+                        delay_us(100);
+                        total_cnt++;
+                        if (pt8028_read_flag_raw() != 0) {
+                            stable_cnt++;
+                            if (stable_cnt >= 300) {  /* 300*100us=30ms 连续 HIGH */
+                                break;
+                            }
+                        } else {
+                            stable_cnt = 0;  /* 有毛刺 → 复位连续计数 */
+                        }
+                    }
+                }
+                /* 清掉等待期间可能产生的新 pending */
+                RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
+                elunchbox_manual_wake_pending_take();
+                continue;  /* 回到 while 顶部重新 bt_sleep_proc */
+            } else {
+                printf("lp: -> stale/noise, ignore\n");
+            }
+
+            /* 【关键】清 pending → 否则 sys_enter_sleep 看到残留 → 立即唤醒 → 死循环 */
+            RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending, 防残留立即唤醒 */
+            elunchbox_manual_wake_pending_take();  /* 消费 sw pending */
             }
         }
 #endif
@@ -494,10 +587,55 @@ bool sfunc_sleep_proc(void)
                     break;
                 }
                 if (pe1_lo && bcd == 5) {
-                    gui_need_wkp = true;
-                    break;
+                    /* TCH5: 要求持续 LOW≥300ms 才当有效唤醒 */
+                    int tch5_cnt = 0;
+                    while (tch5_cnt < 60) {
+                        delay_5ms(1);
+                        WDT_CLR();
+                        if (pt8028_read_flag_raw() != 0) break;
+                        tch5_cnt++;
+                    }
+                    if (tch5_cnt >= 60) {
+                        gui_need_wkp = true;
+                        break;
+                    }
+                    /* 轻触: 等 PE1 连续 HIGH 30ms, 回去睡 */
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
+                    {
+                        int stable_cnt = 0, total_cnt = 0;
+                        while (total_cnt < 5000) {
+                            delay_us(100);
+                            total_cnt++;
+                            if (pt8028_read_flag_raw() != 0) {
+                                stable_cnt++;
+                                if (stable_cnt >= 300) break;
+                            } else {
+                                stable_cnt = 0;
+                            }
+                        }
+                    }
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
                 }
-                RTCCON9 = BIT(2);
+                /* 非 TCH5/PB9: 等 PE1 连续 HIGH 30ms 再回睡 */
+                if (pe1_lo) {
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
+                    {
+                        int stable_cnt = 0, total_cnt = 0;
+                        while (total_cnt < 5000) {
+                            delay_us(100);
+                            total_cnt++;
+                            if (pt8028_read_flag_raw() != 0) {
+                                stable_cnt++;
+                                if (stable_cnt >= 300) break;
+                            } else {
+                                stable_cnt = 0;
+                            }
+                        }
+                    }
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
+                } else {
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
+                }
             } else
 #endif
             {
@@ -596,6 +734,8 @@ static void sfunc_sleep(void)
     u16 pa_de, pb_de, pe_de, pf_de, pg_de, ph_de;
     u16 pb_dir, pb_pu, pb_pd;
     u16 pe_pu, pe_pd, pf_pu, pf_pd, ph_pu, ph_pd;
+    u16 pb_pu200k, pb_pd200k, pb_pu300, pb_pd300;
+    u16 pe_pu200k, pe_pd200k, pe_pu300, pe_pd300;
     u16 adc_ch;
     uint32_t sysclk;
     u32 wkie;
@@ -729,6 +869,17 @@ static void sfunc_sleep(void)
     }
 #endif
 
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    /* manual_off: 强制关 BT scan.
+     * 第一次上电时 scan 未开启所以 bt_scan_disable 生效 → bt_sleep_proc 可睡。
+     * 唤醒亮屏后 scan 被 bt_update_bt_scan_param_default 恢复 → 第二次进
+     * manual_off 时 bt_get_scan()=true → 上面只调参不关 scan → bt_sleep_proc
+     * 不睡 → 10mA。此处强制关掉。 */
+    if (elunchbox_manual_off_slp) {
+        bt_scan_disable();
+    }
+#endif
+
 #if DAC_DNR_EN
     u8 sta = dac_dnr_get_sta();
     dac_dnr_set_sta(0);
@@ -810,6 +961,14 @@ static void sfunc_sleep(void)
     pf_pd  = GPIOFPD;
     ph_pu  = GPIOHPU;
     ph_pd  = GPIOHPD;
+    pb_pu200k = GPIOBPU200K;
+    pb_pd200k = GPIOBPD200K;
+    pb_pu300  = GPIOBPU300;
+    pb_pd300  = GPIOBPD300;
+    pe_pu200k = GPIOEPU200K;
+    pe_pd200k = GPIOEPD200K;
+    pe_pu300  = GPIOEPU300;
+    pe_pd300  = GPIOEPD300;
     if(vddio_sleep_level) {
         GPIOADE = BIT(7);
     } else {
@@ -970,7 +1129,11 @@ static void sfunc_sleep(void)
 #endif
 
     elunchbox_manual_off_in_sleep = elunchbox_manual_off_slp;
+    printf("elunchbox: [DBG] -> sfunc_sleep_proc manual_off=%u bt_sleep=%u\n",
+           elunchbox_manual_off_slp ? 1u : 0u, bt_is_sleep() ? 1u : 0u);
     gui_need_wkp = sfunc_sleep_proc();          //进入休眠
+    printf("elunchbox: [DBG] <- sfunc_sleep_proc gui_need_wkp=%u\n",
+           gui_need_wkp ? 1u : 0u);
     elunchbox_manual_off_in_sleep = false;
 
     RTCCON9 = BIT(7) | BIT(5) | BIT(2);         //clr port, bt, wko wakeup pending
@@ -996,6 +1159,14 @@ static void sfunc_sleep(void)
     GPIOFPD  = pf_pd;
     GPIOHPU  = ph_pu;
     GPIOHPD  = ph_pd;
+    GPIOBPU200K = pb_pu200k;
+    GPIOBPD200K = pb_pd200k;
+    GPIOBPU300  = pb_pu300;
+    GPIOBPD300  = pb_pd300;
+    GPIOEPU200K = pe_pu200k;
+    GPIOEPD200K = pe_pd200k;
+    GPIOEPU300  = pe_pu300;
+    GPIOEPD300  = pe_pd300;
     USBCON0 = usbcon0;
     USBCON1 = usbcon1;
 
