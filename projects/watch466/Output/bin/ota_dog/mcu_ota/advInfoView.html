@@ -1,0 +1,173 @@
+
+    <html>
+    <head>
+        <style>
+            body {
+                font-family: 微软雅黑;
+                background-color: #ffffff;
+                color: #333;
+            }
+            .key-value-container {
+                font-family: 微软雅黑;
+                
+                /* line-height: 1.6; */
+                /* margin: 20px; */
+            }
+            .key {
+                /* color: #555; */
+                font-size: 14px;
+                margin-right: 10px;
+                font-weight: bold;
+            }
+            .value {
+                color: #000000;
+                /* font-weight: bold; */
+                font-size: 13px;
+            }
+            .key-value-pair {
+                margin-bottom: 8px;
+            }
+            table {
+                width: 100%;
+                margin: 20px auto;
+                border-collapse: collapse;
+                font-size: 12px;
+                /* height: 10px; */
+            }
+            th, td {
+                border: 1px solid #ddd;
+                text-align: left;
+                line-height: 20px;
+                padding: 5;
+            }
+            th {
+                font-size: 14px;
+                background-color: #cce8ff;
+                color: #000000;
+            }
+            /*tr { 
+                height: 10px;
+            }
+            tr:nth-child(even) {
+                background-color: #f2f2f2;
+            }*/
+            .more-content {
+                display: none;
+            }
+            .toggle-button {
+                color: #0056b3;
+                cursor: pointer;
+                font-weight: bold;
+                text-decoration: underline;
+            }
+        </style>
+        <script>
+            function toggleContent(id) {
+                var dots = document.getElementById("dots" + id);
+                var moreText = document.getElementById("more" + id);
+                var btnText = document.getElementById("btn" + id);
+                
+                if (dots.style.display === "none") {
+                    dots.style.display = "inline";
+                    btnText.innerHTML = "More";
+                    moreText.style.display = "none";
+                } else {
+                    dots.style.display = "none";
+                    btnText.innerHTML = "Less";
+                    moreText.style.display = "inline";
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <div class="key-value-container">
+            <div class="key-value-pair">
+                <span class="key">MAC Address:</span>
+                <span class="value">41:42:7A:BA:03:84</span>
+            </div>
+        </div>
+    
+    <hr style="border: none; border-top: 1px solid gainsboro; margin: 0px 0;">
+    <div class="key-value-container">
+        <div class="key-value-pair">
+            <span class="key">Advertisement Type:</span>
+            <span class="value">ConnectableUndirected</span>
+        </div>
+    </div>
+
+    <div class="key-value-container">
+        <div class="key-value-pair">
+            <span class="key">Flags:</span>
+            <span class="value">LE General Discoverable Mode, BR/EDR Not Supported</span>
+        </div>
+    </div>
+
+<table>
+    <tr>
+        <th>Length</th>
+        <th>AD Type</th>
+        <th>Data</th>
+    </tr>
+<tr>
+<td>2</td>
+<td>Flags(0x01)</td>
+<td>0x06</td>
+</tr><tr>
+<td>16</td>
+<td>Manufacturer Specific Data(0xFF)</td>
+<td>0x4206020200ECEF<span id='dots1'>...</span><span class='more-content' id='more1'>D717AE2900000000</span><span class='toggle-button' onclick='toggleContent(1)' id='btn1'>More</span></td>
+</tr></table>
+    <hr style="border: none; border-top: 1px solid gainsboro; margin: 0px 0;">
+    <div class="key-value-container">
+        <div class="key-value-pair">
+            <span class="key">Advertisement Type:</span>
+            <span class="value">ScanResponse</span>
+        </div>
+    </div>
+
+    <div class="key-value-container">
+        <div class="key-value-pair">
+            <span class="key">Flags:</span>
+            <span class="value">N/A</span>
+        </div>
+    </div>
+
+<table>
+    <tr>
+        <th>Length</th>
+        <th>AD Type</th>
+        <th>Data</th>
+    </tr>
+<tr>
+<td>14</td>
+<td>Complete Local Name(0x09)</td>
+<td>0x4152304D412D4E<span id='dots2'>...</span><span class='more-content' id='more2'>595F30333834</span><span class='toggle-button' onclick='toggleContent(2)' id='btn2'>More</span><br>AR0MA-NY_0384</td>
+</tr><tr>
+<td>9</td>
+<td>Service Data - 16-bit UUID(0x16)</td>
+<td>0x023841427ABA03<span id='dots3'>...</span><span class='more-content' id='more3'>84</span><span class='toggle-button' onclick='toggleContent(3)' id='btn3'>More</span></td>
+</tr></table>
+    <script>
+        // 在页面加载完成后执行的函数，用于获取内容尺寸
+        function getContentSize() {
+            const width = document.body.scrollWidth;  // 获取内容的实际宽度
+            const height = document.body.scrollHeight; // 获取内容的实际高度
+    
+            //let msg = "内容宽度:"+ width+ "px";
+            //console.log(msg);
+            //msg = "内容高度:"+ height+ "px";
+            //console.log(msg);
+            
+            // 如果要将宽高传递给 Miniblink，可以构造一个回调函数或者设置全局变量
+            // 比如：window.contentSize = { width: width, height: height };
+            // 然后在 C++ 代码中读取 window.contentSize
+            
+            return { width: document.body.scrollWidth, height: document.body.scrollHeight };
+            //return { width, height }; // 返回宽度和高度，方便应用程序调用
+        }
+
+        // 页面加载完成后自动调用 getContentSize
+        //window.onload = getContentSize;
+    </script>
+</body>
+</html>

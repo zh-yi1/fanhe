@@ -23,5 +23,14 @@
  */
 void lb_ota_process(void);
 
+/**
+ * @brief 检查是否正在进行 OTA 升级
+ * @return true=正在升级中 (已收到 0x0c 启动命令且未结束)
+ *
+ * 用途: 关屏/休眠等模块在操作前调用此函数，OTA 进行中时跳过关屏，
+ *       避免 Flash 擦写期间 LCD 断电导致 GPU 状态异常复位。
+ */
+bool lb_ota_is_active(void);
+
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_OTA_H

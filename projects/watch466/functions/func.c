@@ -6,6 +6,7 @@
 #include "func_new_home.h"
 #include "heat_display_reg.h"
 #include "func_lunchbox_off.h"
+#include "func_lunchbox_ota.h"
 #include "func_lowbat.h"
 #include "func_lunchbox_wake.h"
 #if ELUNCHBOX_PANEL_EN
@@ -476,7 +477,14 @@ bool elunchbox_heating_blocks_idle(void)
         return false;
     }
 #endif
+    /* OTA 升级进行中：阻止空闲计时器倒计时 → 防止关屏断蓝牙/WDT 复位 */
+    if (bt_get_status() == BT_STA_OTA) {
+        return true;
+    }
 #if FUNC_LUNCHBOX_UART_EN
+    if (lb_ota_is_active()) {
+        return true;
+    }
     if (lunchbox_heating_task_active()) {
         return true;
     }
@@ -656,6 +664,16 @@ static void elunchbox_screen_off(void)
         printf("elunchbox: screen off blocked (charging)\n");
         return;
     }
+    if (bt_get_status() == BT_STA_OTA) {
+        printf("elunchbox: screen off blocked (BLE OTA in progress)\n");
+        return;
+    }
+#if FUNC_LUNCHBOX_UART_EN
+    if (lb_ota_is_active()) {
+        printf("elunchbox: screen off blocked (UART OTA in progress)\n");
+        return;
+    }
+#endif
 #if USER_PANEL_LED
     panel_led_all_off();
     panel_led_set_switch_latched(false);

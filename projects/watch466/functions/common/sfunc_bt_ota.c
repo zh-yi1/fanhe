@@ -14,8 +14,9 @@ void sfunc_bt_ota(void)
     bt_audio_bypass();
     ota_enter();
     while (bt_get_status() == BT_STA_OTA) {
+        WDT_CLR();                  // OTA 期间喂狗，防止 Flash 擦写/蓝牙传输超时导致复位
         bt_thread_check_trigger();
-        delay_5ms(4);
+        delay_5ms(10);              // 20ms→50ms：降低 CPU 占用，给充电检测等中断留出时间
     }
     ota_exit();
 }
