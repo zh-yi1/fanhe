@@ -507,8 +507,8 @@ static void new_heat_badge_val_layout(compo_textbox_t *txt, s16 badge_y)
     widget_set_align_center(widget, true);
     compo_textbox_set_wholewrap(txt, false);
     compo_textbox_set_autosize(txt, false);
-    compo_textbox_set_autoroll(txt, false);
-    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_NULL);
+    compo_textbox_set_autoroll(txt, true);
+    compo_textbox_set_autoroll_mode(txt, TEXT_AUTOROLL_MODE_SROLL_CIRC);
     widget_text_set_ellipsis(widget, false);
     compo_textbox_set_location(txt, NEW_HEAT_BADGE_X, badge_y,
                                NEW_HEAT_BADGE_W, NEW_HEAT_BADGE_H);
