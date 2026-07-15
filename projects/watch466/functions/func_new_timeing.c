@@ -115,12 +115,15 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_MIN_BOX_Y               ((s16)((s32)126 * GUI_SCREEN_HEIGHT / 240))
 #endif
 
-/* 时钟数字：右上角锚点，与 func_timeing.c TIMEING_CLOCK_TR_* 一致 (320×240) */
-#define NEW_TIMEING_CLOCK_TR_Y              ((s16)((s32)110 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
+/* 时钟数字：右上角锚点 (320×240：H10 100,110 / H1 135,111 / M10 200,110 / M1 235,111) */
 #define NEW_TIMEING_CLOCK_TR_H10_X          ((s16)((s32)100 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define NEW_TIMEING_CLOCK_TR_H10_Y          ((s16)((s32)110 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
 #define NEW_TIMEING_CLOCK_TR_H1_X           ((s16)((s32)135 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define NEW_TIMEING_CLOCK_TR_H1_Y           ((s16)((s32)109 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
 #define NEW_TIMEING_CLOCK_TR_M10_X          ((s16)((s32)200 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define NEW_TIMEING_CLOCK_TR_M10_Y          ((s16)((s32)110 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
 #define NEW_TIMEING_CLOCK_TR_M1_X           ((s16)((s32)235 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define NEW_TIMEING_CLOCK_TR_M1_Y           ((s16)((s32)109 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
 
 /* 时/分/按钮区相对白色卡片水平居中 */
 #define NEW_TIMEING_HOUR_COL_X              ((s16)(GUI_SCREEN_CENTER_X - NEW_TIMEING_COL_HALF_SPAN))
@@ -487,14 +490,15 @@ static void new_timeing_pair_digits_apply(u8 d10, u8 d1,
                                           u8 slot10, u8 slot1,
                                           compo_picturebox_t *pic10,
                                           compo_picturebox_t *pic1,
-                                          s16 tr_x10, s16 tr_x1, s16 tr_y,
+                                          s16 tr_x10, s16 tr_y10,
+                                          s16 tr_x1, s16 tr_y1,
                                           u16 box_bg565)
 {
     if (new_timeing_load_digit(slot10, d10, pic10, box_bg565)) {
-        new_timeing_digit_pos_tr(pic10, d10, tr_x10, tr_y);
+        new_timeing_digit_pos_tr(pic10, d10, tr_x10, tr_y10);
     }
     if (new_timeing_load_digit(slot1, d1, pic1, box_bg565)) {
-        new_timeing_digit_pos_tr(pic1, d1, tr_x1, tr_y);
+        new_timeing_digit_pos_tr(pic1, d1, tr_x1, tr_y1);
     }
 }
 
@@ -655,13 +659,15 @@ static void new_timeing_digits_apply(f_new_timeing_t *f)
     new_timeing_pair_digits_apply(h10, h1,
                                   NEW_TIMEING_DIGIT_SLOT_H10, NEW_TIMEING_DIGIT_SLOT_H1,
                                   f->pic_h10, f->pic_h1,
-                                  NEW_TIMEING_CLOCK_TR_H10_X, NEW_TIMEING_CLOCK_TR_H1_X,
-                                  NEW_TIMEING_CLOCK_TR_Y, hour_bg565);
+                                  NEW_TIMEING_CLOCK_TR_H10_X, NEW_TIMEING_CLOCK_TR_H10_Y,
+                                  NEW_TIMEING_CLOCK_TR_H1_X, NEW_TIMEING_CLOCK_TR_H1_Y,
+                                  hour_bg565);
     new_timeing_pair_digits_apply(m10, m1,
                                   NEW_TIMEING_DIGIT_SLOT_M10, NEW_TIMEING_DIGIT_SLOT_M1,
                                   f->pic_m10, f->pic_m1,
-                                  NEW_TIMEING_CLOCK_TR_M10_X, NEW_TIMEING_CLOCK_TR_M1_X,
-                                  NEW_TIMEING_CLOCK_TR_Y, min_bg565);
+                                  NEW_TIMEING_CLOCK_TR_M10_X, NEW_TIMEING_CLOCK_TR_M10_Y,
+                                  NEW_TIMEING_CLOCK_TR_M1_X, NEW_TIMEING_CLOCK_TR_M1_Y,
+                                  min_bg565);
 }
 
 static void new_timeing_btn_label_show(compo_textbox_t *txt, s16 cx, s16 cy,
