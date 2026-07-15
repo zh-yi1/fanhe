@@ -101,8 +101,21 @@ u8 lb_checksum(u8 *data, u16 len);
 // CRC32 (OTA/桥模式 CRC 校验用)
 u32 lb_crc32(const void *data, u32 len, u32 crc);
 
+// UART 原始消息标志 (LCD发送时自增)
+extern u8   lb_uart_raw_msg_flag;
+
+// 当前等待命令的BLE上报控制
+extern bool lb_send_no_ble_report;
+
 // UART 原始发送 (LCD/加热控制/预约 等模块用)
 void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
+
+// BLE发起的UART命令 (追踪BLE来源, 响应路由用)
+void lb_uart_send_from_ble(u8 uart_cmd, u8 *data, u16 data_len,
+                            u8 ble_cmd, u8 ble_msg_flag);
+
+// LCD按键/心跳专用: 永不上报APP
+void lb_uart_send_raw_noreport(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
 
 // DataPoint 编码器
 u16 lb_dp_encode_bool(u8 *buf, u8 dpid, u8 val);
@@ -134,5 +147,8 @@ u8 lb_ota_get_target(lb_rx_frame_t *rx);
 // 桥模式: 转发加热模块 OTA 时累积 CRC32
 extern u32  lb_ota_uart_crc32;
 extern bool lb_ota_uart_crc_active;
+
+// 保温指令的 msg_flag (用于等待应答, 过滤过时数据)
+extern u8 lb_keep_warm_msg_flag;
 
 #endif // __FUNC_LUNCHBOX_UART_INTERNAL_H

@@ -17,9 +17,15 @@
  */
 #include "include.h"
 #include "func_lunchbox_off.h"
+#include "func_lunchbox_ota.h"
 
 void lunchbox_display_off(void)
 {
+    // OTA 升级期间禁止关屏：Flash 擦写阻塞 GPU，关屏会导致 gui thread miss → WDT 复位
+    if (lb_ota_is_active()) {
+        printf("lunchbox_display_off: blocked by OTA\n");
+        return;
+    }
     os_gui_draw_w4_done();          // 等当前帧刷完（原 gui_sleep 也有此步骤）
     lunchbox_display_off_fast();
 }

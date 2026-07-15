@@ -238,6 +238,10 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
         goto heat_start_local_done;
     }
 #endif
+    // 保温指令: 记录 msg_flag, 用于等待应答时过滤过时数据
+    if (lb_keep_warm_active) {
+        lb_keep_warm_msg_flag = lb_uart_raw_msg_flag;
+    }
     lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len, false);
 
 heat_start_local_done:
@@ -272,6 +276,7 @@ void lunchbox_heat_stop(void)
     lb_keep_warm_active = false;
     lb_heat_lcd_active = false;
     lb_heat_task_active = false;
+    lb_keep_warm_msg_flag = 0;   /* 停暖时清除保温指令标记，避免重启时判重误跳过 */
 #if ELUNCHBOX_PANEL_EN
     if (lb_heat_skip_uart_tx()) {
         printf("lb: heat_stop skipped UART (MCU/RX-only)\n");
@@ -331,6 +336,7 @@ void lunchbox_heat_clear_local(void)
     lb_keep_warm_active = false;
     lb_heat_lcd_active = false;
     lb_heat_task_active = false;
+    lb_keep_warm_msg_flag = 0;   /* 本地清暖状态时同步清标记，避免下次判重误跳过 */
 #if !LB_BRIDGE_MODE
     lb_attr_heat_enable = 0;
     lb_attr_heat_mode   = 0;
@@ -451,7 +457,7 @@ void lunchbox_key_notify(u8 key_val)
 {
     u8 data[8];
     u16 len = lb_dp_encode_enum(data, LB_DPID_KEY_NOTIFY, key_val);
-    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
+    lb_uart_send_raw_noreport(LB_UART_CMD_DYNAMIC, data, len, false);
 }
 
 void lunchbox_power_off(void)
@@ -889,7 +895,6 @@ void lunchbox_control_apply_panel(const u8 *data, u16 len)
         return;
     }
 #endif
-    lunchbox_control_apply_power_switch(data, len);
     if (lunchbox_control_apply_stop_heat(data, len)) {
         return;
     }

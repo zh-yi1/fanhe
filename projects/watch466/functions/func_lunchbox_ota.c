@@ -116,7 +116,9 @@ u8 lb_handler_ota_start(lb_rx_frame_t *rx)
     printf("OTA start: target=0x%02X fw_size=%lu\n", target, fw_size);
 
     // 初始化 FOTA 引擎 (压缩升级包写入准备)
+    WDT_CLR();
     ota_pack_init();
+    WDT_CLR();
     load_code_fota();
 
     // 重置 OTA 上下文
@@ -251,7 +253,9 @@ u8 lb_handler_ota_data(lb_rx_frame_t *rx)
                    (lb_ota_ctx.block_count - 1) * 512);
             lb_ota_ctx.buf_pos = 0;
 
+            WDT_CLR();  // Flash 写前喂狗，防止擦写阻塞超时复位
             ota_pack_write(lb_ota_ctx.buf);
+            WDT_CLR();  // Flash 写后喂狗，确保系统不卡死
 
             if (ota_pack_get_err() != FOT_ERR_OK) {
                 printf("OTA write err: 0x%x\n", ota_pack_get_err());
@@ -300,7 +304,9 @@ u8 lb_handler_ota_end(lb_rx_frame_t *rx)
                    (lb_ota_ctx.block_count - 1) * 512,
                    pad_start);
 
+            WDT_CLR();
             ota_pack_write(lb_ota_ctx.buf);
+            WDT_CLR();
             if (ota_pack_get_err() != FOT_ERR_OK) {
                 printf("OTA write err on final block: 0x%x\n", ota_pack_get_err());
                 write_ok = false;
@@ -317,7 +323,9 @@ u8 lb_handler_ota_end(lb_rx_frame_t *rx)
             printf("  总块数:   %lu\n", lb_ota_ctx.block_count);
 
             if (ota_pack_is_write_done()) {
+                WDT_CLR();
                 if (ota_pack_verify()) {
+                    WDT_CLR();
                     ota_pack_done();
                     printf("  VERIFY: 校验通过\n");
                     printf("  DONE: 升级完成, 3秒后复位\n");
@@ -363,6 +371,11 @@ void lb_ota_process(void)
             WDT_RST();
         }
     }
+}
+
+bool lb_ota_is_active(void)
+{
+    return (lb_ota_ctx.state >= LB_OTA_READY);
 }
 
 #endif // FUNC_LUNCHBOX_UART_EN

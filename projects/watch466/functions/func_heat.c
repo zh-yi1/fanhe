@@ -777,6 +777,12 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     func_heat_led_sync(true);
     func_heat_display_refresh(f_heat);
     printf("start_heating: display_refresh done\n");
+
+    /* 充电中启动加热：跳过加热页，直接进入保温界面 */
+    if (home_ui_shared_battery_is_charging()) {
+        f_heat->heat_live_ready = true;
+        func_elunchbox_enter_warm_from_charging();
+    }
 }
 
 #if ELUNCHBOX_PANEL_EN
@@ -850,7 +856,11 @@ void func_heat_ble_remote_restart(void)
         }
     }
 #else
-    (void)lb_heat_uart_remote_consume();
+    /* MCU 驱动导航时(mcu_nav)勿消费 uart_remote: 留给 heat_enter 的 start_heating 用
+     * 否则 route_resume_heat 设的 uart_remote=1 被此处吃掉, heat_enter 就会误发 UART */
+    if (!lb_heat_mcu_nav_active()) {
+        (void)lb_heat_uart_remote_consume();
+    }
     if (!elunchbox_pwr_is_manual_off()) {
         elunchbox_user_activity_reset();
         func_key_lock_on_heating_start();
@@ -1764,6 +1774,7 @@ void func_elunchbox_enter_warm_from_charging(void)
 {
     func_elunchbox_warm_from_charging_set(true);
     lb_heat_mcu_nav_set(true);
+    heat_display_warm_exit_reset();  /* 新一次充电保温: 清除上次遗留的 remain=0 标志 */
     printf("[LCD_ROUTE] MCU DP02=5 charge -> warm (sta=%u)\n", func_cb.sta);
     func_elunchbox_enter_warm_from_heat_body();
 }

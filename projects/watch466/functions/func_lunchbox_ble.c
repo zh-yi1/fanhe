@@ -278,22 +278,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 #endif
 
             if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
-                printf("BLE->UART==>TX[%d]: ", uart_len);
-                for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
-                printf("\n");
-                {
-                    u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
-                    if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
-                }
-                uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
-            }
-
-            if (frame.cmd == LB_CMD_CONTROL && frame.data && frame.data_len > 0) {
-                heat_display_feed_dp(frame.data, frame.data_len);
-#if ELUNCHBOX_PANEL_EN
-                home_ui_shared_battery_feed_dp(frame.data, frame.data_len);
-                lunchbox_control_apply_panel(frame.data, frame.data_len);
-#endif
+                u16 uart_dlen = ((u16)uart_buf[6] << 8) | uart_buf[7];
+                lb_uart_send_from_ble(uart_buf[4],
+                                      uart_dlen ? uart_buf + 8 : NULL, uart_dlen,
+                                      frame.cmd, frame.msg_flag);
             }
         }
 #else

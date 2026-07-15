@@ -66,6 +66,7 @@ typedef struct {
     bool header_parsed;
     u8  ble_msg_flag_start;
     u8  ble_msg_flag_end;
+    u8  ble_target;           // 目标设备标识 (用于延时返回 0x0e 应答)
 
     // UART 发送
     u32 send_offset;
@@ -489,6 +490,15 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
     case HEAT_UART_PHASE_END:
         printf("[HEAT_OTA] DONE! pkts=%u restarts=%u\n",
                g_heat_ota.total_packets, g_heat_ota.total_restarts);
+        // 加热模块烧录成功, 此时才回复APP 0x0e 升级成功
+        {
+            u8 rsp[2];
+            rsp[0] = g_heat_ota.ble_target;
+            rsp[1] = 0x01;  // 升级成功
+            lunchbox_uart_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
+                                        LB_ERR_SUCCESS, rsp, 2);
+            printf("[HEAT_OTA] 0x0e success response sent to APP\n");
+        }
         heat_ota_reset();
         break;
 
@@ -693,6 +703,10 @@ u8 heat_ota_handler_end(lb_rx_frame_t *rx, u8 msg_flag)
     u8 target = (rx->data && rx->data_len > 0) ? rx->data[0] : 0x02;
     bool crc_ok = false;
 
+    // 保存 target 和 msg_flag, 等加热模块UART烧录完成后再回复APP
+    g_heat_ota.ble_target = target;
+    g_heat_ota.ble_msg_flag_end = msg_flag;
+
     // === 1. 直接从 Flash 读取包头 (不依赖 header_parsed 标志) ===
     // 读取前 16 字节: magic(4) + version(4) + fw_len(4) + crc(4)
     u8 hdr_buf[16];
@@ -736,9 +750,9 @@ u8 heat_ota_handler_end(lb_rx_frame_t *rx, u8 msg_flag)
     u8 rsp[2];
     rsp[0] = target;
     if (crc_ok) {
-        rsp[1] = 0x01;
-        lunchbox_uart_send_response(LB_CMD_OTA_END, msg_flag, LB_ERR_SUCCESS, rsp, 2);
-        printf("[HEAT_OTA] CRC OK, starting UART\n");
+        // 不立即回复APP, 等加热模块UART烧录完成后再返回 0x0e 成功
+        // (见 heat_ota_handle_ack HEAT_UART_PHASE_END)
+        printf("[HEAT_OTA] CRC OK, starting UART (0x0e response deferred)\n");
         heat_ota_start_uart_transfer();
     } else {
         rsp[1] = 0x00;

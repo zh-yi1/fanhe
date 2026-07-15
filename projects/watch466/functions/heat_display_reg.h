@@ -57,10 +57,11 @@ bool heat_display_heating_active(void);
  *   - UART 收到 0x01 动态属性上报
  *   - BLE 收到 0x02 动态属性查询应答 / 0x03 状态上报 / 0x04 控制指令
  *
- * @param data  DataPoint 数组首字节指针
- * @param len   数组总长度(字节)
+ * @param data     DataPoint 数组首字节指针
+ * @param len      数组总长度(字节)
+ * @param msg_flag UART/BLE 帧的消息标志位 (保温状态用于过滤过时数据)
  */
-void heat_display_feed_dp(u8 *data, u16 len);
+void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag);
 
 /** 查询是否收到充电中状态(charge_status==1)，调用后自动清除 */
 bool heat_display_charge_wake_pending(void);

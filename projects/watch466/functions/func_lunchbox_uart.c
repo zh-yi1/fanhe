@@ -85,6 +85,8 @@ u8   lb_send_cur_data[128];
 u16  lb_send_cur_dlen;
 
 u8   lb_uart_raw_msg_flag;
+u8   lb_keep_warm_msg_flag;       // 保温指令 msg_flag, 用于过滤过时应答
+bool lb_send_no_ble_report;          /* 当前等待命令是否跳过BLE上报(按键/心跳) */
 
 // v1.0.7: 前向声明 — lb_frame_parse() 引用了这些定义在后面的符号
 u8  lb_pending_ble_cmd[256];
@@ -287,7 +289,15 @@ static bool lb_frame_parse(void)
         elunchbox_lowbat_poll();
         if (!elunchbox_lowbat_should_block_ui_route()) {
 #endif
-        heat_display_feed_dp(rx.data, rx.data_len);
+        heat_display_feed_dp(rx.data, rx.data_len, rx.msg_flag);
+        /* 保温页的 UART 数据路由已由 heat_display_feed_dp 完整处理；
+         * lunchbox_control_apply_panel 是为 BLE 0x04 控制指令设计的，
+         * 若在保温页被 UART 帧触发，会导致：
+         * 1) heat_finish→warm 后同帧 DP10=0 误杀回主页
+         * 2) Mode=5 帧触发 func_new_warm_ble_restart→lunchbox_heat_stop→HeatEn=OFF 死循环 */
+        if (func_cb.sta != FUNC_NEW_WARM && lb_heat_lcd_active) {
+            lunchbox_control_apply_panel(rx.data, rx.data_len);
+        }
 #if ELUNCHBOX_PANEL_EN
         }
 #endif
@@ -328,8 +338,8 @@ static bool lb_frame_parse(void)
         lunchbox_uart_send_response(LB_UART_CMD_HEARTBEAT, rx.msg_flag,
                                     LB_ERR_SUCCESS, &rsp, 1);
         lb_ble_tx_fn = saved_ble;
-        printf("UART==>TX[heartbeat]: 55 AA 00 %02X 05 00 00 01 01 %02X\n",
-               rx.msg_flag, (u8)(0x55+0xAA+0x00+rx.msg_flag+0x05+0x00+0x00+0x01+0x01) % 256);
+        //printf("UART==>TX[heartbeat]: 55 AA 00 %02X 05 00 00 01 01 %02X\n",
+               //rx.msg_flag, (u8)(0x55+0xAA+0x00+rx.msg_flag+0x05+0x00+0x00+0x01+0x01) % 256);
         goto lb_frame_cleanup;  // 心跳不进入BLE翻译/本地分发，直接清理缓冲区
     }
 
@@ -342,7 +352,8 @@ static bool lb_frame_parse(void)
     // ──── 桥模式：翻译为 BLE 协议 → 通过 BLE 发给 APP ────
     // 蓝牙未连接时跳过转发，节省协议翻译+BLE TX 尝试的功耗
     // 按键通知 (dpid=12) 仅 MCU ↔ 加热模块内部使用，不转发给 APP
-    if (ble_is_connected() && !lb_data_is_key_notify(rx.data, rx.data_len)) {
+    if (ble_is_connected() && !lb_data_is_key_notify(rx.data, rx.data_len)
+        && !lb_send_no_ble_report) {
         // v1.0.7: 检查是否是 0x01 产品信息查询的加热模块应答
         // 此时应先完成 BLE 0x01 回复 (含加热模块版本号)，再将 DataPoints 异步上报
         if (lb_product_info_pending && rx.cmd == LB_UART_CMD_DYNAMIC) {
@@ -1123,25 +1134,23 @@ void lb_heating_sync_from_dp(u8 *data, u16 len)
 // lunchbox_temp_f_to_idx / lunchbox_mode_get_* / lunchbox_get_heat_* → 已移至 func_lunchbox_lcd.c
 
 /**
- * @brief 构造完整 UART 帧并发送到加热模块
- * @param uart_cmd  UART 命令字 (LB_UART_CMD_*)
- * @param data      数据载荷
- * @param data_len  数据长度
- * @param no_wait   true=发送后不等回应、不重试 (关机等关键指令用)
+ * @brief 构造完整 UART 帧并发送到加热模块 (内部实现)
+ * @return true=已入队(未发送), false=已发送或no_wait
  */
-void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait)
+static bool lb_uart_send_internal(u8 uart_cmd, u8 *data, u16 data_len,
+                                   u8 msg_flag, bool no_wait)
 {
     if (lb_uart_tx_blocked) {
-        return;  /* 手动关机期间禁止 UART TX */
+        return false;  /* 手动关机期间禁止 UART TX */
     }
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_LOWBAT_MODE_EN
     if (elunchbox_lowbat_active()) {
-        return;  /* 低电页：不下发任何 UART */
+        return false;  /* 低电页：不下发任何 UART */
     }
 #endif
 #if ELUNCHBOX_PANEL_EN
     if (lb_ble_tx_fn == NULL && lb_uart_tx_skip_rx_only(uart_cmd)) {
-        return;
+        return false;
     }
 #endif
 
@@ -1153,12 +1162,14 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait)
             q->data_len = (data_len <= sizeof(q->data)) ? data_len : sizeof(q->data);
             if (data && q->data_len) memcpy(q->data, data, q->data_len);
             q->no_wait = no_wait;
+            q->ble_cmd = lb_pending_ble_cmd[msg_flag];
+            q->no_ble_report = lb_send_no_ble_report;
             lb_send_q_tail = (lb_send_q_tail + 1) % LB_SEND_QUEUE_SIZE;
             lb_send_q_count++;
         } else {
             printf("lb_uart_send_raw: queue full, drop cmd=0x%02X\n", uart_cmd);
         }
-        return;
+        return true;  // 已入队
     }
 
     // 构建帧并立即发送
@@ -1168,7 +1179,7 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait)
     buf[off++] = (u8)(LB_FRAME_HEADER >> 8);  // 0x55
     buf[off++] = (u8)LB_FRAME_HEADER;          // 0xAA
     buf[off++] = LB_FRAME_VERSION;
-    buf[off++] = lb_uart_raw_msg_flag;          // msg_flag (自增前保存用于匹配回应)
+    buf[off++] = msg_flag;                      // msg_flag
     buf[off++] = uart_cmd;
     buf[off++] = LB_ERR_SUCCESS;
     buf[off++] = (u8)(data_len >> 8);           // data_len 大端
@@ -1181,32 +1192,69 @@ void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait)
     off++;
 
     // 按键通知: 跳过 TX 日志
-    if (!lb_data_is_key_notify(data, data_len)) {
-        printf("LCD->UART==>TX[%d]: ", off);
-        for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
-        printf("\n");
-        lb_dp_dump_hex(data, data_len);
+    {
+        const char *tx_src = (lb_pending_ble_cmd[msg_flag] != 0) ? "BLE->UART==>TX" : "LCD->UART==>TX";
+        if (!lb_data_is_key_notify(data, data_len)) {
+            printf("%s[%d]: ", tx_src, off);
+            for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
+            printf("\n");
+            lb_dp_dump_hex(data, data_len);
+        }
+
+        uart_bufs_tx(UART_TYPE_1, buf, off);
+
+        // no_wait: 发完即走，不等待回应、不进入重试流程 (关机等关键指令用)
+        if (no_wait) {
+            printf("%s[no_wait]: cmd=0x%02X sent, skip response\n", tx_src, uart_cmd);
+            return false;
+        }
     }
 
-    uart_bufs_tx(UART_TYPE_1, buf, off);
-
-    // no_wait: 发完即走，不等待回应、不进入重试流程 (关机等关键指令用)
-    if (no_wait) {
-        printf("LCD->UART==>TX[no_wait]: cmd=0x%02X sent, skip response\n", uart_cmd);
-        lb_uart_raw_msg_flag++;
-        return;
-    }
-
-    // 标记等待加热模块回应 (等待的 msg_flag = 自增前的 lb_uart_raw_msg_flag)
+    // 标记等待加热模块回应
     lb_send_waiting   = true;
-    lb_send_wait_msg  = lb_uart_raw_msg_flag;
+    lb_send_wait_msg  = msg_flag;
     lb_send_retry     = 0;
     lb_send_tick      = tick_get();
     lb_send_cur_cmd   = uart_cmd;
     lb_send_cur_dlen  = (data_len <= sizeof(lb_send_cur_data)) ? data_len : sizeof(lb_send_cur_data);
     if (data && lb_send_cur_dlen) memcpy(lb_send_cur_data, data, lb_send_cur_dlen);
+    return false;
+}
 
-    lb_uart_raw_msg_flag++;  // 自增留给下一条指令
+/**
+ * @brief LCD/屏幕发起的UART命令 (正常上报APP)
+ */
+void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait)
+{
+    u8 msg = lb_uart_raw_msg_flag;
+    lb_send_no_ble_report = false;       // LCD命令默认允许上报APP
+    if (!lb_uart_send_internal(uart_cmd, data, data_len, msg, no_wait)) {
+        lb_uart_raw_msg_flag++;          // 仅实际发送时自增
+    }
+}
+
+/**
+ * @brief LCD按键/心跳专用 — 永不上报APP
+ */
+void lb_uart_send_raw_noreport(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait)
+{
+    u8 msg = lb_uart_raw_msg_flag;
+    lb_send_no_ble_report = true;        // 标记不上报APP
+    if (!lb_uart_send_internal(uart_cmd, data, data_len, msg, no_wait)) {
+        lb_uart_raw_msg_flag++;
+    }
+}
+
+/**
+ * @brief BLE发起的UART命令 — 追踪BLE来源用于响应路由
+ */
+void lb_uart_send_from_ble(u8 uart_cmd, u8 *data, u16 data_len,
+                            u8 ble_cmd, u8 ble_msg_flag)
+{
+    lb_send_no_ble_report = false;       // BLE命令必须回复APP
+    // lb_pending_ble_cmd 已由 lb_translate_ble_to_uart() 设置
+    lb_uart_send_internal(uart_cmd, data, data_len, ble_msg_flag, false);
+    // 注意: BLE命令不增 lb_uart_raw_msg_flag (使用BLE自己的msg_flag空间)
 }
 
 // lunchbox_heat_start/stop, keep_warm, key_notify, power_on/off, BLE callbacks,
@@ -1580,8 +1628,10 @@ static u8 lb_handler_control(lb_rx_frame_t *rx)
     if (!elunchbox_ui_is_live()) {
         return;
     }
+    lunchbox_control_apply_power_switch(rx->data, rx->data_len);
     lunchbox_control_apply_panel(rx->data, rx->data_len);
 #else
+    lunchbox_control_apply_power_switch(rx->data, rx->data_len);
     lunchbox_control_apply_panel(rx->data, rx->data_len);
 #endif
 
@@ -1593,7 +1643,7 @@ static u8 lb_handler_control(lb_rx_frame_t *rx)
 #if ELUNCHBOX_PANEL_EN
         if (elunchbox_ui_is_live()) {
 #endif
-        heat_display_feed_dp(rx->data, rx->data_len);
+        heat_display_feed_dp(rx->data, rx->data_len, rx->msg_flag);
 #if ELUNCHBOX_PANEL_EN
         home_ui_shared_battery_feed_dp(rx->data, rx->data_len);
         }
@@ -1897,6 +1947,9 @@ static void lb_uart_send_process(void)
             // 重试次数已满: 放弃当前指令
             printf("UART==>TX: cmd=0x%02X no response after %u retries, skip\n",
                    lb_send_cur_cmd, LB_UART_CMD_MAX_RETRIES);
+            // 清除BLE上下文: BLE命令超时不上报APP
+            lb_pending_ble_cmd[lb_send_wait_msg] = 0;
+            lb_send_no_ble_report = false;
             lb_send_waiting = false;
         }
         return;
@@ -1908,6 +1961,13 @@ static void lb_uart_send_process(void)
         lb_send_q_head = (lb_send_q_head + 1) % LB_SEND_QUEUE_SIZE;
         lb_send_q_count--;
 
+        // 恢复队列项的上下文
+        lb_send_no_ble_report = q->no_ble_report;
+        u8 msg_flag = lb_uart_raw_msg_flag;
+        if (q->ble_cmd != 0) {
+            lb_pending_ble_cmd[msg_flag] = q->ble_cmd;  // 重建BLE cmd映射
+        }
+
         // 构建帧并发送
         u8 buf[LB_TXBUF_SIZE];
         u16 off = 0;
@@ -1915,7 +1975,7 @@ static void lb_uart_send_process(void)
         buf[off++] = (u8)(LB_FRAME_HEADER >> 8);
         buf[off++] = (u8)LB_FRAME_HEADER;
         buf[off++] = LB_FRAME_VERSION;
-        buf[off++] = lb_uart_raw_msg_flag;
+        buf[off++] = msg_flag;
         buf[off++] = q->cmd;
         buf[off++] = LB_ERR_SUCCESS;
         buf[off++] = (u8)(q->data_len >> 8);
@@ -1927,30 +1987,33 @@ static void lb_uart_send_process(void)
         buf[off] = lb_checksum(buf, off);
         off++;
 
-        if (!lb_data_is_key_notify(q->data, q->data_len)) {
-            printf("LCD->UART==>TX[%d]: ", off);
-            for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
-            printf("\n");
-            lb_dp_dump_hex(q->data, q->data_len);
-        }
+        {
+            const char *tx_src = (q->ble_cmd != 0) ? "BLE->UART==>TX" : "LCD->UART==>TX";
+            if (!lb_data_is_key_notify(q->data, q->data_len)) {
+                printf("%s[%d]: ", tx_src, off);
+                for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
+                printf("\n");
+                lb_dp_dump_hex(q->data, q->data_len);
+            }
 
-        uart_bufs_tx(UART_TYPE_1, buf, off);
+            uart_bufs_tx(UART_TYPE_1, buf, off);
 
-        // no_wait: 发完即走，不等待回应 (关机等关键指令用)
-        if (q->no_wait) {
-            printf("LCD->UART==>TX[no_wait]: cmd=0x%02X sent (dequeued), skip response\n", q->cmd);
-            lb_uart_raw_msg_flag++;
-        } else {
-            // 标记等待回应
-            lb_send_waiting  = true;
-            lb_send_wait_msg = lb_uart_raw_msg_flag;
-            lb_send_retry    = 0;
-            lb_send_tick     = tick_get();
-            lb_send_cur_cmd  = q->cmd;
-            lb_send_cur_dlen = q->data_len;
-            if (q->data_len) memcpy(lb_send_cur_data, q->data, q->data_len);
+            // no_wait: 发完即走，不等待回应 (关机等关键指令用)
+            if (q->no_wait) {
+                printf("%s[no_wait]: cmd=0x%02X sent (dequeued), skip response\n", tx_src, q->cmd);
+                lb_uart_raw_msg_flag++;
+            } else {
+                // 标记等待回应
+                lb_send_waiting  = true;
+                lb_send_wait_msg = msg_flag;
+                lb_send_retry    = 0;
+                lb_send_tick     = tick_get();
+                lb_send_cur_cmd  = q->cmd;
+                lb_send_cur_dlen = q->data_len;
+                if (q->data_len) memcpy(lb_send_cur_data, q->data, q->data_len);
 
-            lb_uart_raw_msg_flag++;
+                lb_uart_raw_msg_flag++;
+            }
         }
     }
 }

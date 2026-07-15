@@ -43,6 +43,8 @@ typedef struct {
     u8   data[128];                     // 数据载荷
     u16  data_len;                      // 数据长度
     bool no_wait;                       // true=发送后不等回应、不重试
+    u8   ble_cmd;                       // 0=LCD来源, 非0=BLE命令字(响应路由用)
+    bool no_ble_report;                 // true=跳过BLE上报(按键通知/心跳等)
 } lb_send_q_item_t;
 
 // 发送队列 (环形缓冲)
