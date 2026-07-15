@@ -384,9 +384,10 @@
 | 校验和 | 1 | 从帧头开始按字节求和，结果对 256 求余 |
 
 
-备注：当offset = 0的时候表示ota升级开始的第一条指令
-发送完最后一包offset的数据时。将offset = 0xffffffff,数据加4字节CRC32的校验码,用来记录整个升级固件的crc32校验和
-当程序在app程序阶段，没在boot阶段时，发offset = 0xffffffff表示让mcu复位进入boot模式。
+备注：
+1、当程序在app程序阶段，没在boot阶段时，发offset = 0xffffffff表示让mcu复位进入boot模式。
+2、当offset = 0的时候表示ota升级开始的第一条指令
+3、发送完最后一包offset的数据时。将offset = 0xffffffff,数据加4字节CRC32的校验码,用来记录整个升级固件的crc32校验和
 
 备注2：bin文件的前256字节的包头设置固件的相关信息,从第256个字节后开始为mcu的固件内容,包头数据皆为大端格式
 包头的第1-4字节固定0x11223344表示magic

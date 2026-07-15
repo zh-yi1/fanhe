@@ -13,6 +13,7 @@
 #include "func_lunchbox_uart.h"
 #include "func_lunchbox_uart_internal.h"
 #include "func_lunchbox_ota.h"
+#include "func_lunchbox_uart_heat.h"
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -375,7 +376,7 @@ void lb_ota_process(void)
 
 bool lb_ota_is_active(void)
 {
-    return (lb_ota_ctx.state >= LB_OTA_READY);
+    return (lb_ota_ctx.state >= LB_OTA_READY) || heat_ota_is_active();
 }
 
 #endif // FUNC_LUNCHBOX_UART_EN

@@ -180,6 +180,7 @@ static u32 heat_ota_get_final_crc(void)
         printf("\n");
     }
 
+    u32 loop_cnt = 0;
     while (remain > 0) {
         u32 len = remain;
         if (len > sizeof(buf)) len = sizeof(buf);
@@ -190,6 +191,12 @@ static u32 heat_ota_get_final_crc(void)
         }
         off += len;
         remain -= len;
+        // CRC 计算连续读 Flash 会阻塞 GPU → gui thread miss → WDT 复位
+        // 每 4 次 Flash 读取后喂狗并短暂让出 CPU, 给 GUI 线程渲染时间
+        if (++loop_cnt % 4 == 0) {
+            WDT_CLR();
+            delay_ms(1);
+        }
     }
 
     return crc;  // MPEG-2 无最终 XOR, 不含 mod16 填充
@@ -457,6 +464,8 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
             g_heat_ota.send_offset = 0;
             g_heat_ota.sent_packets = 0;
             g_heat_ota.state = HEAT_OTA_SENDING;
+            // 加热模块 ACK 后 Flash 写引擎可能还未就绪, 延迟等待
+            delay_ms(HEAT_OTA_BOOT_DELAY_MS);
             heat_ota_send_next_packet();
         } else {
             // 模块回复失败 → 不重试同一个包, 直接从头开始 UART 传输
@@ -477,6 +486,8 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
         g_heat_ota.send_offset = 0;
         g_heat_ota.sent_packets = 0;
         g_heat_ota.state = HEAT_OTA_SENDING;
+        // 加热模块 ACK 后 Flash 写引擎可能还未就绪, 延迟等待
+        delay_ms(HEAT_OTA_BOOT_DELAY_MS);
         heat_ota_send_next_packet();
         break;
 
@@ -654,6 +665,7 @@ u8 heat_ota_handler_data(lb_rx_frame_t *rx, u8 msg_flag)
 
     // 写入 Flash
     os_spiflash_program((void *)pdata, HEAT_OTA_FLASH_ADDR + offset, data_len);
+    WDT_CLR();  // Flash 写入耗时较长, 喂狗防止 WDT 复位
 
     u32 new_total = offset + data_len;
     if (new_total > g_heat_ota.recv_size) {
@@ -768,7 +780,8 @@ void heat_ota_process(void)
 {
     if (g_heat_ota.state == HEAT_OTA_IDLE) return;
 
-    // OTA 进行中: 持续重置休眠倒计时, 防止 MCU 自动休眠打断升级
+    // OTA 进行中: 喂狗防止 WDT 复位 + 持续重置休眠倒计时防止 MCU 自动休眠
+    WDT_CLR();
     elunchbox_guioff_sleep_delay_reset();
 
     if (g_heat_ota.state != HEAT_OTA_WAIT_ACK) return;
