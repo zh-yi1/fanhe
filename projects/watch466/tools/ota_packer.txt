@@ -18,6 +18,9 @@
   打包加热模块固件:
     node ota_packer.js heat --input <file.bin> [--version <ver>] [--output <file.ota>]
 
+  仅打包 MCU BIN 数据 (256B 包头+固件, 不套 BLE 帧, 仅主单片机):
+    node ota_packer.js bin --input <file.fot> [--version <ver>] [--output <file.bin>]
+
   解析已有 .ota 文件:
     node ota_packer.js parse --input <file.ota>
 
@@ -46,6 +49,7 @@
 
   MCU  → Output/bin/ota_dog/mcu_ota/
   Heat → Output/bin/ota_dog/heat_ota/
+  BIN  → Output/bin/ota_dog/mcu_head_ota/ (默认)
 
 ------------------------------------------------------------
 示例
@@ -65,6 +69,9 @@
 
   # 主单片机
   node ota_packer.js mcu --input test_ota.fot
+
+  # 仅打包 BIN 数据 (不套 BLE 帧, 输出纯二进制)
+  node ota_packer.js bin --input ota_0715.fot --version 1.0.8
 
   # 解析 .ota 文件查看帧结构
   node ota_packer.js parse --input output.ota

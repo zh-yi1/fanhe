@@ -489,6 +489,82 @@ function cmdParse(args) {
 }
 
 // ============================================================
+// BIN 裸数据打包 (仅 256B 包头 + 固件, 不套 BLE 帧)
+// ============================================================
+
+function cmdBin(args) {
+    /** 仅打包 BIN 数据 (256B 包头 + 固件), 不套 BLE 帧, 输出原始二进制文件 */
+
+    if (!args.input) {
+        console.log('[错误] bin 需要 --input <file>');
+        process.exit(1);
+    }
+    if (!fs.existsSync(args.input)) {
+        console.log(`[错误] 文件不存在: ${args.input}`);
+        process.exit(1);
+    }
+
+    const rawData = fs.readFileSync(args.input);
+    if (rawData.length === 0) {
+        console.log('[错误] 固件文件为空');
+        process.exit(1);
+    }
+
+    // 检测是否已有 BIN 包头 (magic=0x11223344), 有则提取固件内容
+    let firmware;
+    if (rawData.length > BIN_HEADER_SIZE && rawData.readUInt32BE(0) === BIN_MAGIC) {
+        const existingVer = rawData.readUInt32BE(4);
+        const existingLen = rawData.readUInt32BE(8);
+        const existingCrc = rawData.readUInt32BE(12);
+        console.log(`[info] 检测到输入文件自带 BIN 包头:`);
+        console.log(`       包头版本: 0x${existingVer.toString(16).toUpperCase().padStart(8, '0')}`);
+        console.log(`       固件长度: ${existingLen} bytes (包头中记录)`);
+        console.log(`       固件 CRC:  0x${existingCrc.toString(16).toUpperCase().padStart(8, '0')}`);
+        console.log(`[info] 剥离旧包头, 重新构建...`);
+        firmware = rawData.slice(BIN_HEADER_SIZE);
+    } else {
+        firmware = rawData;
+    }
+
+    // 解析版本号
+    const verStr = args.version || '0x00000001';
+    let version;
+    try {
+        version = parseVersion(verStr);
+    } catch (e) {
+        console.log(`[错误] 版本号解析失败: ${e.message}`);
+        process.exit(1);
+    }
+
+    // 构建 BIN 数据: 256B 包头 + 固件
+    const header = buildBinHeader(firmware, version);
+    const binData = Buffer.concat([header, firmware]);
+
+    // 输出路径 (默认 Output/bin/ota_dog/mcu_head_ota/)
+    const BIN_OUT_DIR = path.join(OTA_DOG_DIR, 'mcu_head_ota');
+    let outputPath = args.output;
+    if (!outputPath) {
+        fs.mkdirSync(BIN_OUT_DIR, { recursive: true });
+        const base = path.basename(args.input, path.extname(args.input));
+        outputPath = path.join(BIN_OUT_DIR, base + '.bin');
+    }
+
+    const outDir = path.dirname(outputPath);
+    fs.mkdirSync(outDir, { recursive: true });
+    fs.writeFileSync(outputPath, binData);
+
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`BIN 打包完成 (仅包头+固件, 无 BLE 帧)`);
+    console.log(`${'='.repeat(60)}`);
+    console.log(`  固件版本:   0x${version.toString(16).toUpperCase().padStart(8, '0')}`);
+    console.log(`  固件大小:   ${firmware.length} bytes (${(firmware.length / 1024).toFixed(1)} KB)`);
+    console.log(`  BIN 包头:   ${BIN_HEADER_SIZE} bytes`);
+    console.log(`  BIN 总大小: ${binData.length} bytes (${(binData.length / 1024).toFixed(1)} KB)`);
+    console.log(`  CRC32:      0x${crc32_mpeg2(firmware).toString(16).toUpperCase().padStart(8, '0')}`);
+    console.log(`  输出文件:   ${outputPath}`);
+}
+
+// ============================================================
 // CLI 主入口
 // ============================================================
 
@@ -498,17 +574,19 @@ function printUsage() {
 用法:
   node ota_packer.js mcu --input <file.fot> [--version <ver>] [--output <file.ota>]
   node ota_packer.js heat --input <file.bin> [--version <ver>] [--output <file.ota>]
+  node ota_packer.js bin --input <file.fot> [--version <ver>] [--output <file.bin>]
   node ota_packer.js parse --input <file.ota>
 
 示例:
   node ota_packer.js mcu --input test_ota.fot
   node ota_packer.js heat --input otah_Project_v005.bin
-  node ota_packer.py heat --input fw.bin --version 1.0.0
-  node ota_packer.py parse --input output.ota
+  node ota_packer.js bin --input ota_0715.fot --version 1.0.8
+  node ota_packer.js parse --input output.ota
 
 输出目录 (默认):
-  MCU  → Output/bin/ota_dog/mcu_ota/
-  Heat → Output/bin/ota_dog/heat_ota/`);
+  MCU    → Output/bin/ota_dog/mcu_ota/
+  Heat   → Output/bin/ota_dog/heat_ota/
+  BIN    → Output/bin/ota_dog/mcu_head_ota/`);
 }
 
 function parseArgs(argv) {
@@ -537,12 +615,18 @@ function main() {
     const rawArgs = process.argv.slice(2);
     const args = parseArgs(rawArgs);
 
-    if (args.help || args._.length === 0 || (args._[0] !== 'mcu' && args._[0] !== 'heat' && args._[0] !== 'parse')) {
+    if (args.help || args._.length === 0 || (args._[0] !== 'mcu' && args._[0] !== 'heat' && args._[0] !== 'bin' && args._[0] !== 'parse')) {
         printUsage();
         process.exit(args.help ? 0 : 1);
     }
 
     const target = args._[0];
+
+    // --- bin 子命令 (仅打包 BIN 包头+固件, 不套 BLE 帧) ---
+    if (target === 'bin') {
+        cmdBin(args);
+        return;
+    }
 
     // --- parse 子命令 ---
     if (target === 'parse') {
