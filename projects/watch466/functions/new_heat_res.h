@@ -68,7 +68,7 @@
 #define NEW_HEAT_NEW_PROGRESS_2_RAM_SIZE          1334
 #define NEW_HEAT_NEW_PROGRESS_2_ANCHOR_X            241
 #define NEW_HEAT_NEW_PROGRESS_2_ANCHOR_Y            149
-#define NEW_HEAT_NEW_PROGRESS_2_TIP_X            246
+#define NEW_HEAT_NEW_PROGRESS_2_TIP_X            244
 #define NEW_HEAT_NEW_PROGRESS_2_TIP_Y            139
 
 #define NEW_HEAT_NEW_PROGRESS_3_W                 18
@@ -76,7 +76,7 @@
 #define NEW_HEAT_NEW_PROGRESS_3_RAM_SIZE          2312
 #define NEW_HEAT_NEW_PROGRESS_3_ANCHOR_X            241
 #define NEW_HEAT_NEW_PROGRESS_3_ANCHOR_Y            137
-#define NEW_HEAT_NEW_PROGRESS_3_TIP_X            242
+#define NEW_HEAT_NEW_PROGRESS_3_TIP_X            241
 #define NEW_HEAT_NEW_PROGRESS_3_TIP_Y            114
 
 #define NEW_HEAT_NEW_PROGRESS_4_W                 30

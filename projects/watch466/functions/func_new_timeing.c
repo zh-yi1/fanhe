@@ -115,19 +115,24 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_TIMEING_MIN_BOX_Y               ((s16)((s32)126 * GUI_SCREEN_HEIGHT / 240))
 #endif
 
-/* 时钟数字：右上角锚点，与 func_timeing.c TIMEING_CLOCK_TR_* 一致 (320×240) */
-#define NEW_TIMEING_CLOCK_TR_Y              ((s16)((s32)110 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
-#define NEW_TIMEING_CLOCK_TR_H10_X          ((s16)((s32)100 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define NEW_TIMEING_CLOCK_TR_H1_X           ((s16)((s32)135 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define NEW_TIMEING_CLOCK_TR_M10_X          ((s16)((s32)200 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
-#define NEW_TIMEING_CLOCK_TR_M1_X           ((s16)((s32)235 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+/* 时钟数字：右上角锚点 (320×240：H10 100,110 / H1 135,111 / M10 200,110 / M1 235,111) */
+#define NEW_TIMEING_CLOCK_TR_H10_X          ((s16)((s32)95 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define NEW_TIMEING_CLOCK_TR_H10_Y          ((s16)((s32)110 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
+#define NEW_TIMEING_CLOCK_TR_H1_X           ((s16)((s32)130 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define NEW_TIMEING_CLOCK_TR_H1_Y           ((s16)((s32)112 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
+#define NEW_TIMEING_CLOCK_TR_M10_X          ((s16)((s32)205 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define NEW_TIMEING_CLOCK_TR_M10_Y          ((s16)((s32)110 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
+#define NEW_TIMEING_CLOCK_TR_M1_X           ((s16)((s32)240 * GUI_SCREEN_WIDTH / HEAT_LAYOUT_REF_W))
+#define NEW_TIMEING_CLOCK_TR_M1_Y           ((s16)((s32)112 * GUI_SCREEN_HEIGHT / HEAT_LAYOUT_REF_H))
 
 /* 时/分/按钮区相对白色卡片水平居中 */
 #define NEW_TIMEING_HOUR_COL_X              ((s16)(GUI_SCREEN_CENTER_X - NEW_TIMEING_COL_HALF_SPAN))
 #define NEW_TIMEING_MIN_COL_X               ((s16)(GUI_SCREEN_CENTER_X + NEW_TIMEING_COL_HALF_SPAN))
-#define NEW_TIMEING_COLON_X                 GUI_SCREEN_CENTER_X
+#define NEW_TIMEING_COLON_X                 ((s16)(GUI_SCREEN_CENTER_X + 6))  /* 冒号略右移 */
 #define NEW_TIMEING_BTN_NO_X                ((s16)(GUI_SCREEN_CENTER_X - NEW_TIMEING_BTN_CENTER_DIST / 2))
 #define NEW_TIMEING_BTN_YES_X               ((s16)(GUI_SCREEN_CENTER_X + NEW_TIMEING_BTN_CENTER_DIST / 2))
+#define NEW_TIMEING_BTN_LABEL_Y_ADJ         (-4)   /* NO/YES 相对按钮底图上移 */
+#define NEW_TIMEING_BTN_LABEL_Y             ((s16)(NEW_TIMEING_BTN_BOTTOM_Y + NEW_TIMEING_BTN_LABEL_Y_ADJ))
 
 #define NEW_TIMEING_STATUS_BAT_X            (GUI_SCREEN_WIDTH - NEW_TIMEING_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2)
 #define NEW_TIMEING_STATUS_BT_X             (NEW_TIMEING_STATUS_BAT_X - NEW_HOME_BAT_W / 2 - NEW_TIMEING_STATUS_GAP - NEW_HOME_BT_W / 2)
@@ -485,14 +490,15 @@ static void new_timeing_pair_digits_apply(u8 d10, u8 d1,
                                           u8 slot10, u8 slot1,
                                           compo_picturebox_t *pic10,
                                           compo_picturebox_t *pic1,
-                                          s16 tr_x10, s16 tr_x1, s16 tr_y,
+                                          s16 tr_x10, s16 tr_y10,
+                                          s16 tr_x1, s16 tr_y1,
                                           u16 box_bg565)
 {
     if (new_timeing_load_digit(slot10, d10, pic10, box_bg565)) {
-        new_timeing_digit_pos_tr(pic10, d10, tr_x10, tr_y);
+        new_timeing_digit_pos_tr(pic10, d10, tr_x10, tr_y10);
     }
     if (new_timeing_load_digit(slot1, d1, pic1, box_bg565)) {
-        new_timeing_digit_pos_tr(pic1, d1, tr_x1, tr_y);
+        new_timeing_digit_pos_tr(pic1, d1, tr_x1, tr_y1);
     }
 }
 
@@ -653,13 +659,15 @@ static void new_timeing_digits_apply(f_new_timeing_t *f)
     new_timeing_pair_digits_apply(h10, h1,
                                   NEW_TIMEING_DIGIT_SLOT_H10, NEW_TIMEING_DIGIT_SLOT_H1,
                                   f->pic_h10, f->pic_h1,
-                                  NEW_TIMEING_CLOCK_TR_H10_X, NEW_TIMEING_CLOCK_TR_H1_X,
-                                  NEW_TIMEING_CLOCK_TR_Y, hour_bg565);
+                                  NEW_TIMEING_CLOCK_TR_H10_X, NEW_TIMEING_CLOCK_TR_H10_Y,
+                                  NEW_TIMEING_CLOCK_TR_H1_X, NEW_TIMEING_CLOCK_TR_H1_Y,
+                                  hour_bg565);
     new_timeing_pair_digits_apply(m10, m1,
                                   NEW_TIMEING_DIGIT_SLOT_M10, NEW_TIMEING_DIGIT_SLOT_M1,
                                   f->pic_m10, f->pic_m1,
-                                  NEW_TIMEING_CLOCK_TR_M10_X, NEW_TIMEING_CLOCK_TR_M1_X,
-                                  NEW_TIMEING_CLOCK_TR_Y, min_bg565);
+                                  NEW_TIMEING_CLOCK_TR_M10_X, NEW_TIMEING_CLOCK_TR_M10_Y,
+                                  NEW_TIMEING_CLOCK_TR_M1_X, NEW_TIMEING_CLOCK_TR_M1_Y,
+                                  min_bg565);
 }
 
 static void new_timeing_btn_label_show(compo_textbox_t *txt, s16 cx, s16 cy,
@@ -729,9 +737,9 @@ static void new_timeing_text_apply(f_new_timeing_t *f)
         no_color = NEW_TIMEING_COLOR_OFF;
         yes_color = NEW_TIMEING_COLOR_ON;
     }
-    new_timeing_btn_label_show(f->txt_no, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_BOTTOM_Y,
+    new_timeing_btn_label_show(f->txt_no, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_LABEL_Y,
                                "NO", no_color);
-    new_timeing_btn_label_show(f->txt_yes, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_BOTTOM_Y,
+    new_timeing_btn_label_show(f->txt_yes, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_LABEL_Y,
                                "YES", yes_color);
 }
 
@@ -1013,13 +1021,13 @@ compo_form_t *func_new_timeing_form_create(void)
 
         txt = compo_textbox_create(frm, 4);
         compo_setid(txt, COMPO_ID_TXT_NO);
-        compo_textbox_set_location(txt, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_BOTTOM_Y,
+        compo_textbox_set_location(txt, NEW_TIMEING_BTN_NO_X, NEW_TIMEING_BTN_LABEL_Y,
                                    NEW_TIME_BTN_W, NEW_TIME_BTN_H);
         compo_textbox_set_visible(txt, false);
 
         txt = compo_textbox_create(frm, 4);
         compo_setid(txt, COMPO_ID_TXT_YES);
-        compo_textbox_set_location(txt, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_BOTTOM_Y,
+        compo_textbox_set_location(txt, NEW_TIMEING_BTN_YES_X, NEW_TIMEING_BTN_LABEL_Y,
                                    NEW_TIME_BTN_W, NEW_TIME_BTN_H);
         compo_textbox_set_visible(txt, false);
     }

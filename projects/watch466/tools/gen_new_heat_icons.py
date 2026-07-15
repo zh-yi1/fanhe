@@ -79,21 +79,34 @@ def png_to_gpu(path: Path) -> tuple[bytes, int, int]:
 
 
 def point_to_gpu() -> tuple[bytes, int, int]:
-    """27x27 占位 bin（ui 打包用）；实际圆点由 new_heat_point_util 运行时绘制。"""
+    """27x27 占位 bin（ui 打包用）；实际圆点由 new_heat_point_util 运行时 4x4 超采样绘制。"""
     size = 27
-    cx = cy = size // 2
+    cx = cy = size / 2.0
     blue_r = 6.1
     ring_outer = 10.3
+    ss = 4
     pixels: list[int] = []
     for y in range(size):
         for x in range(size):
-            dist = math.hypot(x - cx + 0.5, y - cy + 0.5)
-            if dist <= blue_r:
-                pixels.append(POINT_BLUE565)
-            elif dist <= ring_outer:
-                pixels.append(WHITE565)
-            else:
-                pixels.append(WHITE565)
+            sum_r = sum_g = sum_b = 0
+            for si in range(ss):
+                for sj in range(ss):
+                    px = x + (sj + 0.5) / ss
+                    py = y + (si + 0.5) / ss
+                    dist = math.hypot(px - cx, py - cy)
+                    if dist <= blue_r:
+                        c = POINT_BLUE565
+                    elif dist <= ring_outer:
+                        c = WHITE565
+                    else:
+                        c = WHITE565
+                    sum_r += (c >> 11) & 0x1F
+                    sum_g += (c >> 5) & 0x3F
+                    sum_b += c & 0x1F
+            r = sum_r // 16
+            g = sum_g // 16
+            b = sum_b // 16
+            pixels.append(((r & 0x1F) << 11) | ((g & 0x3F) << 5) | (b & 0x1F))
     return pack_gpu(size, size, pixels), size, size
 
 

@@ -3,6 +3,10 @@
 #include "func_lunchbox_uart.h"
 #include "func.h"
 #include "home_ui_shared.h"
+#include "func_lid_confirm.h"
+#if !LB_BRIDGE_MODE
+#include "func_lunchbox_uart_internal.h"
+#endif
 #if ELUNCHBOX_PANEL_EN
 #include "func_reservation.h"
 #include "func_lowbat.h"
@@ -678,21 +682,66 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
         heat_display_heat_pending = true;
     }
 
-    /* 加热自然结束 (预约到期 / 直接加热完成):
-     * 加热模块主动上报 mode=0 + remain=0 + HeatEn=OFF → 进入保温流程
-     * 区别于用户手动停止: 手动停止时 lb_heat_lcd_active 已被 lunchbox_heat_stop() 清除 */
-    if (got_mode && mcu_mode == 0 && got_remain && remain_min == 0
-        && got_enable && !heating
 #if ELUNCHBOX_PANEL_EN
-        && !heat_display_charging_now(got_charge, charge_val)
-        && func_cb.sta == FUNC_HEAT
-#endif
-        && lb_heat_lcd_active) {
-        printf("[LCD_REG] feed_dp: heat finished (mode=0 remain=0 HeatEn=OFF) -> warm "
-               "(sta=%u lcd_active=%d)\n", func_cb.sta, lb_heat_lcd_active ? 1 : 0);
-        func_elunchbox_enter_warm_from_heat();
-        return;
+    /* 上电武装：MCU 空闲则取消；加热(1~4)或保温(5)则进盖确认，由 YES 再跳对应页 */
+    if (elunchbox_lid_confirm_is_armed()) {
+        u8 boot_mode = heat_display_mcu_mode_resolve(got_mode, mcu_mode);
+        bool mcu_heat = (got_enable && heating
+                         && !heat_display_mcu_mode_is_warm(boot_mode));
+        bool mcu_warm = (got_mode && heat_display_mcu_mode_is_warm(boot_mode))
+                        || (heat_display_mcu_mode_is_warm(boot_mode)
+                            && lunchbox_keep_warm_is_active());
+
+        if (got_enable && !heating && !mcu_warm) {
+            printf("[LCD_REG] lid_confirm: MCU idle, disarm\n");
+            elunchbox_lid_confirm_disarm();
+        } else if (got_mode && heat_display_mcu_mode_is_off(boot_mode)
+                   && !(got_enable && heating)) {
+            printf("[LCD_REG] lid_confirm: MCU mode=0, disarm\n");
+            elunchbox_lid_confirm_disarm();
+        } else if ((mcu_heat || mcu_warm)
+                   && ui_ok
+                   && func_cb.sta != FUNC_HEAT
+                   && func_cb.sta != FUNC_LID_CONFIRM
+                   && func_cb.sta != FUNC_NEW_WARM) {
+            heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
+            if (mcu_warm) {
+                u8 temp_idx = got_temp ? lunchbox_temp_f_to_idx(temp_f) : 0;
+
+                lunchbox_keep_warm_set_temp_idx(temp_idx);
+                lunchbox_warm_mark_active();
+                lb_heat_uart_remote_set(true);
+                lb_heat_mcu_nav_set(true);
+                printf("[LCD_REG] lid_confirm: MCU warm on power-on -> dialog mode=5\n");
+            } else {
+                u16 preset_temp_f = got_temp ? temp_f : 176;
+                u32 preset_dur_min = 60;
+                u8 proto_mode = heat_display_mcu_mode_is_heating(boot_mode) ? boot_mode : 1;
+
+                if (got_duration && duration_min > 0) {
+                    preset_dur_min = duration_min;
+                } else if (got_remain && remain_min > 0) {
+                    preset_dur_min = remain_min;
+                }
+                if (preset_dur_min < LB_HEAT_DURATION_MIN_MIN) {
+                    preset_dur_min = LB_HEAT_DURATION_MIN_MIN;
+                } else if (preset_dur_min > LB_HEAT_DURATION_MAX_MIN) {
+                    preset_dur_min = LB_HEAT_DURATION_MAX_MIN;
+                }
+                lb_mode_to_heat_set(proto_mode, preset_temp_f,
+                                    (u8)(preset_dur_min / 60), (u8)(preset_dur_min % 60));
+                lb_heat_autostart_set(true);
+                lb_heat_uart_remote_set(true);
+                lb_heat_mcu_nav_set(true);
+                printf("[LCD_REG] lid_confirm: MCU heating on power-on -> dialog "
+                       "mode=%u temp=%uF dur=%umin\n",
+                       proto_mode, preset_temp_f, preset_dur_min);
+            }
+            func_elunchbox_switch_to_lid_confirm();
+            return;
+        }
     }
+#endif
 
 #if ELUNCHBOX_PANEL_EN
     if (got_charge) {

@@ -9,6 +9,7 @@
 #include "func_lunchbox_ota.h"
 #include "func_lowbat.h"
 #include "func_lunchbox_wake.h"
+#include "func_lid_confirm.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "home_ui_lowbat_overlay.h"
@@ -259,6 +260,10 @@ static void elunchbox_ble_pending_sta_poll(void)
 void func_elunchbox_switch_to_heat_panel(void)
 {
 #if ELUNCHBOX_PANEL_EN
+    if (elunchbox_lid_confirm_try_redirect()) {
+        printf("elunchbox: heat panel redirected to lid confirm\n");
+        return;
+    }
     if (!elunchbox_pwr_is_manual_off()
         && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
         elunchbox_pwr_intentional_wake = elunchbox_pwr_is_manual_off();
@@ -346,7 +351,7 @@ static bool elunchbox_subpage_sta(u8 sta)
 {
     return sta == FUNC_NEW_HEAT || sta == FUNC_NEW_WARM || sta == FUNC_NEW_MODE
         || sta == FUNC_NEW_SETUP || sta == FUNC_NEW_LANGUAGE || sta == FUNC_NEW_VERINFO
-        || sta == FUNC_NEW_TIME || sta == FUNC_RESERVATION;
+        || sta == FUNC_NEW_TIME || sta == FUNC_LID_CONFIRM || sta == FUNC_RESERVATION;
 }
 #endif
 
@@ -1510,20 +1515,30 @@ void func_process(void)
    }
 
 #if FUNC_LUNCHBOX_UART_EN
-    /* 预约到点先进加热页；加热页上再由 MCU 充电转保温 */
+    /* 预约到点 / 上电 MCU 加热：先进盖确认或加热页 */
     {
         bool heat_pending = heat_display_heat_wake_pending();
         if (elunchbox_manual_wake_home_active()) {
             if (heat_pending) {
                 printf("elunchbox: heat_wake ignored (manual wake -> home)\n");
             }
-        } else if (!elunchbox_pwr_is_manual_off()
-            && heat_pending && g_res.setup_done
-            && heat_display_reservation_can_switch_heat()) {
-            printf("elunchbox: reservation heating confirmed, switch to heat panel (awake)\n");
-            func_elunchbox_switch_to_heat_panel();
-        }
-        if (heat_pending && !g_res.setup_done) {
+        } else if (!elunchbox_pwr_is_manual_off() && heat_pending
+                   && heat_display_reservation_can_switch_heat()) {
+            if (elunchbox_lid_confirm_is_armed()) {
+                printf("elunchbox: power-on heating -> lid confirm\n");
+                lb_heat_mcu_nav_set(true);
+                lb_heat_uart_remote_set(true);
+                lb_heat_autostart_set(true);
+                func_elunchbox_switch_to_lid_confirm();
+            } else if (g_res.setup_done) {
+                printf("elunchbox: reservation heating confirmed, switch to heat panel (awake)\n");
+                func_elunchbox_switch_to_heat_panel();
+            } else {
+                printf("elunchbox: [DEBUG] awake heat_pending=1 BUT setup_done=0 sta=%u, skip\n",
+                       func_cb.sta);
+            }
+        } else if (heat_pending && !g_res.setup_done
+                   && !elunchbox_lid_confirm_is_armed()) {
             printf("elunchbox: [DEBUG] awake heat_pending=1 BUT setup_done=0 sta=%u, skip\n",
                    func_cb.sta);
         }
@@ -2353,7 +2368,7 @@ void func_message(size_msg_t msg)
         if (func_cb.sta == FUNC_NEW_HEAT || func_cb.sta == FUNC_NEW_WARM
             || func_cb.sta == FUNC_NEW_MODE || func_cb.sta == FUNC_NEW_SETUP
             || func_cb.sta == FUNC_NEW_LANGUAGE || func_cb.sta == FUNC_NEW_VERINFO
-            || func_cb.sta == FUNC_NEW_TIME) {
+            || func_cb.sta == FUNC_NEW_TIME || func_cb.sta == FUNC_LID_CONFIRM) {
             break;
         }
 #endif
@@ -2602,7 +2617,7 @@ void func_run(void)
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.sort_cnt = 1;
     func_cb.flag_sort = false;
-    func_cb.sta = FUNC_HOME;
+    func_cb.sta = FUNC_HOME;   /* 上电先进 Home；MCU 报加热中再弹盖确认 */
 #else
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.tbl_sort[1] = FUNC_VIDEO_SHOWLIST;
@@ -2621,6 +2636,7 @@ void func_run(void)
     elunchbox_pwr_manual_off = false;
     home_ui_shared_battery_boot_init();
     elunchbox_user_activity_reset();
+    elunchbox_lid_confirm_arm_boot();
 #endif
     // func.c
     

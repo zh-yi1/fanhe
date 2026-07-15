@@ -955,6 +955,10 @@
 		<Unit filename="functions/func_new_timeing.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_lid_confirm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_lid_confirm.h" />
 		<Unit filename="functions/func_new_language.c">
 			<Option compilerVar="CC" />
 		</Unit>
