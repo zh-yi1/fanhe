@@ -533,7 +533,7 @@ static void heat_panel_point_bind(u8 progress_idx)
         return;
     }
     heat_panel_point_pos(progress_idx, &px, &py);
-    heat_panel_point_tip_near_full(progress_idx, &px, &py);
+    /* 近满弧不再扫描覆盖：圆点位置以 new_heat_res.h 的 TIP_x/y 为准 */
 
     memset(&bg, 0, sizeof(bg));
     if (g_hp.track_ready && gui_set_ram_check(home_ui_heat_bg_ram, __func__)) {
