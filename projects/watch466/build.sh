@@ -110,6 +110,7 @@ SOURCES=(
     functions/func_verinfo.c
     functions/func_new_heat.c functions/func_new_warm.c functions/func_new_mode.c
     functions/func_new_reservation.c functions/func_new_setup.c functions/func_new_timeing.c
+    functions/func_lid_confirm.c
     functions/func_new_language.c functions/func_new_verinfo.c
     functions/func_setting.c
     functions/common/func_bt_update.c functions/common/func_idle.c

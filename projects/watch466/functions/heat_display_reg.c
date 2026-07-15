@@ -3,6 +3,7 @@
 #include "func_lunchbox_uart.h"
 #include "func.h"
 #include "home_ui_shared.h"
+#include "func_lid_confirm.h"
 #if !LB_BRIDGE_MODE
 #include "func_lunchbox_uart_internal.h"
 #endif
@@ -647,6 +648,54 @@ void heat_display_feed_dp(u8 *data, u16 len)
             heat_display_mcu_mode_resolve(got_mode, mcu_mode))) {
         heat_display_heat_pending = true;
     }
+
+#if ELUNCHBOX_PANEL_EN
+    /* 上电武装：MCU 非加热则取消弹窗；加热中则进盖确认（不立刻进加热页） */
+    if (elunchbox_lid_confirm_is_armed()) {
+        u8 boot_mode = heat_display_mcu_mode_resolve(got_mode, mcu_mode);
+
+        if (got_enable && !heating) {
+            printf("[LCD_REG] lid_confirm: MCU not heating, disarm\n");
+            elunchbox_lid_confirm_disarm();
+        } else if (got_mode && (heat_display_mcu_mode_is_off(boot_mode)
+                                || heat_display_mcu_mode_is_warm(boot_mode))
+                   && !(got_enable && heating)) {
+            printf("[LCD_REG] lid_confirm: MCU mode=%u, disarm\n", boot_mode);
+            elunchbox_lid_confirm_disarm();
+        } else if (got_enable && heating
+                   && !heat_display_mcu_mode_is_warm(boot_mode)
+                   && ui_ok
+                   && func_cb.sta != FUNC_HEAT
+                   && func_cb.sta != FUNC_LID_CONFIRM
+                   && func_cb.sta != FUNC_NEW_WARM) {
+            u16 preset_temp_f = got_temp ? temp_f : 176;
+            u32 preset_dur_min = 60;
+            u8 proto_mode = heat_display_mcu_mode_is_heating(boot_mode) ? boot_mode : 1;
+
+            if (got_duration && duration_min > 0) {
+                preset_dur_min = duration_min;
+            } else if (got_remain && remain_min > 0) {
+                preset_dur_min = remain_min;
+            }
+            if (preset_dur_min < LB_HEAT_DURATION_MIN_MIN) {
+                preset_dur_min = LB_HEAT_DURATION_MIN_MIN;
+            } else if (preset_dur_min > LB_HEAT_DURATION_MAX_MIN) {
+                preset_dur_min = LB_HEAT_DURATION_MAX_MIN;
+            }
+            heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
+            lb_mode_to_heat_set(proto_mode, preset_temp_f,
+                                (u8)(preset_dur_min / 60), (u8)(preset_dur_min % 60));
+            lb_heat_autostart_set(true);
+            lb_heat_uart_remote_set(true);
+            lb_heat_mcu_nav_set(true);
+            printf("[LCD_REG] lid_confirm: MCU heating on power-on -> dialog "
+                   "mode=%u temp=%uF dur=%umin\n",
+                   proto_mode, preset_temp_f, preset_dur_min);
+            func_elunchbox_switch_to_lid_confirm();
+            return;
+        }
+    }
+#endif
 
 #if ELUNCHBOX_PANEL_EN
     if (got_charge) {
