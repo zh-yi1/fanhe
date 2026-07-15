@@ -63,6 +63,8 @@ extern volatile u8 elunchbox_te_block_flag;
 #define LID_CONFIRM_BTN_Y                   ((s16)(LID_CONFIRM_PANEL_Y + LID_CONFIRM_PANEL_H / 2 - NEW_TIME_BTN_H / 2 - 14))
 #define LID_CONFIRM_BTN_NO_X                ((s16)(GUI_SCREEN_CENTER_X - LID_CONFIRM_BTN_CENTER_DIST / 2))
 #define LID_CONFIRM_BTN_YES_X               ((s16)(GUI_SCREEN_CENTER_X + LID_CONFIRM_BTN_CENTER_DIST / 2))
+#define LID_CONFIRM_BTN_LABEL_Y_ADJ         (-4)   /* NO/YES 相对按钮底图上移 */
+#define LID_CONFIRM_BTN_LABEL_Y             ((s16)(LID_CONFIRM_BTN_Y + LID_CONFIRM_BTN_LABEL_Y_ADJ))
 
 #define LID_CONFIRM_STATUS_BAT_X            (GUI_SCREEN_WIDTH - LID_CONFIRM_STATUS_RIGHT_MARGIN - NEW_HOME_BAT_W / 2)
 #define LID_CONFIRM_STATUS_BT_X             (LID_CONFIRM_STATUS_BAT_X - NEW_HOME_BAT_W / 2 - LID_CONFIRM_STATUS_GAP - NEW_HOME_BT_W / 2)
@@ -434,9 +436,9 @@ static void lid_confirm_text_apply(f_lid_confirm_t *f)
         no_color = LID_CONFIRM_COLOR_OFF;
         yes_color = LID_CONFIRM_COLOR_ON;
     }
-    lid_confirm_btn_label_show(f->txt_no, LID_CONFIRM_BTN_NO_X, LID_CONFIRM_BTN_Y,
+    lid_confirm_btn_label_show(f->txt_no, LID_CONFIRM_BTN_NO_X, LID_CONFIRM_BTN_LABEL_Y,
                                "NO", no_color);
-    lid_confirm_btn_label_show(f->txt_yes, LID_CONFIRM_BTN_YES_X, LID_CONFIRM_BTN_Y,
+    lid_confirm_btn_label_show(f->txt_yes, LID_CONFIRM_BTN_YES_X, LID_CONFIRM_BTN_LABEL_Y,
                                "YES", yes_color);
 }
 
@@ -684,15 +686,15 @@ compo_form_t *func_lid_confirm_form_create(void)
     (void)lid_confirm_pic_create_hidden(frm, COMPO_ID_PIC_YES_BG);
 
     txt = lid_confirm_txt_create(frm, COMPO_ID_TXT_NO,
-                                 LID_CONFIRM_BTN_NO_X, LID_CONFIRM_BTN_Y,
+                                 LID_CONFIRM_BTN_NO_X, LID_CONFIRM_BTN_LABEL_Y,
                                  LID_CONFIRM_COLOR_OFF, true);
-    compo_textbox_set_location(txt, LID_CONFIRM_BTN_NO_X, LID_CONFIRM_BTN_Y,
+    compo_textbox_set_location(txt, LID_CONFIRM_BTN_NO_X, LID_CONFIRM_BTN_LABEL_Y,
                                NEW_TIME_BTN_W, NEW_TIME_BTN_H);
 
     txt = lid_confirm_txt_create(frm, COMPO_ID_TXT_YES,
-                                 LID_CONFIRM_BTN_YES_X, LID_CONFIRM_BTN_Y,
+                                 LID_CONFIRM_BTN_YES_X, LID_CONFIRM_BTN_LABEL_Y,
                                  LID_CONFIRM_COLOR_ON, true);
-    compo_textbox_set_location(txt, LID_CONFIRM_BTN_YES_X, LID_CONFIRM_BTN_Y,
+    compo_textbox_set_location(txt, LID_CONFIRM_BTN_YES_X, LID_CONFIRM_BTN_LABEL_Y,
                                NEW_TIME_BTN_W, NEW_TIME_BTN_H);
 
     return frm;
