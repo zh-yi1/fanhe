@@ -459,9 +459,9 @@ bool sfunc_sleep_proc(void)
 
         /* ================================================================
          * manual_off 唤醒源: 仅 PE1(TCH5按键) + PB9(UART RX) 两个。
-         *   - 软件轮询 PE1 边沿 (防硬件边沿在进休眠时 PE1 已 LOW 漏检)
-         *   - 硬件 port_wakeup_get_status() 确认 GPIO 唤醒 pending
-         *   - 读到事件后区分: TCH5(bcd=5)/PB9 → 真唤醒; 其他键 → 清pending继续睡
+         *   - PB9 LOW → 门铃唤醒
+         *   - TCH5(bcd=5) 持续 LOW≥2s → 开机唤醒
+         *   - 非TCH5/轻触: 清pending → continue(不离while, bt_sleep_proc重睡)
          * ================================================================ */
 #if ELUNCHBOX_PANEL_EN && USER_PT8028_KEY
         if (manual_off) {
@@ -477,7 +477,7 @@ bool sfunc_sleep_proc(void)
             hw_has_event = (wkpnd != 0);
 
             if (sw_has_event || hw_has_event) {
-                /* Step 3: 读 PB9 + PE1/BCD，区分唤醒源 */
+                /* Step 3: 读 PB9 + PE1/BCD */
                 bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
                 u8 bcd;
                 bool pe1_lo = sleep_read_bcd_pe1(&bcd);
@@ -491,79 +491,32 @@ bool sfunc_sleep_proc(void)
                     break;
                 }
                 if (pe1_lo && bcd == 5) {
-                    /* TCH5: 要求持续 LOW≥300ms 才当有效唤醒, 滤除轻触毛刺 */
+                    /* TCH5: 要求持续 LOW≥2s 才当有效唤醒 */
                     int tch5_cnt = 0;
-                    while (tch5_cnt < 60) {  /* 60*5ms=300ms */
+                    while (tch5_cnt < 400) {  /* 400*5ms=2000ms=2s */
                         delay_5ms(1);
                         WDT_CLR();
                         if (pt8028_read_flag_raw() != 0) {
-                            break;  /* PE1 回 HIGH → 轻触 */
+                            break;  /* PE1 回 HIGH → 未按够 2s */
                         }
                         tch5_cnt++;
                     }
-                    if (tch5_cnt >= 60) {
-                        printf("lp: -> TCH5 wake (held 300ms)\n");
+                    if (tch5_cnt >= 400) {
+                        printf("lp: -> TCH5 wake (held 2s)\n");
                         gui_need_wkp = true;
                         break;
                     }
-                    /* 轻触: 清 pending, 等 PE1 稳定, 回去睡 */
-                    printf("lp: -> TCH5 brief touch, back to sleep\n");
-                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
-                    elunchbox_manual_wake_pending_take();
-                    {
-                        int stable_cnt = 0;
-                        int total_cnt = 0;
-                        while (total_cnt < 5000) {
-                            delay_us(100);
-                            total_cnt++;
-                            if (pt8028_read_flag_raw() != 0) {
-                                stable_cnt++;
-                                if (stable_cnt >= 300) break;
-                            } else {
-                                stable_cnt = 0;
-                            }
-                        }
-                    }
-                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
-                    elunchbox_manual_wake_pending_take();
-                    continue;
+                    printf("lp: -> TCH5 brief (<2s), back to sleep\n");
+                } else if (pe1_lo) {
+                    printf("lp: -> non-TCH5 (bcd=%d), back to sleep\n", bcd);
+                } else {
+                    printf("lp: -> stale/noise, ignore\n");
                 }
-                if (pe1_lo) {
-                printf("lp: -> non-TCH5 (bcd=%d), back to sleep\n", bcd);
-                delay_us(200);  /* BCD 脚稳定 */
 
-                /* 【防假唤醒】清 pending 后等 PE1 连续 HIGH≥30ms。
-                 * PT8028 扫描会产生周期性毛刺 → 单次读 HIGH 不可靠 →
-                 * 必须连续 HIGH 一段时间确认扫描周期结束。 */
-                RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
-                elunchbox_manual_wake_pending_take();  /* 消费 sw pending */
-                {
-                    int stable_cnt = 0;
-                    int total_cnt = 0;
-                    while (total_cnt < 5000) {
-                        delay_us(100);
-                        total_cnt++;
-                        if (pt8028_read_flag_raw() != 0) {
-                            stable_cnt++;
-                            if (stable_cnt >= 300) {  /* 300*100us=30ms 连续 HIGH */
-                                break;
-                            }
-                        } else {
-                            stable_cnt = 0;  /* 有毛刺 → 复位连续计数 */
-                        }
-                    }
-                }
-                /* 清掉等待期间可能产生的新 pending */
-                RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
+                /* 无效唤醒: 清 pending → continue 不离 while，靠 bt_sleep_proc 重睡 */
+                RTCCON9 = BIT(7) | BIT(5) | BIT(2);
                 elunchbox_manual_wake_pending_take();
-                continue;  /* 回到 while 顶部重新 bt_sleep_proc */
-            } else {
-                printf("lp: -> stale/noise, ignore\n");
-            }
-
-            /* 【关键】清 pending → 否则 sys_enter_sleep 看到残留 → 立即唤醒 → 死循环 */
-            RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending, 防残留立即唤醒 */
-            elunchbox_manual_wake_pending_take();  /* 消费 sw pending */
+                continue;
             }
         }
 #endif
@@ -587,55 +540,24 @@ bool sfunc_sleep_proc(void)
                     break;
                 }
                 if (pe1_lo && bcd == 5) {
-                    /* TCH5: 要求持续 LOW≥300ms 才当有效唤醒 */
+                    /* TCH5: 2s hold check */
                     int tch5_cnt = 0;
-                    while (tch5_cnt < 60) {
+                    while (tch5_cnt < 400) {
                         delay_5ms(1);
                         WDT_CLR();
                         if (pt8028_read_flag_raw() != 0) break;
                         tch5_cnt++;
                     }
-                    if (tch5_cnt >= 60) {
+                    if (tch5_cnt >= 400) {
                         gui_need_wkp = true;
                         break;
                     }
-                    /* 轻触: 等 PE1 连续 HIGH 30ms, 回去睡 */
-                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
-                    {
-                        int stable_cnt = 0, total_cnt = 0;
-                        while (total_cnt < 5000) {
-                            delay_us(100);
-                            total_cnt++;
-                            if (pt8028_read_flag_raw() != 0) {
-                                stable_cnt++;
-                                if (stable_cnt >= 300) break;
-                            } else {
-                                stable_cnt = 0;
-                            }
-                        }
-                    }
-                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
                 }
-                /* 非 TCH5/PB9: 等 PE1 连续 HIGH 30ms 再回睡 */
-                if (pe1_lo) {
-                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
-                    {
-                        int stable_cnt = 0, total_cnt = 0;
-                        while (total_cnt < 5000) {
-                            delay_us(100);
-                            total_cnt++;
-                            if (pt8028_read_flag_raw() != 0) {
-                                stable_cnt++;
-                                if (stable_cnt >= 300) break;
-                            } else {
-                                stable_cnt = 0;
-                            }
-                        }
-                    }
-                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
-                } else {
-                    RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr port/bt/wko pending */
-                }
+                /* 无效唤醒: 清 pending → continue */
+                printf("lp: port_wkp2 non-wake (bcd=%d pe1=%d pb9=%d)\n",
+                       bcd, pe1_lo ? 1 : 0, pb9_lo ? 1 : 0);
+                RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                continue;
             } else
 #endif
             {
