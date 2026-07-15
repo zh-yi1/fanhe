@@ -650,47 +650,60 @@ void heat_display_feed_dp(u8 *data, u16 len)
     }
 
 #if ELUNCHBOX_PANEL_EN
-    /* 上电武装：MCU 非加热则取消弹窗；加热中则进盖确认（不立刻进加热页） */
+    /* 上电武装：MCU 空闲则取消；加热(1~4)或保温(5)则进盖确认，由 YES 再跳对应页 */
     if (elunchbox_lid_confirm_is_armed()) {
         u8 boot_mode = heat_display_mcu_mode_resolve(got_mode, mcu_mode);
+        bool mcu_heat = (got_enable && heating
+                         && !heat_display_mcu_mode_is_warm(boot_mode));
+        bool mcu_warm = (got_mode && heat_display_mcu_mode_is_warm(boot_mode))
+                        || (heat_display_mcu_mode_is_warm(boot_mode)
+                            && lunchbox_keep_warm_is_active());
 
-        if (got_enable && !heating) {
-            printf("[LCD_REG] lid_confirm: MCU not heating, disarm\n");
+        if (got_enable && !heating && !mcu_warm) {
+            printf("[LCD_REG] lid_confirm: MCU idle, disarm\n");
             elunchbox_lid_confirm_disarm();
-        } else if (got_mode && (heat_display_mcu_mode_is_off(boot_mode)
-                                || heat_display_mcu_mode_is_warm(boot_mode))
+        } else if (got_mode && heat_display_mcu_mode_is_off(boot_mode)
                    && !(got_enable && heating)) {
-            printf("[LCD_REG] lid_confirm: MCU mode=%u, disarm\n", boot_mode);
+            printf("[LCD_REG] lid_confirm: MCU mode=0, disarm\n");
             elunchbox_lid_confirm_disarm();
-        } else if (got_enable && heating
-                   && !heat_display_mcu_mode_is_warm(boot_mode)
+        } else if ((mcu_heat || mcu_warm)
                    && ui_ok
                    && func_cb.sta != FUNC_HEAT
                    && func_cb.sta != FUNC_LID_CONFIRM
                    && func_cb.sta != FUNC_NEW_WARM) {
-            u16 preset_temp_f = got_temp ? temp_f : 176;
-            u32 preset_dur_min = 60;
-            u8 proto_mode = heat_display_mcu_mode_is_heating(boot_mode) ? boot_mode : 1;
-
-            if (got_duration && duration_min > 0) {
-                preset_dur_min = duration_min;
-            } else if (got_remain && remain_min > 0) {
-                preset_dur_min = remain_min;
-            }
-            if (preset_dur_min < LB_HEAT_DURATION_MIN_MIN) {
-                preset_dur_min = LB_HEAT_DURATION_MIN_MIN;
-            } else if (preset_dur_min > LB_HEAT_DURATION_MAX_MIN) {
-                preset_dur_min = LB_HEAT_DURATION_MAX_MIN;
-            }
             heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
-            lb_mode_to_heat_set(proto_mode, preset_temp_f,
-                                (u8)(preset_dur_min / 60), (u8)(preset_dur_min % 60));
-            lb_heat_autostart_set(true);
-            lb_heat_uart_remote_set(true);
-            lb_heat_mcu_nav_set(true);
-            printf("[LCD_REG] lid_confirm: MCU heating on power-on -> dialog "
-                   "mode=%u temp=%uF dur=%umin\n",
-                   proto_mode, preset_temp_f, preset_dur_min);
+            if (mcu_warm) {
+                u8 temp_idx = got_temp ? lunchbox_temp_f_to_idx(temp_f) : 0;
+
+                lunchbox_keep_warm_set_temp_idx(temp_idx);
+                lunchbox_warm_mark_active();
+                lb_heat_uart_remote_set(true);
+                lb_heat_mcu_nav_set(true);
+                printf("[LCD_REG] lid_confirm: MCU warm on power-on -> dialog mode=5\n");
+            } else {
+                u16 preset_temp_f = got_temp ? temp_f : 176;
+                u32 preset_dur_min = 60;
+                u8 proto_mode = heat_display_mcu_mode_is_heating(boot_mode) ? boot_mode : 1;
+
+                if (got_duration && duration_min > 0) {
+                    preset_dur_min = duration_min;
+                } else if (got_remain && remain_min > 0) {
+                    preset_dur_min = remain_min;
+                }
+                if (preset_dur_min < LB_HEAT_DURATION_MIN_MIN) {
+                    preset_dur_min = LB_HEAT_DURATION_MIN_MIN;
+                } else if (preset_dur_min > LB_HEAT_DURATION_MAX_MIN) {
+                    preset_dur_min = LB_HEAT_DURATION_MAX_MIN;
+                }
+                lb_mode_to_heat_set(proto_mode, preset_temp_f,
+                                    (u8)(preset_dur_min / 60), (u8)(preset_dur_min % 60));
+                lb_heat_autostart_set(true);
+                lb_heat_uart_remote_set(true);
+                lb_heat_mcu_nav_set(true);
+                printf("[LCD_REG] lid_confirm: MCU heating on power-on -> dialog "
+                       "mode=%u temp=%uF dur=%umin\n",
+                       proto_mode, preset_temp_f, preset_dur_min);
+            }
             func_elunchbox_switch_to_lid_confirm();
             return;
         }

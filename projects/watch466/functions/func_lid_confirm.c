@@ -468,18 +468,32 @@ static void lid_confirm_bind_objects(f_lid_confirm_t *f)
 
 static void lid_confirm_finish(f_lid_confirm_t *f)
 {
+    u8 mcu_mode;
+
     if (f == NULL || sys_cb.flag_swithing) {
         return;
     }
     elunchbox_lid_confirm_disarm();
     if (f->sel == LID_CONFIRM_SEL_YES) {
-        printf("lid_confirm: YES continue heating -> heat panel\n");
+        mcu_mode = lunchbox_get_heat_mode();
         lb_heat_mcu_nav_set(true);
         lb_heat_uart_remote_set(true);
-        lb_heat_autostart_set(true);
-        func_elunchbox_switch_to_heat_panel();
+        if (mcu_mode == 5) {
+            printf("lid_confirm: YES MCU mode=5 -> warm panel\n");
+#if ELUNCHBOX_PANEL_EN
+            lunchbox_warm_mark_active();
+#endif
+            func_elunchbox_switch_to_warm_panel();
+        } else {
+            printf("lid_confirm: YES MCU mode=%u -> heat panel\n", mcu_mode);
+            lb_heat_autostart_set(true);
+            func_elunchbox_switch_to_heat_panel();
+        }
     } else {
-        printf("lid_confirm: NO stop heating -> home\n");
+        printf("lid_confirm: NO send heat_stop -> home\n");
+        /* 用户主动停止：强制下发 DP10=0，避免 mcu_nav/remote 跳过 UART */
+        lb_heat_mcu_nav_set(false);
+        lb_heat_user_uart_tx_force_set(true);
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_heat_stop();
 #endif
