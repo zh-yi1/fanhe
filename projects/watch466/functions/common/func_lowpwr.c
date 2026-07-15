@@ -542,17 +542,15 @@ bool sfunc_sleep_proc(void)
                     printf("lp: -> stale/noise, ignore\n");
                 }
 
-                /* 无效唤醒: 清 pending → continue 不离 while，靠 bt_sleep_proc 重睡 */
+                /* 无效唤醒: 清 pending → 切上升沿等松手 → continue 等 bt_sleep_proc 重睡。
+                 *   非TCH5按下/轻触弹跳(stale/noise)/TCH5短按，统一切上升沿：
+                 *   PE1 仍 LOW → 等松手上升沿 → 恢复下降沿 → 重睡
+                 *   PE1 已 HIGH(轻触弹跳) → 无上升沿 → 直接睡；下次唤醒时恢复下降沿 */
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
                 elunchbox_manual_wake_pending_take();
-                /* 【非TCH5按键】若PE1仍LOW(键还按着)→切上升沿等松手。
-                 * 用 pt8028_read_flag_raw() 实时读，不用 sleep_read_bcd_pe1 的旧 pe1_lo：
-                 * TCH5 brief 场景 2s 等待期间可能已松手，旧值不准。 */
-                if (pt8028_read_flag_raw() == 0) {
-                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
-                    elunchbox_waiting_key_release = true;
-                    printf("lp: -> sw to rising edge, wait release\n");
-                }
+                port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                elunchbox_waiting_key_release = true;
+                printf("lp: -> sw to rising edge, wait release\n");
                 continue;
             }
         }
@@ -593,13 +591,11 @@ bool sfunc_sleep_proc(void)
                 /* 无效唤醒: 清 pending → continue */
                 printf("lp: port_wkp2 non-wake (bcd=%d pe1=%d pb9=%d)\n",
                        bcd, pe1_lo ? 1 : 0, pb9_lo ? 1 : 0);
+                /* 同第一处：清 pending → 切上升沿等松手 → 重睡 */
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
-                /* 【非TCH5按键】若PE1仍LOW(键还按着)→切上升沿等松手 */
-                if (pt8028_read_flag_raw() == 0) {
-                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
-                    elunchbox_waiting_key_release = true;
-                    printf("lp: -> sw to rising edge, wait release\n");
-                }
+                port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                elunchbox_waiting_key_release = true;
+                printf("lp: -> sw to rising edge, wait release\n");
                 continue;
             } else
 #endif
