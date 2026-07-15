@@ -5,13 +5,21 @@
 #define NEW_HEAT_POINT_BLUE565          0x42FF
 #define NEW_HEAT_POINT_BLUE_R10         61
 #define NEW_HEAT_POINT_RING_OUTER_R10   103
+/* 4x4 超采样：半径换算到 1/40 像素（x10 * 4） */
+#define NEW_HEAT_POINT_SS               4
+#define NEW_HEAT_POINT_BLUE_R40         ((s32)NEW_HEAT_POINT_BLUE_R10 * NEW_HEAT_POINT_SS)
+#define NEW_HEAT_POINT_RING_R40         ((s32)NEW_HEAT_POINT_RING_OUTER_R10 * NEW_HEAT_POINT_SS)
 
-static u32 new_heat_point_dist2_x10(u16 x, u16 y, u16 cc)
+static void new_heat_point_rgb565_split(u16 c, u16 *r, u16 *g, u16 *b)
 {
-    s32 dx = ((s32)x - (s32)cc) * 10 + 5;
-    s32 dy = ((s32)y - (s32)cc) * 10 + 5;
+    *r = (u16)((c >> 11) & 0x1f);
+    *g = (u16)((c >> 5) & 0x3f);
+    *b = (u16)(c & 0x1f);
+}
 
-    return (u32)(dx * dx + dy * dy);
+static u16 new_heat_point_rgb565_pack(u32 r, u32 g, u32 b)
+{
+    return (u16)(((r & 0x1f) << 11) | ((g & 0x3f) << 5) | (b & 0x1f));
 }
 
 static u16 new_heat_point_bg_at(const new_heat_point_bg_t *bg, s16 sx, s16 sy)
@@ -38,24 +46,58 @@ static u16 new_heat_point_bg_at(const new_heat_point_bg_t *bg, s16 sx, s16 sy)
     return GET_LE16(&bg->bg_ram[di]);
 }
 
+/*
+ * 以画布几何中心为圆心做欧氏距离 4x4 超采样，硬阈值改为覆盖率混合，
+ * 避免 ~6px 半径光栅化后出现明显棱角/六边形观感。
+ */
 static u16 new_heat_point_pixel_color(u16 x, u16 y, u16 cc, s16 sx, s16 sy,
                                       const new_heat_point_bg_t *bg)
 {
-    u32 d2;
     u32 blue_r2;
     u32 ring_r2;
+    u32 sum_r = 0;
+    u32 sum_g = 0;
+    u32 sum_b = 0;
+    u8 si;
+    u8 sj;
+    s32 cx40;
+    s32 cy40;
+    u16 bg_c;
+    u16 cr;
+    u16 cg;
+    u16 cb;
 
-    d2 = new_heat_point_dist2_x10(x, y, cc);
-    blue_r2 = (u32)NEW_HEAT_POINT_BLUE_R10 * NEW_HEAT_POINT_BLUE_R10;
-    ring_r2 = (u32)NEW_HEAT_POINT_RING_OUTER_R10 * NEW_HEAT_POINT_RING_OUTER_R10;
+    blue_r2 = (u32)NEW_HEAT_POINT_BLUE_R40 * (u32)NEW_HEAT_POINT_BLUE_R40;
+    ring_r2 = (u32)NEW_HEAT_POINT_RING_R40 * (u32)NEW_HEAT_POINT_RING_R40;
+    /* 像素中心坐标系：真正圆心在 cc+0.5 → x40 下为 cc*40+20 */
+    cx40 = (s32)cc * 40 + 20;
+    cy40 = cx40;
+    bg_c = new_heat_point_bg_at(bg, sx, sy);
 
-    if (d2 <= blue_r2) {
-        return NEW_HEAT_POINT_BLUE565;
+    for (si = 0; si < NEW_HEAT_POINT_SS; si++) {
+        for (sj = 0; sj < NEW_HEAT_POINT_SS; sj++) {
+            s32 px40 = (s32)x * 40 + (s32)sj * 10 + 5;
+            s32 py40 = (s32)y * 40 + (s32)si * 10 + 5;
+            s32 dx = px40 - cx40;
+            s32 dy = py40 - cy40;
+            u32 d2 = (u32)(dx * dx + dy * dy);
+            u16 c;
+
+            if (d2 <= blue_r2) {
+                c = NEW_HEAT_POINT_BLUE565;
+            } else if (d2 <= ring_r2) {
+                c = 0xFFFF;
+            } else {
+                c = bg_c;
+            }
+            new_heat_point_rgb565_split(c, &cr, &cg, &cb);
+            sum_r += cr;
+            sum_g += cg;
+            sum_b += cb;
+        }
     }
-    if (d2 <= ring_r2) {
-        return 0xFFFF;
-    }
-    return new_heat_point_bg_at(bg, sx, sy);
+
+    return new_heat_point_rgb565_pack(sum_r / 16, sum_g / 16, sum_b / 16);
 }
 
 static bool new_heat_point_ram_build(u8 *ram, u16 ram_cap, u16 pw, u16 ph,
