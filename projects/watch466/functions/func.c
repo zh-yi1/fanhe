@@ -10,6 +10,7 @@
 #include "func_lowbat.h"
 #include "func_lunchbox_wake.h"
 #include "func_lowpwr.h"
+#include "func_lid_confirm.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "home_ui_lowbat_overlay.h"
