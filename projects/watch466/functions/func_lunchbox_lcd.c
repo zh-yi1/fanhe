@@ -433,20 +433,9 @@ bool lunchbox_keep_warm_is_active(void)
 
 void lunchbox_keep_warm_poll(void)
 {
-    if (!lb_keep_warm_active) {
-        return;
-    }
-    if (!bsp_vbat_get_lpwr_status()) {
-        return;
-    }
-    printf("keep_warm_poll: low battery stop\n");
-    lunchbox_keep_warm_stop();
-#if ELUNCHBOX_PANEL_EN
-    func_elunchbox_warm_from_charging_set(false);
-    if (func_cb.sta == FUNC_NEW_WARM && !sys_cb.flag_swithing) {
-        func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-    }
-#endif
+    /* 加热结束进保温后须留在保温页。
+     * 不因模组本机 VBAT、也不因 MCU DP03 电量档(0没电/1低电量)停保温回 Home。
+     * 真低电仅认 DP09 fault_code=0x0A，由 elunchbox_lowbat 单独处理。 */
 }
 
 //-----------------------------------------------------------------------------
