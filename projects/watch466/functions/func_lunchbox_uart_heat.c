@@ -46,6 +46,7 @@
 //-----------------------------------------------------------------------------
 typedef enum {
     HEAT_UART_PHASE_BOOT = 0,
+    HEAT_UART_PHASE_BOOT_DELAY,     // 非阻塞等待加热模块 Flash 写引擎就绪
     HEAT_UART_PHASE_DATA,
     HEAT_UART_PHASE_END,
     HEAT_UART_PHASE_RESTART_END,
@@ -90,6 +91,7 @@ typedef struct {
     u32 bg_crc_fw_start;  // CRC 起始偏移 (0 或 256)
     u32 bg_crc_fw_size;   // 需计算的固件总字节数
     u32 final_crc_val;    // 计算完成的 CRC 结果 (send_end_packet 复用)
+    u32 boot_delay_tick;  // boot ACK 后延迟发送第一包的起始 tick (非阻塞)
 } heat_ota_ctx_t;
 
 static heat_ota_ctx_t g_heat_ota;
@@ -149,7 +151,8 @@ static bool heat_ota_crc_step(void)
                (unsigned long)g_heat_ota.bg_crc_fw_start,
                (unsigned long)g_heat_ota.bg_crc_fw_size);
 
-        if (g_heat_ota.bg_crc_fw_size >= 16) {
+        if (g_heat_ota.bg_crc_fw_size >= 16) 
+        {
             u8 head[16], tail[16];
             os_spiflash_read(head, HEAT_OTA_FLASH_ADDR + g_heat_ota.bg_crc_fw_start, 16);
             os_spiflash_read(tail, HEAT_OTA_FLASH_ADDR + g_heat_ota.bg_crc_fw_start
@@ -438,15 +441,14 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
     // BOOT 阶段: err=0x01 表示模块收到复位指令, 视为成功
     if (rx->err_flag != 0x00) {
         if (g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT && rx->err_flag == 0x01) {
-            printf("[HEAT_OTA] boot ack err=0x01 (expected), start data\n");
+            printf("[HEAT_OTA] boot ack err=0x01 (expected), delay %lums (non-blocking)\n",
+                   (unsigned long)HEAT_OTA_BOOT_DELAY_MS);
             g_heat_ota.retry_count = 0;
-            g_heat_ota.uart_phase = HEAT_UART_PHASE_DATA;
+            g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT_DELAY;
             g_heat_ota.send_offset = 0;
             g_heat_ota.sent_packets = 0;
-            g_heat_ota.state = HEAT_OTA_SENDING;
-            // 加热模块 ACK 后 Flash 写引擎可能还未就绪, 延迟等待
-            delay_ms(HEAT_OTA_BOOT_DELAY_MS);
-            heat_ota_send_next_packet();
+            g_heat_ota.boot_delay_tick = tick_get();
+            // state 保持 HEAT_OTA_WAIT_ACK, 由 heat_ota_process 轮询到期后发第一包
         } else {
             // 模块回复失败 → 不重试同一个包, 直接从头开始 UART 传输
             printf("[HEAT_OTA] phase=%d err=0x%02X, restarting UART transfer\n",
@@ -461,14 +463,13 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
 
     switch (g_heat_ota.uart_phase) {
     case HEAT_UART_PHASE_BOOT:
-        printf("[HEAT_OTA] boot acked, start data\n");
-        g_heat_ota.uart_phase = HEAT_UART_PHASE_DATA;
+        printf("[HEAT_OTA] boot acked, delay %lums (non-blocking)\n",
+               (unsigned long)HEAT_OTA_BOOT_DELAY_MS);
+        g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT_DELAY;
         g_heat_ota.send_offset = 0;
         g_heat_ota.sent_packets = 0;
-        g_heat_ota.state = HEAT_OTA_SENDING;
-        // 加热模块 ACK 后 Flash 写引擎可能还未就绪, 延迟等待
-        delay_ms(HEAT_OTA_BOOT_DELAY_MS);
-        heat_ota_send_next_packet();
+        g_heat_ota.boot_delay_tick = tick_get();
+        // state 保持 HEAT_OTA_WAIT_ACK, 由 heat_ota_process 轮询到期后发第一包
         break;
 
     case HEAT_UART_PHASE_DATA:
@@ -791,6 +792,17 @@ void heat_ota_process(void)
     }
 
     if (g_heat_ota.state != HEAT_OTA_WAIT_ACK) return;
+
+    // BOOT_DELAY 阶段: 非阻塞等待, 避免 delay_ms() 阻塞主循环导致 GPU 线程复位
+    if (g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT_DELAY) {
+        if (tick_check_expire(g_heat_ota.boot_delay_tick, HEAT_OTA_BOOT_DELAY_MS)) {
+            printf("[HEAT_OTA] boot delay done, starting data\n");
+            g_heat_ota.uart_phase = HEAT_UART_PHASE_DATA;
+            g_heat_ota.state = HEAT_OTA_SENDING;
+            heat_ota_send_next_packet();
+        }
+        return;
+    }
 
     if (tick_check_expire(g_heat_ota.uart_send_tick, HEAT_OTA_UART_TIMEOUT_MS)) {
         heat_ota_handle_timeout();
