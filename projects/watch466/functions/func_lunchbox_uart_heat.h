@@ -40,7 +40,7 @@
 /** @brief 收到 boot ACK 后延迟发送第一包数据的等待时间 (毫秒)
     加热模块 ACK 只表示 UART 已就绪, 但 Flash 写引擎初始化可能更慢,
     不加延时会导致第一条数据包丢失, 每个后续包都要靠超时重试才能送达 */
-#define HEAT_OTA_BOOT_DELAY_MS      50
+#define HEAT_OTA_BOOT_DELAY_MS      100
 
 //-----------------------------------------------------------------------------
 // OTA 状态机
@@ -48,7 +48,8 @@
 typedef enum {
     HEAT_OTA_IDLE = 0,          // 空闲
     HEAT_OTA_RECEIVING,         // 正在接收 APP 数据 (BLE → 本地缓冲)
-    HEAT_OTA_VERIFY,            // 校验 CRC32 中
+    HEAT_OTA_VERIFY,            // 校验 CRC32 中 (非阻塞, 由 heat_ota_process 驱动)
+    HEAT_OTA_CRC_CALC,          // 后台分块计算 CRC (防主循环阻塞→GPU 线程复位)
     HEAT_OTA_SENDING,           // 正在通过 UART 发送给加热模块
     HEAT_OTA_WAIT_ACK,          // 等待加热模块 UART 应答
 } heat_ota_state_t;

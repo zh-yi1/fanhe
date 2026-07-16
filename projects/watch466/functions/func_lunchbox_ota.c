@@ -116,11 +116,13 @@ u8 lb_handler_ota_start(lb_rx_frame_t *rx)
 
     printf("OTA start: target=0x%02X fw_size=%lu\n", target, fw_size);
 
-    // 初始化 FOTA 引擎 (压缩升级包写入准备)
+    // OTA 期间临时延长 WDT (Flash 擦写耗时较长), 升级结束后恢复
+    WDT_EN_OTA();
     WDT_CLR();
     ota_pack_init();
     WDT_CLR();
     load_code_fota();
+    WDT_CLR();  // load_code_fota 涉及 Flash 锁定/解锁, 之后喂狗
 
     // 重置 OTA 上下文
     memset(&lb_ota_ctx, 0, sizeof(lb_ota_ctx));
@@ -349,6 +351,7 @@ u8 lb_handler_ota_end(lb_rx_frame_t *rx)
     if (result != LB_OTA_RESULT_SUCCESS) {
         unlock_code_fota();  // 升级失败，解锁代码区
     }
+    WDT_EN();  // 恢复正常 WDT 超时 (~1s)
 
     u8 rsp[2];
     rsp[0] = target;

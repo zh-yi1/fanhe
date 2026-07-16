@@ -20,6 +20,7 @@
 
 #define WDT_CLR()               {WDTCON = 0xa; RTCCON10 = BIT(14);}//两条狗一起清
 #define WDT_EN()                WDTCON = 0x110
+#define WDT_EN_OTA()            WDTCON = 0x130  // ~2s timeout, OTA期间临时延长防Flash擦写复位
 #define WDT_DIS()               WDTCON = 0xaa0
 #define WDT_RST()               WDTCON = 0xa000110; while (1)
 #define WDT_RST_DELAY()         WDTCON = 0xa100110; while (1)

@@ -83,6 +83,13 @@ typedef struct {
     u16 sent_packets;
     u16 total_restarts;
     heat_uart_phase_t uart_phase;
+
+    // 后台 CRC 计算 (非阻塞, heat_ota_process 驱动)
+    u32 bg_crc_val;       // 运行中的 CRC32/MPEG-2 值 (初值 0xFFFFFFFF)
+    u32 bg_crc_off;       // 当前已计算到的 Flash 偏移
+    u32 bg_crc_fw_start;  // CRC 起始偏移 (0 或 256)
+    u32 bg_crc_fw_size;   // 需计算的固件总字节数
+    u32 final_crc_val;    // 计算完成的 CRC 结果 (send_end_packet 复用)
 } heat_ota_ctx_t;
 
 static heat_ota_ctx_t g_heat_ota;
@@ -99,7 +106,7 @@ static void heat_ota_send_end_packet(void);
 static void heat_ota_start_uart_transfer(void);
 static void heat_ota_handle_ack(lb_rx_frame_t *rx);
 static void heat_ota_handle_timeout(void);
-static u32  heat_ota_get_final_crc(void);
+static bool heat_ota_crc_step(void);  // 后台 CRC 分块计算, 返回 true=完成
 
 //-----------------------------------------------------------------------------
 // 内部函数
@@ -125,81 +132,54 @@ static u32 lb_crc32_mpeg2_byte(u32 crc, u8 byte)
     return crc;
 }
 
-/** @brief 计算固件 CRC32/MPEG-2 (不含 mod16 零填充), 用于本地校验 header CRC */
-static u32 heat_ota_get_final_crc(void)
+/**
+ * @brief 后台 CRC 分块计算 (由 heat_ota_process 每主循环周期调用一次)
+ *
+ * 每次处理一小块 Flash 数据 (128B) 后立即返回, 让 GUI/Timer 线程有机会运行,
+ * 避免长时间阻塞主循环导致 GPU 线程硬件复位。
+ *
+ * @return true=CRC 计算完成, final_crc_val 已写入上下文
+ */
+static bool heat_ota_crc_step(void)
 {
-    // MCU通信协议.md §5: 包头的第13-16字节表示该固件的CRC32/MPEG-2校验码
-    // 此处计算的是固件原始数据的 CRC32/MPEG-2, 不含 mod16 对齐填充
-    // (END 帧发给加热模块时需要追加零填充, 由 heat_ota_send_end_packet 处理)
-    u32 crc = 0xFFFFFFFF;
-    u32 fw_start;
-    u32 fw_size;
+    // 首次调用时打印 CRC 参数和首尾字节
+    if (g_heat_ota.bg_crc_off == g_heat_ota.bg_crc_fw_start) {
+        printf("[HEAT_OTA] CRC: recv_size=%lu fw_start=%lu fw_size=%lu\n",
+               (unsigned long)g_heat_ota.recv_size,
+               (unsigned long)g_heat_ota.bg_crc_fw_start,
+               (unsigned long)g_heat_ota.bg_crc_fw_size);
 
-    if (g_heat_ota.has_header) {
-        fw_start = HEAT_OTA_HEADER_SIZE;  // 跳过 256 字节包头
-
-        // 从 header bytes 8-11 读取固件实际长度 (大端)
-        // recv_size 包含 BLE 分包对齐产生的零填充，不可直接用于 CRC
-        u8 len_buf[4];
-        os_spiflash_read(len_buf, HEAT_OTA_FLASH_ADDR + 8, 4);
-        fw_size = ((u32)len_buf[0] << 24) | ((u32)len_buf[1] << 16)
-                | ((u32)len_buf[2] << 8)  | len_buf[3];
-
-        // 合法性检查: fw_size 必须 >0 且 ≤ 实际接收的固件数据量
-        if (fw_size == 0 || fw_size > (g_heat_ota.recv_size - fw_start)) {
-            printf("[HEAT_OTA] CRC: bad fw_len=%lu in header, fallback to recv_size\n",
-                   (unsigned long)fw_size);
-            fw_size = g_heat_ota.recv_size - fw_start;
+        if (g_heat_ota.bg_crc_fw_size >= 16) {
+            u8 head[16], tail[16];
+            os_spiflash_read(head, HEAT_OTA_FLASH_ADDR + g_heat_ota.bg_crc_fw_start, 16);
+            os_spiflash_read(tail, HEAT_OTA_FLASH_ADDR + g_heat_ota.bg_crc_fw_start
+                             + g_heat_ota.bg_crc_fw_size - 16, 16);
+            printf("[HEAT_OTA] CRC: head[0..15]=");
+            for (u32 di = 0; di < 16; di++) printf("%02X ", head[di]);
+            printf("\n[HEAT_OTA] CRC: tail[last16]=");
+            for (u32 di = 0; di < 16; di++) printf("%02X ", tail[di]);
+            printf("\n");
         }
-    } else {
-        fw_start = 0;
-        fw_size = g_heat_ota.recv_size;
     }
 
-    // === DEBUG: 打印 CRC 计算参数 ===
-    printf("[HEAT_OTA] CRC: recv_size=%lu has_header=%d fw_start=%lu fw_size=%lu\n",
-           (unsigned long)g_heat_ota.recv_size, g_heat_ota.has_header,
-           (unsigned long)fw_start, (unsigned long)fw_size);
-
+    // 每次处理 128 字节, 让出 CPU
     u8 buf[128];
-    u32 off = fw_start;
-
-    // CRC 真实固件数据 (从 Flash 读取, 仅 fw_size 字节)
-    u32 remain = fw_size;
-
-    // 打印首尾各 16 字节用于校验
-    if (remain >= 16) {
-        u8 head[16], tail[16];
-        os_spiflash_read(head, HEAT_OTA_FLASH_ADDR + fw_start, 16);
-        os_spiflash_read(tail, HEAT_OTA_FLASH_ADDR + fw_start + fw_size - 16, 16);
-        printf("[HEAT_OTA] CRC: head[0..15]=");
-        u32 di;
-        for (di = 0; di < 16; di++) printf("%02X ", head[di]);
-        printf("\n[HEAT_OTA] CRC: tail[last16]=");
-        for (di = 0; di < 16; di++) printf("%02X ", tail[di]);
-        printf("\n");
+    u32 len = g_heat_ota.bg_crc_fw_size - (g_heat_ota.bg_crc_off - g_heat_ota.bg_crc_fw_start);
+    if (len > sizeof(buf)) len = sizeof(buf);
+    if (len == 0) {
+        // 计算完成
+        g_heat_ota.final_crc_val = g_heat_ota.bg_crc_val;
+        printf("[HEAT_OTA] CRC: step done, final_crc=0x%08lX\n",
+               (unsigned long)g_heat_ota.final_crc_val);
+        return true;
     }
 
-    u32 loop_cnt = 0;
-    while (remain > 0) {
-        u32 len = remain;
-        if (len > sizeof(buf)) len = sizeof(buf);
-        os_spiflash_read(buf, HEAT_OTA_FLASH_ADDR + off, (u16)len);
-        u32 i;
-        for (i = 0; i < len; i++) {
-            crc = lb_crc32_mpeg2_byte(crc, buf[i]);
-        }
-        off += len;
-        remain -= len;
-        // CRC 计算连续读 Flash 会阻塞 GPU → gui thread miss → WDT 复位
-        // 每 4 次 Flash 读取后喂狗并短暂让出 CPU, 给 GUI 线程渲染时间
-        if (++loop_cnt % 4 == 0) {
-            WDT_CLR();
-            delay_ms(1);
-        }
+    os_spiflash_read(buf, HEAT_OTA_FLASH_ADDR + g_heat_ota.bg_crc_off, (u16)len);
+    for (u32 i = 0; i < len; i++) {
+        g_heat_ota.bg_crc_val = lb_crc32_mpeg2_byte(g_heat_ota.bg_crc_val, buf[i]);
     }
-
-    return crc;  // MPEG-2 无最终 XOR, 不含 mod16 填充
+    g_heat_ota.bg_crc_off += len;
+    return false;
 }
 
 /** @brief 解析包头 (收到 ≥256B 时调用) */
@@ -362,8 +342,8 @@ static void heat_ota_send_end_packet(void)
            (unsigned long)g_heat_ota.send_total, (unsigned long)g_heat_ota.send_offset,
            g_heat_ota.sent_packets, g_heat_ota.total_packets);
 
-    // 获取原始固件 CRC32/MPEG-2 (不含 mod16 填充, 匹配 header CRC)
-    u32 end_crc = heat_ota_get_final_crc();
+    // 复用后台 CRC 计算的结果 (不含 mod16 填充, 匹配 header CRC)
+    u32 end_crc = g_heat_ota.final_crc_val;
 
     // 追加 mod16 零填充: 加热模块通过 UART 收到的数据含对齐填充,
     // END 帧 CRC 必须覆盖填充后的完整数据, 否则模块拒绝
@@ -501,6 +481,7 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
     case HEAT_UART_PHASE_END:
         printf("[HEAT_OTA] DONE! pkts=%u restarts=%u\n",
                g_heat_ota.total_packets, g_heat_ota.total_restarts);
+        WDT_EN();  // 恢复正常 WDT 超时
         // 加热模块烧录成功, 此时才回复APP 0x0e 升级成功
         {
             u8 rsp[2];
@@ -593,11 +574,16 @@ u8 heat_ota_handler_start(lb_rx_frame_t *rx, u8 msg_flag)
 
     printf("[HEAT_OTA] START: fw_size=%lu\n", (unsigned long)fw_size);
 
+    // OTA 期间临时延长 WDT (Flash 擦写耗时较长), 升级结束后恢复
+    WDT_EN_OTA();
+    WDT_CLR();
+
     if (fw_size > HEAT_OTA_FLASH_SIZE) {
         printf("[HEAT_OTA] fw_size=%lu > flash=%u\n",
                (unsigned long)fw_size, HEAT_OTA_FLASH_SIZE);
         u8 rsp[2] = { rx->data[0], 0x00 };
         lunchbox_uart_send_response(LB_CMD_OTA_START, msg_flag, LB_ERR_EXEC_FAIL, rsp, 2);
+        WDT_EN();  // 恢复正常 WDT 超时
         return LB_ERR_EXEC_FAIL;
     }
 
@@ -620,6 +606,7 @@ u8 heat_ota_handler_start(lb_rx_frame_t *rx, u8 msg_flag)
 
         for (u32 sec = 0; sec < 8; sec++) {
             os_spiflash_erase(HEAT_OTA_FLASH_ADDR + sec * 4096);
+            WDT_CLR();  // 每个扇区擦除后喂狗, 8×4KB 累计耗时可达数秒
         }
 
         // 等待最后一个扇区擦除完成 (读第一个字节, 等它变成 0xFF)
@@ -713,7 +700,6 @@ u8 heat_ota_handler_end(lb_rx_frame_t *rx, u8 msg_flag)
     g_heat_ota.ble_msg_flag_end = msg_flag;
 
     u8 target = (rx->data && rx->data_len > 0) ? rx->data[0] : 0x02;
-    bool crc_ok = false;
 
     // 保存 target 和 msg_flag, 等加热模块UART烧录完成后再回复APP
     g_heat_ota.ble_target = target;
@@ -730,48 +716,33 @@ u8 heat_ota_handler_end(lb_rx_frame_t *rx, u8 msg_flag)
            (unsigned long)magic, (unsigned long)g_heat_ota.recv_size);
 
     if (magic == HEAT_OTA_HEADER_MAGIC) {
-        // 包头存在, 提取 CRC32/MPEG-2 校验码 (字节 12-15, 大端)
         g_heat_ota.has_header = true;
         g_heat_ota.expected_crc32 = ((u32)hdr_buf[12] << 24) | ((u32)hdr_buf[13] << 16)
                                  | ((u32)hdr_buf[14] << 8)  | hdr_buf[15];
+        g_heat_ota.bg_crc_fw_start = HEAT_OTA_HEADER_SIZE;
+        // 从 header bytes 8-11 读取固件实际长度 (大端)
+        u32 hdr_fw_len = ((u32)hdr_buf[8] << 24) | ((u32)hdr_buf[9] << 16)
+                       | ((u32)hdr_buf[10] << 8) | hdr_buf[11];
+        if (hdr_fw_len > 0 && hdr_fw_len <= (g_heat_ota.recv_size - HEAT_OTA_HEADER_SIZE)) {
+            g_heat_ota.bg_crc_fw_size = hdr_fw_len;
+        } else {
+            printf("[HEAT_OTA] bad fw_len=%lu in header, fallback\n", (unsigned long)hdr_fw_len);
+            g_heat_ota.bg_crc_fw_size = g_heat_ota.recv_size - HEAT_OTA_HEADER_SIZE;
+        }
         printf("[HEAT_OTA] header found, expected_crc=0x%08lX\n",
                (unsigned long)g_heat_ota.expected_crc32);
     } else {
         g_heat_ota.has_header = false;
+        g_heat_ota.bg_crc_fw_start = 0;
+        g_heat_ota.bg_crc_fw_size = g_heat_ota.recv_size;
         printf("[HEAT_OTA] no header (magic=0x%08lX != 0x%08lX)\n",
                (unsigned long)magic, (unsigned long)HEAT_OTA_HEADER_MAGIC);
     }
 
-    // === 2. 计算 CRC (仅固件部分, 不含包头) ===
-    u32 final_crc = heat_ota_get_final_crc();
-    printf("[HEAT_OTA] END: final_crc=0x%08lX\n", (unsigned long)final_crc);
-
-    if (g_heat_ota.has_header) {
-        crc_ok = (final_crc == g_heat_ota.expected_crc32);
-        printf("[HEAT_OTA] CRC %s (computed=0x%08lX expected=0x%08lX)\n",
-               crc_ok ? "OK" : "FAIL",
-               (unsigned long)final_crc, (unsigned long)g_heat_ota.expected_crc32);
-    } else {
-        // 没有合法包头, 跳过本地 CRC 校验
-        // 加热模块 bootloader 收到 END 帧后会自行校验 CRC32
-        printf("[HEAT_OTA] no header, skip local CRC check (fw_size=%lu)\n",
-               (unsigned long)(g_heat_ota.recv_size));
-        crc_ok = true;
-    }
-
-    u8 rsp[2];
-    rsp[0] = target;
-    if (crc_ok) {
-        // 不立即回复APP, 等加热模块UART烧录完成后再返回 0x0e 成功
-        // (见 heat_ota_handle_ack HEAT_UART_PHASE_END)
-        printf("[HEAT_OTA] CRC OK, starting UART (0x0e response deferred)\n");
-        heat_ota_start_uart_transfer();
-    } else {
-        rsp[1] = 0x00;
-        lunchbox_uart_send_response(LB_CMD_OTA_END, msg_flag, LB_ERR_EXEC_FAIL, rsp, 2);
-        printf("[HEAT_OTA] CRC FAIL\n");
-        heat_ota_reset();
-    }
+    // === 2. 启动后台分块 CRC 计算 (非阻塞, 由 heat_ota_process 驱动) ===
+    g_heat_ota.bg_crc_val = 0xFFFFFFFF;
+    g_heat_ota.bg_crc_off = g_heat_ota.bg_crc_fw_start;
+    g_heat_ota.state = HEAT_OTA_CRC_CALC;
 
     return LB_ERR_SUCCESS;
 }
@@ -783,6 +754,41 @@ void heat_ota_process(void)
     // OTA 进行中: 喂狗防止 WDT 复位 + 持续重置休眠倒计时防止 MCU 自动休眠
     WDT_CLR();
     elunchbox_guioff_sleep_delay_reset();
+
+    // 后台 CRC 分块计算 (非阻塞, 每次主循环迭代处理一小块)
+    if (g_heat_ota.state == HEAT_OTA_CRC_CALC) {
+        if (!heat_ota_crc_step()) return;  // 未完成, 下个循环继续
+
+        // CRC 计算完成, 校验结果
+        printf("[HEAT_OTA] END: final_crc=0x%08lX\n",
+               (unsigned long)g_heat_ota.final_crc_val);
+        bool crc_ok;
+        if (g_heat_ota.has_header) {
+            crc_ok = (g_heat_ota.final_crc_val == g_heat_ota.expected_crc32);
+            printf("[HEAT_OTA] CRC %s (computed=0x%08lX expected=0x%08lX)\n",
+                   crc_ok ? "OK" : "FAIL",
+                   (unsigned long)g_heat_ota.final_crc_val,
+                   (unsigned long)g_heat_ota.expected_crc32);
+        } else {
+            printf("[HEAT_OTA] no header, skip CRC check\n");
+            crc_ok = true;
+        }
+
+        if (crc_ok) {
+            printf("[HEAT_OTA] CRC OK, starting UART (0x0e response deferred)\n");
+            heat_ota_start_uart_transfer();
+        } else {
+            u8 rsp[2];
+            rsp[0] = g_heat_ota.ble_target;
+            rsp[1] = 0x00;
+            lunchbox_uart_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
+                                        LB_ERR_EXEC_FAIL, rsp, 2);
+            printf("[HEAT_OTA] CRC FAIL\n");
+            WDT_EN();  // 恢复正常 WDT 超时
+            heat_ota_reset();
+        }
+        return;
+    }
 
     if (g_heat_ota.state != HEAT_OTA_WAIT_ACK) return;
 
