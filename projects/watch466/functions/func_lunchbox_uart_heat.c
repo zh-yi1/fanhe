@@ -61,13 +61,17 @@ typedef struct {
     // BLE 接收
     u32 recv_size;
     u32 expected_crc32;       // 包头中的预期 CRC32 (有包头时)
-    u32 crc_accum;            // lb_crc32 累加值 (初始 0xFFFFFFFF, 最终 ^0xFFFFFFFF)
-    u32 crc_offset;           // 已 CRC 覆盖的 Flash 偏移 (避免重复计算)
     bool has_header;
-    bool header_parsed;
     u8  ble_msg_flag_start;
     u8  ble_msg_flag_end;
     u8  ble_target;           // 目标设备标识 (用于延时返回 0x0e 应答)
+
+    // 延迟写入: BLE handler 不直接操作 SPI Flash (会阻塞 GPU),
+    // 改为 heat_ota_process 统一刷出
+    u8  pending_buf[256];     // 待写入 Flash 的数据缓冲
+    u16 pending_len;          // 待写入数据长度
+    u32 pending_flash_off;    // 待写入的 Flash 偏移
+    bool has_pending_write;   // 是否有待写入数据
 
     // UART 发送
     u32 send_offset;
@@ -100,7 +104,6 @@ static heat_ota_ctx_t g_heat_ota;
 // 内部函数声明
 //-----------------------------------------------------------------------------
 static void heat_ota_reset(void);
-static void heat_ota_parse_header(void);
 static void heat_ota_uart_send(u32 offset, const u8 *data, u16 data_len, u8 msg_flag);
 static void heat_ota_send_next_packet(void);
 static void heat_ota_send_boot_cmd(void);
@@ -183,60 +186,6 @@ static bool heat_ota_crc_step(void)
     }
     g_heat_ota.bg_crc_off += len;
     return false;
-}
-
-/** @brief 解析包头 (收到 ≥256B 时调用) */
-static void heat_ota_parse_header(void)
-{
-    if (g_heat_ota.header_parsed) return;
-
-    u8 hdr[4];
-    os_spiflash_read(hdr, HEAT_OTA_FLASH_ADDR, 4);
-    u32 magic = ((u32)hdr[0] << 24) | ((u32)hdr[1] << 16)
-              | ((u32)hdr[2] << 8)  | hdr[3];
-
-    if (magic == HEAT_OTA_HEADER_MAGIC) {
-        g_heat_ota.has_header = true;
-
-        u8 crc_buf[4];
-        os_spiflash_read(crc_buf, HEAT_OTA_FLASH_ADDR + 12, 4);
-        g_heat_ota.expected_crc32 = ((u32)crc_buf[0] << 24) | ((u32)crc_buf[1] << 16)
-                                  | ((u32)crc_buf[2] << 8)  | crc_buf[3];
-
-        printf("[HEAT_OTA] header found, expected_crc=0x%08lX\n",
-               (unsigned long)g_heat_ota.expected_crc32);
-
-        // CRC 从 256 字节后开始
-        if (g_heat_ota.recv_size > HEAT_OTA_HEADER_SIZE) {
-            u8 fw_buf[128];
-            u32 off = HEAT_OTA_HEADER_SIZE;
-            while (off < g_heat_ota.recv_size) {
-                u32 len = g_heat_ota.recv_size - off;
-                if (len > sizeof(fw_buf)) len = sizeof(fw_buf);
-                os_spiflash_read(fw_buf, HEAT_OTA_FLASH_ADDR + off, (u16)len);
-                g_heat_ota.crc_accum = lb_crc32(fw_buf, len, g_heat_ota.crc_accum);
-                off += len;
-            }
-        }
-        g_heat_ota.crc_offset = g_heat_ota.recv_size;
-    } else {
-        g_heat_ota.has_header = false;
-        printf("[HEAT_OTA] no header (magic=0x%08lX), CRC over all data\n", (unsigned long)magic);
-
-        // CRC 所有已接收数据
-        u8 buf[128];
-        u32 off = 0;
-        while (off < g_heat_ota.recv_size) {
-            u32 len = g_heat_ota.recv_size - off;
-            if (len > sizeof(buf)) len = sizeof(buf);
-            os_spiflash_read(buf, HEAT_OTA_FLASH_ADDR + off, (u16)len);
-            g_heat_ota.crc_accum = lb_crc32(buf, len, g_heat_ota.crc_accum);
-            off += len;
-        }
-        g_heat_ota.crc_offset = g_heat_ota.recv_size;
-    }
-
-    g_heat_ota.header_parsed = true;
 }
 
 /** @brief 构建并发送 UART OTA 帧到加热模块 */
@@ -594,7 +543,6 @@ u8 heat_ota_handler_start(lb_rx_frame_t *rx, u8 msg_flag)
     heat_ota_reset();
     g_heat_ota.state = HEAT_OTA_RECEIVING;
     g_heat_ota.ble_msg_flag_start = msg_flag;
-    g_heat_ota.crc_accum = 0xFFFFFFFF;
 
     // 擦除 Flash 32KB 区域
     // 不使用 os_spiflash_erase_32k() — 该芯片可能不支持 32KB 擦除指令
@@ -651,41 +599,34 @@ u8 heat_ota_handler_data(lb_rx_frame_t *rx, u8 msg_flag)
         return LB_ERR_EXEC_FAIL;
     }
 
-    // 写入 Flash
-    os_spiflash_program((void *)pdata, HEAT_OTA_FLASH_ADDR + offset, data_len);
-    WDT_CLR();  // Flash 写入耗时较长, 喂狗防止 WDT 复位
+    if (data_len > sizeof(g_heat_ota.pending_buf)) {
+        printf("[HEAT_OTA] DATA: packet too large %u > %u\n",
+               data_len, (unsigned)sizeof(g_heat_ota.pending_buf));
+        return LB_ERR_EXEC_FAIL;
+    }
+
+    // 若上一包数据还未刷入 Flash (主循环还没来得及处理), 先强制刷出
+    if (g_heat_ota.has_pending_write) {
+        os_spiflash_program(g_heat_ota.pending_buf,
+                            HEAT_OTA_FLASH_ADDR + g_heat_ota.pending_flash_off,
+                            g_heat_ota.pending_len);
+        WDT_CLR();
+        g_heat_ota.has_pending_write = false;
+    }
+
+    // 不直接写 SPI Flash — 会阻塞主循环导致 GPU 线程复位 (Flash 擦写阻塞 GPU)
+    // 改为缓冲到 RAM, 由 heat_ota_process 在每次主循环迭代中统一刷出
+    memcpy(g_heat_ota.pending_buf, pdata, data_len);
+    g_heat_ota.pending_len = data_len;
+    g_heat_ota.pending_flash_off = offset;
+    g_heat_ota.has_pending_write = true;
 
     u32 new_total = offset + data_len;
     if (new_total > g_heat_ota.recv_size) {
         g_heat_ota.recv_size = new_total;
     }
 
-    // 包头解析
-    if (!g_heat_ota.header_parsed && g_heat_ota.recv_size >= HEAT_OTA_HEADER_SIZE) {
-        heat_ota_parse_header();
-    }
-
-    // 增量 CRC: 只对固件部分 (跳过可能的包头)
-    u32 crc_start = g_heat_ota.crc_offset;
-    u32 crc_end   = g_heat_ota.recv_size;
-    if (g_heat_ota.has_header && crc_start < HEAT_OTA_HEADER_SIZE) {
-        crc_start = HEAT_OTA_HEADER_SIZE;
-    }
-
-    if (crc_end > crc_start) {
-        u8 crc_buf[128];
-        u32 off = crc_start;
-        while (off < crc_end) {
-            u32 len = crc_end - off;
-            if (len > sizeof(crc_buf)) len = sizeof(crc_buf);
-            os_spiflash_read(crc_buf, HEAT_OTA_FLASH_ADDR + off, (u16)len);
-            g_heat_ota.crc_accum = lb_crc32(crc_buf, len, g_heat_ota.crc_accum);
-            off += len;
-        }
-        g_heat_ota.crc_offset = crc_end;
-    }
-
-    // ACK
+    // ACK 立即回复 (Flash 写入延后, 不影响协议时序)
     lunchbox_uart_send_response(LB_CMD_OTA_DATA, msg_flag, LB_ERR_SUCCESS, NULL, 0);
     return LB_ERR_SUCCESS;
 }
@@ -755,6 +696,16 @@ void heat_ota_process(void)
     // OTA 进行中: 喂狗防止 WDT 复位 + 持续重置休眠倒计时防止 MCU 自动休眠
     WDT_CLR();
     elunchbox_guioff_sleep_delay_reset();
+
+    // 延迟 Flash 写入: 将 BLE handler 缓冲的数据刷入 SPI Flash
+    // (BLE handler 不直接操作 Flash, 避免阻塞主循环→GPU 线程复位)
+    if (g_heat_ota.has_pending_write) {
+        os_spiflash_program(g_heat_ota.pending_buf,
+                            HEAT_OTA_FLASH_ADDR + g_heat_ota.pending_flash_off,
+                            g_heat_ota.pending_len);
+        WDT_CLR();
+        g_heat_ota.has_pending_write = false;
+    }
 
     // 后台 CRC 分块计算 (非阻塞, 每次主循环迭代处理一小块)
     if (g_heat_ota.state == HEAT_OTA_CRC_CALC) {
