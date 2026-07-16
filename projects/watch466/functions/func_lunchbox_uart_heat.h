@@ -37,6 +37,10 @@
 /** @brief UART 单包最大重试次数 (超过则发送 0xFFFFFFFF+CRC 重新开始) */
 #define HEAT_OTA_MAX_RETRIES        3
 
+/** @brief UART 传输最大重启次数 (数据/END 超时后重新从 BOOT 开始的次数)
+    0=不重启直接失败, 1=允许重启1次 */
+#define HEAT_OTA_MAX_RESTARTS       1
+
 /** @brief 收到 boot ACK 后延迟发送第一包数据的等待时间 (毫秒)
     加热模块 ACK 只表示 UART 已就绪, 但 Flash 写引擎初始化可能更慢,
     不加延时会导致第一条数据包丢失, 每个后续包都要靠超时重试才能送达 */
@@ -115,8 +119,9 @@ void heat_ota_process(void);
  * 若当前处于 HEAT_OTA_WAIT_ACK 状态, 则调用此函数通知状态机。
  *
  * @param rx  UART 接收帧 (cmd=0x04 的应答帧)
+ * @return true=应答已被 OTA 状态机消费 (UART 帧不转发 BLE)
  */
-void heat_ota_uart_response(lb_rx_frame_t *rx);
+bool heat_ota_uart_response(lb_rx_frame_t *rx);
 
 /**
  * @brief 查询是否正在进行加热模块 OTA

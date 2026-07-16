@@ -13,6 +13,7 @@
 #include "func_lunchbox_uart_internal.h"
 #include "func_lunchbox_ota.h"
 #include "func_lunchbox_bridge.h"
+#include "func_lunchbox_uart_heat.h"
 #include "home_ui_shared.h"
 #include "func_lunchbox_ble.h"
 #include "func_lunchbox_partition.h"
@@ -346,8 +347,11 @@ static bool lb_frame_parse(void)
     }
 
     // ──── 加热模块 OTA: 注入 UART 0x04 应答到状态机 ────
-    if (rx.cmd == LB_UART_CMD_OTA) {
+    // 加热模块OTA期间, UART 0x04应答帧仅用于内部状态机驱动,
+    // 不转发给APP (蓝牙通讯协议1.0.6 §7: 只回应蓝牙升级成功/失败)
+    if (rx.cmd == LB_UART_CMD_OTA && heat_ota_is_active()) {
         heat_ota_uart_response(&rx);
+        goto lb_frame_cleanup;
     }
 
 #if LB_BRIDGE_MODE
