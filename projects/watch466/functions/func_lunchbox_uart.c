@@ -1883,6 +1883,11 @@ void lunchbox_uart_suspend(void)
     }
     lb_uart_saved_con = UART1CON;   /* 保存配置，resume 时恢复 */
     UART1CON = 0;
+    /* 释放 PB8(TX)/PB9(RX) 从 UART1 功能回到 GPIO 模式。
+     * FUNCMCON0: UT1TXMAP=bit24(27:24), UT1RXMAP=bit28(31:28) → CLEAR(0xf)
+     * 否则 PB9 仍被 UART RX 占用，port_wakeup_init 的下降沿检测不生效，
+     * 对方发数据的起始位无法唤醒芯片。 */
+    FUNCMCON0 = (FUNCMCON0 & ~((0xf << 28) | (0xf << 24))) | (0xf << 28) | (0xf << 24);
     bsp_uart1_rxclr();
     lb_rx_idx = 0;
     lb_uart_suspended = true;

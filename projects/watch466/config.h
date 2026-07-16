@@ -198,10 +198,12 @@
 #if ELUNCHBOX_PANEL_EN
 #undef  SOFT_POWER_VDDIO_EN
 #define SOFT_POWER_VDDIO_EN             1           /* 硬关机保持 VDDIO，PT8028/PE1 可唤醒开机 */
-#define ELUNCHBOX_KEEP_AWAKE            1           /* 禁止深度休眠；允许 guioff 定时息屏 */
+#define ELUNCHBOX_KEEP_AWAKE            0           /* 允许深度休眠 */
 #define ELUNCHBOX_GUIOFF_TIME_SEC       300          /* 无操作自动关机(秒)，默认 5 分钟 */
 #define ELUNCHBOX_GUIOFF_SLEEP_EN       1           /* 息屏后再进 BT 浅睡降功耗 */
 #define ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC 30          /* 息屏后延迟多少秒进浅睡 */
+#define LPWR_BUCK_TO_LDO_EN             0           /* manual_off 休眠 BUCK→LDO, 省 50-200μA (暂时关闭排查) */
+#define LPWR_VDDTK_OFF_EN               1           /* manual_off 休眠关闭 VDDTK LDO, 省 10-50μA */
 #define ELUNCHBOX_LOWBAT_MODE_EN        1           /* 1=仅DP09低电故障(0x0A)进低电页，不下发UART */
 #if ELUNCHBOX_LOWBAT_MODE_EN
 #define HOME_UI_LOWBAT_OVERLAY_EN       1           /* 兼容旧宏：低电模式启用 */

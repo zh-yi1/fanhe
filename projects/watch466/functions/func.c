@@ -9,7 +9,7 @@
 #include "func_lunchbox_ota.h"
 #include "func_lowbat.h"
 #include "func_lunchbox_wake.h"
-#include "func_lid_confirm.h"
+#include "func_lowpwr.h"
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "home_ui_lowbat_overlay.h"
@@ -391,11 +391,16 @@ static s32 elunchbox_guioff_sleep_delay = -1L;
 static u8 elunchbox_guioff_sleep_mode;
 static u32 elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;  /* 100ms 单位，独立于 sys_cb.guioff_delay */
 static bool elunchbox_pwr_pending_auto_shutdown;  /* 空闲定时器到期，延迟执行 manual_shutdown */
-static u32  elunchbox_saved_clkgat0;               /* 关机时保存 CLKGAT0，唤醒后恢复 */
+u32  elunchbox_saved_clkgat0;               /* 关机时保存 CLKGAT0，唤醒后恢复 */
 static u32  elunchbox_manual_wake_home_tick;       /* 手动关机后 TCH5 唤醒：短时抑制自动跳加热页 */
 
 #ifndef ELUNCHBOX_MANUAL_WAKE_HOME_HOLD_MS
 #define ELUNCHBOX_MANUAL_WAKE_HOME_HOLD_MS  3000
+#endif
+
+/* need_fresh_press 超时兜底：TCH5 硬件卡住时强制清零，防止主循环死等不休眠 */
+#ifndef ELUNCHBOX_FRESH_PRESS_TIMEOUT_MS
+#define ELUNCHBOX_FRESH_PRESS_TIMEOUT_MS   10000
 #endif
 
 static bool elunchbox_manual_wake_home_active(void)
@@ -558,10 +563,10 @@ bool elunchbox_pwr_manual_off_wake_pressing(void)
 #endif
 }
 
-/* 【手动关机-唤醒保持】fresh press 且 TCH5 正被按住时返回 true。
- *   调用方(sleep_process)应跳过深度休眠，让 tick_get() 在 main loop 中正常推进，
- *   使 PT8028 BSP 长按计时(pwr_long_pending)能在 2s 后触发唤醒。
- *   need_fresh_press 未清(松手前残留在关机前的按键)时返回 false，交由浅睡轮询清掉。 */
+/* 【手动关机-唤醒保持】need_fresh_press 时：
+ *   TCH5 按住 → 不进休眠(stay awake)，让 tick 推进等松手
+ *   TCH5 松开 → 清 need_fresh_press，允许进休眠
+ *   need_fresh_press 已清后：TCH5 按住 → 不进休眠(准备 2s 长按唤醒) */
 bool elunchbox_pwr_manual_off_should_stay_awake(void)
 {
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -569,6 +574,12 @@ bool elunchbox_pwr_manual_off_should_stay_awake(void)
         return false;
     }
     if (elunchbox_pwr_need_fresh_press) {
+        if (pt8028_is_power_key_held() || pt8028_boot_tch5_down()) {
+            return true;   /* 还按着 → stay awake，不进休眠 */
+        }
+        /* 松开了 → 清标志，允许进休眠 */
+        elunchbox_pwr_need_fresh_press = false;
+        printf("elunchbox: fresh_press cleared (released)\n");
         return false;
     }
     return pt8028_is_power_key_held() || pt8028_boot_tch5_down();
@@ -630,6 +641,13 @@ bool elunchbox_pwr_manual_off_gui_wake_ok(void)
     return true;
 #endif
 }
+
+#if ELUNCHBOX_PANEL_EN
+void elunchbox_pwr_intentional_wake_set(bool on)
+{
+    elunchbox_pwr_intentional_wake = on;
+}
+#endif
 
 static void elunchbox_pwr_shutdown_yield(void)
 {
@@ -735,18 +753,39 @@ void elunchbox_guioff_sleep_post_wake(bool key_wake)
         printf("elunchbox: sleep_post_wake key_wake=%u pending=%u\n",
                key_wake ? 1u : 0u,
                elunchbox_manual_wake_pending_peek() ? 1u : 0u);
+    } else {
+        printf("elunchbox: sleep_post_wake manual_off key_wake=%u pending=%u\n",
+               key_wake ? 1u : 0u,
+               elunchbox_manual_wake_pending_peek() ? 1u : 0u);
     }
     elunchbox_guioff_sleep_mode = 0;
     pt8028_port_gpio_init();
     pt8028_key_scan();
-    /* 浅睡循环内只置 pending，此处退出 sleep 后再 gui_wakeup */
+    /* manual_off: 立刻丢弃唤醒时读到的按键状态，防止亮屏后主循环
+     * pt8028_key_scan() 看到松手边沿 → 误入队 → 误触发加热等界面。
+     * 真正的 3s 长按判断在主循环通过 GPIO 电平独立判断，不依赖此处状态。 */
+    if (elunchbox_pwr_is_manual_off()) {
+        pt8028_release_clear();
+    }
+    /* 浅睡循环内 manual_off_sleep_poll 检测到 FLAG 下降沿 → 设 pending → 退出深睡。
+     * manual_off: 只退出睡眠，不亮屏。主循环 func_elunchbox_guioff_wake_poll()
+     *   执行 3 秒长按判断后才调 elunchbox_pwr_gui_wake()。
+     * auto guioff: 短按直接亮屏（保持原有行为）。 */
     if (elunchbox_manual_wake_pending_take()) {
-        if (elunchbox_is_guioff()) {
-            elunchbox_pwr_gui_wake_reason("sleep_post_wake pending");
+        if (elunchbox_is_guioff() && !elunchbox_pwr_is_manual_off()) {
+            printf("elunchbox: sleep_post_wake -> gui_wake (key_wake=%u)\n", key_wake ? 1u : 0u);
+            elunchbox_pwr_gui_off = false;
+            elunchbox_pwr_manual_off = false;
+            if (sys_cb.gui_sleep_sta) {
+                gui_wakeup();
+            }
+            lunchbox_display_on();
+            elunchbox_user_activity_reset();
         }
     }
 #if USER_PT8028_KEY
-    if (elunchbox_is_guioff()) {
+    /* manual_off: 3s 长按判断延后到主循环，此处不重复启动计时 */
+    if (elunchbox_is_guioff() && !elunchbox_pwr_is_manual_off()) {
         func_elunchbox_guioff_wake_poll();
 #if SOFT_POWER_ON_OFF
         func_elunchbox_pwr_long_poll();
@@ -854,25 +893,26 @@ static void elunchbox_screen_wake(void)
            sys_cb.gui_sleep_sta ? 1u : 0u);
 
     elunchbox_pwr_gui_off = false;
+    elunchbox_pwr_manual_off = false;
     elunchbox_guioff_sleep_delay_reset();
+    elunchbox_pwroff_sent_reset();  /* 屏真亮了 → 允许下次 manual_off 重发 PowerSwitch=OFF */
+
+    CLKGAT0 = elunchbox_saved_clkgat0;
 
     if (sys_cb.gui_sleep_sta) {
         printf("elunchbox: [DBG] screen_wake calling gui_wakeup()\n");
         gui_wakeup();
     }
     printf("elunchbox: [DBG] screen_wake calling lunchbox_display_on()\n");
-    lunchbox_display_on();  // 先开 VDDLCD → 再恢复背光（与 lunchbox_display_off 配对）
+    lunchbox_display_on();
     printf("elunchbox: [DBG] screen_wake display_on done\n");
     elunchbox_user_activity_reset();
+
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    pt8028_port_gpio_init();
-    pt8028_key_scan();
     pt8028_pwr_long_consume();
     pt8028_release_clear();
     pt8028_set_home_msg_block(1);
 #endif
-    /* 恢复 printf 口和 debug dump 口时钟 */
-    CLKGAT0 = elunchbox_saved_clkgat0;
 
 #if ELUNCHBOX_PANEL_EN
     home_ui_shared_status_inited = false;
@@ -882,10 +922,6 @@ static void elunchbox_screen_wake(void)
     if (bat_was_charging) {
         home_ui_shared_battery_charge_apply(1);
     }
-    func_home_gui_mark_dirty();
-    if (func_cb.sta == FUNC_HOME) {
-        func_home_force_ui_refresh_after_wake();
-    }
 #endif
 #if BT_BACKSTAGE_EN
     bt_update_bt_scan_param_default();
@@ -894,6 +930,7 @@ static void elunchbox_screen_wake(void)
 #if USER_PANEL_LED
     panel_led_scan();
 #endif
+    printf("elunchbox: [DBG] screen_wake COMPLETE\n");
 }
 
 static void elunchbox_pwr_gui_off_exit(void)
@@ -935,13 +972,18 @@ static void elunchbox_guioff_idle_process(void)
 
 static bool elunchbox_manual_off_wake_ready(void)
 {
-    static u8 fresh_wait_logged;
+    static u8  fresh_wait_logged;
+    static u32 fresh_press_start;   /* need_fresh_press 开始时刻，用于超时兜底 */
 
     if (!elunchbox_pwr_wake_armed) {
+        fresh_press_start = 0;
         return false;
     }
     if (elunchbox_pwr_need_fresh_press) {
         if (pt8028_boot_tch5_down() || pt8028_is_power_key_held()) {
+            if (fresh_press_start == 0) {
+                fresh_press_start = tick_get();
+            }
             if (!fresh_wait_logged) {
                 fresh_wait_logged = 1;
                 printf("elunchbox: wake blocked, wait TCH5 release (fresh_press)\n");
@@ -949,10 +991,23 @@ static bool elunchbox_manual_off_wake_ready(void)
                 elunchbox_pwr_key_dbg("fresh_wait_release");
 #endif
             }
+            /* 超时兜底：TCH5 硬件卡住时强制清零，允许进深度休眠防电池耗光 */
+            if (tick_check_expire(fresh_press_start, ELUNCHBOX_FRESH_PRESS_TIMEOUT_MS)) {
+                elunchbox_pwr_need_fresh_press = false;
+                fresh_wait_logged = 0;
+                fresh_press_start = 0;
+                printf("elunchbox: fresh_press force cleared (timeout %ums, TCH5 stuck?)\n",
+                       ELUNCHBOX_FRESH_PRESS_TIMEOUT_MS);
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+                elunchbox_pwr_key_dbg("fresh_timeout");
+#endif
+                return true;
+            }
             return false;
         }
         elunchbox_pwr_need_fresh_press = false;
         fresh_wait_logged = 0;
+        fresh_press_start = 0;
         printf("elunchbox: fresh_press cleared, ready for new 3s hold\n");
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
         elunchbox_pwr_key_dbg("fresh_cleared");
@@ -1005,7 +1060,10 @@ static void func_elunchbox_guioff_wake_poll(void)
                 hold_start = tick_get();
                 if (!hold_log_once) {
                     hold_log_once = 1;
-                    printf("elunchbox: manual off hold begin (need %ums)\n", PT8028_PWR_LONG_MS);
+                    printf("elunchbox: manual off hold begin (need %ums) boot5=%u held=%u\n",
+                           PT8028_PWR_LONG_MS,
+                           pt8028_boot_tch5_down() ? 1u : 0u,
+                           pt8028_is_power_key_held() ? 1u : 0u);
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
                     elunchbox_pwr_key_dbg("hold_begin");
 #endif
@@ -1062,19 +1120,39 @@ static void func_elunchbox_pwr_long_poll(void)
         printf("elunchbox: screen off blocked (charging)\n");
         return;
     }
-    /* 普通亮屏态：长按 3 秒 = 纯关屏 */
+    /* 普通亮屏态：长按 3 秒 = 手动关机 → 真深度休眠 */
     printf("elunchbox: pwr_long_pending -> screen off\n");
+    elunchbox_pwr_manual_off = true;
     elunchbox_screen_off();
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_pwr_manual_off_arm();          /* 重置按键状态机，准备 TCH5 唤醒检测 */
+    elunchbox_pwr_wake_armed = true;      /* 允许 manual_off_sleep_poll 轮询 PE1 */
+    elunchbox_pwr_need_fresh_press = true;/* 需松开再按才能唤醒，防按住误触发 */
+#endif
 }
 
 void elunchbox_manual_off_sleep_poll(void)
 {
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    static u8 last_flag = 1;
+    static u8  last_flag = 1;
+    static bool primed = false;       /* 首次进入时同步硬件状态，防 PT8028 松手去抖误唤醒 */
+    static u8  last_sleep_mode = 0;   /* 追踪 guioff_sleep_mode 0→1 跳变，每轮休眠复位 primed */
 
     if (!elunchbox_pwr_is_manual_off() || !elunchbox_pwr_wake_armed) {
         last_flag = 1;
+        primed = false;
+        last_sleep_mode = 0;
         return;
+    }
+    /* 每轮深度休眠 guioff_sleep_mode 0→1 时复位 primed。
+     * primed 不能在 guard 里靠 !manual_off 复位：manual_off 被 screen_wake 清 false
+     * 后本函数不再被调用，guard 永远执行不到 → primed 残留为 true → 下次进休眠跳同步。 */
+    {
+        u8 cur = elunchbox_guioff_in_sleep_mode() ? 1u : 0u;
+        if (cur && !last_sleep_mode) {
+            primed = false;
+        }
+        last_sleep_mode = cur;
     }
     WDT_CLR();
     /* 【手动关机-浅睡轮询】只读 FLAG(PE1)，不读 BCD(PE2~PE4)：
@@ -1086,6 +1164,15 @@ void elunchbox_manual_off_sleep_poll(void)
      *     Step 2: 主循环 sfunc_sleep 退出后 pt8028_port_gpio_init 重开 BCD
      *             → 读键值 → 判断 TCH5 → 2s 长按 → 真正唤醒 */
     u8 flag = pt8028_read_flag_raw();  //获取状态
+    if (!primed) {
+        /* 首次轮询：同步 last_flag 到当前硬件电平。
+         * 关机长按松手后 BCD 先恢复但 OUT_FLAG 可能仍为 LOW（PT8028 去抖延迟），
+         * 若 last_flag 保持初始值 1 而 flag=0，会误判为下降沿 → 立即唤醒。
+         * 同步后：flag=LOW 时 last_flag=LOW → 等真正松手(HIGH)后再按下(LOW)才唤醒。 */
+        last_flag = flag;
+        primed = true;
+        return;
+    }
     if (flag == 0 && last_flag == 1) {
         elunchbox_manual_wake_pending = true;
     }
@@ -1147,7 +1234,13 @@ void func_process(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (guioff && elunchbox_pwr_is_manual_off()) {  //手动关机
-        //printf("%s: %d\n",__func__,__LINE__); 
+        {
+            static u32 manual_loop_hb;
+            if (tick_check_expire(manual_loop_hb, 2000)) {
+                manual_loop_hb = tick_get();
+                printf("elunchbox: func_process manual_off loop guioff=%u\n", guioff ? 1u : 0u);
+            }
+        }
         WDT_CLR();  //喂狗->防止系统复位
 #if USER_PT8028_KEY
         pt8028_set_home_msg_block(0);
@@ -1173,10 +1266,19 @@ void func_process(void)
         }
 #endif
 
-        /* 用户 TCH5 长按唤醒优先于预约/加热 UART 自动跳页 */
+        /* 用户 TCH5 长按唤醒：先清 manual_off → gui_wakeup() 不阻塞 → 再亮屏 */
         if (elunchbox_manual_wake_pending_take()) {
             printf("elunchbox: TCH5 3s hold wakes screen from manual off\n");
-            elunchbox_pwr_gui_wake();
+            elunchbox_pwr_gui_off = false;
+            elunchbox_pwr_manual_off = false;
+            elunchbox_guioff_sleep_delay_reset();
+            elunchbox_pwroff_sent_reset();  /* 屏真亮了 → 允许下次 manual_off 重发 PowerSwitch=OFF */
+            CLKGAT0 = elunchbox_saved_clkgat0;
+            if (sys_cb.gui_sleep_sta) {
+                gui_wakeup();
+            }
+            lunchbox_display_on();
+            elunchbox_user_activity_reset();
             return;
         }
 
@@ -1218,7 +1320,7 @@ void func_process(void)
         co_timer_pro(false);
         WDT_CLR();
 
-        //sleep_process(bt_is_allow_sleep);  //手动关机→深度休眠
+        sleep_process(bt_is_allow_sleep);  //手动关机→深度休眠
         //lunchbox_display_off();  // 已在 elunchbox_pwr_manual_shutdown() 中调用，循环里无需重复
         return;
     }
@@ -1422,8 +1524,8 @@ void func_process(void)
     }
 #endif
 
-    // guioff 时已熄屏，只需 lunchbox_display_off()；亮屏时才走 sleep_process 处理 idle 超时
-    if (!guioff && sleep_process(bt_is_allow_sleep)) {
+    // sleep_process 内部已处理 guioff/非guioff 两路，勿用 !guioff 堵入口
+    if (sleep_process(bt_is_allow_sleep)) {
         bt_cb.disp_status = 0xff;
     }
 #if ELUNCHBOX_PANEL_EN

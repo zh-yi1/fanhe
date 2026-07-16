@@ -353,6 +353,10 @@ void gui_wakeup(void)
         ctp_init();
 #endif // CTP_SELECT
         tft_init();
+#if ELUNCHBOX_PANEL_EN
+        /* manual_off 唤醒: GPU 恢复但不亮背光, 等主循环 3s 长按确认后由 lunchbox_display_on 点亮 */
+        if (!elunchbox_pwr_is_manual_off())
+#endif
         tft_bglight_open();
         gui_widget_refresh();
         sys_cb.gui_sleep_sta = 0;

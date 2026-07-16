@@ -284,6 +284,8 @@ void elunchbox_pwr_gui_wake_reason(const char *reason);
 void elunchbox_pwr_ble_switch(bool on);
 /** manual_off 时仅允许 intentional wake 调用 gui_wakeup */
 bool elunchbox_pwr_manual_off_gui_wake_ok(void);
+/** 设置 intentional_wake 标志，sfunc_sleep 内调 gui_wakeup 前须置 true */
+void elunchbox_pwr_intentional_wake_set(bool on);
 void elunchbox_manual_off_sleep_poll(void);
 bool elunchbox_manual_wake_pending_take(void);
 bool elunchbox_manual_wake_pending_peek(void);
