@@ -806,10 +806,13 @@ void func_elunchbox_switch_to_lid_confirm(void)
 #endif
     /* 清除残留的 warm/heat pending，防止 lid_confirm 弹窗后被覆盖 */
     func_elunchbox_ble_cancel_pending_switch();
-    home_gpu_wait_idle();
-    WDT_CLR();
-    printf("lid_confirm: show dialog (MCU heating on power-on)\n");
-    func_switch_to(FUNC_LID_CONFIRM, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+    /* 充电+保温上电弹窗：使用延后切页（elunchbox_ble_pending_sta），避免
+     * home_ui_shared_battery_feed_dp 提交的电池图标 GPU 操作未完成时
+     * home_gpu_wait_idle() 阻塞主线程 → gui/tmr thread miss → WDT 复位。
+     * 与 warm/heat 切页一致：elunchbox_ble_pending_sta_poll 在 func_process
+     * 末尾处理，届时 GPU 操作已有充足时间完成。 */
+    func_elunchbox_ble_pending_set(FUNC_LID_CONFIRM);
+    printf("lid_confirm: pending (MCU heating on power-on)\n");
 }
 
 bool elunchbox_lid_confirm_try_redirect(void)

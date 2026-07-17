@@ -191,6 +191,13 @@ void func_elunchbox_ble_cancel_pending_switch(void)
 #endif
 }
 
+void func_elunchbox_ble_pending_set(u8 sta)
+{
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_ble_pending_sta = sta;
+#endif
+}
+
 void func_elunchbox_uart_stop_and_home(void)
 {
 #if ELUNCHBOX_PANEL_EN
