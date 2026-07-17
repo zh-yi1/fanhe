@@ -14,6 +14,7 @@
  * 对接协议:
  *   BLE侧: 蓝牙通讯协议1.0.7.md (cmd 0x0c/0x0d/0x0e, target=0x02)
  *   UART侧: MCU通信协议.md §5.1 (cmd 0x04, offset+data)
+ *   2026-7-17-15：49
  */
 #ifndef __FUNC_LUNCHBOX_UART_HEAT_H
 #define __FUNC_LUNCHBOX_UART_HEAT_H
