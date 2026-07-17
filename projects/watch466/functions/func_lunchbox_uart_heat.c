@@ -47,18 +47,37 @@
 /** @brief 恢复元数据魔数 "HOTA" */
 #define HEAT_OTA_RESUME_MAGIC    0x484F5441
 
-/** @brief 崩溃恢复元数据 (写入独立 Flash 扇区, CRC 通过后才保存) */
+/** @brief 断电恢复元数据 (写入独立 Flash 扇区, CRC 通过后才保存)
+ *
+ * 加热模块收到 BOOT 复位指令进入 bootloader 时会产生瞬时电源跌落,
+ * 导致主 MCU 掉电复位。上电后加热模块已在 BOOT 模式, 跳过复位指令直接发数据。
+ */
 typedef struct {
-    u32 magic;           // HEAT_OTA_RESUME_MAGIC
-    u32 recv_size;       // BLE 接收的总字节数
-    u32 expected_crc32;  // 包头中的预期 CRC32
-    u8  ble_target;      // 0x02
+    u32 magic;              // HEAT_OTA_RESUME_MAGIC
+    u32 recv_size;          // BLE 接收的总字节数
+    u32 expected_crc32;     // 包头中的预期 CRC32
+    u8  ble_target;         // 0x02
     u8  ble_msg_flag_end;
     u8  has_header;
-    u8  crash_count;     // 累计崩溃重启次数 (跨复位持久化, 防无限循环)
-    u32 final_crc32;     // 已计算的 CRC32 结果 (恢复后跳过 CRC 重算)
-    u8  reserved[4];     // 预留给未来扩展
+    u8  power_loss_count;   // 累计掉电次数 (跨复位持久化, 防无限循环)
+    u32 final_crc32;        // 已计算的 CRC32 结果 (恢复后跳过 CRC 重算)
+    u8  reserved[4];        // 预留给未来扩展
 } heat_ota_resume_t;
+
+/** @brief 延迟 OTA 结果 Flash 地址 (独立 4KB 扇区, 不与 resume ctx 冲突) */
+#define HEAT_OTA_DEFERRED_ADDR   (HEAT_OTA_RESUME_ADDR + 0x1000)
+
+/** @brief 延迟结果魔数 "DFOT" */
+#define HEAT_OTA_DEFERRED_MAGIC  0x44464F54
+
+/** @brief 延迟上报的 OTA 升级结果 (断电恢复场景, BLE 重连后发送) */
+typedef struct {
+    u32 magic;           // HEAT_OTA_DEFERRED_MAGIC
+    u8  ble_target;      // 目标设备标识
+    u8  result;          // 0x01=成功, 0x00=失败
+    u8  has_pending;     // 1=有待上报结果
+    u8  reserved;
+} heat_ota_deferred_t;
 
 //-----------------------------------------------------------------------------
 // 子状态
@@ -116,7 +135,7 @@ typedef struct {
     u32 final_crc_val;    // 计算完成的 CRC 结果 (send_end_packet 复用)
     u32 boot_delay_tick;  // boot ACK 后延迟发送第一包的起始 tick (非阻塞)
     bool crc_result_ok;   // CRC 校验结果, 由下一轮主循环消费 (拆分避免 GPU 饿死)
-    u8  crash_count;      // 崩溃恢复计数 (仅在 resume 时递增, 与 UART 重试分离)
+    u8  power_loss_count;  // 掉电恢复计数 (仅在 resume 时递增, 与 UART 重试分离)
 } heat_ota_ctx_t;
 
 static heat_ota_ctx_t g_heat_ota;
@@ -129,10 +148,12 @@ static void heat_ota_uart_send(u32 offset, const u8 *data, u16 data_len, u8 msg_
 static void heat_ota_send_next_packet(void);
 static void heat_ota_send_boot_cmd(void);
 static void heat_ota_send_end_packet(void);
-static void heat_ota_start_uart_transfer(void);
+static void heat_ota_start_uart_transfer(bool skip_boot);
 static void heat_ota_handle_ack(lb_rx_frame_t *rx);
 static void heat_ota_handle_timeout(void);
 static bool heat_ota_crc_step(void);  // 后台 CRC 分块计算, 返回 true=完成
+static void heat_ota_save_deferred_result(u8 target, u8 result);
+static void heat_ota_clear_deferred_result(void);
 
 //-----------------------------------------------------------------------------
 // 内部函数
@@ -144,25 +165,25 @@ static void heat_ota_reset(void)
     g_heat_ota.state = HEAT_OTA_IDLE;
 }
 
-/** @brief 保存 OTA 恢复上下文到 Flash (CRC 通过后调用, 崩溃后可恢复) */
+/** @brief 保存 OTA 恢复上下文到 Flash (CRC 通过后调用, 掉电后可恢复) */
 static void heat_ota_save_resume_ctx(void)
 {
     heat_ota_resume_t meta;
     memset(&meta, 0, sizeof(meta));
-    meta.magic           = HEAT_OTA_RESUME_MAGIC;
-    meta.recv_size       = g_heat_ota.recv_size;
-    meta.expected_crc32  = g_heat_ota.expected_crc32;
-    meta.final_crc32     = g_heat_ota.final_crc_val;
-    meta.ble_target      = g_heat_ota.ble_target;
+    meta.magic            = HEAT_OTA_RESUME_MAGIC;
+    meta.recv_size        = g_heat_ota.recv_size;
+    meta.expected_crc32   = g_heat_ota.expected_crc32;
+    meta.final_crc32      = g_heat_ota.final_crc_val;
+    meta.ble_target       = g_heat_ota.ble_target;
     meta.ble_msg_flag_end = g_heat_ota.ble_msg_flag_end;
-    meta.has_header      = g_heat_ota.has_header ? 1 : 0;
-    meta.crash_count     = g_heat_ota.crash_count;
+    meta.has_header       = g_heat_ota.has_header ? 1 : 0;
+    meta.power_loss_count = g_heat_ota.power_loss_count;
 
     os_spiflash_erase(HEAT_OTA_RESUME_ADDR);
     WDT_CLR();
     os_spiflash_program(&meta, HEAT_OTA_RESUME_ADDR, sizeof(meta));
     WDT_CLR();
-    printf("[HEAT_OTA] resume ctx saved (crash=%u)\n", meta.crash_count);
+    printf("[HEAT_OTA] resume ctx saved (power_loss=%u)\n", meta.power_loss_count);
 }
 
 /** @brief 清除恢复元数据 (OTA 成功完成时调用) */
@@ -172,11 +193,92 @@ static void heat_ota_clear_resume_ctx(void)
     printf("[HEAT_OTA] resume ctx cleared\n");
 }
 
+//-----------------------------------------------------------------------------
+// 延迟 OTA 结果上报 (断电恢复场景: BLE 已断开, 结果保存到 Flash, 重连后发送)
+//-----------------------------------------------------------------------------
+
+/** @brief 保存 OTA 升级结果到 Flash (断电恢复场景, BLE 重连后发送) */
+static void heat_ota_save_deferred_result(u8 target, u8 result)
+{
+    heat_ota_deferred_t def;
+    def.magic      = HEAT_OTA_DEFERRED_MAGIC;
+    def.ble_target = target;
+    def.result     = result;
+    def.has_pending = 1;
+    def.reserved   = 0;
+
+    os_spiflash_erase(HEAT_OTA_DEFERRED_ADDR);
+    WDT_CLR();
+    os_spiflash_program(&def, HEAT_OTA_DEFERRED_ADDR, sizeof(def));
+    WDT_CLR();
+    printf("[HEAT_OTA] deferred result saved: target=0x%02X result=%s\n",
+           target, result ? "SUCCESS" : "FAIL");
+}
+
+/** @brief 清除延迟 OTA 结果 */
+static void heat_ota_clear_deferred_result(void)
+{
+    os_spiflash_erase(HEAT_OTA_DEFERRED_ADDR);
+    printf("[HEAT_OTA] deferred result cleared\n");
+}
+
 /**
- * @brief 启动时检查是否有未完成的 OTA (CRC 已通过, 只差 UART 传输)
+ * @brief 发送 OTA_END 应答 (0x0e) 给 APP
  *
- * 若检测到恢复元数据, 直接从 Flash 重建上下文并启动 UART 传输,
- * 跳过 BLE 接收和 CRC 计算阶段。
+ * 根据 power_loss_count 决定发送方式:
+ *   - power_loss_count > 0: 断电恢复场景, BLE 已断开, 保存到 Flash 等重连后发送
+ *   - power_loss_count == 0: 正常场景, BLE 连接中, 直接发送
+ */
+static void heat_ota_send_end_response(u8 result)
+{
+    if (g_heat_ota.power_loss_count > 0) {
+        // 断电恢复场景: BLE 已断开, 保存结果等重连
+        heat_ota_save_deferred_result(g_heat_ota.ble_target, result);
+    } else {
+        // 正常场景: 直接回复 APP
+        u8 rsp[2];
+        rsp[0] = g_heat_ota.ble_target;
+        rsp[1] = result;
+        lunchbox_uart_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
+                                    result ? LB_ERR_SUCCESS : LB_ERR_EXEC_FAIL, rsp, 2);
+        printf("[HEAT_OTA] 0x0e %s response sent to APP\n", result ? "success" : "failure");
+    }
+}
+
+/**
+ * @brief BLE 重连后检查并发送延迟的 OTA 结果 (由 lunchbox_ble_on_connected 调用)
+ *
+ * @return true=有待上报结果且已发送, false=无待上报结果
+ */
+bool heat_ota_send_deferred_result(void)
+{
+    heat_ota_deferred_t def;
+
+    os_spiflash_read(&def, HEAT_OTA_DEFERRED_ADDR, sizeof(def));
+    if (def.magic != HEAT_OTA_DEFERRED_MAGIC || def.has_pending != 1) {
+        return false;
+    }
+
+    printf("[HEAT_OTA] BLE reconnected, sending deferred result: target=0x%02X result=%s\n",
+           def.ble_target, def.result ? "SUCCESS" : "FAIL");
+
+    // 使用异步发送 (BLE 重连后没有原始请求的 msg_flag)
+    u8 rsp[2];
+    rsp[0] = def.ble_target;
+    rsp[1] = def.result;
+    lunchbox_uart_send_async(LB_CMD_OTA_END, rsp, 2);
+
+    // 清除延迟结果
+    heat_ota_clear_deferred_result();
+    return true;
+}
+
+/**
+ * @brief 启动时检查是否有因掉电未完成的 OTA (CRC 已通过, 只差 UART 传输)
+ *
+ * 加热模块收到 BOOT 复位指令进入 bootloader 时会产生瞬时电源跌落,
+ * 导致主 MCU 掉电复位。上电后加热模块已在 BOOT 模式,
+ * 跳过复位指令直接进入 1 秒延迟后发第一包数据。
  *
  * 调用时机: heat_ota_process() 首次调用 (state==IDLE 时)
  */
@@ -187,12 +289,12 @@ static void heat_ota_resume_check(void)
     os_spiflash_read(&meta, HEAT_OTA_RESUME_ADDR, sizeof(meta));
     if (meta.magic != HEAT_OTA_RESUME_MAGIC) return;
 
-    printf("[HEAT_OTA] === RESUME: found pending OTA (crash=%u) ===\n",
-           meta.crash_count);
+    printf("[HEAT_OTA] === RESUME: found pending OTA (power_loss=%u) ===\n",
+           meta.power_loss_count);
 
-    // 检查崩溃重启次数, 防止无限重启循环
-    if (meta.crash_count >= HEAT_OTA_MAX_RESTARTS + 1) {
-        printf("[HEAT_OTA] max crash resumes reached, abandoning OTA\n");
+    // 检查掉电次数, 防止无限循环
+    if (meta.power_loss_count >= HEAT_OTA_MAX_RESTARTS + 1) {
+        printf("[HEAT_OTA] max power-loss resumes reached, abandoning OTA\n");
         heat_ota_clear_resume_ctx();
         return;
     }
@@ -215,14 +317,14 @@ static void heat_ota_resume_check(void)
 
     // 重建上下文
     heat_ota_reset();
-    g_heat_ota.recv_size       = meta.recv_size;
-    g_heat_ota.expected_crc32  = meta.expected_crc32;
-    g_heat_ota.final_crc_val   = meta.final_crc32;   // 恢复已计算的 CRC, 避免重算
-    g_heat_ota.has_header      = meta.has_header != 0;
-    g_heat_ota.ble_target      = meta.ble_target;
+    g_heat_ota.recv_size        = meta.recv_size;
+    g_heat_ota.expected_crc32   = meta.expected_crc32;
+    g_heat_ota.final_crc_val    = meta.final_crc32;   // 恢复已计算的 CRC, 避免重算
+    g_heat_ota.has_header       = meta.has_header != 0;
+    g_heat_ota.ble_target       = meta.ble_target;
     g_heat_ota.ble_msg_flag_end = meta.ble_msg_flag_end;
-    g_heat_ota.crash_count     = meta.crash_count + 1;  // 累加崩溃计数
-    g_heat_ota.total_restarts  = 0;   // UART 协议重试从零开始 (与崩溃分离)
+    g_heat_ota.power_loss_count = meta.power_loss_count + 1;  // 累加掉电计数
+    g_heat_ota.total_restarts   = 0;   // UART 协议重试从零开始 (与掉电分离)
 
     // 从 header 读取固件长度
     if (g_heat_ota.has_header) {
@@ -242,10 +344,11 @@ static void heat_ota_resume_check(void)
            (u16)((g_heat_ota.send_total + HEAT_OTA_PACKET_SIZE - 1)
                  / HEAT_OTA_PACKET_SIZE));
 
-    // 直接启动 UART 传输 (CRC 在保存恢复上下文前已校验通过)
+    // 掉电恢复: 加热模块已在 BOOT 模式, 跳过复位指令
+    // skip_boot=true → 不发送 BOOT cmd, 直接进入 1 秒延迟后发第一包数据
     WDT_EN_OTA();
     WDT_CLR();
-    heat_ota_start_uart_transfer();
+    heat_ota_start_uart_transfer(true);
 }
 
 /** @brief CRC32/MPEG-2 单字节更新 (多项式 0x04C11DB7, 非反射, 无最终XOR) */
@@ -341,9 +444,12 @@ static void heat_ota_uart_send(u32 offset, const u8 *data, u16 data_len, u8 msg_
 
 static void heat_ota_send_boot_cmd(void)
 {
-    g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT;
+    // 不再等待加热模块回复 magic=0x44332211, 直接进入 1 秒延迟后发第一包数据
+    g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT_DELAY;
+    g_heat_ota.boot_delay_tick = tick_get();
     g_heat_ota.retry_count = 0;
-    printf("[HEAT_OTA] UART: boot cmd (offset=0xFFFFFFFF)\n");
+    printf("[HEAT_OTA] UART: >>> BOOT cmd sent, waiting %lums (no ACK check) tick=%lu\n",
+           (unsigned long)HEAT_OTA_BOOT_DELAY_MS, (unsigned long)tick_get());
 
     u8 msg = g_heat_ota.uart_msg_flag++;
     g_heat_ota.current_msg_flag = msg;
@@ -380,6 +486,12 @@ static void heat_ota_send_next_packet(void)
     } else {
         flash_off = HEAT_OTA_FLASH_ADDR + g_heat_ota.send_offset;
     }
+
+    // 第一包数据: 打印 Flash 读取时机 (确认此时是否断电)
+    if (g_heat_ota.send_offset == 0) {
+        printf("[HEAT_OTA] >>> 1st pkt: reading flash off=0x%06lX len=%u tick=%lu\n",
+               (unsigned long)flash_off, pkt_len, (unsigned long)tick_get());
+    }
     os_spiflash_read(packet_buf, flash_off, pkt_len);
     if (aligned_len > pkt_len) {
         memset(packet_buf + pkt_len, 0x00, aligned_len - pkt_len);
@@ -390,9 +502,10 @@ static void heat_ota_send_next_packet(void)
     g_heat_ota.current_packet_offset = g_heat_ota.send_offset;
     g_heat_ota.current_packet_len = pkt_len;
 
-    printf("[HEAT_OTA] UART: pkt %u/%u off=0x%08lX len=%u\n",
+    printf("[HEAT_OTA] UART: pkt %u/%u off=0x%08lX len=%u tick=%lu\n",
            g_heat_ota.sent_packets + 1, g_heat_ota.total_packets,
-           (unsigned long)g_heat_ota.send_offset, pkt_len);
+           (unsigned long)g_heat_ota.send_offset, pkt_len,
+           (unsigned long)tick_get());
 
     heat_ota_uart_send(g_heat_ota.send_offset, packet_buf, aligned_len, msg);
     g_heat_ota.state = HEAT_OTA_WAIT_ACK;
@@ -439,9 +552,9 @@ static void heat_ota_send_end_packet(void)
     g_heat_ota.state = HEAT_OTA_WAIT_ACK;
 }
 
-static void heat_ota_start_uart_transfer(void)
+static void heat_ota_start_uart_transfer(bool skip_boot)
 {
-    printf("[HEAT_OTA] starting UART transfer\n");
+    printf("[HEAT_OTA] starting UART transfer%s\n", skip_boot ? " (skip BOOT)" : "");
 
     if (g_heat_ota.has_header) {
         // 从 header bytes 8-11 读取固件实际长度 (大端)
@@ -472,13 +585,22 @@ static void heat_ota_start_uart_transfer(void)
            (unsigned long)g_heat_ota.recv_size, (unsigned long)g_heat_ota.send_total,
            g_heat_ota.total_packets, g_heat_ota.has_header);
 
-    // 保存恢复上下文 (崩溃后可跳过 BLE+CRC, 直接从 UART 重来)
+    // 保存恢复上下文 (掉电后可跳过 BLE+CRC, 直接从 UART 重来)
     heat_ota_save_resume_ctx();
 
-    // 先发 boot 引导命令 (offset=0xFFFFFFFF) 让模块进入 boot 模式
-    // 模块对 boot 命令回复 err=0x01 属正常行为, heat_ota_handle_ack 已处理
-    g_heat_ota.state = HEAT_OTA_SENDING;
-    heat_ota_send_boot_cmd();
+    if (skip_boot) {
+        // 掉电恢复路径: 加热模块已在 BOOT 模式, 跳过复位指令
+        // 直接进入 1 秒非阻塞延迟, 到期后发第一包数据
+        g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT_DELAY;
+        g_heat_ota.boot_delay_tick = tick_get();
+        g_heat_ota.state = HEAT_OTA_WAIT_ACK;
+        printf("[HEAT_OTA] RESUME: skip BOOT, waiting %lums then 1st packet tick=%lu\n",
+               (unsigned long)HEAT_OTA_BOOT_DELAY_MS, (unsigned long)tick_get());
+    } else {
+        // 正常路径: 先发 BOOT 引导命令 (offset=0xFFFFFFFF) 让模块进入 boot 模式
+        g_heat_ota.state = HEAT_OTA_SENDING;
+        heat_ota_send_boot_cmd();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -488,9 +610,8 @@ static void heat_ota_start_uart_transfer(void)
 static void heat_ota_handle_ack(lb_rx_frame_t *rx)
 {
     // 从响应中解析 offset (4 字节大端), 用于过滤过期应答
-    // 模块可能返回 data_len=0 (按文档) 或 data_len=4 (实际观察), 有 offset 时校验
-    // BOOT/END/RESTART_END 阶段: 模块对 offset=0xFFFFFFFF 的应答为 0xFFFFFFFE,
-    // 与发送的 offset 不同, 跳过严格匹配
+    // DATA 阶段: 校验 rx offset 与 current_packet_offset 匹配, 丢弃过期应答
+    // BOOT 阶段: 模块回复 offset=0xFFFFFFFF + magic=0x44332211, 下面单独校验
     if (rx->data && rx->data_len >= 4) {
         u32 rx_offset = ((u32)rx->data[0] << 24) | ((u32)rx->data[1] << 16)
                       | ((u32)rx->data[2] << 8)  | rx->data[3];
@@ -503,40 +624,21 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
         }
     }
 
-    // BOOT 阶段: err=0x01 表示模块收到复位指令, 视为成功
+    // err_flag != 0 统一视为失败 (旧版 err=0x01 boot ACK 协议已废弃)
     if (rx->err_flag != 0x00) {
-        if (g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT && rx->err_flag == 0x01) {
-            printf("[HEAT_OTA] boot ack err=0x01 (expected), delay %lums (non-blocking)\n",
-                   (unsigned long)HEAT_OTA_BOOT_DELAY_MS);
-            g_heat_ota.retry_count = 0;
-            g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT_DELAY;
-            g_heat_ota.send_offset = 0;
-            g_heat_ota.sent_packets = 0;
-            g_heat_ota.boot_delay_tick = tick_get();
-            // state 保持 HEAT_OTA_WAIT_ACK, 由 heat_ota_process 轮询到期后发第一包
+        if (g_heat_ota.total_restarts < HEAT_OTA_MAX_RESTARTS) {
+            printf("[HEAT_OTA] phase=%d err=0x%02X, restarting UART transfer (%u/%u)\n",
+                   g_heat_ota.uart_phase, rx->err_flag,
+                   g_heat_ota.total_restarts + 1, HEAT_OTA_MAX_RESTARTS);
+            g_heat_ota.total_restarts++;
+            heat_ota_start_uart_transfer(false);
         } else {
-            // 模块回复失败 → 检查重启次数限制
-            if (g_heat_ota.total_restarts < HEAT_OTA_MAX_RESTARTS) {
-                printf("[HEAT_OTA] phase=%d err=0x%02X, restarting UART transfer (%u/%u)\n",
-                       g_heat_ota.uart_phase, rx->err_flag,
-                       g_heat_ota.total_restarts + 1, HEAT_OTA_MAX_RESTARTS);
-                g_heat_ota.total_restarts++;
-                heat_ota_start_uart_transfer();
-            } else {
-                printf("[HEAT_OTA] phase=%d err=0x%02X, max restarts reached, OTA FAIL\n",
-                       g_heat_ota.uart_phase, rx->err_flag);
-                {
-                    u8 rsp[2];
-                    rsp[0] = g_heat_ota.ble_target;
-                    rsp[1] = 0x00;  // 升级失败
-                    lunchbox_uart_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
-                                                LB_ERR_EXEC_FAIL, rsp, 2);
-                    printf("[HEAT_OTA] 0x0e failure response sent to APP\n");
-                }
-                heat_ota_clear_resume_ctx();  // 升级失败, 清除恢复标记
-                WDT_EN();  // 恢复正常 WDT 超时
-                heat_ota_reset();
-            }
+            printf("[HEAT_OTA] phase=%d err=0x%02X, max restarts reached, OTA FAIL\n",
+                   g_heat_ota.uart_phase, rx->err_flag);
+            heat_ota_send_end_response(0x00);  // 升级失败 (断电恢复时自动延迟到 BLE 重连)
+            heat_ota_clear_resume_ctx();
+            WDT_EN();
+            heat_ota_reset();
         }
         return;
     }
@@ -544,16 +646,6 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
     g_heat_ota.retry_count = 0;
 
     switch (g_heat_ota.uart_phase) {
-    case HEAT_UART_PHASE_BOOT:
-        printf("[HEAT_OTA] boot acked, delay %lums (non-blocking)\n",
-               (unsigned long)HEAT_OTA_BOOT_DELAY_MS);
-        g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT_DELAY;
-        g_heat_ota.send_offset = 0;
-        g_heat_ota.sent_packets = 0;
-        g_heat_ota.boot_delay_tick = tick_get();
-        // state 保持 HEAT_OTA_WAIT_ACK, 由 heat_ota_process 轮询到期后发第一包
-        break;
-
     case HEAT_UART_PHASE_DATA:
         g_heat_ota.sent_packets++;
         g_heat_ota.send_offset += g_heat_ota.current_packet_len;
@@ -564,17 +656,9 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
     case HEAT_UART_PHASE_END:
         printf("[HEAT_OTA] DONE! pkts=%u restarts=%u\n",
                g_heat_ota.total_packets, g_heat_ota.total_restarts);
-        heat_ota_clear_resume_ctx();  // OTA 成功, 清除恢复标记
-        WDT_EN();  // 恢复正常 WDT 超时
-        // 加热模块烧录成功, 此时才回复APP 0x0e 升级成功
-        {
-            u8 rsp[2];
-            rsp[0] = g_heat_ota.ble_target;
-            rsp[1] = 0x01;  // 升级成功
-            lunchbox_uart_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
-                                        LB_ERR_SUCCESS, rsp, 2);
-            printf("[HEAT_OTA] 0x0e success response sent to APP\n");
-        }
+        heat_ota_clear_resume_ctx();
+        WDT_EN();
+        heat_ota_send_end_response(0x01);  // 升级成功 (断电恢复时自动延迟到 BLE 重连)
         heat_ota_reset();
         break;
 
@@ -596,11 +680,7 @@ static void heat_ota_handle_timeout(void)
         printf("[HEAT_OTA] timeout retry %u/%u\n",
                g_heat_ota.retry_count, HEAT_OTA_MAX_RETRIES);
 
-        if (g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT) {
-            u8 msg = g_heat_ota.uart_msg_flag++;
-            g_heat_ota.current_msg_flag = msg;
-            heat_ota_uart_send(0xFFFFFFFF, NULL, 0, msg);
-        } else if (g_heat_ota.uart_phase == HEAT_UART_PHASE_DATA) {
+        if (g_heat_ota.uart_phase == HEAT_UART_PHASE_DATA) {
             // 从 Flash 重建当前包
             u32 remaining = g_heat_ota.send_total - g_heat_ota.current_packet_offset;
             u16 pkt_len = (remaining >= HEAT_OTA_PACKET_SIZE) ? HEAT_OTA_PACKET_SIZE
@@ -635,40 +715,19 @@ static void heat_ota_handle_timeout(void)
         g_heat_ota.state = HEAT_OTA_WAIT_ACK;
     } else {
         // 3 次重试全部失败
-        if (g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT) {
-            // 复位指令3次失败 → 判定加热模块升级失败
-            printf("[HEAT_OTA] boot cmd failed 3 times, OTA FAIL\n");
-            {
-                u8 rsp[2];
-                rsp[0] = g_heat_ota.ble_target;
-                rsp[1] = 0x00;  // 升级失败
-                lunchbox_uart_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
-                                            LB_ERR_EXEC_FAIL, rsp, 2);
-                printf("[HEAT_OTA] 0x0e failure response sent to APP\n");
-            }
-            heat_ota_clear_resume_ctx();  // 升级失败, 清除恢复标记
-            WDT_EN();  // 恢复正常 WDT 超时
-            heat_ota_reset();
-        } else if (g_heat_ota.total_restarts < HEAT_OTA_MAX_RESTARTS) {
+        if (g_heat_ota.total_restarts < HEAT_OTA_MAX_RESTARTS) {
             // 数据/END 指令3次失败 → 重新发复位指令 (从头开始 UART 传输)
             printf("[HEAT_OTA] max retries in phase=%d, restarting UART transfer (%u/%u)\n",
                    g_heat_ota.uart_phase,
                    g_heat_ota.total_restarts + 1, HEAT_OTA_MAX_RESTARTS);
             g_heat_ota.total_restarts++;
-            heat_ota_start_uart_transfer();
+            heat_ota_start_uart_transfer(false);
         } else {
             // 重启后仍然失败 → 判定加热模块升级失败
             printf("[HEAT_OTA] max restarts reached, OTA FAIL\n");
-            {
-                u8 rsp[2];
-                rsp[0] = g_heat_ota.ble_target;
-                rsp[1] = 0x00;  // 升级失败
-                lunchbox_uart_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
-                                            LB_ERR_EXEC_FAIL, rsp, 2);
-                printf("[HEAT_OTA] 0x0e failure response sent to APP\n");
-            }
-            heat_ota_clear_resume_ctx();  // 升级失败, 清除恢复标记
-            WDT_EN();  // 恢复正常 WDT 超时
+            heat_ota_send_end_response(0x00);  // 升级失败 (断电恢复时自动延迟到 BLE 重连)
+            heat_ota_clear_resume_ctx();
+            WDT_EN();
             heat_ota_reset();
         }
     }
@@ -911,15 +970,11 @@ void heat_ota_process(void)
     if (g_heat_ota.state == HEAT_OTA_SENDING) {
         if (g_heat_ota.crc_result_ok) {
             printf("[HEAT_OTA] CRC OK, starting UART (0x0e response deferred)\n");
-            heat_ota_start_uart_transfer();  // 内部保存恢复上下文
+            heat_ota_start_uart_transfer(false);  // 内部保存恢复上下文
         } else {
-            u8 rsp[2];
-            rsp[0] = g_heat_ota.ble_target;
-            rsp[1] = 0x00;
-            lunchbox_uart_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
-                                        LB_ERR_EXEC_FAIL, rsp, 2);
             printf("[HEAT_OTA] CRC FAIL\n");
-            WDT_EN();  // 恢复正常 WDT 超时
+            heat_ota_send_end_response(0x00);  // CRC 失败
+            WDT_EN();
             heat_ota_reset();
         }
         return;
@@ -929,8 +984,20 @@ void heat_ota_process(void)
 
     // BOOT_DELAY 阶段: 非阻塞等待, 避免 delay_ms() 阻塞主循环导致 GPU 线程复位
     if (g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT_DELAY) {
+        // 心跳打印: 首次进入 + 每 200ms 打印一次, 确认 1s 等待期间主循环未卡死
+        {
+            static u32 boot_delay_last_hb;
+            if (boot_delay_last_hb == 0 || tick_check_expire(boot_delay_last_hb, 200)) {
+                boot_delay_last_hb = tick_get();
+                printf("[HEAT_OTA] ... waiting boot delay, elapsed=%lums tick=%lu\n",
+                       (unsigned long)(tick_get() - g_heat_ota.boot_delay_tick),
+                       (unsigned long)tick_get());
+            }
+        }
         if (tick_check_expire(g_heat_ota.boot_delay_tick, HEAT_OTA_BOOT_DELAY_MS)) {
-            printf("[HEAT_OTA] boot delay done, starting data\n");
+            printf("[HEAT_OTA] >>> boot delay done (%lums), starting 1st data packet tick=%lu\n",
+                   (unsigned long)(tick_get() - g_heat_ota.boot_delay_tick),
+                   (unsigned long)tick_get());
             g_heat_ota.uart_phase = HEAT_UART_PHASE_DATA;
             g_heat_ota.state = HEAT_OTA_SENDING;
             heat_ota_send_next_packet();

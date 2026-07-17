@@ -602,6 +602,9 @@ void lunchbox_ble_on_connected(void)
 
     // 标记等待 APP 应答时间戳后再发送预设，不立即发送
     lb_ble_presets_pending = true;
+
+    // 检查是否有断电恢复后延迟的 OTA 升级结果需要上报
+    heat_ota_send_deferred_result();
 }
 
 #if ELUNCHBOX_PANEL_EN

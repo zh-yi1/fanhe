@@ -7,8 +7,9 @@
  *   2. APP 发送完毕后 (OTA_END) → MCU 校验 CRC32
  *   3. CRC 错误 → 回复 APP 升级失败 (result=0x00)
  *   4. CRC 正确 → 通过 UART (cmd=0x04) 逐包发送给加热模块
- *   5. UART 发送每包后等待加热模块应答, 超时无应答则重试 (最多3次)
- *   6. 3次重试均失败 → 发送 0xFFFFFFFF+CRC32 让加热模块重新升级, 然后从第一包重新开始
+ *   5. 发送 0xFFFFFFFF 复位指令 → 不等应答, 直接等 1s → 发第一包数据
+ *   6. UART 发送每包后等待加热模块应答, 超时无应答则重试 (最多3次)
+ *   7. 3次重试均失败 → 发送 0xFFFFFFFF+CRC32 让加热模块重新升级, 然后从第一包重新开始
  *
  * 对接协议:
  *   BLE侧: 蓝牙通讯协议1.0.7.md (cmd 0x0c/0x0d/0x0e, target=0x02)
@@ -41,10 +42,9 @@
     0=不重启直接失败, 1=允许重启1次 */
 #define HEAT_OTA_MAX_RESTARTS       1
 
-/** @brief 收到 boot ACK 后延迟发送第一包数据的等待时间 (毫秒)
-    加热模块 ACK 只表示 UART 已就绪, 但 Flash 写引擎初始化可能更慢,
-    不加延时会导致第一条数据包丢失, 每个后续包都要靠超时重试才能送达 */
-#define HEAT_OTA_BOOT_DELAY_MS      100
+/** @brief 发送 BOOT 复位指令后等待加热模块就绪的延迟时间 (毫秒)
+    发送 0xFFFFFFFF 后不验证模块应答, 直接等待此延迟后发第一条数据 (offset=0) */
+#define HEAT_OTA_BOOT_DELAY_MS      1000
 
 //-----------------------------------------------------------------------------
 // OTA 状态机
@@ -133,6 +133,19 @@ bool heat_ota_is_active(void);
  * @brief 获取当前 OTA 状态 (调试用)
  */
 heat_ota_state_t heat_ota_get_state(void);
+
+/**
+ * @brief BLE 重连后检查并发送延迟的 OTA 升级结果
+ *
+ * 断电恢复场景: 加热模块进入 BOOT 导致 MCU 掉电,
+ * BLE 已断开, OTA 结果保存到 Flash。
+ * BLE 重新连接后调用此函数发送延迟的 0x0e 应答给 APP。
+ *
+ * 调用时机: lunchbox_ble_on_connected() 中。
+ *
+ * @return true=有待上报结果且已发送, false=无待上报结果
+ */
+bool heat_ota_send_deferred_result(void);
 
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __FUNC_LUNCHBOX_UART_HEAT_H
