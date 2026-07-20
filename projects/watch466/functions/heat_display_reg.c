@@ -137,6 +137,9 @@ static bool heat_display_try_charging_warm_route(bool got_mode, u8 mcu_mode,
     if (func_cb.sta == FUNC_NEW_WARM) {
         return true;
     }
+    if (elunchbox_charge_off_active()) {
+        return true;
+    }
     /* 预约到点/Home等：亮屏直接进保温（预约加热+充电先保温，拔电后回加热），熄屏记 pending */
     if (func_cb.sta != FUNC_HEAT) {
         if (heat_display_heat_task_active(got_enable, heating)) {

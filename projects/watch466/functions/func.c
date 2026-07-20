@@ -160,6 +160,10 @@ void func_elunchbox_switch_to_home(void)
         printf("elunchbox: switch home blocked (lowbat sta=%u)\n", func_cb.sta);
         return;
     }
+    if (elunchbox_charge_off_active() && home_ui_shared_battery_is_charging()) {
+        printf("elunchbox: switch home blocked (charge off page)\n");
+        return;
+    }
     if (func_cb.sta == FUNC_HOME) {
         return;
     }
@@ -1117,8 +1121,10 @@ static void func_elunchbox_pwr_long_poll(void)
         /* 熄屏态：长按唤醒已由 guioff_wake_poll 短按处理，此处忽略 */
         return;
     }
+    /* 亮屏充电中长按关机：进黑屏充电跑马灯页（不深睡），拔电回主页 */
     if (elunchbox_is_charging()) {
-        printf("elunchbox: screen off blocked (charging)\n");
+        printf("elunchbox: pwr_long while charging -> charge off page\n");
+        func_elunchbox_enter_charge_off_page();
         return;
     }
     /* 普通亮屏态：长按 3 秒 = 手动关机 → 真深度休眠 */
@@ -1283,9 +1289,9 @@ void func_process(void)
             return;
         }
 
-        if (heat_display_charge_wake_pending()) {    //充电中唤醒->加热模块发来充电状态，检测到充电则唤醒
-            printf("elunchbox: charge DP wakes screen from manual off\n");
-            elunchbox_pwr_gui_wake();
+        if (heat_display_charge_wake_pending()) {    //关机态插电 → 黑屏充电跑马灯页
+            printf("elunchbox: charge DP wakes from manual off -> charge off page\n");
+            func_elunchbox_enter_charge_off_page();
             return;
         }
         if (heat_display_warm_charge_pending_active()) {
@@ -1458,13 +1464,10 @@ void func_process(void)
             }
         }
         elunchbox_guioff_idle_process();   //熄屏空闲处理(UART收数据→可能设 charge/heat pending)
-        /* 充电中唤醒→加热模块发来充电状态，检测到充电则唤醒。
-           模仿手动关机充电唤醒：elunchbox_screen_wake 中 go_home=false(非手动)，
-           不会自动切 HOME，需显式切到 HOME 页确保充电图标刷新 */
+        /* 熄屏态插电 → 黑屏充电跑马灯页；拔电回主页 */
         if (heat_display_charge_wake_pending()) {
-            printf("elunchbox: charge DP wakes screen from guioff\n");
-            elunchbox_pwr_gui_wake();
-            func_cb.sta = FUNC_HOME;
+            printf("elunchbox: charge DP wakes from guioff -> charge off page\n");
+            func_elunchbox_enter_charge_off_page();
             return;
         }
         if (heat_display_warm_charge_pending_active()) {

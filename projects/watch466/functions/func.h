@@ -262,6 +262,9 @@ bool func_elunchbox_warm_from_charging(void);
 void func_elunchbox_warm_from_charging_set(bool on);
 /** 充电中刷新保温页充电图标（不再主动切页，跳页由 UART DP 驱动） */
 bool func_elunchbox_charging_redirect_warm(void);
+/** 黑屏充电跑马灯页（关机态插电 / 亮屏充电后关机） */
+bool elunchbox_charge_off_active(void);
+void func_elunchbox_enter_charge_off_page(void);
 void func_heat_ble_remote_restart(void);
 void func_new_warm_ble_restart(void);
 void func_heat_key_poll(void);
