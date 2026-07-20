@@ -24,7 +24,7 @@ void ble_app_process(void)
 #endif
 
 #if (USE_APP_TYPE == APP_BLUE_FIT)
-    ble_app_watch_process();
+    ble_app_watch_process();  //ble
 #endif
 }
 

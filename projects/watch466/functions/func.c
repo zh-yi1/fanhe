@@ -1578,7 +1578,7 @@ void func_process(void)
     if(bt_cb.bt_is_inited && !elunchbox_pwr_is_manual_off()) {
         bt_thread_check_trigger(); //经典蓝牙线程
 #if LE_EN
-        ble_app_process();
+        ble_app_process();//ble
 #endif
 #if LE_AB_FOT_EN
     	bsp_fot_process();

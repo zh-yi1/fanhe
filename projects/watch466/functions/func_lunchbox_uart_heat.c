@@ -753,7 +753,7 @@ u8 heat_ota_handler_start(lb_rx_frame_t *rx, u8 msg_flag)
     WDT_EN_OTA();
     WDT_CLR();
 
-    if (fw_size > HEAT_OTA_FLASH_SIZE) {
+    if (fw_size > HEAT_OTA_FLASH_SIZE) {   // > 32KB
         printf("[HEAT_OTA] fw_size=%lu > flash=%u\n",
                (unsigned long)fw_size, HEAT_OTA_FLASH_SIZE);
         u8 rsp[2] = { rx->data[0], 0x00 };
