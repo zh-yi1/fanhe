@@ -18,6 +18,12 @@ void plugin_var_init(void)
         xcfg_cb.charge_dc_reset = 0;
         xcfg_cb.charge_dc_not_pwron = 0;
     }
+#if ELUNCHBOX_PANEL_EN
+    /* 插电不可复位/禁止开机：否则关机后插电会 WDT/DC 整机重启进主页，
+     * 无法走黑屏充电跑马灯软唤醒路径。 */
+    xcfg_cb.charge_dc_reset = 0;
+    xcfg_cb.charge_dc_not_pwron = 0;
+#endif
 #endif // CHARGE_EN
 
 #if BT_HFP_INBAND_RING_EN

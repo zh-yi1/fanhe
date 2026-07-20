@@ -264,6 +264,9 @@ bool func_elunchbox_warm_from_charging(void);
 void func_elunchbox_warm_from_charging_set(bool on);
 /** 充电中刷新保温页充电图标（不再主动切页，跳页由 UART DP 驱动） */
 bool func_elunchbox_charging_redirect_warm(void);
+/** 黑屏充电跑马灯页（关机态插电 / 亮屏充电后关机） */
+bool elunchbox_charge_off_active(void);
+void func_elunchbox_enter_charge_off_page(void);
 void func_heat_ble_remote_restart(void);
 void func_new_warm_ble_restart(void);
 void func_heat_key_poll(void);
@@ -278,6 +281,9 @@ bool elunchbox_pwr_is_manual_off(void);
 bool elunchbox_pwr_manual_off_wake_pressing(void);
 /** 手动关机唤醒：TCH5 被按住时应阻止深度休眠，让 tick_get() 正常推进完成 2s 长按检测 */
 bool elunchbox_pwr_manual_off_should_stay_awake(void);
+/** 关机态 PB9/UART 门铃唤醒后，保持清醒数秒收充电包 */
+void elunchbox_manual_off_uart_listen_arm(void);
+bool elunchbox_manual_off_uart_listening(void);
 void elunchbox_pwr_gui_off_activate(void);
 bool elunchbox_is_device_powered(void);
 void elunchbox_pwr_gui_wake(void);
@@ -288,6 +294,8 @@ void elunchbox_pwr_ble_switch(bool on);
 bool elunchbox_pwr_manual_off_gui_wake_ok(void);
 /** 设置 intentional_wake 标志，sfunc_sleep 内调 gui_wakeup 前须置 true */
 void elunchbox_pwr_intentional_wake_set(bool on);
+/** 关机进黑屏充电页：恢复 GPU，暂不开背光（切页后再亮） */
+void elunchbox_pwr_wake_for_charge_off(void);
 void elunchbox_manual_off_sleep_poll(void);
 bool elunchbox_manual_wake_pending_take(void);
 bool elunchbox_manual_wake_pending_peek(void);

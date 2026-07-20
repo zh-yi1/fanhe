@@ -141,11 +141,14 @@ void sys_sleep_cb(u8 lpclk_type)
 
     /* manual_off: 最后一刻关所有非 GPIO 唤醒源。
      * RTCCON3[13] 不够 —— BT 栈还用 BTCON2/RTCCON 做 RTC 闹钟唤醒。
-     * 硬关机路径(sfunc_pwrdown_do)也是关这三处。只留 PE1+PB9 port wakeup。 */
+     * 硬关机路径(sfunc_pwrdown_do)也是关这三处。只留 PE1+PB9 port wakeup + VUSB。 */
     if (elunchbox_manual_off_in_sleep) {
         RTCCON3 &= ~BIT(13);        /* disable bt wakeup */
         BTCON2 &= ~(3 << 10);       /* disable bt sleep wakeup */
         RTCCON  &= ~(0xf << 7);     /* disable rtc sleep wakeup */
+#if CHARGE_EN
+        RTCCON3 |= BIT(11);         /* VUSB 插电可唤醒 → 关机后充电进跑马灯 */
+#endif
         RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr bt/wko/port pending, 防残留立即唤醒 */
     }
 
@@ -416,11 +419,29 @@ bool sfunc_sleep_proc(void)
 #if ELUNCHBOX_PANEL_EN
             force_spin_cnt = 0;     /* BT 栈正常睡了 → 复位强睡计数 */
             if (manual_off) {
+                /* 约每 2s（4 轮 sniff）查一次本机 DC；插电则退出深睡去查 UART */
+#if CHARGE_EN
+                if (CHARGE_DC_IN()) {
+                    printf("lp: DC_IN while sniff → wake for charge page\n");
+                    gui_need_wkp = true;
+                    elunchbox_pb9_wake_source = true;
+                    elunchbox_manual_off_uart_listen_arm();
+                    break;
+                }
+#endif
                 /* Reduced ADC: every 60 rounds (~30s), low-battery only */
                 if (++sys_cb.sleep_counter >= 60) {
                     sys_cb.sleep_counter = 0;
                     ret = sleep_timer();
                     if (ret == 2) { break; }        /* low battery → wake */
+                }
+                /* 周期性浅醒查充电：门铃可能丢包，约 20 轮 sniff 主动问一次 */
+                if ((lp_sleep_cnt % 20) == 0 && lp_sleep_cnt > 0) {
+                    printf("lp: periodic wake → query charge\n");
+                    gui_need_wkp = true;
+                    elunchbox_pb9_wake_source = true;
+                    elunchbox_manual_off_uart_listen_arm();
+                    break;
                 }
             } else
 #endif
@@ -470,6 +491,17 @@ bool sfunc_sleep_proc(void)
             bool sw_has_event;
             bool hw_has_event;
 
+            /* 本机 VUSB 已插电：退出深睡，主循环收 UART / 进充电页 */
+#if CHARGE_EN
+            if (CHARGE_DC_IN()) {
+                printf("lp: -> VUSB/DC_IN wake (manual_off)\n");
+                gui_need_wkp = true;
+                elunchbox_pb9_wake_source = true; /* 复用 listen 路径 */
+                elunchbox_manual_off_uart_listen_arm();
+                break;
+            }
+#endif
+
             /* 【非TCH5按键-松手检测】PE1已切为上升沿，唤醒=松手→恢复下降沿→重睡 */
             if (elunchbox_waiting_key_release) {
                 wkpnd = port_wakeup_get_status();
@@ -477,10 +509,11 @@ bool sfunc_sleep_proc(void)
                 u8 flag = pt8028_read_flag_raw();
 
                 if (pb9_lo) {
-                    /* PB9(门铃)在等松手期间唤醒 → 真唤醒亮屏 */
+                    /* PB9(门铃)在等松手期间唤醒 → 退出深睡，主循环收 UART */
                     printf("lp: -> PB9 wake during wait-release\n");
                     gui_need_wkp = true;
                     elunchbox_pb9_wake_source = true;
+                    elunchbox_manual_off_uart_listen_arm();
                     break;
                 }
 
@@ -517,6 +550,7 @@ bool sfunc_sleep_proc(void)
                     printf("lp: -> UART/PB9 wake\n");
                     gui_need_wkp = true;
                     elunchbox_pb9_wake_source = true;
+                    elunchbox_manual_off_uart_listen_arm();
                     break;
                 }
                 if (pe1_lo && bcd == 5) {
@@ -572,6 +606,7 @@ bool sfunc_sleep_proc(void)
                 if (pb9_lo) {
                     elunchbox_pb9_wake_source = true;
                     gui_need_wkp = true;
+                    elunchbox_manual_off_uart_listen_arm();
                     break;
                 }
                 if (pe1_lo && bcd == 5) {
@@ -742,13 +777,12 @@ static void sfunc_sleep(void)
     if (elunchbox_guioff_slp) {
         elunchbox_guioff_sleep_mode_enter();
     }
-    /* 【休眠】发送 PowerSwitch=OFF 给加热模块，通知进入低功耗。
-     * 同一轮 manual_off 会话只发一次：反复睡→醒→睡时若每次都发，
-     * 加热模块回 ACK → PB9 LOW → drain 后唤醒 → 死循环 → 500μA+。
-     * 真唤醒(gui_need_wkp=true)后重置标记，下次进 manual_off 再发。 */
+    /* 【休眠】软关机/熄屏握手：
+     * Step1 HeatEnable=0 — 停止加热，避免休眠中继续加热。
+     * 不再发 PowerSwitch=OFF — 关总开关后加热模块不再上报充电，
+     * PB9 门铃收不到插电事件，黑屏跑马灯无法进入。
+     * 软关机只关屏深睡；插电由模块 UART 上报 → PB9 唤醒 → 充电页。 */
     if (elunchbox_guioff_slp && !s_pwroff_sent) {
-        /* 两步握手: ①发停加热→等ACK ②发关开关→等ACK
-         * 确保加热模块完全处理完才进休眠, 避免残留应答导致睡/醒风暴. */
         int timeout;
 
         /* Step ①: 停加热 */
@@ -769,26 +803,8 @@ static void sfunc_sleep(void)
             }
         }
 
-        /* Step ②: 关总开关 */
-        {
-            u8 data[8];
-            u16 len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, 0);
-            lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);  /* false=等ACK */
-            printf("elunchbox: sfunc_sleep step2 PowerSwitch=OFF (wait ACK)\n");
-            timeout = 0;
-            while (lb_send_waiting && timeout < 200) {
-                lunchbox_uart_process();
-                delay_5ms(5);
-                timeout++;
-            }
-            if (lb_send_waiting) {
-                printf("elunchbox: PowerSwitch=OFF ACK timeout, force clear\n");
-                lb_send_waiting = false;
-            }
-        }
-
         s_pwroff_sent = true;
-        printf("elunchbox: sfunc_sleep handshake done, entering sleep\n");
+        printf("elunchbox: sfunc_sleep handshake done (keep PowerSwitch, charge UART ok), entering sleep\n");
     }
 #endif
 
@@ -1226,11 +1242,13 @@ static void sfunc_sleep(void)
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
         if (elunchbox_guioff_slp) {
             elunchbox_guioff_sleep_post_wake(true);
-            /* PB9(UART/门铃)唤醒 → 直接亮屏，不走 3s 长按 */
+            /* PB9(UART)唤醒：只退出深睡，不立刻亮全屏 UI。
+             * 已 arm uart listen：主循环探测 PowerSwitch + 收充电包 → 黑屏跑马灯。 */
             if (elunchbox_pb9_wake_source && elunchbox_manual_off_slp) {
-                printf("elunchbox: PB9 wake → screen on\n");
-                elunchbox_pwr_gui_wake_reason("PB9");
-                elunchbox_pwroff_sent_reset();
+                printf("elunchbox: PB9 wake → uart listen (defer UI)\n");
+                if (!elunchbox_manual_off_uart_listening()) {
+                    elunchbox_manual_off_uart_listen_arm();
+                }
             }
         } else
 #endif

@@ -14,6 +14,7 @@
 #if ELUNCHBOX_PANEL_EN
 #include "home_ui_shared.h"
 #include "home_ui_lowbat_overlay.h"
+#include "func_lunchbox_uart.h"
 /* ELUNCHBOX 模式：TE block 标志声明 */
 extern volatile u8 elunchbox_te_block_flag;
 #endif
@@ -158,6 +159,10 @@ void func_elunchbox_switch_to_home(void)
 #if ELUNCHBOX_PANEL_EN
     if (elunchbox_lowbat_active() || elunchbox_lowbat_should_block_ui_route()) {
         printf("elunchbox: switch home blocked (lowbat sta=%u)\n", func_cb.sta);
+        return;
+    }
+    if (elunchbox_charge_off_active() && home_ui_shared_battery_is_charging()) {
+        printf("elunchbox: switch home blocked (charge off page)\n");
         return;
     }
     if (func_cb.sta == FUNC_HOME) {
@@ -401,14 +406,39 @@ static u32 elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;  /* 100ms �
 static bool elunchbox_pwr_pending_auto_shutdown;  /* 空闲定时器到期，延迟执行 manual_shutdown */
 u32  elunchbox_saved_clkgat0;               /* 关机时保存 CLKGAT0，唤醒后恢复 */
 static u32  elunchbox_manual_wake_home_tick;       /* 手动关机后 TCH5 唤醒：短时抑制自动跳加热页 */
+static u32  elunchbox_uart_listen_tick;            /* PB9 门铃唤醒后 UART 收包窗口起点 */
+static u32  elunchbox_uart_listen_query_tick;      /* 窗口内上次主动查询时刻 */
+static bool elunchbox_uart_listen_on;
+static bool elunchbox_uart_listen_probed;          /* 窗口内已开 TX 并完成首次查询 */
+
+static u32  elunchbox_boot_tick;                   /* 上电时刻：开机窗口内插电进黑屏充电页 */
+static bool elunchbox_boot_charge_check;           /* 开机后短时检测充电 → 黑屏跑马灯 */
 
 #ifndef ELUNCHBOX_MANUAL_WAKE_HOME_HOLD_MS
 #define ELUNCHBOX_MANUAL_WAKE_HOME_HOLD_MS  3000
 #endif
 
+/* 门铃首包丢失：唤醒后保持清醒，主动查询充电状态 */
+#ifndef ELUNCHBOX_UART_LISTEN_MS
+#define ELUNCHBOX_UART_LISTEN_MS           5000
+#endif
+#ifndef ELUNCHBOX_UART_LISTEN_QUERY_MS
+#define ELUNCHBOX_UART_LISTEN_QUERY_MS     800
+#endif
+/* 上电后若检测到充电（含关机插电导致复位重启），进黑屏跑马灯 */
+#ifndef ELUNCHBOX_BOOT_CHARGE_WINDOW_MS
+#define ELUNCHBOX_BOOT_CHARGE_WINDOW_MS    15000
+#endif
+
 /* need_fresh_press 超时兜底：TCH5 硬件卡住时强制清零，防止主循环死等不休眠 */
 #ifndef ELUNCHBOX_FRESH_PRESS_TIMEOUT_MS
 #define ELUNCHBOX_FRESH_PRESS_TIMEOUT_MS   10000
+#endif
+
+void elunchbox_manual_off_uart_listen_arm(void);
+bool elunchbox_manual_off_uart_listening(void);
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+static void elunchbox_manual_off_uart_listen_probe(void);
 #endif
 
 static bool elunchbox_manual_wake_home_active(void)
@@ -581,6 +611,9 @@ bool elunchbox_pwr_manual_off_should_stay_awake(void)
     if (!elunchbox_pwr_is_manual_off() || !elunchbox_pwr_wake_armed) {
         return false;
     }
+    if (elunchbox_manual_off_uart_listening()) {
+        return true;   /* PB9 门铃后收包窗口：勿立刻 force_lowpwr */
+    }
     if (elunchbox_pwr_need_fresh_press) {
         if (pt8028_is_power_key_held() || pt8028_boot_tch5_down()) {
             return true;   /* 还按着 → stay awake，不进休眠 */
@@ -595,6 +628,83 @@ bool elunchbox_pwr_manual_off_should_stay_awake(void)
     return false;
 #endif
 }
+
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+extern u16 lb_dp_encode_bool(u8 *buf, u8 dpid, u8 val);
+extern u16 lb_dp_encode_value(u8 *buf, u8 dpid, u32 val);
+extern void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
+
+/** 主动查加热模块动态属性（含 DP04 充电），门铃首包丢失后靠此拿状态 */
+static void elunchbox_manual_off_uart_query_charge(void)
+{
+    u8 data[24];
+    u8 *p = data;
+    u16 len;
+
+    lb_uart_tx_block(false);
+    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, lb_get_unix_time());
+    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+    len = (u16)(p - data);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, true);
+    elunchbox_uart_listen_query_tick = tick_get();
+    printf("elunchbox: uart listen query DYNAMIC (charge)\n");
+}
+
+void elunchbox_manual_off_uart_listen_arm(void)
+{
+    elunchbox_uart_listen_on = true;
+    elunchbox_uart_listen_tick = tick_get();
+    elunchbox_uart_listen_query_tick = 0;
+    elunchbox_uart_listen_probed = false;
+    printf("elunchbox: uart listen arm %ums (charge/heat)\n",
+           (unsigned)ELUNCHBOX_UART_LISTEN_MS);
+}
+
+bool elunchbox_manual_off_uart_listening(void)
+{
+    if (!elunchbox_uart_listen_on) {
+        return false;
+    }
+#if CHARGE_EN
+    /* 本机已插电：延长窗口，直到进充电页或拔电 */
+    if (CHARGE_DC_IN()) {
+        elunchbox_uart_listen_tick = tick_get();
+        return true;
+    }
+#endif
+    if (tick_check_expire(elunchbox_uart_listen_tick, ELUNCHBOX_UART_LISTEN_MS)) {
+        elunchbox_uart_listen_on = false;
+        if (elunchbox_pwr_is_manual_off() && !home_ui_shared_battery_is_charging()) {
+            lb_uart_tx_block(true);
+            printf("elunchbox: uart listen expire, re-block TX\n");
+        }
+        return false;
+    }
+    return true;
+}
+
+static void elunchbox_manual_off_uart_listen_probe(void)
+{
+    if (!elunchbox_uart_listen_probed) {
+        elunchbox_uart_listen_probed = true;
+        elunchbox_manual_off_uart_query_charge();
+        return;
+    }
+    /* 窗口内周期性重查：门铃丢首包后模块可能只回一次 */
+    if (tick_check_expire(elunchbox_uart_listen_query_tick, ELUNCHBOX_UART_LISTEN_QUERY_MS)) {
+        elunchbox_manual_off_uart_query_charge();
+    }
+}
+#else
+void elunchbox_manual_off_uart_listen_arm(void)
+{
+}
+
+bool elunchbox_manual_off_uart_listening(void)
+{
+    return false;
+}
+#endif
 
 bool elunchbox_is_device_powered(void)
 {
@@ -654,6 +764,40 @@ bool elunchbox_pwr_manual_off_gui_wake_ok(void)
 void elunchbox_pwr_intentional_wake_set(bool on)
 {
     elunchbox_pwr_intentional_wake = on;
+}
+
+/**
+ * 关机态进黑屏充电页专用唤醒：恢复 GPU/时钟，但先不开背光。
+ * 调用方切到 FUNC_CHARGE 后再 lunchbox_display_on()，避免先露出主界面。
+ */
+void elunchbox_pwr_wake_for_charge_off(void)
+{
+    printf("elunchbox: wake_for_charge_off manual=%u guioff=%u sleep=%u\n",
+           elunchbox_pwr_is_manual_off() ? 1u : 0u,
+           elunchbox_pwr_gui_off ? 1u : 0u,
+           sys_cb.gui_sleep_sta ? 1u : 0u);
+
+    elunchbox_uart_listen_on = false;
+    elunchbox_pwr_gui_off = false;
+    elunchbox_pwr_manual_off = false;
+    elunchbox_guioff_sleep_delay_reset();
+    elunchbox_pwroff_sent_reset();
+    CLKGAT0 = elunchbox_saved_clkgat0;
+
+    elunchbox_pwr_intentional_wake = true;
+    if (sys_cb.gui_sleep_sta) {
+        gui_wakeup();
+    }
+    elunchbox_pwr_intentional_wake = false;
+
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_pwr_long_consume();
+    pt8028_release_clear();
+    pt8028_set_home_msg_block(1);
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+    lb_uart_tx_block(false);
+#endif
 }
 #endif
 
@@ -1124,8 +1268,10 @@ static void func_elunchbox_pwr_long_poll(void)
         /* 熄屏态：长按唤醒已由 guioff_wake_poll 短按处理，此处忽略 */
         return;
     }
+    /* 亮屏充电中长按关机：进黑屏充电跑马灯页（不深睡），拔电回主页 */
     if (elunchbox_is_charging()) {
-        printf("elunchbox: screen off blocked (charging)\n");
+        printf("elunchbox: pwr_long while charging -> charge off page\n");
+        func_elunchbox_enter_charge_off_page();
         return;
     }
     /* 普通亮屏态：长按 3 秒 = 手动关机 → 真深度休眠 */
@@ -1267,6 +1413,14 @@ void func_process(void)
 #if FUNC_LUNCHBOX_UART_EN
         lunchbox_uart_process();    //轮询接收充电模块发来的数据
 
+        /* PB9 门铃唤醒后：发 PowerSwitch=ON 探测，并保持清醒收充电包 */
+#if ELUNCHBOX_PANEL_EN
+        if (elunchbox_manual_off_uart_listening()) {
+            elunchbox_manual_off_uart_listen_probe();
+            lunchbox_uart_process();
+        }
+#endif
+
 #if ELUNCHBOX_LOWBAT_MODE_EN
         elunchbox_lowbat_poll();
         if (elunchbox_lowbat_active()) {
@@ -1279,6 +1433,7 @@ void func_process(void)
             printf("elunchbox: TCH5 3s hold wakes screen from manual off\n");
             elunchbox_pwr_gui_off = false;
             elunchbox_pwr_manual_off = false;
+            elunchbox_uart_listen_on = false;
             elunchbox_guioff_sleep_delay_reset();
             elunchbox_pwroff_sent_reset();  /* 屏真亮了 → 允许下次 manual_off 重发 PowerSwitch=OFF */
             CLKGAT0 = elunchbox_saved_clkgat0;
@@ -1290,9 +1445,30 @@ void func_process(void)
             return;
         }
 
-        if (heat_display_charge_wake_pending()) {    //充电中唤醒->加热模块发来充电状态，检测到充电则唤醒
-            printf("elunchbox: charge DP wakes screen from manual off\n");
-            elunchbox_pwr_gui_wake();
+        /* 关机态插电 → 黑屏充电跑马灯；UART 充电 / 本机 DC_IN 均可进入 */
+        if (heat_display_charge_wake_pending()
+            || home_ui_shared_battery_is_charging()
+#if CHARGE_EN
+            || CHARGE_DC_IN()
+#endif
+            ) {
+#if CHARGE_EN
+            if (CHARGE_DC_IN() && !home_ui_shared_battery_is_charging()) {
+                /* 本机已检测到 DC，先置充电态以便跑马灯；UART 随后校正 */
+                home_ui_shared_battery_charge_apply(1);
+            }
+#endif
+            printf("elunchbox: charge from manual off -> charge off page (chg=%u dc=%u)\n",
+                   home_ui_shared_battery_is_charging() ? 1u : 0u,
+#if CHARGE_EN
+                   CHARGE_DC_IN() ? 1u : 0u
+#else
+                   0u
+#endif
+                   );
+            elunchbox_uart_listen_on = false;
+            lb_uart_tx_block(false);
+            func_elunchbox_enter_charge_off_page();
             return;
         }
         if (heat_display_warm_charge_pending_active()) {
@@ -1465,13 +1641,11 @@ void func_process(void)
             }
         }
         elunchbox_guioff_idle_process();   //熄屏空闲处理(UART收数据→可能设 charge/heat pending)
-        /* 充电中唤醒→加热模块发来充电状态，检测到充电则唤醒。
-           模仿手动关机充电唤醒：elunchbox_screen_wake 中 go_home=false(非手动)，
-           不会自动切 HOME，需显式切到 HOME 页确保充电图标刷新 */
-        if (heat_display_charge_wake_pending()) {
-            printf("elunchbox: charge DP wakes screen from guioff\n");
-            elunchbox_pwr_gui_wake();
-            func_cb.sta = FUNC_HOME;
+        /* 熄屏态插电 → 黑屏充电跑马灯；拔电回主页 */
+        if (heat_display_charge_wake_pending()
+            || home_ui_shared_battery_is_charging()) {
+            printf("elunchbox: charge from guioff -> charge off page\n");
+            func_elunchbox_enter_charge_off_page();
             return;
         }
         if (heat_display_warm_charge_pending_active()) {
@@ -1625,6 +1799,24 @@ void func_process(void)
    }
 
 #if FUNC_LUNCHBOX_UART_EN
+    /* 开机窗口：关机插电导致复位后 UART 报充电 → 进黑屏跑马灯（勿停在主页） */
+    if (elunchbox_boot_charge_check && !guioff
+        && !elunchbox_charge_off_active()
+        && !sys_cb.flag_swithing) {
+        if (tick_check_expire(elunchbox_boot_tick, ELUNCHBOX_BOOT_CHARGE_WINDOW_MS)) {
+            elunchbox_boot_charge_check = false;
+        } else if (home_ui_shared_battery_is_charging()
+#if CHARGE_EN
+                   || CHARGE_DC_IN()
+#endif
+                   ) {
+            printf("elunchbox: boot+charging -> charge off page (black marquee)\n");
+            elunchbox_boot_charge_check = false;
+            func_elunchbox_enter_charge_off_page();
+            return;
+        }
+    }
+
     /* 预约到点 / 上电 MCU 加热：先进盖确认或加热页 */
     {
         bool heat_pending = heat_display_heat_wake_pending();
@@ -2713,6 +2905,51 @@ void func_exit(void)
 
 }
 
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+extern u16 lb_dp_encode_bool(u8 *buf, u8 dpid, u8 val);
+extern u16 lb_dp_encode_value(u8 *buf, u8 dpid, u32 val);
+extern void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
+
+/**
+ * 上电先问加热模块是否在充电：是则直接进黑屏跑马灯，避免先闪主页再跳。
+ * （关机插电常触发 WKUP/WDT 整机重启，只能在开机路径直接落地充电页）
+ */
+static bool elunchbox_boot_probe_charging(void)
+{
+    u8 data[24];
+    u8 *p = data;
+    u16 len;
+    int i;
+
+#if CHARGE_EN
+    if (CHARGE_DC_IN()) {
+        home_ui_shared_battery_charge_apply(1);
+        printf("elunchbox: boot probe DC_IN=1\n");
+        return true;
+    }
+#endif
+
+    lb_uart_tx_block(false);
+    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, lb_get_unix_time());
+    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+    len = (u16)(p - data);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, true);
+    printf("elunchbox: boot probe query DYNAMIC\n");
+
+    for (i = 0; i < 100; i++) {   /* 最长约 1s */
+        WDT_CLR();
+        lunchbox_uart_process();
+        if (home_ui_shared_battery_is_charging()) {
+            printf("elunchbox: boot probe Charge=1 (i=%d)\n", i);
+            return true;
+        }
+        delay_5ms(1);
+    }
+    printf("elunchbox: boot probe no charge\n");
+    return false;
+}
+#endif
+
 AT(.text.func)
 void func_run(void)
 {
@@ -2727,7 +2964,7 @@ void func_run(void)
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.sort_cnt = 1;
     func_cb.flag_sort = false;
-    func_cb.sta = FUNC_HOME;   /* 上电先进 Home；MCU 报加热中再弹盖确认 */
+    func_cb.sta = FUNC_HOME;
 #else
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.tbl_sort[1] = FUNC_VIDEO_SHOWLIST;
@@ -2747,6 +2984,23 @@ void func_run(void)
     home_ui_shared_battery_boot_init();
     elunchbox_user_activity_reset();
     elunchbox_lid_confirm_arm_boot();
+    elunchbox_boot_tick = tick_get();
+    elunchbox_boot_charge_check = true;
+#if FUNC_LUNCHBOX_UART_EN
+    /* 开机先探测充电：直接进黑屏跑马灯，不先进 Home */
+    if (elunchbox_boot_probe_charging()) {
+        home_ui_shared_battery_charge_apply(1);
+        func_cb.sta = FUNC_CHARGE;
+        elunchbox_boot_charge_check = false;
+        printf("elunchbox: boot -> FUNC_CHARGE direct (black marquee)\n");
+    } else {
+        printf("elunchbox: boot charge check window %ums (fallback)\n",
+               (unsigned)ELUNCHBOX_BOOT_CHARGE_WINDOW_MS);
+    }
+#else
+    printf("elunchbox: boot charge check window %ums\n",
+           (unsigned)ELUNCHBOX_BOOT_CHARGE_WINDOW_MS);
+#endif
 #endif
     // func.c
     
