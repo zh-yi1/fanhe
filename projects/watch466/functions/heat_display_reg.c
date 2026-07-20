@@ -171,6 +171,9 @@ static bool heat_display_try_charging_warm_route(bool got_mode, u8 mcu_mode,
     if (func_cb.sta == FUNC_NEW_WARM) {
         return true;
     }
+    if (func_cb.sta == FUNC_LID_CONFIRM || elunchbox_lid_confirm_snap_valid()) {
+        return true;
+    }
     if (elunchbox_charge_off_active()) {
         return true;
     }
@@ -732,7 +735,7 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
     }
 
 #if ELUNCHBOX_PANEL_EN
-    /* 上电武装：MCU 空闲则取消；加热(1~4)或保温(5)则进盖确认，由 YES 再跳对应页 */
+    /* 上电武装：MCU 空闲则取消；加热(1~4)或保温(5)则先保存再停热，进盖确认 */
     if (elunchbox_lid_confirm_is_armed()) {
         u8 boot_mode = heat_display_mcu_mode_resolve(got_mode, mcu_mode);
         bool mcu_heat = (got_enable && heating
@@ -742,10 +745,16 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
                             && lunchbox_keep_warm_is_active());
 
         if (got_enable && !heating && !mcu_warm) {
-            printf("[LCD_REG] lid_confirm: MCU idle, disarm\n");
-            elunchbox_lid_confirm_disarm();
+            /* 已 capture 并下发停热：忽略停热应答，勿取消弹窗 */
+            if (elunchbox_lid_confirm_snap_valid()) {
+                printf("[LCD_REG] lid_confirm: MCU stopped after capture, keep dialog\n");
+            } else {
+                printf("[LCD_REG] lid_confirm: MCU idle, disarm\n");
+                elunchbox_lid_confirm_disarm();
+            }
         } else if (got_mode && heat_display_mcu_mode_is_off(boot_mode)
-                   && !(got_enable && heating)) {
+                   && !(got_enable && heating)
+                   && !elunchbox_lid_confirm_snap_valid()) {
             printf("[LCD_REG] lid_confirm: MCU mode=0, disarm\n");
             elunchbox_lid_confirm_disarm();
         } else if ((mcu_heat || mcu_warm)
@@ -754,38 +763,12 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
                    && func_cb.sta != FUNC_LID_CONFIRM
                    && func_cb.sta != FUNC_NEW_WARM) {
             heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
-            if (mcu_warm) {
-                u8 temp_idx = got_temp ? lunchbox_temp_f_to_idx(temp_f) : 0;
-
-                lunchbox_keep_warm_set_temp_idx(temp_idx);
-                lunchbox_warm_mark_active();
-                lb_heat_uart_remote_set(true);
-                lb_heat_mcu_nav_set(true);
-                printf("[LCD_REG] lid_confirm: MCU warm on power-on -> dialog mode=5\n");
-            } else {
-                u16 preset_temp_f = got_temp ? temp_f : 176;
-                u32 preset_dur_min = 60;
-                u8 proto_mode = heat_display_mcu_mode_is_heating(boot_mode) ? boot_mode : 1;
-
-                if (got_duration && duration_min > 0) {
-                    preset_dur_min = duration_min;
-                } else if (got_remain && remain_min > 0) {
-                    preset_dur_min = remain_min;
-                }
-                if (preset_dur_min < LB_HEAT_DURATION_MIN_MIN) {
-                    preset_dur_min = LB_HEAT_DURATION_MIN_MIN;
-                } else if (preset_dur_min > LB_HEAT_DURATION_MAX_MIN) {
-                    preset_dur_min = LB_HEAT_DURATION_MAX_MIN;
-                }
-                lb_mode_to_heat_set(proto_mode, preset_temp_f,
-                                    (u8)(preset_dur_min / 60), (u8)(preset_dur_min % 60));
-                lb_heat_autostart_set(true);
-                lb_heat_uart_remote_set(true);
-                lb_heat_mcu_nav_set(true);
-                printf("[LCD_REG] lid_confirm: MCU heating on power-on -> dialog "
-                       "mode=%u temp=%uF dur=%umin\n",
-                       proto_mode, preset_temp_f, preset_dur_min);
-            }
+            /* 先保存 MCU 模式/剩余时间，再下发停热，等待 YES/NO */
+            elunchbox_lid_confirm_capture_and_stop(boot_mode, remain_min, got_remain,
+                                                   temp_f, got_temp);
+            printf("[LCD_REG] lid_confirm: power-on MCU %s mode=%u remain=%u -> dialog\n",
+                   mcu_warm ? "warm" : "heat", boot_mode,
+                   got_remain ? remain_min : 0xffffffff);
             func_elunchbox_switch_to_lid_confirm();
             return;
         }

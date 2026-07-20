@@ -469,32 +469,22 @@ static void lid_confirm_bind_objects(f_lid_confirm_t *f)
     f->txt_yes = (compo_textbox_t *)compo_getobj_byid(COMPO_ID_TXT_YES);
 }
 
+#if ELUNCHBOX_PANEL_EN
+static void elunchbox_lid_confirm_resume_from_snap(void);
+#endif
+
 static void lid_confirm_finish(f_lid_confirm_t *f)
 {
-    u8 mcu_mode;
-
     if (f == NULL || sys_cb.flag_swithing) {
         return;
     }
     elunchbox_lid_confirm_disarm();
     if (f->sel == LID_CONFIRM_SEL_YES) {
-        mcu_mode = heat_display_get_mcu_mode();
-        lb_heat_mcu_nav_set(true);
-        lb_heat_uart_remote_set(true);
-        if (mcu_mode == 5) {
-            printf("lid_confirm: YES MCU mode=5 -> warm panel\n");
-#if ELUNCHBOX_PANEL_EN
-            lunchbox_warm_mark_active();
-#endif
-            func_elunchbox_switch_to_warm_panel();
-        } else {
-            printf("lid_confirm: YES MCU mode=%u -> heat panel\n", mcu_mode);
-            lb_heat_autostart_set(true);
-            func_elunchbox_switch_to_heat_panel();
-        }
+        elunchbox_lid_confirm_resume_from_snap();
     } else {
-        printf("lid_confirm: NO send heat_stop -> home\n");
-        /* 用户主动停止：强制下发 DP10=0，避免 mcu_nav/remote 跳过 UART */
+        printf("lid_confirm: NO -> home (same as before)\n");
+        elunchbox_lid_confirm_snap_clear();
+        /* 上电时已下发停热；再发一次与原先 NO 行为一致 */
         lb_heat_mcu_nav_set(false);
         lb_heat_user_uart_tx_force_set(true);
 #if FUNC_LUNCHBOX_UART_EN
@@ -773,9 +763,125 @@ void func_lid_confirm(void)
 #if ELUNCHBOX_PANEL_EN
 static bool s_lid_confirm_armed;
 
+typedef struct {
+    bool valid;
+    bool stopped;
+    u8   mode;
+    u32  remain_min;
+    u16  temp_f;
+    bool got_remain;
+    bool got_temp;
+} lid_confirm_snap_t;
+
+static lid_confirm_snap_t s_lid_snap;
+
+void elunchbox_lid_confirm_snap_clear(void)
+{
+    memset(&s_lid_snap, 0, sizeof(s_lid_snap));
+}
+
+bool elunchbox_lid_confirm_snap_valid(void)
+{
+    return s_lid_snap.valid;
+}
+
+void elunchbox_lid_confirm_capture_and_stop(u8 mode, u32 remain_min, bool got_remain,
+                                            u16 temp_f, bool got_temp)
+{
+    if (s_lid_snap.valid && s_lid_snap.stopped) {
+        return;
+    }
+
+    s_lid_snap.valid = true;
+    s_lid_snap.mode = mode;
+    s_lid_snap.got_remain = got_remain;
+    s_lid_snap.got_temp = got_temp;
+    s_lid_snap.remain_min = got_remain ? remain_min : 0;
+    if (got_temp) {
+        s_lid_snap.temp_f = temp_f;
+    } else if (mode == 5) {
+        s_lid_snap.temp_f = 194;
+    } else {
+        s_lid_snap.temp_f = 176;
+    }
+
+    /* 先保存，再停热；YES 用快照续热，NO 回主页 */
+    lb_heat_mcu_nav_set(false);
+    lb_heat_user_uart_tx_force_set(true);
+    (void)lb_heat_uart_remote_consume();
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_heat_stop();
+#endif
+    s_lid_snap.stopped = true;
+    printf("lid_confirm: capture mode=%u remain=%umin temp=%uF, heat_stop sent\n",
+           s_lid_snap.mode, (unsigned)s_lid_snap.remain_min, s_lid_snap.temp_f);
+}
+
+/** YES：按上电保存的模式/剩余时间跳转并重新下发加热或保温 */
+static void elunchbox_lid_confirm_resume_from_snap(void)
+{
+    lid_confirm_snap_t snap = s_lid_snap;
+    u32 dur_min;
+    u8 mode;
+
+    elunchbox_lid_confirm_snap_clear();
+
+    if (!snap.valid) {
+        mode = heat_display_get_mcu_mode();
+        printf("lid_confirm: YES no snap, fallback mode=%u\n", mode);
+        if (mode == 5) {
+            lunchbox_warm_mark_active();
+            lb_heat_user_uart_tx_force_set(true);
+            (void)lb_heat_uart_remote_consume();
+            lunchbox_keep_warm_apply();
+            func_elunchbox_switch_to_warm_panel();
+        } else {
+            lb_heat_autostart_set(true);
+            func_elunchbox_switch_to_heat_panel();
+        }
+        return;
+    }
+
+    mode = snap.mode;
+    if (mode == 5) {
+        u8 temp_idx = lunchbox_temp_f_to_idx(snap.temp_f);
+
+        printf("lid_confirm: YES snap mode=5 temp=%uF -> warm\n", snap.temp_f);
+        lunchbox_keep_warm_set_temp_idx(temp_idx);
+        lb_heat_mcu_nav_set(false);
+        lb_heat_user_uart_tx_force_set(true);
+        (void)lb_heat_uart_remote_consume();
+        lunchbox_keep_warm_apply();
+        func_elunchbox_switch_to_warm_panel();
+        return;
+    }
+
+    if (mode < 1 || mode > 4) {
+        mode = 1;
+    }
+    dur_min = snap.got_remain ? snap.remain_min : 0;
+    if (dur_min < LB_HEAT_DURATION_MIN_MIN) {
+        dur_min = LB_HEAT_DURATION_MIN_MIN;
+    } else if (dur_min > LB_HEAT_DURATION_MAX_MIN) {
+        dur_min = LB_HEAT_DURATION_MAX_MIN;
+    }
+
+    /* 缓存剩余时间供加热页显示；本机重新下发 heat_start（非 MCU remote） */
+    heat_display_show(snap.got_remain ? snap.remain_min : dur_min, snap.temp_f);
+    lb_mode_to_heat_set(mode, snap.temp_f,
+                        (u8)(dur_min / 60), (u8)(dur_min % 60));
+    lb_heat_autostart_set(true);
+    lb_heat_mcu_nav_set(false);
+    (void)lb_heat_uart_remote_consume();
+    printf("lid_confirm: YES snap mode=%u remain=%umin temp=%uF -> heat\n",
+           mode, (unsigned)dur_min, snap.temp_f);
+    func_elunchbox_switch_to_heat_panel();
+}
+
 void elunchbox_lid_confirm_arm_boot(void)
 {
     s_lid_confirm_armed = true;
+    elunchbox_lid_confirm_snap_clear();
     printf("lid_confirm: armed for power-on MCU heat check\n");
 }
 
