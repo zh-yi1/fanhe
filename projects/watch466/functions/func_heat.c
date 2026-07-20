@@ -1795,6 +1795,7 @@ static void func_elunchbox_enter_warm_common_prep(void)
     heat_display_warm_exit_reset();
 #if FUNC_LUNCHBOX_UART_EN
     if (func_elunchbox_warm_from_charging()) {
+        /* 充电中仅按 MCU 模式切保温页，不下发；加热结束 HeatEn=OFF 后再发 24h 保温 */
         lunchbox_warm_mark_active();
     } else {
         /* 加热倒计时自然结束：须下发保温指令（MCU 远程加热时默认会跳过 UART） */
