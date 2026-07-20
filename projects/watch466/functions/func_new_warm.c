@@ -39,7 +39,7 @@ extern volatile u8 elunchbox_te_block_flag;
  *   顶栏：蓝牙 + 电量 + 标题 WARM
  *   弧形进度条 + 圆点（复用 new_progress_* / new_point）
  *   弧内：累计保温时长；弧下：Total Warm Time
- *   194°F 持续保温至低电（lunchbox_keep_warm_apply）
+ *   194°F 保温固定 24 小时（lunchbox_keep_warm_apply）
  *   电源键：停止保温并回 Home
  */
 #define NEW_WARM_STATUS_Y                 20

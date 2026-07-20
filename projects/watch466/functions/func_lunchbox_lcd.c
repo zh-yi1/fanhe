@@ -23,8 +23,9 @@
 //-----------------------------------------------------------------------------
 // 保温常量
 //-----------------------------------------------------------------------------
-#define LB_KEEP_WARM_MODE       5
-#define LB_KEEP_WARM_TEMP_F     194
+#define LB_KEEP_WARM_MODE           5
+#define LB_KEEP_WARM_TEMP_F         194
+#define LB_KEEP_WARM_DURATION_MIN   (24u * 60u) /* 进入保温固定 24 小时 */
 
 //-----------------------------------------------------------------------------
 // LCD 加热任务状态 (lb_heating_sync_from_dp 在 core 中通过 extern 访问)
@@ -219,6 +220,9 @@ u8 lunchbox_get_heat_enable(void) { return lb_attr_heat_enable; }
  */
 void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
+    if (mode == LB_KEEP_WARM_MODE) {
+        duration = LB_KEEP_WARM_DURATION_MIN;
+    }
     lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
     lb_heat_lcd_active = true;
     lb_heat_task_active = true;
@@ -306,6 +310,9 @@ void lunchbox_heat_stop(void)
 /** @brief MCU 已控制加热时仅同步本地状态，不向加热模块回发 UART */
 void lunchbox_heat_start_local(u8 mode, u8 temp, u32 duration)
 {
+    if (mode == LB_KEEP_WARM_MODE) {
+        duration = LB_KEEP_WARM_DURATION_MIN;
+    }
     lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
     lb_heat_lcd_active = true;
     lb_heat_task_active = true;
@@ -385,7 +392,7 @@ void lunchbox_keep_warm_apply(void)
         return;
     }
 #endif
-    lunchbox_heat_start(LB_KEEP_WARM_MODE, temp_idx, 0);
+    lunchbox_heat_start(LB_KEEP_WARM_MODE, temp_idx, LB_KEEP_WARM_DURATION_MIN);
 }
 
 void lunchbox_keep_warm_start(void)
