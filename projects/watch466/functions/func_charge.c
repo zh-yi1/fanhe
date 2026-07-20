@@ -6,12 +6,16 @@
 #include "home_ui_shared.h"
 #include "new_home_icon_res.h"
 #include "home_ui_gpu_detach.h"
+#include "func_lunchbox_wake.h"
 #if USER_PANEL_LED
 #include "port_panel_led.h"
 #endif
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
 #include "bsp_pt8028_key.h"
 #include "port_pt8028_key.h"
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+#include "func_lunchbox_uart.h"
 #endif
 
 /* 关机/关屏态充电：黑底 + 右上角充电跑马灯；拔电回主页 */
@@ -83,24 +87,42 @@ bool elunchbox_charge_off_active(void)
 
 void func_elunchbox_enter_charge_off_page(void)
 {
-    if (!home_ui_shared_battery_is_charging()) {
-        return;
-    }
     if (func_cb.sta == FUNC_CHARGE) {
+        tft_bglight_force_on();
         return;
     }
     if (sys_cb.flag_swithing) {
         return;
     }
 
+#if CHARGE_EN
+    if (!home_ui_shared_battery_is_charging() && !CHARGE_DC_IN()) {
+        return;
+    }
+    if (!home_ui_shared_battery_is_charging()) {
+        home_ui_shared_battery_charge_apply(1);
+    }
+#else
+    if (!home_ui_shared_battery_is_charging()) {
+        return;
+    }
+#endif
+
+    printf("elunchbox: enter charge off page from sta=%u (black+marquee)\n",
+           func_cb.sta);
+
+    /* 先恢复 GPU（不开背光）→ 切黑屏充电页 → 再开显示 */
     if (elunchbox_pwr_is_manual_off()
+        || elunchbox_pwr_gui_off_is_on()
         || sys_cb.gui_sleep_sta
         || !elunchbox_ui_is_live()) {
-        elunchbox_pwr_gui_wake_reason("charge_off_page");
+        elunchbox_pwr_wake_for_charge_off();
     }
 
-    printf("elunchbox: enter charge off page from sta=%u\n", func_cb.sta);
     func_switch_to(FUNC_CHARGE, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
+    lunchbox_display_on();
+    tft_bglight_force_on();
+    elunchbox_user_activity_reset();
 }
 
 static void charge_off_form_prepare(compo_form_t *frm)
@@ -168,6 +190,15 @@ compo_form_t *func_charge_form_create(void)
 
 static void charge_off_try_exit_home(void)
 {
+#if CHARGE_EN
+    /* 本机 DC 仍在：保持充电态与跑马灯 */
+    if (CHARGE_DC_IN()) {
+        if (!home_ui_shared_battery_is_charging()) {
+            home_ui_shared_battery_charge_apply(1);
+        }
+        return;
+    }
+#endif
     if (home_ui_shared_battery_is_charging()) {
         return;
     }

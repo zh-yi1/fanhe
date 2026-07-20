@@ -752,7 +752,7 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
         if (ui_ok) {
             home_ui_shared_battery_icon_refresh();
         }
-        if (charge_val == 1 && !ui_ok) {
+        if (charge_val != 0 && !ui_ok) {
             heat_display_charge_pending = true;
         }
     }
@@ -801,8 +801,8 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
         if (got_enable && !heating && heat_display_has_last) {
             heat_display_last.remain_min = 0;
         }
-        if (got_charge && charge_val == 1) {
-            heat_display_charge_pending = true;   //唤醒
+        if (got_charge && charge_val != 0) {
+            heat_display_charge_pending = true;   //唤醒 → 黑屏充电页
         }
         /* 熄屏时先缓存剩余时间，唤醒跳加热页后 func_heat_sync_mcu_snapshot 可读 */
         heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
