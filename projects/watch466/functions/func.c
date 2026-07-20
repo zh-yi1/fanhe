@@ -2898,6 +2898,51 @@ void func_exit(void)
 
 }
 
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+extern u16 lb_dp_encode_bool(u8 *buf, u8 dpid, u8 val);
+extern u16 lb_dp_encode_value(u8 *buf, u8 dpid, u32 val);
+extern void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
+
+/**
+ * 上电先问加热模块是否在充电：是则直接进黑屏跑马灯，避免先闪主页再跳。
+ * （关机插电常触发 WKUP/WDT 整机重启，只能在开机路径直接落地充电页）
+ */
+static bool elunchbox_boot_probe_charging(void)
+{
+    u8 data[24];
+    u8 *p = data;
+    u16 len;
+    int i;
+
+#if CHARGE_EN
+    if (CHARGE_DC_IN()) {
+        home_ui_shared_battery_charge_apply(1);
+        printf("elunchbox: boot probe DC_IN=1\n");
+        return true;
+    }
+#endif
+
+    lb_uart_tx_block(false);
+    p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, lb_get_unix_time());
+    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+    len = (u16)(p - data);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, true);
+    printf("elunchbox: boot probe query DYNAMIC\n");
+
+    for (i = 0; i < 100; i++) {   /* 最长约 1s */
+        WDT_CLR();
+        lunchbox_uart_process();
+        if (home_ui_shared_battery_is_charging()) {
+            printf("elunchbox: boot probe Charge=1 (i=%d)\n", i);
+            return true;
+        }
+        delay_5ms(1);
+    }
+    printf("elunchbox: boot probe no charge\n");
+    return false;
+}
+#endif
+
 AT(.text.func)
 void func_run(void)
 {
@@ -2912,7 +2957,7 @@ void func_run(void)
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.sort_cnt = 1;
     func_cb.flag_sort = false;
-    func_cb.sta = FUNC_HOME;   /* 上电先进 Home；MCU 报加热中再弹盖确认 */
+    func_cb.sta = FUNC_HOME;
 #else
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.tbl_sort[1] = FUNC_VIDEO_SHOWLIST;
@@ -2934,8 +2979,21 @@ void func_run(void)
     elunchbox_lid_confirm_arm_boot();
     elunchbox_boot_tick = tick_get();
     elunchbox_boot_charge_check = true;
+#if FUNC_LUNCHBOX_UART_EN
+    /* 开机先探测充电：直接进黑屏跑马灯，不先进 Home */
+    if (elunchbox_boot_probe_charging()) {
+        home_ui_shared_battery_charge_apply(1);
+        func_cb.sta = FUNC_CHARGE;
+        elunchbox_boot_charge_check = false;
+        printf("elunchbox: boot -> FUNC_CHARGE direct (black marquee)\n");
+    } else {
+        printf("elunchbox: boot charge check window %ums (fallback)\n",
+               (unsigned)ELUNCHBOX_BOOT_CHARGE_WINDOW_MS);
+    }
+#else
     printf("elunchbox: boot charge check window %ums\n",
            (unsigned)ELUNCHBOX_BOOT_CHARGE_WINDOW_MS);
+#endif
 #endif
     // func.c
     
