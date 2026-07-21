@@ -739,6 +739,10 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     f_heat->last_timer_key = 0xffff;
     f_heat->last_temp_f = 0xffff;
     func_heat_countdown_stop();
+#if ELUNCHBOX_PANEL_EN
+    /* 丢掉上一轮保温/加热残留快照，避免 sync 读到 remain=1+194F 误判结束 */
+    heat_display_session_reset();
+#endif
 
 #if FUNC_LUNCHBOX_UART_EN
     {
@@ -833,6 +837,9 @@ void func_heat_ble_remote_restart(void)
     f_heat->last_temp_f = 0xffff;
     func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
     func_heat_countdown_stop();
+#if ELUNCHBOX_PANEL_EN
+    heat_display_session_reset();
+#endif
 
 #if FUNC_LUNCHBOX_UART_EN && !LB_BRIDGE_MODE
     {
@@ -1575,8 +1582,13 @@ bool func_heat_uart_finish_ok(void)
     f_heat = (f_heat_t *)func_cb.f_cb;
     if (!f_heat->heat_live_ready) {
         printf("[FINISH_OK] false: heat_live_ready=0 (sta=%u)\n", func_cb.sta);
+        return false;
     }
-    return f_heat->heat_live_ready;
+    if (!f_heat->heat_live_seen_positive) {
+        printf("[FINISH_OK] false: no positive remain yet (sta=%u)\n", func_cb.sta);
+        return false;
+    }
+    return true;
 }
 
 bool func_heat_panel_ready_for_charge_warm(void)

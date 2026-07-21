@@ -24,6 +24,7 @@ static bool heat_display_warm_charge_pending; /* 熄屏时充电+保温：唤醒
 static bool heat_display_charge_keep_warm_sent; /* 充电中加热结束后已下发 24h 保温 */
 static u8 heat_display_cached_mcu_mode;       /* 最近 MCU 上报的 DP02 */
 static bool heat_display_has_cached_mcu_mode;
+static bool heat_display_seen_heating_mode;   /* 本轮会话已见过 DP02=1~4 */
 #endif
 
 static bool heat_display_ui_ok(void)
@@ -54,6 +55,17 @@ void heat_display_warm_exit_reset(void)
     heat_display_charge_keep_warm_sent = false;
 #endif
 }
+
+#if ELUNCHBOX_PANEL_EN
+void heat_display_session_reset(void)
+{
+    heat_display_has_last = false;
+    heat_display_has_cached_mcu_mode = false;
+    heat_display_cached_mcu_mode = 0;
+    heat_display_seen_heating_mode = false;
+    printf("[LCD_REG] session_reset (clear stale mode/remain)\n");
+}
+#endif
 
 #if ELUNCHBOX_PANEL_EN
 /**
@@ -105,6 +117,10 @@ static u8 heat_display_mcu_mode_resolve(bool got_mode, u8 mode_val)
     if (got_mode) {
         heat_display_cached_mcu_mode = mode_val;
         heat_display_has_cached_mcu_mode = true;
+        /* 本包明确为加热模式 1~4：标记本轮已真实进入加热，允许后续 mode=5 收尾进保温 */
+        if (mode_val >= 1 && mode_val <= 4) {
+            heat_display_seen_heating_mode = true;
+        }
         return mode_val;
     }
     if (heat_display_has_cached_mcu_mode) {
@@ -373,19 +389,27 @@ static bool heat_display_mcu_mode_route(bool got_mode, u8 mcu_mode,
         return true;
     }
 
-    /* 加热自然结束：DP02=5 且非充电 */
-    if (heat_display_mcu_mode_is_warm(mode) && !charging) {
-        if (func_cb.sta == FUNC_HEAT && func_heat_uart_finish_ok()) {
+    /* 加热自然结束：须本包明确 DP02=5，且本轮已见过加热模式 1~4。
+     * 禁止仅用上一轮保温缓存的 mode=5 误跳（日志: start 后 sync 脏 remain=1 → live_ok → 误进保温）。 */
+    if (got_mode && heat_display_mcu_mode_is_warm(mcu_mode) && !charging) {
+        if (!heat_display_seen_heating_mode) {
+            printf("[LCD_ROUTE] MCU mode=5 warm skipped: no heating mode(1~4) this session\n");
+        } else if (func_cb.sta == FUNC_HEAT && func_heat_uart_finish_ok()) {
             printf("[LCD_ROUTE] MCU mode=5 -> warm (sta=FUNC_HEAT live_ok=1)\n");
             func_elunchbox_enter_warm_from_heat();
             return true;
+        } else {
+            printf("[LCD_ROUTE] MCU mode=5 warm skipped: "
+                   "sta=%u is_heat=%d live_ok=%d charging=%d\n",
+                   func_cb.sta,
+                   (func_cb.sta == FUNC_HEAT) ? 1 : 0,
+                   func_heat_uart_finish_ok() ? 1 : 0,
+                   charging ? 1 : 0);
         }
-        printf("[LCD_ROUTE] MCU mode=5 warm skipped: "
-               "sta=%u is_heat=%d live_ok=%d charging=%d\n",
-               func_cb.sta,
-               (func_cb.sta == FUNC_HEAT) ? 1 : 0,
-               func_heat_uart_finish_ok() ? 1 : 0,
-               charging ? 1 : 0);
+    } else if (!got_mode && heat_display_has_cached_mcu_mode
+               && heat_display_mcu_mode_is_warm(heat_display_cached_mcu_mode)
+               && !charging && func_cb.sta == FUNC_HEAT) {
+        printf("[LCD_ROUTE] MCU mode=5 warm skipped: cached only (need got_mode)\n");
     }
 
     /* 充电保温中拔电：

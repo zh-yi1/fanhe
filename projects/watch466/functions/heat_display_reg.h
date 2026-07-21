@@ -84,6 +84,12 @@ bool heat_display_reservation_can_switch_heat(void);
 /** 进入保温页时调用，重置拔电退出去重状态 */
 void heat_display_warm_exit_reset(void);
 
+/**
+ * 用户新开一次加热时调用：清空上一轮 remain/温度快照与 DP02 缓存，
+ * 避免残留 mode=5/remain=1 误判为「加热结束→保温」。
+ */
+void heat_display_session_reset(void);
+
 /** 获取当前 MCU 加热模式 (优先缓存, 桥模式下也不返回 0) */
 u8 heat_display_get_mcu_mode(void);
 #endif
