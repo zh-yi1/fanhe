@@ -1827,10 +1827,16 @@ void func_process(void)
         } else if (!elunchbox_pwr_is_manual_off() && heat_pending
                    && heat_display_reservation_can_switch_heat()) {
             if (elunchbox_lid_confirm_is_armed()) {
+                heat_display_info_t last;
+                u8 mode = heat_display_get_mcu_mode();
+
                 printf("elunchbox: power-on heating -> lid confirm\n");
-                lb_heat_mcu_nav_set(true);
-                lb_heat_uart_remote_set(true);
-                lb_heat_autostart_set(true);
+                if (heat_display_get_last(&last)) {
+                    elunchbox_lid_confirm_capture_and_stop(mode, last.remain_min, true,
+                                                          last.temp_f, true);
+                } else if (!elunchbox_lid_confirm_snap_valid()) {
+                    elunchbox_lid_confirm_capture_and_stop(mode, 0, false, 176, false);
+                }
                 func_elunchbox_switch_to_lid_confirm();
             } else if (g_res.setup_done) {
                 printf("elunchbox: reservation heating confirmed, switch to heat panel (awake)\n");
