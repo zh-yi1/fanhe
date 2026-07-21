@@ -114,6 +114,7 @@ typedef struct {
 #if ELUNCHBOX_PANEL_EN
     bool key_ready;
     bool slider_only_pending;   /* 加减键 pending：只刷 track/位置/文字，不重读 badge 和 scales */
+    bool pending_ok;            /* 进页加载期按下的确认，就绪后补一次 */
 #endif
     home_top_time_txt_t top_time;
     compo_picturebox_t *pic_bt;
@@ -1170,6 +1171,12 @@ static void new_heat_ok_key(f_new_heat_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    /* UI 刷新中再按确认会连跳两步（温→时→直接开加热），必须等本步画完 */
+    if (f->display_pending) {
+        return;
+    }
+#endif
     if (f->focus == NEW_HEAT_FOCUS_TEMP) {
         /* 温度已确认，切换到时长设置 */
         f->focus = NEW_HEAT_FOCUS_TIME;
@@ -1234,6 +1241,11 @@ static void new_heat_power_key(f_new_heat_t *f)
     if (f == NULL) {
         return;
     }
+#if ELUNCHBOX_PANEL_EN
+    if (f->display_pending) {
+        return;
+    }
+#endif
     if (f->focus == NEW_HEAT_FOCUS_TIME) {
 #if ELUNCHBOX_PANEL_EN
         /* 鸡腿/意面模式温度固定，从时间返回直接回到主页 */
@@ -1425,8 +1437,8 @@ static void new_heat_pt8028_keys_process(f_new_heat_t *f)
     } else if (press_tch == PT8028_KEY_TCH3) {
         new_heat_mode_key();
     } else if (press_tch == PT8028_KEY_TCH1) {
-        /* 加热键：跳转到加热设置页 */
-        if (!sys_cb.flag_swithing) {
+        /* 已在加热设置页：再按加热键不得 func_switch_to 同页（会拆掉当前 form） */
+        if (!sys_cb.flag_swithing && func_cb.sta != FUNC_NEW_HEAT) {
             func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         }
     } else if (press_tch == PT8028_KEY_TCH7) {
@@ -1511,6 +1523,8 @@ static void func_new_heat_process(void)
 
 #if ELUNCHBOX_PANEL_EN
     if (!f->key_ready) {
+        u8 tch;
+
         if (f->display_pending) {
             /* 首次初始显示：大量 SPI flash 读取，需 te_block=1 保护 */
             home_gpu_wait_idle();
@@ -1525,14 +1539,22 @@ static void func_new_heat_process(void)
             gui_widget_refresh();  /* 非阻塞请求重绘 */
         }
         func_process();
+        /* 加载期勿吞确认键：TCH4 记 pending，其余清掉 */
         func_home_drain_stale_key_msgs();
+        tch = pt8028_take_press_tch();
+        if (tch == PT8028_KEY_TCH4) {
+            f->pending_ok = true;
+        }
         pt8028_release_clear();
-        (void)pt8028_take_press_tch();
         f->key_ready = true;
+        if (f->pending_ok) {
+            f->pending_ok = false;
+            new_heat_ok_key(f);
+        }
         return;
     }
 
-    /* 先扫键再刷新：避免 SPI/GPU 阻塞期间按键被积压；同帧尽量合并连按 */
+    /* 加减可同帧连并；确认/返回每帧只一步，避免连按直接开加热 */
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     if (elunchbox_ui_is_live()) {
         u8 k;
@@ -1540,8 +1562,13 @@ static void func_new_heat_process(void)
         for (k = 0; k < 4; k++) {
             u8 t_before = f->temp_idx;
             u8 tm_before = f->time_idx;
+            u8 focus_before = f->focus;
+            u8 sta_before = func_cb.sta;
 
             new_heat_keys_poll(f);
+            if (func_cb.sta != sta_before || f->focus != focus_before) {
+                break;
+            }
             if (f->temp_idx == t_before && f->time_idx == tm_before) {
                 break;
             }
@@ -1645,6 +1672,7 @@ void func_new_heat_enter(void)
     new_heat_font_ready = false;
     f->key_ready = false;
     f->display_pending = true;
+    f->pending_ok = false;
     home_ui_digit_pool_reset();
 #endif
 
