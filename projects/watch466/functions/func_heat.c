@@ -740,8 +740,28 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     f_heat->last_temp_f = 0xffff;
     func_heat_countdown_stop();
 #if ELUNCHBOX_PANEL_EN
-    /* 丢掉上一轮保温/加热残留快照，避免 sync 读到 remain=1+194F 误判结束 */
-    heat_display_session_reset();
+    /* 本机新建加热才清快照（防上轮 remain=0/脏值误结束）。
+     * MCU 已在加热并上报过 DP06 正数 remain 时必须保留，否则紧接着的
+     * sync_mcu_snapshot / panel_enter 读不到 59min，只能显示本地 total。 */
+    {
+        heat_display_info_t snap;
+        bool keep_mcu_remain = false;
+
+        if (heat_display_get_last(&snap) && snap.remain_min > 0) {
+            if (lb_heat_uart_remote_peek() || lb_heat_mcu_nav_active()
+#if FUNC_LUNCHBOX_UART_EN
+                || lunchbox_heating_task_active()
+#endif
+                ) {
+                keep_mcu_remain = true;
+                printf("[LCD_REG] start_heating: keep MCU remain=%umin temp=%uF\n",
+                       snap.remain_min, snap.temp_f);
+            }
+        }
+        if (!keep_mcu_remain) {
+            heat_display_session_reset();
+        }
+    }
 #endif
 
 #if FUNC_LUNCHBOX_UART_EN
@@ -838,7 +858,24 @@ void func_heat_ble_remote_restart(void)
     func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
     func_heat_countdown_stop();
 #if ELUNCHBOX_PANEL_EN
-    heat_display_session_reset();
+    /* 与 start_heating 相同：MCU 已报正数 remain 则保留，供首帧 sync */
+    {
+        heat_display_info_t snap;
+        bool keep_mcu_remain = false;
+
+        if (heat_display_get_last(&snap) && snap.remain_min > 0) {
+            if (lb_heat_uart_remote_peek() || lb_heat_mcu_nav_active()
+#if FUNC_LUNCHBOX_UART_EN
+                || lunchbox_heating_task_active()
+#endif
+                ) {
+                keep_mcu_remain = true;
+            }
+        }
+        if (!keep_mcu_remain) {
+            heat_display_session_reset();
+        }
+    }
 #endif
 
 #if FUNC_LUNCHBOX_UART_EN && !LB_BRIDGE_MODE
