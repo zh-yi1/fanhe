@@ -190,6 +190,9 @@ typedef struct f_heat_t_ {
     u32 heat_total_sec;
     u32 heat_start_tick;
     bool screen_locked;
+#if ELUNCHBOX_PANEL_EN
+    bool charge_warm_pending;   /* 充电+加热：延迟到下一帧再跳保温，避免 SPI/GPU 集中阻塞导致 tmr/gui thread miss */
+#endif
     u8 last_top_min;
     u8 last_top_sec;
     u16 last_timer_key;
@@ -324,6 +327,9 @@ static void func_heat_reset_setup(f_heat_t *f_heat)
     f_heat->screen_locked = false;
     f_heat->last_timer_key = 0xffff;
     f_heat->last_temp_f = 0xffff;
+#if ELUNCHBOX_PANEL_EN
+    f_heat->charge_warm_pending = false;
+#endif
     func_heat_countdown_stop();
     func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
 }
@@ -802,10 +808,14 @@ static void func_heat_start_heating(f_heat_t *f_heat)
     func_heat_display_refresh(f_heat);
     printf("start_heating: display_refresh done\n");
 
-    /* 充电中启动加热：跳过加热页，直接进入保温界面 */
+    /* 充电中启动加热：标记延迟跳转保温，下一帧由 func_heat_process 执行。
+     * 不能在此同步调用 func_elunchbox_enter_warm_from_charging()——会导致
+     * heat_enter→warm enter 的 SPI/GPU 操作集中在一帧内，饿死 tmr/gui 线程，
+     * 触发 tmr thread miss → WDT 复位重启。 */
     if (home_ui_shared_battery_is_charging()) {
         f_heat->heat_live_ready = true;
-        func_elunchbox_enter_warm_from_charging();
+        f_heat->charge_warm_pending = true;
+        printf("start_heating: charge detected, defer warm transition\n");
     }
 }
 
@@ -1277,6 +1287,14 @@ static void func_heat_process(void)
 #endif
     if (f_heat != NULL) {
 #if ELUNCHBOX_PANEL_EN
+        /* 充电+加热延迟跳转：上一帧 func_heat_start_heating 检测到充电，
+         * 设置了 charge_warm_pending。等待一帧让 timer/GUI 线程有机会运行后，
+         * 再执行保温页跳转，避免 SPI/GPU 集中阻塞导致 tmr/gui thread miss → WDT 复位。 */
+        if (f_heat->charge_warm_pending) {
+            f_heat->charge_warm_pending = false;
+            func_elunchbox_enter_warm_from_charging();
+            return;
+        }
         func_heat_panel_process(f_heat);
 #endif
         func_heat_status_refresh(f_heat);
