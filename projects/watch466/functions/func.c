@@ -722,7 +722,7 @@ void elunchbox_pwr_gui_off_activate(void)
         elunchbox_user_activity_reset();
         return;
     }
-    printf("elunchbox: auto shutdown after %ds idle\n", ELUNCHBOX_GUIOFF_TIME_SEC);
+    printf("elunchbox: auto full-shutdown after %ds idle\n", ELUNCHBOX_GUIOFF_TIME_SEC);
     elunchbox_pwr_pending_auto_shutdown = true;
 }
 
@@ -827,7 +827,7 @@ static void elunchbox_pwr_off_arm_wake_keys(const char *tag)
 }
 #endif
 
-/* 纯关屏（长按 TCH5 3s / 自动超时 5min）：仅熄屏，不断 BLE/UART/加热 */
+/* 纯关屏：仅熄屏。完整关机见 elunchbox_do_full_shutdown（先停加热再关 MCU）。 */
 static void elunchbox_screen_off(void)
 {
     if (elunchbox_pwr_gui_off && sys_cb.gui_sleep_sta) {
@@ -862,6 +862,29 @@ static void elunchbox_screen_off(void)
     WDT_CLR();
 
     printf("elunchbox: screen off (BLE/UART/heating keep alive)\n");
+}
+
+/**
+ * 完整关机：与长按 3s / 5 分钟无操作相同。
+ * Step1 HeatEnable=0 → Step2 PowerSwitch=OFF → 熄屏 → manual_off 深睡（再长按开机）。
+ */
+static void elunchbox_do_full_shutdown(const char *reason)
+{
+    const char *tag = (reason != NULL) ? reason : "?";
+
+    printf("elunchbox: full shutdown begin (%s)\n", tag);
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_mcu_shutdown_sequence();
+    elunchbox_pwroff_sent_mark();   /* 休眠握手勿重复下发 */
+#endif
+    elunchbox_pwr_manual_off = true;
+    elunchbox_screen_off();
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+    pt8028_pwr_manual_off_arm();
+    elunchbox_pwr_wake_armed = true;
+    elunchbox_pwr_need_fresh_press = true;
+#endif
+    printf("elunchbox: full shutdown done (%s)\n", tag);
 }
 
 /* 保留旧函数名兼容，内部转调纯关屏 */
@@ -1274,19 +1297,9 @@ static void func_elunchbox_pwr_long_poll(void)
         func_elunchbox_enter_charge_off_page();
         return;
     }
-    /* 普通亮屏态：长按 3 秒 = 手动关机 → 先停加热再关 MCU，再真深度休眠 */
-    printf("elunchbox: pwr_long_pending -> mcu shutdown + screen off\n");
-#if FUNC_LUNCHBOX_UART_EN
-    lunchbox_mcu_shutdown_sequence();
-    elunchbox_pwroff_sent_mark();   /* 休眠握手勿重复下发 */
-#endif
-    elunchbox_pwr_manual_off = true;
-    elunchbox_screen_off();
-#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
-    pt8028_pwr_manual_off_arm();          /* 重置按键状态机，准备 TCH5 唤醒检测 */
-    elunchbox_pwr_wake_armed = true;      /* 允许 manual_off_sleep_poll 轮询 PE1 */
-    elunchbox_pwr_need_fresh_press = true;/* 需松开再按才能唤醒，防按住误触发 */
-#endif
+    /* 普通亮屏态：长按 3 秒 = 关机（停加热→MCU关机→熄屏深睡） */
+    printf("elunchbox: pwr_long_pending -> full shutdown\n");
+    elunchbox_do_full_shutdown("pwr_long_3s");
 }
 
 void elunchbox_manual_off_sleep_poll(void)
@@ -1720,13 +1733,14 @@ void func_process(void)
         bt_cb.disp_status = 0xff;
     }
 #if ELUNCHBOX_PANEL_EN
-    //自动关机超时无操作 → 仅关背光
+    /* 5 分钟无操作 = 完整关机（同长按 3s：停加热→MCU关机→熄屏深睡） */
     if (elunchbox_pwr_pending_auto_shutdown) {
         elunchbox_pwr_pending_auto_shutdown = false;
-        //elunchbox_pwr_manual_shutdown();
-        elunchbox_pwr_gui_off = true;
-        elunchbox_saved_clkgat0 = CLKGAT0;  // 必须在熄屏前保存，否则唤醒时 CLKGAT0=0→8001 蓝屏
-        lunchbox_display_off();  //只关背光
+        if (elunchbox_pwr_is_manual_off()) {
+            printf("elunchbox: auto shutdown skipped (already manual_off)\n");
+        } else {
+            elunchbox_do_full_shutdown("auto_idle_5min");
+        }
     }
 #endif
 #if ELUNCHBOX_KEEP_AWAKE && ELUNCHBOX_PANEL_EN

@@ -782,19 +782,17 @@ static void sfunc_sleep(void)
     if (elunchbox_guioff_slp) {
         elunchbox_guioff_sleep_mode_enter();
     }
-    /* 【休眠】软关机/熄屏握手：
-     * Step1 HeatEnable=0 — 停止加热。
-     * Step2（仅手动长按关机）PowerSwitch=OFF — 关 MCU 总开关。
-     * 自动熄屏只停加热、保持 PowerSwitch，以便插电 UART/门铃进黑屏充电页。
-     * 长按路径通常已在 pwr_long_poll 发过完整序列并 mark，此处作兜底。 */
-    if (elunchbox_guioff_slp && !s_pwroff_sent) {
+    /* 【休眠】MCU 握手仅手动长按关机：
+     * Step1 HeatEnable=0 → Step2 PowerSwitch=OFF。
+     * 5 分钟自动息屏不再进本路径（见 sleep_process）。 */
+    if (elunchbox_manual_off_slp && !s_pwroff_sent) {
         int timeout;
 
         /* Step ①: 停加热 */
         {
             u8 data[8];
             u16 len = lb_dp_encode_bool(data, LB_DPID_HEAT_ENABLE, 0);
-            lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);  /* false=等ACK */
+            lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
             printf("elunchbox: sfunc_sleep step1 HeatEnable=0 (wait ACK)\n");
             timeout = 0;
             while (lb_send_waiting && timeout < 200) {
@@ -808,8 +806,8 @@ static void sfunc_sleep(void)
             }
         }
 
-        /* Step ②: 手动关机再发 PowerSwitch=OFF */
-        if (elunchbox_manual_off_slp) {
+        /* Step ②: 关机指令 */
+        {
             u8 data[8];
             u16 len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, 0);
             lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
@@ -827,8 +825,7 @@ static void sfunc_sleep(void)
         }
 
         s_pwroff_sent = true;
-        printf("elunchbox: sfunc_sleep handshake done (manual_off=%u), entering sleep\n",
-               elunchbox_manual_off_slp ? 1u : 0u);
+        printf("elunchbox: sfunc_sleep manual_off handshake done, entering sleep\n");
     }
 #endif
 
@@ -1392,21 +1389,25 @@ bool sleep_process(is_sleep_func is_sleep)
                 return false;
             }
             force_lowpwr = true;
+        } else {
+            /* 5 分钟自动息屏：只停在主循环 auto_guioff 短按唤醒。
+             * 勿进 sfunc_sleep —— 深睡后 PE1 唤醒/回主循环时屏常不亮（方式二）。
+             * guioff_sleep_delay 在亮屏时也会被 lowpwr_tout 减到 0，导致偶发进深睡。 */
+            reset_sleep_delay();
+            reset_pwroff_delay();
+            return false;
         }
 
-        /* Enter shallow sleep: auto guioff needs sleep_ready + bt_is_allow_sleep;
-         * manual_off forces entry regardless (BT stack may refuse but we go anyway). */
-        if ((elunchbox_guioff_sleep_ready() && (*is_sleep)()) || force_lowpwr) {
-            if (force_lowpwr) {
-                printf("elunchbox: sleep_process force_lowpwr -> sfunc_sleep\n");
-                /* 手动关机深度休眠前须退出 GPU。
-                 * 正常路径 sfunc_sleep 内 gui_sleep(true) → keep_ram → gpu_exit，
-                 * 但 elunchbox guioff_slp=true 跳过了此步骤。
-                 * lunchbox_display_off() 只关物理屏(背光+VDDLCD)，GPU 仍在跑 →
-                 * 带电进休眠白白耗电。在此补齐 gui_sleep(true)。 */
-                if (!sys_cb.gui_sleep_sta) {
-                    gui_sleep(true);
-                }
+        /* 仅手动长按关机进深度休眠 */
+        if (force_lowpwr) {
+            printf("elunchbox: sleep_process force_lowpwr -> sfunc_sleep\n");
+            /* 手动关机深度休眠前须退出 GPU。
+             * 正常路径 sfunc_sleep 内 gui_sleep(true) → keep_ram → gpu_exit，
+             * 但 elunchbox guioff_slp=true 跳过了此步骤。
+             * lunchbox_display_off() 只关物理屏(背光+VDDLCD)，GPU 仍在跑 →
+             * 带电进休眠白白耗电。在此补齐 gui_sleep(true)。 */
+            if (!sys_cb.gui_sleep_sta) {
+                gui_sleep(true);
             }
             sfunc_sleep();
             /* 不再调 ble_adv_dis() — 异步等完成会阻塞下次 bt_sleep_proc()。
