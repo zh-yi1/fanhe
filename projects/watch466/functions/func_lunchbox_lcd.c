@@ -223,6 +223,8 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
     if (mode == LB_KEEP_WARM_MODE) {
         duration = LB_KEEP_WARM_DURATION_MIN;
+    } else {
+        duration = 24u * 60u;   /* 强制 24 小时，忽略 UI 传入的时长 */
     }
     lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
     lb_heat_lcd_active = true;
@@ -559,6 +561,11 @@ void lunchbox_reservation_send(u8 action, u8 id, const char *name, u32 unix_time
 {
     u8 data[42];
     memset(data, 0, 42);
+
+    /* 强制 24 小时: 协议 u8 上限 255min≈4.25h, 无法完整表达 1440min.
+     * 取 u8 最大值 255 为上限, 实际由 heating module 侧决定. */
+    (void)duration;
+    duration = 255;
 
     data[0] = action;
     data[1] = id;
