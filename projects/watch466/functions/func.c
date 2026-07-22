@@ -1322,6 +1322,7 @@ void elunchbox_manual_off_sleep_poll(void)
      *     Step 2: 主循环 sfunc_sleep 退出后 pt8028_port_gpio_init 重开 BCD
      *             → 读键值 → 判断 TCH5 → 2s 长按 → 真正唤醒 */
     u8 flag = pt8028_read_flag_raw();  //获取状态
+    printf("%s: %d->flag=%d\n",__func__,__LINE__, flag);
     if (!primed) {
         /* 首次轮询：同步 last_flag 到当前硬件电平。
          * 关机长按松手后 BCD 先恢复但 OUT_FLAG 可能仍为 LOW（PT8028 去抖延迟），
@@ -1331,7 +1332,7 @@ void elunchbox_manual_off_sleep_poll(void)
         primed = true;
         return;
     }
-    if (flag == 0 && last_flag == 1) {
+    if (flag == 0 && last_flag == 1) {  //xing
         elunchbox_manual_wake_pending = true;
     }
     last_flag = flag;

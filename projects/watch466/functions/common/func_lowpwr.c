@@ -390,7 +390,7 @@ bool sfunc_sleep_proc(void)
      * 只靠 PE1/PB9 事件或低电退出。 */
     while (bt_is_sleep()
 #if ELUNCHBOX_PANEL_EN
-           || manual_off
+           || manual_off   //manual_off=true 时永不退出
 #endif
            ) {
         WDT_CLR();
@@ -538,11 +538,11 @@ bool sfunc_sleep_proc(void)
             wkpnd = port_wakeup_get_status();
             hw_has_event = (wkpnd != 0);
 
-            if (sw_has_event || hw_has_event) {
+            if (sw_has_event || hw_has_event) {  //进入按键识别
                 /* Step 3: 读 PB9 + PE1/BCD */
                 bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
                 u8 bcd;
-                bool pe1_lo = sleep_read_bcd_pe1(&bcd);
+                bool pe1_lo = sleep_read_bcd_pe1(&bcd);  //读 PE1 电平 + BCD 键值
                 printf("lp: EVENT sw=%d hw=%d pb9=%d pe1=%d bcd=%d\n",
                        sw_has_event, hw_has_event, pb9_lo, pe1_lo, bcd);
 
@@ -553,7 +553,7 @@ bool sfunc_sleep_proc(void)
                     elunchbox_manual_off_uart_listen_arm();
                     break;
                 }
-                if (pe1_lo && bcd == 5) {
+                if (pe1_lo && bcd == 5) {  //TCH5 开关键！→ 进入 2s 确认
                     /* TCH5: 要求持续 LOW≥2s 才当有效唤醒 */
                     int tch5_cnt = 0;
                     while (tch5_cnt < 400) {  /* 400*5ms=2000ms=2s */
@@ -948,7 +948,7 @@ static void sfunc_sleep(void)
         RTC_WDT_DIS();
     }
 #endif
-    rtc_sleep_enter();
+    rtc_sleep_enter();  //RTC 切到休眠时钟
 
     //io analog input
     pa_de = GPIOADE;
@@ -1099,7 +1099,7 @@ static void sfunc_sleep(void)
     }
 #endif
 
-    sleep_wakeup_config();
+    sleep_wakeup_config();  //xingyuan
     RTCCON9 = BIT(2);   /* clr spurious port pending from wakeup config */
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
