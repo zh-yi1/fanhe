@@ -385,7 +385,7 @@
 
 
 备注：
-1、当程序在app程序阶段，没在boot阶段时，发offset = 0xffffffff表示让mcu复位进入boot模式。
+1、当程序在app程序阶段，没在boot阶段时，发offset = 0xffffffff表示让mcu复位进入boot模式，并返回特殊值44332211，此时间隔一秒钟再发第一条指令
 2、当mcu向加热模块发送offset = 0的时候表示ota升级开始的第一条指令
 3、发送完最后一包offset的数据时。将offset = 0xffffffff,数据加4字节CRC32的校验码,用来记录整个升级固件的crc32校验和
 

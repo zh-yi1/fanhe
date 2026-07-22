@@ -444,12 +444,13 @@ static void heat_ota_uart_send(u32 offset, const u8 *data, u16 data_len, u8 msg_
 
 static void heat_ota_send_boot_cmd(void)
 {
-    // 不再等待加热模块回复 magic=0x44332211, 直接进入 1 秒延迟后发第一包数据
-    g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT_DELAY;
-    g_heat_ota.boot_delay_tick = tick_get();
+    // 发送复位指令后等待加热模块应答, 根据应答内容决定下一步:
+    //   err_flag=0x01 → 模块已在 BOOT 模式, 直接发第一条数据
+    //   数据含 0x44332211 → 模块从 APP 进入 BOOT, 等 1 秒后发第一条数据
+    g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT;
     g_heat_ota.retry_count = 0;
-    printf("[HEAT_OTA] UART: >>> BOOT cmd sent, waiting %lums (no ACK check) tick=%lu\n",
-           (unsigned long)HEAT_OTA_BOOT_DELAY_MS, (unsigned long)tick_get());
+    printf("[HEAT_OTA] UART: >>> BOOT cmd sent, waiting for ACK tick=%lu\n",
+           (unsigned long)tick_get());
 
     u8 msg = g_heat_ota.uart_msg_flag++;
     g_heat_ota.current_msg_flag = msg;
@@ -624,7 +625,17 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
         }
     }
 
-    // err_flag != 0 统一视为失败 (旧版 err=0x01 boot ACK 协议已废弃)
+    // BOOT 阶段 err_flag=0x01: 加热模块已在 BOOT 模式, 直接发第一条数据
+    if (g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT && rx->err_flag == 0x01) {
+        printf("[HEAT_OTA] BOOT: module already in BOOT mode (err=0x01), sending 1st packet now\n");
+        g_heat_ota.retry_count = 0;
+        g_heat_ota.uart_phase = HEAT_UART_PHASE_DATA;
+        g_heat_ota.state = HEAT_OTA_SENDING;
+        heat_ota_send_next_packet();
+        return;
+    }
+
+    // err_flag != 0 统一视为失败
     if (rx->err_flag != 0x00) {
         if (g_heat_ota.total_restarts < HEAT_OTA_MAX_RESTARTS) {
             printf("[HEAT_OTA] phase=%d err=0x%02X, restarting UART transfer (%u/%u)\n",
@@ -646,6 +657,27 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
     g_heat_ota.retry_count = 0;
 
     switch (g_heat_ota.uart_phase) {
+    case HEAT_UART_PHASE_BOOT:
+        // 检查是否返回特殊值 0x44332211 (模块从 APP 进入 BOOT, 协议备注1)
+        if (rx->data && rx->data_len >= 8) {
+            u32 magic = ((u32)rx->data[4] << 24) | ((u32)rx->data[5] << 16)
+                      | ((u32)rx->data[6] << 8)  | rx->data[7];
+            if (magic == 0x44332211) {
+                printf("[HEAT_OTA] BOOT: module entered BOOT (magic=0x44332211), waiting %lums\n",
+                       (unsigned long)HEAT_OTA_BOOT_DELAY_MS);
+                g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT_DELAY;
+                g_heat_ota.boot_delay_tick = tick_get();
+                // state 保持 HEAT_OTA_WAIT_ACK, 由 heat_ota_process 的 BOOT_DELAY 逻辑处理
+                return;
+            }
+        }
+        // 未识别应答 (兼容旧版固件), 进入 1 秒延迟后发第一包
+        printf("[HEAT_OTA] BOOT: unrecognized ACK (data_len=%u), starting %lums delay\n",
+               rx->data_len, (unsigned long)HEAT_OTA_BOOT_DELAY_MS);
+        g_heat_ota.uart_phase = HEAT_UART_PHASE_BOOT_DELAY;
+        g_heat_ota.boot_delay_tick = tick_get();
+        break;
+
     case HEAT_UART_PHASE_DATA:
         g_heat_ota.sent_packets++;
         g_heat_ota.send_offset += g_heat_ota.current_packet_len;
@@ -679,6 +711,15 @@ static void heat_ota_handle_timeout(void)
     if (g_heat_ota.retry_count < HEAT_OTA_MAX_RETRIES) {
         printf("[HEAT_OTA] timeout retry %u/%u\n",
                g_heat_ota.retry_count, HEAT_OTA_MAX_RETRIES);
+
+        if (g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT) {
+            // BOOT 指令超时, 重发复位指令
+            u8 msg = g_heat_ota.uart_msg_flag++;
+            g_heat_ota.current_msg_flag = msg;
+            heat_ota_uart_send(0xFFFFFFFF, NULL, 0, msg);
+            g_heat_ota.state = HEAT_OTA_WAIT_ACK;
+            return;
+        }
 
         if (g_heat_ota.uart_phase == HEAT_UART_PHASE_DATA) {
             // 从 Flash 重建当前包
