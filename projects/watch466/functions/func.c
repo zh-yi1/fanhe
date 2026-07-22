@@ -1719,13 +1719,19 @@ void func_process(void)
         bt_cb.disp_status = 0xff;
     }
 #if ELUNCHBOX_PANEL_EN
-    //自动关机超时无操作 → 仅关背光
+    /* 5 分钟无操作：仅熄屏，保持主循环 auto_guioff（短按唤醒），绝不进 sfunc_sleep */
     if (elunchbox_pwr_pending_auto_shutdown) {
         elunchbox_pwr_pending_auto_shutdown = false;
-        //elunchbox_pwr_manual_shutdown();
-        elunchbox_pwr_gui_off = true;
-        elunchbox_saved_clkgat0 = CLKGAT0;  // 必须在熄屏前保存，否则唤醒时 CLKGAT0=0→8001 蓝屏
-        lunchbox_display_off();  //只关背光
+        if (elunchbox_pwr_is_manual_off()) {
+            printf("elunchbox: auto screen-off skipped (already manual_off)\n");
+        } else {
+            elunchbox_pwr_gui_off = true;
+            /* 保持 delay=-1，避免 lowpwr_tout 把 ready 置位后误进深睡 */
+            elunchbox_guioff_sleep_delay = -1L;
+            elunchbox_saved_clkgat0 = CLKGAT0;
+            lunchbox_display_off();
+            printf("elunchbox: auto screen-off done (stay in auto_guioff, short press wake)\n");
+        }
     }
 #endif
 #if ELUNCHBOX_KEEP_AWAKE && ELUNCHBOX_PANEL_EN
