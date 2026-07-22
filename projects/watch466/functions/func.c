@@ -2649,17 +2649,17 @@ void func_message(size_msg_t msg)
 #if !FUNC_RESERVATION_UI_EN
         break;
 #elif ELUNCHBOX_PANEL_EN
-        /* 预约键：跳转到预约设置页 */
+        /* 预约键：统一走 DIRECT + allow，避免 FADE_OUT 无 allow 被拒 */
         if (func_cb.sta != FUNC_RESERVATION) {
-            func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            func_elunchbox_switch_to_reservation();
         }
         break;
 #else
         if (func_cb.sta != FUNC_RESERVATION) {
             func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         }
-#endif
         break;
+#endif
 
     case KU_BACK:
 #if ELUNCHBOX_PANEL_EN

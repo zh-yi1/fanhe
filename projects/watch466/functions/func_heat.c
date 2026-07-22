@@ -1559,20 +1559,18 @@ void func_heat_exit(void)
 #if ELUNCHBOX_PANEL_EN
     if (func_cb.sta == FUNC_NEW_WARM) {
         func_heat_panel_exit_to_warm();
-    } else if (func_cb.sta != FUNC_HOME) {  //加了这个判断if (func_cb.sta != FUNC_HOME)
-        /* 切 HOME 时不在此处做 GPU detach：
-         * func_heat_panel_exit() 中的 os_gui_draw_force() 会强制渲染锁键
-         * overlay，而 overlay 缓冲区在后续 func_exit() 中才被释放，导致
-         * GPU 仍持有对已释放内存的引用 → C241 崩溃。
-         * GPU 资源交由 func_exit() 的 compo_form_destroy() + compos_init()
-         * 统一清理（与 FUNC_NEW_HEAT 行为一致）。 */
+    } else if (func_cb.sta != FUNC_HOME) {
+        /* 切 HOME：switch_to 已 destroy form，此处勿 detach（C241）。
+         * 切 RESERVATION 等子页：frm 同样已在 recycle 销毁；
+         * func_heat_panel_exit() 在 frm_main==NULL 时只软清理，避免悬空 detach
+         * 导致预约页显示不全。 */
         func_heat_panel_exit();
     }
 #else
     (void)f_heat;
 #endif
     home_ui_shared_battery_detach_pic();
-    if (func_cb.sta != FUNC_NEW_WARM && func_cb.sta != FUNC_HOME) { //加了func_cb.sta != FUNC_HOME
+    if (func_cb.sta != FUNC_NEW_WARM && func_cb.sta != FUNC_HOME) {
         heat_display_unregister();
     }
 #if FUNC_LUNCHBOX_UART_EN

@@ -1048,35 +1048,44 @@ void func_heat_panel_exit(void)
 #if ELUNCHBOX_PANEL_EN
     func_key_lock_on_heating_stop();
 #endif
-    compo_picturebox_t *pics[5];
-    u8 n = 0;
-    u8 i;
+    /* func_switch_to(DIRECT/FADE) 进预约等子页时，frm 已在 recycle 中销毁。
+     * 若再对悬空 picturebox 做 detach + os_gui_draw_force → GPU 状态损坏，
+     * 预约页首帧字体/滚轮显示不全（与切 HOME 跳过 panel_exit 同源）。 */
+    if (func_cb.frm_main == NULL) {
+        memset(&g_hp, 0, sizeof(g_hp));
+        return;
+    }
+    {
+        compo_picturebox_t *pics[5];
+        u8 n = 0;
+        u8 i;
 
-    if (g_hp.pic_progress_bg != NULL) {
-        pics[n++] = g_hp.pic_progress_bg;
+        if (g_hp.pic_progress_bg != NULL) {
+            pics[n++] = g_hp.pic_progress_bg;
+        }
+        if (g_hp.pic_progress != NULL) {
+            pics[n++] = g_hp.pic_progress;
+        }
+        if (g_hp.pic_point != NULL) {
+            pics[n++] = g_hp.pic_point;
+        }
+        if (g_hp.pic_show != NULL) {
+            pics[n++] = g_hp.pic_show;
+        }
+        if (g_hp.pic_bt != NULL) {
+            pics[n++] = g_hp.pic_bt;
+        }
+        home_ui_gpu_pics_detach(pics, n);
+        heat_panel_arc_detach();
+        g_hp.track_ready = false;
+        g_hp.show_ready = false;
+        g_hp.last_progress_idx = 0xff;
+        g_hp.ui_ready = false;
+        for (i = 0; i < n; i++) {
+            pics[i] = NULL;
+        }
+        memset(&g_hp, 0, sizeof(g_hp));
     }
-    if (g_hp.pic_progress != NULL) {
-        pics[n++] = g_hp.pic_progress;
-    }
-    if (g_hp.pic_point != NULL) {
-        pics[n++] = g_hp.pic_point;
-    }
-    if (g_hp.pic_show != NULL) {
-        pics[n++] = g_hp.pic_show;
-    }
-    if (g_hp.pic_bt != NULL) {
-        pics[n++] = g_hp.pic_bt;
-    }
-    home_ui_gpu_pics_detach(pics, n);
-    heat_panel_arc_detach();
-    g_hp.track_ready = false;
-    g_hp.show_ready = false;
-    g_hp.last_progress_idx = 0xff;
-    g_hp.ui_ready = false;
-    for (i = 0; i < n; i++) {
-        pics[i] = NULL;
-    }
-    memset(&g_hp, 0, sizeof(g_hp));
 }
 
 bool func_heat_panel_track_ram_valid(void)

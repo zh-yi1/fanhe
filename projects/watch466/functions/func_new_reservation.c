@@ -752,6 +752,8 @@ void func_new_reservation_enter(void)
 
 #if ELUNCHBOX_PANEL_EN
     new_res_font_ready = false;
+    /* 从加热/加热设置页切入：等 GPU 回收完成后再建窗，避免首帧绑字体显示不全 */
+    home_gpu_wait_idle();
     WDT_CLR();
 #endif
 

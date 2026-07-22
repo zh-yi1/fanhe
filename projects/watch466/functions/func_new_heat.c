@@ -1442,9 +1442,9 @@ static void new_heat_pt8028_keys_process(f_new_heat_t *f)
             func_switch_to(FUNC_NEW_HEAT, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
         }
     } else if (press_tch == PT8028_KEY_TCH7) {
-        /* 预约键：跳转到预约设置页 */
+        /* 预约键：与全局 res_key 一致，DIRECT + allow（FADE_OUT 无 allow 会被 switch_to 拒绝） */
         if (!sys_cb.flag_swithing) {
-            func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
+            func_elunchbox_switch_to_reservation();
         }
     }
 }
