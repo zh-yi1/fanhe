@@ -1267,8 +1267,12 @@ static void func_elunchbox_pwr_long_poll(void)
         func_elunchbox_enter_charge_off_page();
         return;
     }
-    /* 普通亮屏态：长按 3 秒 = 手动关机 → 真深度休眠 */
-    printf("elunchbox: pwr_long_pending -> screen off\n");
+    /* 普通亮屏态：长按 3 秒 = 手动关机 → 先停加热再关 MCU，再真深度休眠 */
+    printf("elunchbox: pwr_long_pending -> mcu shutdown + screen off\n");
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_mcu_shutdown_sequence();
+    elunchbox_pwroff_sent_mark();   /* 休眠握手勿重复下发 */
+#endif
     elunchbox_pwr_manual_off = true;
     elunchbox_screen_off();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
@@ -1434,6 +1438,10 @@ void func_process(void)
                 gui_wakeup();
             }
             lunchbox_display_on();
+#if FUNC_LUNCHBOX_UART_EN
+            /* 关机时已发 PowerSwitch=OFF，唤醒须重新开 MCU */
+            lunchbox_power_on();
+#endif
             elunchbox_user_activity_reset();
             return;
         }

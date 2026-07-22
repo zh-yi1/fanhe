@@ -385,8 +385,11 @@ void lunchbox_heat_stop(void);
 /** @brief MCU 已下发停止时仅清本地状态，不回发 UART */
 void lunchbox_heat_clear_local(void);
 
-/** @brief LCD 关机 — 发送 PowerSwitch=OFF 给加热模块 (长按开关键3秒) */
+/** @brief LCD 关机 — 发送 PowerSwitch=OFF 给加热模块 (长按开关键3秒，含关屏供电) */
 void lunchbox_power_off(void);
+
+/** @brief 长按关机 UART 序列：先 HeatEnable=0 再 PowerSwitch=OFF（均等 ACK，不关屏） */
+void lunchbox_mcu_shutdown_sequence(void);
 
 /** @brief LCD 开机 — 发送 PowerSwitch=ON 给加热模块
  *  蓝牙已连接时附带时间戳(DPID=11)，未连接时仅发送开机字段 (长按开关键3秒) */

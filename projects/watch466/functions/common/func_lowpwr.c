@@ -723,6 +723,11 @@ void elunchbox_pwroff_sent_reset(void)
     lb_uart_tx_block(false);
 }
 
+void elunchbox_pwroff_sent_mark(void)
+{
+    s_pwroff_sent = true;
+}
+
 /* 【休眠主函数】sfunc_sleep — 熄屏 + 关外设 + sfunc_sleep_proc 深度休眠
  *   自动息屏: guioff_slp=1, manual_off_slp=0 → BLE 降参数, 保留部分唤醒源
  *   手动关机: guioff_slp=1, manual_off_slp=1 → 关 BLE 广播, 关 RTC WDT, 仅保留 UART RX+按键唤醒
@@ -778,10 +783,10 @@ static void sfunc_sleep(void)
         elunchbox_guioff_sleep_mode_enter();
     }
     /* 【休眠】软关机/熄屏握手：
-     * Step1 HeatEnable=0 — 停止加热，避免休眠中继续加热。
-     * 不再发 PowerSwitch=OFF — 关总开关后加热模块不再上报充电，
-     * PB9 门铃收不到插电事件，黑屏跑马灯无法进入。
-     * 软关机只关屏深睡；插电由模块 UART 上报 → PB9 唤醒 → 充电页。 */
+     * Step1 HeatEnable=0 — 停止加热。
+     * Step2（仅手动长按关机）PowerSwitch=OFF — 关 MCU 总开关。
+     * 自动熄屏只停加热、保持 PowerSwitch，以便插电 UART/门铃进黑屏充电页。
+     * 长按路径通常已在 pwr_long_poll 发过完整序列并 mark，此处作兜底。 */
     if (elunchbox_guioff_slp && !s_pwroff_sent) {
         int timeout;
 
@@ -803,8 +808,27 @@ static void sfunc_sleep(void)
             }
         }
 
+        /* Step ②: 手动关机再发 PowerSwitch=OFF */
+        if (elunchbox_manual_off_slp) {
+            u8 data[8];
+            u16 len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, 0);
+            lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
+            printf("elunchbox: sfunc_sleep step2 PowerSwitch=OFF (wait ACK)\n");
+            timeout = 0;
+            while (lb_send_waiting && timeout < 200) {
+                lunchbox_uart_process();
+                delay_5ms(5);
+                timeout++;
+            }
+            if (lb_send_waiting) {
+                printf("elunchbox: PowerSwitch=OFF ACK timeout, force clear\n");
+                lb_send_waiting = false;
+            }
+        }
+
         s_pwroff_sent = true;
-        printf("elunchbox: sfunc_sleep handshake done (keep PowerSwitch, charge UART ok), entering sleep\n");
+        printf("elunchbox: sfunc_sleep handshake done (manual_off=%u), entering sleep\n",
+               elunchbox_manual_off_slp ? 1u : 0u);
     }
 #endif
 

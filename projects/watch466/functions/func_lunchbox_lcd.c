@@ -20,6 +20,7 @@
 
 #if FUNC_LUNCHBOX_UART_EN
 
+extern bool lb_send_waiting;
 //-----------------------------------------------------------------------------
 // 保温常量
 //-----------------------------------------------------------------------------
@@ -464,6 +465,58 @@ void lunchbox_power_off(void)
     led_pg_off();   // 关背光 (先于关屏，避免花屏)
     lcd_pg_off();   // 关VDDLCD
     hr_vdd_ldo_off(); // 关VDDHR 3.3V
+}
+
+static void lunchbox_mcu_cmd_wait_ack(const char *tag)
+{
+    int timeout = 0;
+
+    while (lb_send_waiting && timeout < 200) {
+        WDT_CLR();
+        lunchbox_uart_process();
+        delay_5ms(5);
+        timeout++;
+    }
+    if (lb_send_waiting) {
+        printf("lb: %s ACK timeout, force clear\n", tag);
+        lb_send_waiting = false;
+    }
+}
+
+/**
+ * @brief 长按 3s 关机：先停加热，再关 MCU 总开关（不碰屏供电，屏由 display_off 处理）
+ */
+void lunchbox_mcu_shutdown_sequence(void)
+{
+    u8 data[8];
+    u16 len;
+
+#if ELUNCHBOX_PANEL_EN
+    func_key_lock_on_heating_stop();
+#endif
+    lb_keep_warm_active = false;
+    lb_heat_lcd_active = false;
+    lb_heat_task_active = false;
+    lb_keep_warm_msg_flag = 0;
+
+    /* Step1: 停止加热 */
+    len = lb_dp_encode_bool(data, LB_DPID_HEAT_ENABLE, 0);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
+    printf("lb: mcu_shutdown step1 HeatEnable=0\n");
+    lunchbox_mcu_cmd_wait_ack("HeatEnable=0");
+#if !LB_BRIDGE_MODE
+    lb_attr_heat_enable = 0;
+    lb_attr_heat_mode = 0;
+#endif
+
+    /* Step2: 关机指令 */
+    len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, 0);
+    lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);
+    printf("lb: mcu_shutdown step2 PowerSwitch=OFF\n");
+    lunchbox_mcu_cmd_wait_ack("PowerSwitch=OFF");
+#if !LB_BRIDGE_MODE
+    lb_attr_power_switch = 0;
+#endif
 }
 
 void lunchbox_power_on(void)

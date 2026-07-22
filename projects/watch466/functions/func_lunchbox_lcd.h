@@ -37,6 +37,9 @@ void lunchbox_power_on(void);
 /** @brief LCD 关机 — 发送 PowerSwitch=OFF 给加热模块 */
 void lunchbox_power_off(void);
 
+/** @brief 长按关机：先停加热(HeatEnable=0)再关总开关(PowerSwitch=OFF)，均等 ACK；仅 UART，不关屏供电 */
+void lunchbox_mcu_shutdown_sequence(void);
+
 //-----------------------------------------------------------------------------
 // 保温控制
 //-----------------------------------------------------------------------------
