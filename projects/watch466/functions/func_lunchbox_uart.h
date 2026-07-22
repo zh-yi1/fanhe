@@ -57,6 +57,9 @@ enum {
     LB_DPID_RTC_TIME        = 14,       // rtc的unix时间: value(4B) unix时间 (加热模块→MCU上报设备时间, v1.0.7新增)
 };
 
+// BLE 协议属性 (与 UART 协议共用 ID 空间，按协议层区分用途)
+#define LB_DPID_RESERVATION_TIME    12  // 预约开始时间: value(4B) unix时间 (v1.0.10 新增, LCD→BLE上报)
+
 #define LB_HEAT_DURATION_MIN_MIN          30      // 加热时长下限(分钟)，协议范围 30-210 (v1.0.7 §4)
 #define LB_HEAT_DURATION_MAX_MIN          210     // 加热时长上限(分钟)，协议范围 30-210 (v1.0.7 §4)
 

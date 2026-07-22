@@ -614,6 +614,106 @@ void lunchbox_ble_on_connected(void)
     heat_ota_send_deferred_result();
 }
 
+//-----------------------------------------------------------------------------
+// LCD → BLE 状态上报 (屏幕操作 → 蓝牙上报给 APP)
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief LCD 选定加热时长时 → BLE 上报 0x03(dpid=5) 通知 APP
+ *
+ * 用户在加热设置页调整/确认加热时长后调用。
+ * 蓝牙未连接时直接返回，不发送。
+ *
+ * @param duration_min 加热时长(分钟)
+ */
+void lunchbox_lcd_to_ble_heat_time(u32 duration_min)
+{
+    if (!ble_is_connected()) {
+        return;
+    }
+
+    u8 data[8];
+    u16 len = lb_dp_encode_value(data, LB_DPID_HEAT_DURATION, duration_min);
+    lunchbox_uart_send_async(LB_CMD_STATUS_REPORT, data, len);
+    printf("LCD->BLE: report heat time=%lu min via 0x03\n", (unsigned long)duration_min);
+}
+
+/**
+ * @brief LCD 选定加热温度时 → BLE 上报 0x03(dpid=7) 通知 APP
+ *
+ * 用户在加热设置页调整/确认加热温度后调用。
+ * 蓝牙未连接时直接返回，不发送。
+ *
+ * @param temp_idx 温度档位: 0=40°C ~ 6=100°C
+ */
+void lunchbox_lcd_to_ble_heat_temp(u8 temp_idx)
+{
+    if (!ble_is_connected()) {
+        return;
+    }
+
+    u8 data[8];
+    u16 len = lb_dp_encode_enum(data, LB_DPID_HEAT_TEMP, temp_idx);
+    lunchbox_uart_send_async(LB_CMD_STATUS_REPORT, data, len);
+    printf("LCD->BLE: report heat temp idx=%u via 0x03\n", temp_idx);
+}
+
+/**
+ * @brief LCD 点击加热快捷键 → BLE 上报 0x03(dpid=2, mode=1) 通知 APP
+ *
+ * 用户在屏幕上点击"加热快捷键"后调用，告知 APP 进入自定义加热模式。
+ * 蓝牙未连接时直接返回，不发送。
+ */
+void lunchbox_lcd_to_ble_quick_heat(void)
+{
+    if (!ble_is_connected()) {
+        return;
+    }
+
+    u8 data[8];
+    u16 len = lb_dp_encode_enum(data, LB_DPID_HEAT_MODE, 1);
+    lunchbox_uart_send_async(LB_CMD_STATUS_REPORT, data, len);
+    printf("LCD->BLE: report quick heat (custom mode=1) via 0x03\n");
+}
+
+/**
+ * @brief LCD 进入预约模式 → BLE 上报 0x03(dpid=2, mode=4) 通知 APP
+ *
+ * 用户在屏幕上进入预约设置流程后调用，告知 APP 当前为预约模式。
+ * 蓝牙未连接时直接返回，不发送。
+ */
+void lunchbox_lcd_to_ble_reservation(void)
+{
+    if (!ble_is_connected()) {
+        return;
+    }
+
+    u8 data[8];
+    u16 len = lb_dp_encode_enum(data, LB_DPID_HEAT_MODE, 4);
+    lunchbox_uart_send_async(LB_CMD_STATUS_REPORT, data, len);
+    printf("LCD->BLE: report reservation mode (mode=4) via 0x03\n");
+}
+
+/**
+ * @brief LCD 设置预约开始时间 → BLE 上报 0x03(dpid=12) 通知 APP
+ *
+ * 用户在预约设置页调整/确认预约开始时间后调用。
+ * 蓝牙未连接时直接返回，不发送。
+ *
+ * @param unix_time 预约开始时间(Unix秒, 大端格式)
+ */
+void lunchbox_lcd_to_ble_appointment_time(u32 unix_time)
+{
+    if (!ble_is_connected()) {
+        return;
+    }
+
+    u8 data[8];
+    u16 len = lb_dp_encode_value(data, LB_DPID_RESERVATION_TIME, unix_time);
+    lunchbox_uart_send_async(LB_CMD_STATUS_REPORT, data, len);
+    printf("LCD->BLE: report appointment time=%lu (unix) via 0x03\n", (unsigned long)unix_time);
+}
+
 #if ELUNCHBOX_PANEL_EN
 typedef struct {
     bool got_mode;

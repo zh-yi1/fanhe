@@ -124,6 +124,33 @@ void lunchbox_ble_on_connected(void);
 void lunchbox_ble_send_presets(void);
 
 //-----------------------------------------------------------------------------
+// LCD → BLE 状态上报 (屏幕操作 → 蓝牙上报给 APP)
+//-----------------------------------------------------------------------------
+
+/** @brief LCD 选定加热时长时上报给 APP (0x03, dpid=5)
+ *  @param duration_min 加热时长(分钟)
+ *  @note  蓝牙未连接时直接返回，不发送 */
+void lunchbox_lcd_to_ble_heat_time(u32 duration_min);
+
+/** @brief LCD 选定加热温度时上报给 APP (0x03, dpid=7)
+ *  @param temp_idx 温度档位: 0=40°C ~ 6=100°C
+ *  @note  蓝牙未连接时直接返回，不发送 */
+void lunchbox_lcd_to_ble_heat_temp(u8 temp_idx);
+
+/** @brief LCD 点击加热快捷键时上报给 APP (0x03, dpid=2, mode=1=自定义加热)
+ *  @note  蓝牙未连接时直接返回，不发送 */
+void lunchbox_lcd_to_ble_quick_heat(void);
+
+/** @brief LCD 进入预约模式时上报给 APP (0x03, dpid=2, mode=4=预约模式)
+ *  @note  蓝牙未连接时直接返回，不发送 */
+void lunchbox_lcd_to_ble_reservation(void);
+
+/** @brief LCD 设置预约开始时间时上报给 APP (0x03, dpid=12)
+ *  @param unix_time 预约开始时间(Unix秒, 大端格式)
+ *  @note  蓝牙未连接时直接返回，不发送 */
+void lunchbox_lcd_to_ble_appointment_time(u32 unix_time);
+
+//-----------------------------------------------------------------------------
 // 模式界面 → 加热界面 预设传递 (lb_mode_to_heat_preset_t 定义在 func_lunchbox_uart.h)
 //-----------------------------------------------------------------------------
 
