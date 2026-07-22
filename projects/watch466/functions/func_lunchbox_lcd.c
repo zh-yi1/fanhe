@@ -5,6 +5,15 @@
  * 提供给屏幕端(LCD UI)调用的加热控制、预约管理、模式查询等 API。
  * 所有函数直接构造 UART 帧 (通过 lb_uart_send_raw) 发往加热模块，
  * 不依赖 BLE↔UART 翻译路径。
+ *
+ * 要启用哪个版本，取消注释 224-228 和 565-568 处的代码，把数字改成对应值即可。
+ * 【加热时长强制覆盖 - 24h 版本】
+ *   lunchbox_heat_start(): else { duration = 24u * 60u; }
+ *   lunchbox_reservation_send(): (void)duration; duration = 255; // u8上限
+ *
+ * 【加热时长强制覆盖 - 48h 版本】
+ *   lunchbox_heat_start(): else { duration = 48u * 60u; }
+ *   lunchbox_reservation_send(): (void)duration; duration = 255; // u8上限,同上
  */
 #include "include.h"
 #include "func_lunchbox_uart.h"
@@ -223,8 +232,8 @@ void lunchbox_heat_start(u8 mode, u8 temp, u32 duration)
 {
     if (mode == LB_KEEP_WARM_MODE) {
         duration = LB_KEEP_WARM_DURATION_MIN;
-    } else {
-        duration = 24u * 60u;   /* 强制 24 小时，忽略 UI 传入的时长 */
+    // } else {
+    //     duration = 24u * 60u;   /* 强制 24 小时，忽略 UI 传入的时长 */
     }
     lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
     lb_heat_lcd_active = true;
@@ -562,10 +571,10 @@ void lunchbox_reservation_send(u8 action, u8 id, const char *name, u32 unix_time
     u8 data[42];
     memset(data, 0, 42);
 
-    /* 强制 24 小时: 协议 u8 上限 255min≈4.25h, 无法完整表达 1440min.
-     * 取 u8 最大值 255 为上限, 实际由 heating module 侧决定. */
-    (void)duration;
-    duration = 255;
+    // /* 强制 24 小时: 协议 u8 上限 255min≈4.25h, 无法完整表达 1440min.
+    //  * 取 u8 最大值 255 为上限, 实际由 heating module 侧决定. */
+    // (void)duration;
+    // duration = 255;
 
     data[0] = action;
     data[1] = id;
