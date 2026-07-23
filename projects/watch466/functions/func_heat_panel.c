@@ -1093,6 +1093,11 @@ bool func_heat_panel_track_ram_valid(void)
     return g_hp_track_ram_valid;
 }
 
+bool func_heat_panel_ui_ready(void)
+{
+    return g_hp.ui_ready;
+}
+
 void func_heat_panel_track_ram_consume(void)
 {
     g_hp_track_ram_valid = false;

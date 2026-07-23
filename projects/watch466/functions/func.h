@@ -273,6 +273,8 @@ void func_heat_key_poll(void);
 bool func_heat_ui_is_heating(void);
 /** 充电进保温前加热页须就绪（避免切页未完成时改 sta 导致 GPU 崩溃） */
 bool func_heat_panel_ready_for_charge_warm(void);
+/** 加热面板 form/控件已绑定完成 */
+bool func_heat_panel_ui_ready(void);
 /** UART 侧判定加热结束是否可信（heat_live_ready 后才行，过滤开局残留 DP） */
 bool func_heat_uart_finish_ok(void);
 bool elunchbox_pwr_gui_off_is_on(void);

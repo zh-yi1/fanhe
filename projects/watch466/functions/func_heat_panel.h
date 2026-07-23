@@ -13,6 +13,7 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat);
 void func_heat_panel_exit(void);
 void func_heat_panel_exit_to_warm(void);
 bool func_heat_panel_track_ram_valid(void);
+bool func_heat_panel_ui_ready(void);
 void func_heat_panel_track_ram_consume(void);
 void func_heat_panel_mark_dirty(struct f_heat_t_ *f_heat);
 void func_heat_panel_process(struct f_heat_t_ *f_heat);

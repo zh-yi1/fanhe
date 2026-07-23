@@ -840,6 +840,12 @@ void func_heat_ble_remote_restart(void)
     if (func_cb.sta != FUNC_HEAT || func_cb.f_cb == NULL) {
         return;
     }
+    if (sys_cb.flag_swithing || func_cb.frm_main == NULL || !func_heat_panel_ui_ready()) {
+        printf("heat_ble_remote_restart: skip not ready (frm=%p ui=%d sw=%u)\n",
+               func_cb.frm_main, func_heat_panel_ui_ready() ? 1 : 0,
+               sys_cb.flag_swithing ? 1u : 0u);
+        return;
+    }
     if (!lb_mode_to_heat_get(&preset)) {
         return;
     }
