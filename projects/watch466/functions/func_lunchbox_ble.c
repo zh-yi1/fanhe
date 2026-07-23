@@ -192,7 +192,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 #if LB_BRIDGE_MODE
         // 0x01 产品信息 → 先透传加热模块, 等UART应答后再回复APP
         if (frame.cmd == LB_CMD_PRODUCT_INFO) {
-            if (frame.data && frame.data_len >= 4) {
+            if (frame.data && frame.data_len >= 4) {     //同步时间
                 lb_synced_unix_ts = ((u32)frame.data[0] << 24) | ((u32)frame.data[1] << 16)
                                   | ((u32)frame.data[2] << 8)  | frame.data[3];
                 lb_synced_rtccnt  = RTCCNT;
@@ -210,7 +210,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             lb_product_info_pend_tick = tick_get();
             u8 uart_buf[LB_TXBUF_SIZE];
             u16 uart_len = 0;
-            if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {
+            if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) { // 翻译
                 printf("BLE->UART==>TX[%d]: ", uart_len);
                 for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
                 printf("\n");
@@ -219,7 +219,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
                     if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
                 }
                 uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
-            } else {
+            } else {  //// 翻译失败
                 lb_product_info_pending = false;
                 lb_handler_product_info(&frame);
             }

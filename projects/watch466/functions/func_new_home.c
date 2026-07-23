@@ -785,6 +785,8 @@ void func_home_process(void)
             f->display_stage = 0;
             func_home_gui_mark_dirty();
             tft_bglight_force_on();
+            /* 主页完全显示：清除开机充电窗口，后续充电只更新电池图标跑马灯，不切黑屏充电页 */
+            elunchbox_boot_charge_check_clear();
         }
         if (f->display_stage != 0) {
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
