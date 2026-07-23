@@ -1837,12 +1837,27 @@ void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
 
 void func_elunchbox_enter_warm_from_heat(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    /* 完整关机过程中 HeatEn=0 应答勿再进保温（深睡前重建 UI → 唤醒 C245） */
+    if (elunchbox_pwr_is_manual_off() || elunchbox_pwr_gui_off_is_on()) {
+        printf("[LCD_ROUTE] skip warm from heat (manual/guioff sta=%u)\n",
+               func_cb.sta);
+        return;
+    }
+#endif
     func_elunchbox_warm_from_charging_set(false);
     func_elunchbox_enter_warm_from_heat_body();
 }
 
 void func_elunchbox_enter_warm_from_charging(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_is_manual_off() || elunchbox_pwr_gui_off_is_on()) {
+        printf("[LCD_ROUTE] skip warm from charging (manual/guioff sta=%u)\n",
+               func_cb.sta);
+        return;
+    }
+#endif
     /* 空闲黑屏充电页保持跑马灯；加热任务仍活跃时须离开跑马灯进保温 */
     if (elunchbox_charge_off_active()) {
         if (!elunchbox_heating_blocks_idle()) {
@@ -1890,6 +1905,13 @@ static void func_elunchbox_enter_warm_from_heat_body(void)
     func_heat_countdown_stop();
     func_mode_keep_warm_enter();
     return;
+#endif
+
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_is_manual_off() || elunchbox_pwr_gui_off_is_on()) {
+        printf("[LCD_ROUTE] skip warm body (manual/guioff sta=%u)\n", func_cb.sta);
+        return;
+    }
 #endif
 
     if (func_cb.sta == FUNC_NEW_WARM) {

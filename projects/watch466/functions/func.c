@@ -298,6 +298,10 @@ void func_elunchbox_switch_to_heat_panel(void)
 void func_elunchbox_switch_to_warm_panel(void)
 {
 #if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_is_manual_off()) {
+        printf("elunchbox: warm panel blocked (manual off)\n");
+        return;
+    }
     if (!elunchbox_pwr_is_manual_off()
         && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
         elunchbox_pwr_intentional_wake = elunchbox_pwr_is_manual_off();
@@ -881,11 +885,19 @@ static void elunchbox_do_full_shutdown(const char *reason)
     const char *tag = (reason != NULL) ? reason : "?";
 
     printf("elunchbox: full shutdown begin (%s)\n", tag);
+    /* 先置 manual_off：关机停热应答(HeatEn=0)到达时禁止再切保温页
+     * （否则会在深睡前重建 UI，唤醒后资源失效 → C245） */
+    elunchbox_pwr_manual_off = true;
+    func_elunchbox_ble_cancel_pending_switch();
+    func_elunchbox_warm_from_charging_set(false);
+    heat_display_warm_exit_reset();
+#if ELUNCHBOX_PANEL_EN
+    heat_display_session_reset();
+#endif
 #if FUNC_LUNCHBOX_UART_EN
     lunchbox_mcu_shutdown_sequence();
     elunchbox_pwroff_sent_mark();   /* 休眠握手勿重复下发 */
 #endif
-    elunchbox_pwr_manual_off = true;
     elunchbox_screen_off();
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_pwr_manual_off_arm();
@@ -1473,6 +1485,17 @@ void func_process(void)
             lunchbox_power_on();
 #endif
             elunchbox_user_activity_reset();
+            /* 深睡 gpu_exit 后加热/保温页控件资源失效，强制回主页重建，避免 C245 */
+            elunchbox_manual_wake_home_tick = tick_get();
+            if (elunchbox_manual_wake_home_tick == 0) {
+                elunchbox_manual_wake_home_tick = 1;
+            }
+            func_elunchbox_warm_from_charging_set(false);
+            if (func_cb.sta != FUNC_HOME) {
+                printf("elunchbox: manual wake -> force home (leave sta=%u)\n",
+                       func_cb.sta);
+                func_elunchbox_switch_to_home();
+            }
             return;
         }
 
