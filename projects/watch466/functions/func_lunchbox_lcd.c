@@ -652,10 +652,10 @@ void lunchbox_ble_send_presets(void)
                               lb_next_time_of_day(10, 50), temp_idx, 70, 0, 0xff);
     lunchbox_reservation_send(1, 3, "\xe6\x99\x9a\xe9\xa4\x90",
                               lb_next_time_of_day(16, 30), temp_idx, 90, 0, 0xff);
-    lunchbox_reservation_send(2, 4, "\xe9\xb8\xa1\xe8\x85\xbf\xe6\xa8\xa1\xe5\xbc\x8f",
-                              lb_get_unix_time(), temp_idx, 60, 0, 0xff);
-    lunchbox_reservation_send(3, 5, "\xe6\x84\x8f\xe9\x9d\xa2\xe6\xa8\xa1\xe5\xbc\x8f",
-                              lb_get_unix_time(), temp_idx, 60, 0, 0xff);
+    // lunchbox_reservation_send(2, 4, "\xe9\xb8\xa1\xe8\x85\xbf\xe6\xa8\xa1\xe5\xbc\x8f",
+    //                           lb_get_unix_time(), temp_idx, 60, 0, 0xff);
+    // lunchbox_reservation_send(3, 5, "\xe6\x84\x8f\xe9\x9d\xa2\xe6\xa8\xa1\xe5\xbc\x8f",
+    //                           lb_get_unix_time(), temp_idx, 60, 0, 0xff);
 
     printf("BLE connected: 5 presets sent to heat module via UART 0x03\n");
 #else

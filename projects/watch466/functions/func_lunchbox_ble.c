@@ -219,7 +219,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
                     if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
                 }
                 uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
-            } else {  //// 翻译失败
+            } else {  // 翻译失败
                 lb_product_info_pending = false;
                 lb_handler_product_info(&frame);
             }
