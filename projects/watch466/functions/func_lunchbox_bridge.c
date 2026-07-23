@@ -300,9 +300,10 @@ static bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out
         if (!rx->data || rx->data_len < 44) return false;
 
         if (ble_cmd == LB_CMD_MODE_QUERY) {
-            out_data[0] = rx->data[2];   // set_mode → mode
-            out_data[1] = rx->data[37];  // temp
-            out_data[2] = rx->data[38];  // duration
+            // 按协议字段偏移: data[2]=设置模式, data[40]=温度, data[41]=时长
+            out_data[0] = rx->data[2];   // mode
+            out_data[1] = rx->data[40];  // temp
+            out_data[2] = rx->data[41];  // duration
             *out_len = 3;
             return true;
         }
@@ -355,7 +356,17 @@ bool lb_translate_uart_to_ble(lb_rx_frame_t *rx, u8 *out_buf, u16 *out_len)
     // 直接按 msg_flag 查 BLE cmd 映射 (msg_flag 唯一索引, 无需门控)
     ble_cmd = lb_pending_ble_cmd[rx->msg_flag];
     if (ble_cmd != 0) {
-        lb_pending_ble_cmd[rx->msg_flag] = 0;
+        // 多包响应(UART 0x02 预约/预设列表): data[0]=总条数 data[1]=序号(1-based)
+        // 仅在最后一包或单包时清除pending映射，避免后续分包路由到错误的BLE cmd
+        bool clear = true;
+        if (rx->cmd == LB_UART_CMD_SCHEDULE && rx->data && rx->data_len >= 2) {
+            u8 total = rx->data[0];
+            u8 seq   = rx->data[1];
+            if (total > 1 && seq < total) clear = false;  // 非最后一包，保留映射
+        }
+        if (clear) {
+            lb_pending_ble_cmd[rx->msg_flag] = 0;
+        }
     }
 
     if (ble_cmd == 0) {

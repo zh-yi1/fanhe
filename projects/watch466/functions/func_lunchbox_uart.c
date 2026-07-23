@@ -16,6 +16,7 @@
 #include "func_lunchbox_uart_heat.h"
 #include "home_ui_shared.h"
 #include "func_lunchbox_ble.h"
+#include "func_lunchbox_uart_time.h"
 #include "func_lunchbox_partition.h"
 
 #include "func_lunchbox_lcd.h"
@@ -618,6 +619,7 @@ u16 lb_dp_encode_value(u8 *buf, u8 dpid, u32 val)
  * @param data     数据区首指针
  * @param data_len 数据区总字节数
  */
+
 void lb_dp_dump_hex(const u8 *data, u16 data_len)
 {
     if (!data || data_len < 4) return;
@@ -712,7 +714,7 @@ void lb_dp_dump_hex(const u8 *data, u16 data_len)
         case LB_DPID_TIME_SYNC: {     // 11: value(4B)
             u32 v = ((u32)val[0] << 24) | ((u32)val[1] << 16)
                   | ((u32)val[2] << 8)  |  (u32)val[3];
-            printf(" TimeSync=%lu", (unsigned long)v);
+            printf(" TimeSync=%lu(%s)", (unsigned long)v, lb_unix_time_str(v));
             break;
         }
         case LB_DPID_KEY_NOTIFY:      // 12: enum
@@ -727,7 +729,7 @@ void lb_dp_dump_hex(const u8 *data, u16 data_len)
         case LB_DPID_RTC_TIME: {     // 14: value(4B) 加热模块RTC时间 (v1.0.7新增)
             u32 v = ((u32)val[0] << 24) | ((u32)val[1] << 16)
                   | ((u32)val[2] << 8)  |  (u32)val[3];
-            printf(" RtcTime=%lu", (unsigned long)v);
+            printf(" RtcTime=%lu(%s)", (unsigned long)v, lb_unix_time_str(v));
             break;
         }
         default:
@@ -766,7 +768,7 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             if (len >= 4) {
                 u32 ts = ((u32)data[0] << 24) | ((u32)data[1] << 16)
                        | ((u32)data[2] << 8)  |  (u32)data[3];
-                printf("Timestamp=%lu\n", (unsigned long)ts);
+                printf("Timestamp=%lu(%s)\n", (unsigned long)ts, lb_unix_time_str(ts));
             }
         } else {
             // MCU→APP: product info struct (81 bytes)
@@ -817,8 +819,8 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             u8  time   = data[41];
             u8  status = data[42];
             u8  rep    = data[43];
-            printf("Schedule[%u/%u] ALL=%u now_id=%u mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
-                   now_id, ALL, ALL, now_id, mode, ID, data + 4, (unsigned long)TIME, temp, time, status, rep);
+            printf("Schedule[%u/%u] ALL=%u now_id=%u mode=%u ID=%u name=%.32s TIME=%lu(%s) temp=%u time=%umin status=%u rep=0x%02X\n",
+                   now_id, ALL, ALL, now_id, mode, ID, data + 4, (unsigned long)TIME, lb_unix_time_str(TIME), temp, time, status, rep);
         }
         break;
 
@@ -834,8 +836,8 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             u8  time   = data[39];
             u8  status = data[40];
             u8  rep    = data[41];
-            printf("mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
-                   mode, ID, data + 2, (unsigned long)TIME, temp, time, status, rep);
+            printf("mode=%u ID=%u name=%.32s TIME=%lu(%s) temp=%u time=%umin status=%u rep=0x%02X\n",
+                   mode, ID, data + 2, (unsigned long)TIME, lb_unix_time_str(TIME), temp, time, status, rep);
         } else if (!is_rx && len >= 1) {
             // MCU→APP: assigned ID(1B)
             printf("AssignedID=%u\n", data[0]);
@@ -854,8 +856,8 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             u8  time   = data[39];
             u8  status = data[40];
             u8  rep    = data[41];
-            printf("mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
-                   mode, ID, data + 2, (unsigned long)TIME, temp, time, status, rep);
+            printf("mode=%u ID=%u name=%.32s TIME=%lu(%s) temp=%u time=%umin status=%u rep=0x%02X\n",
+                   mode, ID, data + 2, (unsigned long)TIME, lb_unix_time_str(TIME), temp, time, status, rep);
         }
         break;
 

@@ -880,6 +880,9 @@
 		<Unit filename="functions/func_lunchbox_uart.c">
 			<Option compilerVar="CC" />
 		</Unit>
+			<Unit filename="functions/func_lunchbox_uart_time.c">
+				<Option compilerVar="CC" />
+			</Unit>
 		<Unit filename="functions/func_lunchbox_lcd.c">
 			<Option compilerVar="CC" />
 		</Unit>

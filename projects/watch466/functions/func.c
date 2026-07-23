@@ -1746,7 +1746,7 @@ void func_process(void)
 //    }
 //#endif//OPUS_ENC_EN
 
-    if (!elunchbox_pwr_is_manual_off()) {  
+    if (!elunchbox_pwr_is_manual_off()) {
         co_timer_pro(false);
         bsp_sensor_step_pro_isr(); //wu guan
 
@@ -1755,7 +1755,7 @@ void func_process(void)
         }
     }
 
-    
+
 
 #if FUNC_LUNCHBOX_UART_EN
     /* UART 必须在 sleep_process 之前处理：预约加热来的指令先解析
@@ -1786,7 +1786,7 @@ void func_process(void)
 #endif
 
 #if VBAT_DETECT_EN //各种子系统->到1302
-    if (!elunchbox_pwr_is_manual_off()) {  
+    if (!elunchbox_pwr_is_manual_off()) {
         bsp_vbat_lpwr_process();
     }
 #endif
@@ -3075,7 +3075,7 @@ void func_run(void)
 #endif
 #endif
     // func.c
-    
+
     for (;;) {
 #if !ELUNCHBOX_PANEL_EN
         printf("func_enter <<\n");
