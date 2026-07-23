@@ -37,7 +37,7 @@ extern volatile u8 elunchbox_te_block_flag;
 /*
  * 保温页 — 效果图 WARM
  *   顶栏：蓝牙 + 电量 + 标题 WARM
- *   弧形进度条 + 圆点（复用 new_progress_* / new_point）
+ *   弧形进度条 + 圆点（与 heat_panel 相同：灰轨合成蓝弧 + TIP 表定位圆点）
  *   弧内：累计保温时长；弧下：Total Warm Time
  *   194°F 保温固定 24 小时（lunchbox_keep_warm_apply）
  *   电源键：停止保温并回 Home
@@ -63,7 +63,7 @@ extern volatile u8 elunchbox_te_block_flag;
 #define NEW_WARM_COLOR_VALUE              0x2BF4
 #define NEW_WARM_COLOR_LABEL              0x0AD8
 
-#define NEW_WARM_ARC_CYCLE_MIN            480   /* 8h 满圈，之后循环 */
+#define NEW_WARM_ARC_CYCLE_MIN            1440   /* 8h 满圈，之后循环 */
 
 #define NEW_WARM_MSG_POWER                (KEY_RIGHT | KEY_SHORT_UP)
 
@@ -95,6 +95,7 @@ typedef struct {
     home_top_time_txt_t top_time;
     u8 last_progress_idx;
     u32 last_elapsed_min;
+    bool track_ready;
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_bat;
     compo_picturebox_t *pic_progress_bg;
@@ -162,8 +163,9 @@ static const s16 tbl_warm_progress_tip_y[NEW_HEAT_PROGRESS_CNT] = {
     NEW_HEAT_NEW_PROGRESS_13_TIP_Y,
 };
 
-#define NEW_WARM_ARC_RAM          ((u8 *)home_ui_shared_icon_runtime)
-#define NEW_WARM_ARC_RAM_CAP      ((u32)(HOME_UI_SHARED_TAB_CNT * NEW_HOME_TAB_RAM_SIZE))
+/* 与 heat_panel 一致：灰轨 + 蓝弧 CPU 合成，ANCHOR 作相对 blit 定位 */
+#define NEW_WARM_OVERLAY_SKIP565      0xFFFF
+#define NEW_WARM_OVERLAY_ROW_MAX      192
 
 static bool new_warm_gpu_ram_bind(compo_picturebox_t *pic, u32 addr, u32 len,
                                     u8 *ram, u32 cap, u16 w, u16 h, s16 x, s16 y)
@@ -198,40 +200,6 @@ static bool new_warm_gpu_ram_bind(compo_picturebox_t *pic, u32 addr, u32 len,
     compo_picturebox_set_pos(pic, x, y);
     compo_picturebox_set_visible(pic, true);
     return true;
-}
-
-static bool new_warm_gpu_ram_bind_existing(compo_picturebox_t *pic, u8 *ram,
-                                             u16 w, u16 h, s16 x, s16 y)
-{
-    if (pic == NULL || ram == NULL || w == 0 || h == 0) {
-        return false;
-    }
-    if (!gui_set_ram_check(ram, __func__)) {
-        return false;
-    }
-    compo_picturebox_set_ram(pic, ram);
-    compo_picturebox_set_size(pic, w, h);
-    compo_picturebox_set_pos(pic, x, y);
-    compo_picturebox_set_visible(pic, true);
-    return true;
-}
-
-static u32 new_warm_progress_len(u8 idx)
-{
-    static const u32 tbl[NEW_HEAT_PROGRESS_CNT] = {
-        UI_LEN_NEW_UI_NEW_PROGRESS_1_BIN, UI_LEN_NEW_UI_NEW_PROGRESS_2_BIN,
-        UI_LEN_NEW_UI_NEW_PROGRESS_3_BIN, UI_LEN_NEW_UI_NEW_PROGRESS_4_BIN,
-        UI_LEN_NEW_UI_NEW_PROGRESS_5_BIN, UI_LEN_NEW_UI_NEW_PROGRESS_6_BIN,
-        UI_LEN_NEW_UI_NEW_PROGRESS_7_BIN, UI_LEN_NEW_UI_NEW_PROGRESS_8_BIN,
-        UI_LEN_NEW_UI_NEW_PROGRESS_9_BIN, UI_LEN_NEW_UI_NEW_PROGRESS_10_BIN,
-        UI_LEN_NEW_UI_NEW_PROGRESS_11_BIN, UI_LEN_NEW_UI_NEW_PROGRESS_12_BIN,
-        UI_LEN_NEW_UI_NEW_PROGRESS_13_BIN,
-    };
-
-    if (idx == 0 || idx > NEW_HEAT_PROGRESS_CNT) {
-        return tbl[0];
-    }
-    return tbl[idx - 1];
 }
 
 static u32 new_warm_progress_addr(u8 idx)
@@ -386,7 +354,7 @@ static void new_warm_title_txt_show(compo_textbox_t *txt)
 
 static void new_warm_point_bind(f_new_warm_t *f, u8 progress_idx)
 {
-    u8 step;
+    u8 tip_step;
     s16 px;
     s16 py;
     new_heat_point_bg_t bg;
@@ -394,12 +362,13 @@ static void new_warm_point_bind(f_new_warm_t *f, u8 progress_idx)
     if (f == NULL || f->pic_point == NULL) {
         return;
     }
-    step = new_warm_clamp_progress_idx(progress_idx) - 1;
-    px = tbl_warm_progress_tip_x[step];
-    py = tbl_warm_progress_tip_y[step];
+    /* 与 heat_panel 一致：idx 与 TIP 表一一对应 */
+    tip_step = new_warm_clamp_progress_idx(progress_idx) - 1;
+    px = tbl_warm_progress_tip_x[tip_step];
+    py = tbl_warm_progress_tip_y[tip_step];
 
     memset(&bg, 0, sizeof(bg));
-    if (gui_set_ram_check(home_ui_heat_bg_ram, __func__)) {
+    if (f->track_ready && gui_set_ram_check(home_ui_heat_bg_ram, __func__)) {
         bg.bg_ram = home_ui_heat_bg_ram;
         bg.bg_ram_len = NEW_HEAT_NEW_PROGRESS_BG_RAM_SIZE;
         bg.bg_w = GET_LE16(&home_ui_heat_bg_ram[4]);
@@ -408,8 +377,15 @@ static void new_warm_point_bind(f_new_warm_t *f, u8 progress_idx)
         bg.bg_anchor_y = NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y;
     }
 
-    (void)new_heat_point_gpu_ram_bind(f->pic_point, home_ui_colon_ram, HOME_COLON_RAM_SIZE,
-                                      NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py, &bg);
+    if (!new_heat_point_gpu_ram_bind(f->pic_point, home_ui_colon_ram, HOME_COLON_RAM_SIZE,
+                                     NEW_HEAT_POINT_W, NEW_HEAT_POINT_H, px, py, &bg)) {
+        return;
+    }
+#if ELUNCHBOX_PANEL_EN
+    if (f->pic_point->img != NULL && !func_key_lock_hint_is_on()) {
+        widget_set_top(f->pic_point->img, true);
+    }
+#endif
 }
 
 static void new_warm_show_apply(f_new_warm_t *f)
@@ -453,76 +429,126 @@ static void new_warm_show_text_apply(f_new_warm_t *f)
     }
 }
 
-static void new_warm_track_apply(f_new_warm_t *f)
+static void new_warm_blit_overlay(u8 *dst, u16 tw, u16 th,
+                                  u32 overlay_addr, u16 ow, u16 oh,
+                                  s16 overlay_ax, s16 overlay_ay,
+                                  s16 bg_ax, s16 bg_ay)
 {
-    if (f == NULL || f->pic_progress_bg == NULL) {
+    s16 dx0;
+    s16 dy0;
+    u16 y;
+    u16 row_bytes;
+    u8 row_buf[NEW_WARM_OVERLAY_ROW_MAX * 2];
+
+    if (ow == 0 || oh == 0 || ow > NEW_WARM_OVERLAY_ROW_MAX) {
         return;
     }
-#if ELUNCHBOX_PANEL_EN
-    if (func_heat_panel_track_ram_valid()) {
-        if (new_warm_gpu_ram_bind_existing(f->pic_progress_bg, home_ui_heat_bg_ram,
-                                           NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H,
-                                           NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X,
-                                           NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y)) {
-            func_heat_panel_track_ram_consume();
-            return;
+
+    dx0 = (overlay_ax - (s16)(ow / 2)) - (bg_ax - (s16)(tw / 2));
+    dy0 = (overlay_ay - (s16)(oh / 2)) - (bg_ay - (s16)(th / 2));
+    row_bytes = (u16)(ow * 2);
+
+    for (y = 0; y < oh; y++) {
+        s16 dy = dy0 + (s16)y;
+        u16 x;
+
+        if (dy < 0 || dy >= (s16)th) {
+            continue;
         }
+        os_spiflash_read(row_buf, overlay_addr + 8 + (u32)y * ow * 2, row_bytes);
+        for (x = 0; x < ow; x++) {
+            s16 dx = dx0 + (s16)x;
+            u16 c;
+            u32 di;
+
+            if (dx < 0 || dx >= (s16)tw) {
+                continue;
+            }
+            c = (u16)row_buf[x * 2] | ((u16)row_buf[x * 2 + 1] << 8);
+            if (c == NEW_WARM_OVERLAY_SKIP565) {
+                continue;
+            }
+            di = 8 + ((u32)dy * tw + (u32)dx) * 2;
+            if (di + 1 >= NEW_HEAT_NEW_PROGRESS_BG_RAM_SIZE) {
+                continue;
+            }
+            dst[di] = row_buf[x * 2];
+            dst[di + 1] = row_buf[x * 2 + 1];
+        }
+        WDT_CLR();
     }
-#endif
-    (void)new_warm_gpu_ram_bind(f->pic_progress_bg, UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN,
-                                UI_LEN_NEW_UI_NEW_PROGRESS_BG_BIN,
-                                home_ui_heat_bg_ram, sizeof(home_ui_heat_bg_ram),
-                                NEW_HEAT_NEW_PROGRESS_BG_W, NEW_HEAT_NEW_PROGRESS_BG_H,
-                                NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X,
-                                NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y);
 }
 
-static void new_warm_progress_overlay_apply(f_new_warm_t *f, u8 idx)
+static bool new_warm_progress_composite_apply(f_new_warm_t *f, u8 idx)
 {
     u8 step;
-    u16 pw;
-    u16 ph;
+    u16 tw;
+    u16 th;
+    u16 ow;
+    u16 oh;
 
-    if (f == NULL || f->pic_progress == NULL) {
-        return;
+    if (f == NULL || f->pic_progress_bg == NULL) {
+        return false;
     }
+
     idx = new_warm_clamp_progress_idx(idx);
     step = idx - 1;
-    pw = tbl_warm_progress_w[step];
-    ph = tbl_warm_progress_h[step];
-    if (pw == 0 || ph == 0) {
-        compo_picturebox_set_visible(f->pic_progress, false);
-        return;
-    }
-    {
-        u32 addr = new_warm_progress_addr(idx);
-        u32 len = new_warm_progress_len(idx);
+    ow = tbl_warm_progress_w[step];
+    oh = tbl_warm_progress_h[step];
 
-        if (len <= NEW_WARM_ARC_RAM_CAP &&
-            new_warm_gpu_ram_bind(f->pic_progress, addr, len,
-                                  NEW_WARM_ARC_RAM, NEW_WARM_ARC_RAM_CAP,
-                                  pw, ph, tbl_warm_progress_ax[step], tbl_warm_progress_ay[step])) {
-            return;
-        }
-        home_ui_pic_set_flash(f->pic_progress, addr, pw, ph);
-        compo_picturebox_set_size(f->pic_progress, pw, ph);
-        compo_picturebox_set_pos(f->pic_progress, tbl_warm_progress_ax[step], tbl_warm_progress_ay[step]);
-        compo_picturebox_set_visible(f->pic_progress, true);
+#if ELUNCHBOX_PANEL_EN
+    if (func_heat_panel_track_ram_valid()) {
+        func_heat_panel_track_ram_consume();
     }
+#endif
+
+    home_gpu_wait_idle();
+    os_spiflash_read(home_ui_heat_bg_ram, UI_BUF_NEW_UI_NEW_PROGRESS_BG_BIN,
+                     UI_LEN_NEW_UI_NEW_PROGRESS_BG_BIN);
+    WDT_CLR();
+    if (!gui_set_ram_check(home_ui_heat_bg_ram, __func__)) {
+        return false;
+    }
+    tw = GET_LE16(&home_ui_heat_bg_ram[4]);
+    th = GET_LE16(&home_ui_heat_bg_ram[6]);
+
+    if (ow > 0 && oh > 0) {
+        new_warm_blit_overlay(home_ui_heat_bg_ram, tw, th,
+                              new_warm_progress_addr(idx), ow, oh,
+                              tbl_warm_progress_ax[step], tbl_warm_progress_ay[step],
+                              NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X,
+                              NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y);
+    }
+
+    home_gpu_wait_idle();
+    compo_picturebox_set_ram(f->pic_progress_bg, home_ui_heat_bg_ram);
+    compo_picturebox_set_size(f->pic_progress_bg, NEW_HEAT_NEW_PROGRESS_BG_W,
+                              NEW_HEAT_NEW_PROGRESS_BG_H);
+    compo_picturebox_set_pos(f->pic_progress_bg,
+                             NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_X,
+                             NEW_HEAT_NEW_PROGRESS_BG_ANCHOR_Y);
+    compo_picturebox_set_visible(f->pic_progress_bg, true);
+    if (f->pic_progress != NULL) {
+        compo_picturebox_set_visible(f->pic_progress, false);
+        compo_picturebox_set_ram(f->pic_progress, NULL);
+    }
+    f->track_ready = true;
+    return true;
 }
 
 static void new_warm_progress_apply(f_new_warm_t *f, u8 idx)
 {
-    if (f == NULL || idx == 0) {
+    if (f == NULL || f->pic_progress_bg == NULL || idx == 0) {
         return;
     }
     if (idx == f->last_progress_idx) {
         return;
     }
-    new_warm_track_apply(f);
-    new_warm_progress_overlay_apply(f, idx);
-    new_warm_point_bind(f, idx);
+    if (!new_warm_progress_composite_apply(f, idx)) {
+        return;
+    }
     f->last_progress_idx = idx;
+    new_warm_point_bind(f, idx);
 }
 
 #if ELUNCHBOX_PANEL_EN
