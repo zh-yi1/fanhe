@@ -20,7 +20,7 @@
 #error "Missing didian.bin: add Output/bin/ui/new_ui/didian.png and run tools/gen_new_ui_icons.py + prebuild.bat"
 #endif
 
-/* 仅 DP09 fault_code=0x0A 进入低电页；进入后只显示 UI，不下发任何 UART 指令 */
+/* 仅 DP09=0x0A（低电上报）进入低电页；任意页面/充电/熄屏均须显示，进入后不下发 UART */
 #define LB_FAULT_CODE_LOW_BAT           0x0Au
 
 #define LOWBAT_ICON_DRAW_W              NEW_UI_DIDIAN_W
@@ -40,6 +40,7 @@ typedef struct {
 
 static bool elunchbox_lowbat_latched;
 static bool elunchbox_lowbat_mcu_fault;
+static bool elunchbox_lowbat_enter_pending; /* 切页中延后进入 */
 
 static u8 *lowbat_icon_ram_ptr;
 
@@ -127,38 +128,38 @@ bool elunchbox_lowbat_active(void)
 
 bool elunchbox_lowbat_should_block_ui_route(void)
 {
-    if (elunchbox_lowbat_active()) {
-        return true;
-    }
-    if (home_ui_shared_battery_is_charging()) {
-        return false;
-    }
-    return elunchbox_lowbat_mcu_fault;
+    /* 低电故障未清除：禁止其它 UI 路由（含充电黑屏页），保证始终能落到低电页 */
+    return elunchbox_lowbat_active() || elunchbox_lowbat_mcu_fault;
 }
 
 static bool elunchbox_lowbat_should_enter(void)
 {
-    if (home_ui_shared_battery_is_charging()) {
-        return false;
-    }
+    /* 不管充电/当前页/熄屏：MCU 报 0x0A 就必须进低电页 */
     return elunchbox_lowbat_mcu_fault;
 }
 
 static void elunchbox_lowbat_enter_now(void)
 {
     if (elunchbox_lowbat_latched && func_cb.sta == FUNC_LOWBAT) {
+        elunchbox_lowbat_enter_pending = false;
         return;
     }
     if (sys_cb.flag_swithing) {
+        elunchbox_lowbat_enter_pending = true;
+        printf("lowbat: enter pending (switching sta=%u)\n", func_cb.sta);
         return;
     }
 
     elunchbox_lowbat_latched = true;
+    elunchbox_lowbat_enter_pending = false;
     lowbat_led_all_off();
 
+    /* 关机/息屏/黑屏充电：先唤醒再切页；manual_off 时 switch_to 默认拦截，须先亮屏清标志 */
     if (elunchbox_pwr_is_manual_off()
+        || elunchbox_pwr_gui_off_is_on()
         || sys_cb.gui_sleep_sta
-        || !elunchbox_ui_is_live()) {
+        || !elunchbox_ui_is_live()
+        || func_cb.sta == FUNC_CHARGE) {
         elunchbox_pwr_gui_wake_reason("lowbat");
     }
 
@@ -166,8 +167,10 @@ static void elunchbox_lowbat_enter_now(void)
         return;
     }
 
-    printf("lowbat: enter (sta=%u fault=%u)\n",
-           func_cb.sta, elunchbox_lowbat_mcu_fault ? 1u : 0u);
+    printf("lowbat: enter (sta=%u fault=%u charge=%u)\n",
+           func_cb.sta,
+           elunchbox_lowbat_mcu_fault ? 1u : 0u,
+           home_ui_shared_battery_is_charging() ? 1u : 0u);
     func_switch_to(FUNC_LOWBAT, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
 }
 
@@ -177,6 +180,7 @@ static void elunchbox_lowbat_try_exit(void)
         return;
     }
     elunchbox_lowbat_latched = false;
+    elunchbox_lowbat_enter_pending = false;
     printf("lowbat: fault cleared, exit to home\n");
     func_switch_to(FUNC_HOME, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
 }
@@ -203,7 +207,11 @@ void elunchbox_lowbat_feed_dp(u8 *data, u16 len)
         if (dpid == LB_DPID_FAULT && val_len >= 1) {
             fault = val[0];
             got_fault = true;
+            /* DP09 值即为 fault_code：0x0A=低电上报 */
             elunchbox_lowbat_mcu_fault = (fault == LB_FAULT_CODE_LOW_BAT);
+            if (elunchbox_lowbat_mcu_fault) {
+                printf("lowbat: DP09=0x0A lowbat fault (sta=%u)\n", func_cb.sta);
+            }
         }
         off += 4 + val_len;
     }
@@ -215,7 +223,7 @@ void elunchbox_lowbat_feed_dp(u8 *data, u16 len)
 
 void elunchbox_lowbat_poll(void)
 {
-    if (elunchbox_lowbat_should_enter()) {
+    if (elunchbox_lowbat_should_enter() || elunchbox_lowbat_enter_pending) {
         elunchbox_lowbat_enter_now();
         return;
     }
@@ -226,6 +234,7 @@ void elunchbox_lowbat_reset(void)
 {
     elunchbox_lowbat_mcu_fault = false;
     elunchbox_lowbat_latched = false;
+    elunchbox_lowbat_enter_pending = false;
     lowbat_icon_ram_free();
 }
 

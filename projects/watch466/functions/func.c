@@ -1822,9 +1822,11 @@ void func_process(void)
    }
 
 #if FUNC_LUNCHBOX_UART_EN
-    /* 开机窗口：关机插电导致复位后 UART 报充电 → 进黑屏跑马灯（勿停在主页） */
+    /* 开机窗口：关机插电导致复位后 UART 报充电 → 进黑屏跑马灯（勿停在主页）
+     * 低电故障优先：MCU DP09=0x0A 时不进充电页 */
     if (elunchbox_boot_charge_check && !guioff
         && !elunchbox_charge_off_active()
+        && !elunchbox_lowbat_should_block_ui_route()
         && !sys_cb.flag_swithing) {
         if (tick_check_expire(elunchbox_boot_tick, ELUNCHBOX_BOOT_CHARGE_WINDOW_MS)) {
             elunchbox_boot_charge_check = false;
@@ -2107,7 +2109,8 @@ void func_switch_to(u8 sta, u16 switch_mode)
     if (elunchbox_lowbat_active() && sta != FUNC_LOWBAT && sta != FUNC_PWROFF) {
         return;
     }
-    if (elunchbox_pwr_is_manual_off()) {
+    /* 低电页优先：允许在 manual_off 下切入 FUNC_LOWBAT（先由 lowbat_enter 唤醒） */
+    if (elunchbox_pwr_is_manual_off() && sta != FUNC_LOWBAT) {
         return;
     }
     if (sys_cb.flag_swithing) {

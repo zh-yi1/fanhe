@@ -700,7 +700,10 @@ void lb_dp_dump_hex(const u8 *data, u16 data_len)
             // 0x05=上盖5V短路 0x06=NTC无响应 0x07=NTC未连接 0x08=NTC异常
             // 0x09=蓝牙模组心跳超时 0x0a=低电上报 (v1.0.7新增)
             static const char *faults[] = {"OK","Fault"};
-            printf(" Fault=%s(%d)", val[0] < 2 ? faults[val[0]] : "?", val[0]);
+            printf("Fault=%s(%d)", val[0] < 2 ? faults[val[0]] : "?", val[0]);
+            if (val[0] == 0x0A) {
+                printf(" [LOWBAT]");
+            }
             break;
         }
         case LB_DPID_HEAT_ENABLE:     // 10: bool
