@@ -204,7 +204,7 @@
 #define ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC 30          /* 息屏后延迟多少秒进浅睡 */
 #define LPWR_BUCK_TO_LDO_EN             0           /* manual_off 休眠 BUCK→LDO, 省 50-200μA (暂时关闭排查) */
 #define LPWR_VDDTK_OFF_EN               1           /* manual_off 休眠关闭 VDDTK LDO, 省 10-50μA */
-#define ELUNCHBOX_LOWBAT_MODE_EN        1           /* 1=仅DP09低电故障(0x0A)进低电页，不下发UART */
+#define ELUNCHBOX_LOWBAT_MODE_EN        1           /* 1=MCU DP09=0x0A 任意场景强制进低电页 */
 #if ELUNCHBOX_LOWBAT_MODE_EN
 #define HOME_UI_LOWBAT_OVERLAY_EN       1           /* 兼容旧宏：低电模式启用 */
 #else

@@ -781,6 +781,19 @@ static void new_mode_sel_prev(f_new_mode_t *f)
 #endif
 }
 
+static void new_mode_confirm_beep_ok(void)
+{
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+    u8 lunchbox_key = pt8028_tch_to_lunchbox_key(PT8028_KEY_TCH4);
+
+    /* confirm 里会 release_clear 清掉 key_sound_defer，须在切页前主动蜂鸣 */
+    if (lunchbox_key != 0) {
+        lunchbox_key_notify(lunchbox_key);
+    }
+    (void)pt8028_take_key_sound_defer_tch();
+#endif
+}
+
 static void new_mode_confirm(f_new_mode_t *f)
 {
     if (f == NULL || sys_cb.flag_swithing) {
@@ -788,9 +801,14 @@ static void new_mode_confirm(f_new_mode_t *f)
     }
 
     printf("nm_confirm sel=%u\n", f->sel);
+    new_mode_confirm_beep_ok();
 
     switch (f->sel) {
     case NEW_MODE_ITEM_DELAY:
+#if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
+        func_home_drain_stale_key_msgs();
+        pt8028_release_clear();
+#endif
         func_res_allow_switch = 1;
         func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_DIRECT | FUNC_SWITCH_AUTO);
         func_res_allow_switch = 0;

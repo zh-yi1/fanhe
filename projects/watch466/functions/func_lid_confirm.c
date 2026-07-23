@@ -910,6 +910,8 @@ void func_elunchbox_switch_to_lid_confirm(void)
     func_home_drain_stale_key_msgs();
     pt8028_release_clear();
 #endif
+    /* 上盖确认属于加热流程：开机充电窗口失效 */
+    elunchbox_boot_charge_check_clear();
     /* 清除残留的 warm/heat pending，防止 lid_confirm 弹窗后被覆盖 */
     func_elunchbox_ble_cancel_pending_switch();
     /* 充电+保温上电弹窗：使用延后切页（elunchbox_ble_pending_sta），避免

@@ -840,6 +840,12 @@ void func_heat_ble_remote_restart(void)
     if (func_cb.sta != FUNC_HEAT || func_cb.f_cb == NULL) {
         return;
     }
+    if (sys_cb.flag_swithing || func_cb.frm_main == NULL || !func_heat_panel_ui_ready()) {
+        printf("heat_ble_remote_restart: skip not ready (frm=%p ui=%d sw=%u)\n",
+               func_cb.frm_main, func_heat_panel_ui_ready() ? 1 : 0,
+               sys_cb.flag_swithing ? 1u : 0u);
+        return;
+    }
     if (!lb_mode_to_heat_get(&preset)) {
         return;
     }
@@ -1831,16 +1837,34 @@ void func_heat_panel_heating_finish(struct f_heat_t_ *f_heat)
 
 void func_elunchbox_enter_warm_from_heat(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    /* 完整关机过程中 HeatEn=0 应答勿再进保温（深睡前重建 UI → 唤醒 C245） */
+    if (elunchbox_pwr_is_manual_off() || elunchbox_pwr_gui_off_is_on()) {
+        printf("[LCD_ROUTE] skip warm from heat (manual/guioff sta=%u)\n",
+               func_cb.sta);
+        return;
+    }
+#endif
     func_elunchbox_warm_from_charging_set(false);
     func_elunchbox_enter_warm_from_heat_body();
 }
 
 void func_elunchbox_enter_warm_from_charging(void)
 {
-    /* 黑屏充电页优先：保持跑马灯，后台加热/保温由 MCU 继续 */
-    if (elunchbox_charge_off_active()) {
-        printf("[LCD_ROUTE] skip warm (charge off page)\n");
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_is_manual_off() || elunchbox_pwr_gui_off_is_on()) {
+        printf("[LCD_ROUTE] skip warm from charging (manual/guioff sta=%u)\n",
+               func_cb.sta);
         return;
+    }
+#endif
+    /* 空闲黑屏充电页保持跑马灯；加热任务仍活跃时须离开跑马灯进保温 */
+    if (elunchbox_charge_off_active()) {
+        if (!elunchbox_heating_blocks_idle()) {
+            printf("[LCD_ROUTE] skip warm (charge off page)\n");
+            return;
+        }
+        printf("[LCD_ROUTE] leave charge off -> warm (heating active)\n");
     }
     func_elunchbox_warm_from_charging_set(true);
     lb_heat_mcu_nav_set(true);
@@ -1881,6 +1905,13 @@ static void func_elunchbox_enter_warm_from_heat_body(void)
     func_heat_countdown_stop();
     func_mode_keep_warm_enter();
     return;
+#endif
+
+#if ELUNCHBOX_PANEL_EN
+    if (elunchbox_pwr_is_manual_off() || elunchbox_pwr_gui_off_is_on()) {
+        printf("[LCD_ROUTE] skip warm body (manual/guioff sta=%u)\n", func_cb.sta);
+        return;
+    }
 #endif
 
     if (func_cb.sta == FUNC_NEW_WARM) {

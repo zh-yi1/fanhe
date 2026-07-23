@@ -7,6 +7,7 @@
 #include "new_home_icon_res.h"
 #include "home_ui_gpu_detach.h"
 #include "func_lunchbox_wake.h"
+#include "func_lowbat.h"
 #if USER_PANEL_LED
 #include "port_panel_led.h"
 #endif
@@ -92,6 +93,21 @@ void func_elunchbox_enter_charge_off_page(void)
         return;
     }
     if (sys_cb.flag_swithing) {
+        return;
+    }
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_LOWBAT_MODE_EN
+    /* MCU 低电(DP09=0x0A)优先于黑屏充电跑马灯 */
+    if (elunchbox_lowbat_should_block_ui_route()) {
+        printf("elunchbox: skip charge off (lowbat fault)\n");
+        elunchbox_lowbat_poll();
+        return;
+    }
+#endif
+    /* 加热/保温进行中插电应走保温页，禁止黑屏跑马灯抢路由
+     * （含上盖确认后重回加热、开机充电窗口未清等场景） */
+    if (!elunchbox_pwr_is_manual_off() && elunchbox_heating_blocks_idle()) {
+        printf("elunchbox: skip charge off (heating/warm active sta=%u)\n",
+               func_cb.sta);
         return;
     }
 

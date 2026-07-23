@@ -1049,5 +1049,5 @@ void func_new_warm(void)
         // printf("func_new_warm_message2222\n");
         func_new_warm_message(msg_dequeue());
     }
-    // func_new_warm_exit();
+    func_new_warm_exit();
 }
