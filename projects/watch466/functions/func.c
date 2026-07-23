@@ -273,6 +273,8 @@ static void elunchbox_ble_pending_sta_poll(void)
 void func_elunchbox_switch_to_heat_panel(void)
 {
 #if ELUNCHBOX_PANEL_EN
+    /* 已进入加热流程：开机充电窗口失效，插电应走保温而非黑屏跑马灯 */
+    elunchbox_boot_charge_check_clear();
     if (elunchbox_lid_confirm_try_redirect()) {
         printf("elunchbox: heat panel redirected to lid confirm\n");
         return;
@@ -1297,8 +1299,9 @@ static void func_elunchbox_pwr_long_poll(void)
         /* 熄屏态：长按唤醒已由 guioff_wake_poll 短按处理，此处忽略 */
         return;
     }
-    /* 亮屏充电中长按关机：进黑屏充电跑马灯页（不深睡），拔电回主页 */
-    if (elunchbox_is_charging()) {
+    /* 亮屏充电中长按关机：进黑屏充电跑马灯页（不深睡），拔电回主页
+     * 加热/保温中长按仍走完整关机，勿误进跑马灯 */
+    if (elunchbox_is_charging() && !elunchbox_heating_blocks_idle()) {
         printf("elunchbox: pwr_long while charging -> charge off page\n");
         func_elunchbox_enter_charge_off_page();
         return;
@@ -1669,16 +1672,22 @@ void func_process(void)
             }
         }
         elunchbox_guioff_idle_process();   //熄屏空闲处理(UART收数据→可能设 charge/heat pending)
-        /* 熄屏态插电 → 黑屏充电跑马灯；拔电回主页 */
-        if (heat_display_charge_wake_pending()
-            || home_ui_shared_battery_is_charging()) {
-            printf("elunchbox: charge from guioff -> charge off page\n");
-            func_elunchbox_enter_charge_off_page();
-            return;
-        }
+        /* 加热中充电进保温优先于黑屏跑马灯 */
         if (heat_display_warm_charge_pending_active()) {
             printf("elunchbox: warm_charge DP wakes screen from guioff\n");
             elunchbox_pwr_gui_wake();
+            return;
+        }
+        /* 熄屏态插电 → 黑屏充电跑马灯；拔电回主页 */
+        if (heat_display_charge_wake_pending()
+            || home_ui_shared_battery_is_charging()) {
+            if (elunchbox_heating_blocks_idle()) {
+                printf("elunchbox: charge while heating from guioff -> wake\n");
+                elunchbox_pwr_gui_wake();
+                return;
+            }
+            printf("elunchbox: charge from guioff -> charge off page\n");
+            func_elunchbox_enter_charge_off_page();
             return;
         }
         /* 预约加热已由加热模块自动启动 → 唤醒；预约到点先进加热页 */
@@ -1829,11 +1838,13 @@ void func_process(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     /* 开机窗口：关机插电导致复位后 UART 报充电 → 进黑屏跑马灯（勿停在主页）
-     * 注意：主页完全显示后 elunchbox_boot_charge_check 已被清除，后续充电只更新图标 */
+     * 注意：主页完全显示后 elunchbox_boot_charge_check 已被清除，后续充电只更新图标
+     * 加热/上盖确认等任务活跃时勿抢路由（应走充电→保温） */
     if (elunchbox_boot_charge_check && !guioff
         && !elunchbox_charge_off_active()
         && !elunchbox_lowbat_should_block_ui_route()
-        && !sys_cb.flag_swithing) {
+        && !sys_cb.flag_swithing
+        && !elunchbox_heating_blocks_idle()) {
         if (tick_check_expire(elunchbox_boot_tick, ELUNCHBOX_BOOT_CHARGE_WINDOW_MS)) {
             elunchbox_boot_charge_check = false;
         } else if (home_ui_shared_battery_is_charging()

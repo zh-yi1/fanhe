@@ -103,6 +103,13 @@ void func_elunchbox_enter_charge_off_page(void)
         return;
     }
 #endif
+    /* 加热/保温进行中插电应走保温页，禁止黑屏跑马灯抢路由
+     * （含上盖确认后重回加热、开机充电窗口未清等场景） */
+    if (!elunchbox_pwr_is_manual_off() && elunchbox_heating_blocks_idle()) {
+        printf("elunchbox: skip charge off (heating/warm active sta=%u)\n",
+               func_cb.sta);
+        return;
+    }
 
 #if CHARGE_EN
     if (!home_ui_shared_battery_is_charging() && !CHARGE_DC_IN()) {

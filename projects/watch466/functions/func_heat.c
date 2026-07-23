@@ -1843,10 +1843,13 @@ void func_elunchbox_enter_warm_from_heat(void)
 
 void func_elunchbox_enter_warm_from_charging(void)
 {
-    /* 黑屏充电页优先：保持跑马灯，后台加热/保温由 MCU 继续 */
+    /* 空闲黑屏充电页保持跑马灯；加热任务仍活跃时须离开跑马灯进保温 */
     if (elunchbox_charge_off_active()) {
-        printf("[LCD_ROUTE] skip warm (charge off page)\n");
-        return;
+        if (!elunchbox_heating_blocks_idle()) {
+            printf("[LCD_ROUTE] skip warm (charge off page)\n");
+            return;
+        }
+        printf("[LCD_ROUTE] leave charge off -> warm (heating active)\n");
     }
     func_elunchbox_warm_from_charging_set(true);
     lb_heat_mcu_nav_set(true);
