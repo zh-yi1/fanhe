@@ -441,6 +441,12 @@ bool elunchbox_manual_off_uart_listening(void);
 static void elunchbox_manual_off_uart_listen_probe(void);
 #endif
 
+/** 主页已完全显示：清除开机充电窗口，后续充电只更新主页电池图标，不切黑屏页 */
+void elunchbox_boot_charge_check_clear(void)
+{
+    elunchbox_boot_charge_check = false;
+}
+
 static bool elunchbox_manual_wake_home_active(void)
 {
     if (elunchbox_manual_wake_home_tick == 0) {
@@ -1823,7 +1829,7 @@ void func_process(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     /* 开机窗口：关机插电导致复位后 UART 报充电 → 进黑屏跑马灯（勿停在主页）
-     * 低电故障优先：MCU DP09=0x0A 时不进充电页 */
+     * 注意：主页完全显示后 elunchbox_boot_charge_check 已被清除，后续充电只更新图标 */
     if (elunchbox_boot_charge_check && !guioff
         && !elunchbox_charge_off_active()
         && !elunchbox_lowbat_should_block_ui_route()

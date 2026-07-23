@@ -267,6 +267,8 @@ bool func_elunchbox_charging_redirect_warm(void);
 /** 黑屏充电跑马灯页（关机态插电 / 亮屏充电后关机） */
 bool elunchbox_charge_off_active(void);
 void func_elunchbox_enter_charge_off_page(void);
+/** 主页完全显示后清除开机充电窗口标志，后续充电只更新主页电池图标 */
+void elunchbox_boot_charge_check_clear(void);
 void func_heat_ble_remote_restart(void);
 void func_new_warm_ble_restart(void);
 void func_heat_key_poll(void);
