@@ -513,7 +513,6 @@ void lunchbox_ble_on_connected(void);
  *
  * 预设列表:
  *   ID=1: 早餐(8:00),   ID=2: 午餐(10:50), ID=3: 晚餐(16:30),
- *   ID=4: 鸡腿模式,      ID=5: 意面模式
  * 温度统一 149°F(60°C), enabled=0(停止加热), repeat=每天。
  */
 void lunchbox_ble_send_presets(void);

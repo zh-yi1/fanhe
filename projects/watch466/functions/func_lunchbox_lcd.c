@@ -619,12 +619,16 @@ void lunchbox_query_reservation_list(void)
 static u32 lb_next_time_of_day(u8 hour, u8 min)
 {
     u32 now_unix = lb_get_unix_time();
-    u32 today_midnight = now_unix - (now_unix % 86400);
-    u32 target_unix = today_midnight + (u32)hour * 3600 + (u32)min * 60;
-    if (target_unix <= now_unix) {
-        target_unix += 86400;
+    // 转到北京时间 (UTC+8) 计算当天 0 点，避免直接用 UTC 午夜导致 8 小时偏差
+    u32 now_beijing = now_unix + 8 * 3600;
+    u32 today_midnight_beijing = now_beijing - (now_beijing % 86400);
+    // 北京时间目标时刻
+    u32 target_beijing = today_midnight_beijing + (u32)hour * 3600 + (u32)min * 60;
+    if (target_beijing <= now_beijing) {
+        target_beijing += 86400;  // 今天已过 → 推到明天
     }
-    return target_unix;
+    // 转回 Unix 时间戳 (UTC)
+    return target_beijing - 8 * 3600;
 }
 
 /**
@@ -636,31 +640,48 @@ static u32 lb_next_time_of_day(u8 hour, u8 min)
  */
 void lunchbox_ble_send_presets(void)
 {
+    static bool presets_sent = false;
+
+    // 守护1: 已发送过则不再重复发送 (防止 BLE 重连或多次回调触发)
+    if (presets_sent) {
+        printf("BLE: presets already sent, skip\n");
+        return;
+    }
+
+    // 守护2: 蓝牙未连接时不发
+    if (!ble_is_connected()) {
+        lb_ble_presets_pending = true;
+        return;
+    }
+
 #if LB_BRIDGE_MODE
-    // 守护: 未收到 APP 权威时间戳前不发预设, 避免时间偏差
+    // 守护3: 未收到 APP 权威时间戳前不发预设, 避免时间偏差
     if (!lb_has_ble_ts) {
         //printf("BLE: presets skipped, no synced timestamp yet\n");
         lb_ble_presets_pending = true;
         return;
     }
 
-    u8 temp_idx = lunchbox_temp_f_to_idx(149);
+    u8 temp_idx = lunchbox_temp_f_to_idx(149);  // 149°F → 温度档位
 
+    // ID=1 早餐: 8:00, 149°F(≈65°C), 60min, 不启用, 每天重复
     lunchbox_reservation_send(1, 1, "\xe6\x97\xa9\xe9\xa4\x90",
                               lb_next_time_of_day(8, 0), temp_idx, 60, 0, 0xff);
+
+    // ID=2 午餐: 10:50, 149°F(≈65°C), 70min, 不启用, 每天重复
     lunchbox_reservation_send(1, 2, "\xe5\x8d\x88\xe9\xa4\x90",
                               lb_next_time_of_day(10, 50), temp_idx, 70, 0, 0xff);
+
+    // ID=3 晚餐: 16:30, 149°F(≈65°C), 90min, 不启用, 每天重复
     lunchbox_reservation_send(1, 3, "\xe6\x99\x9a\xe9\xa4\x90",
                               lb_next_time_of_day(16, 30), temp_idx, 90, 0, 0xff);
-    // lunchbox_reservation_send(2, 4, "\xe9\xb8\xa1\xe8\x85\xbf\xe6\xa8\xa1\xe5\xbc\x8f",
-    //                           lb_get_unix_time(), temp_idx, 60, 0, 0xff);
-    // lunchbox_reservation_send(3, 5, "\xe6\x84\x8f\xe9\x9d\xa2\xe6\xa8\xa1\xe5\xbc\x8f",
-    //                           lb_get_unix_time(), temp_idx, 60, 0, 0xff);
 
-    printf("BLE connected: 5 presets sent to heat module via UART 0x03\n");
+    presets_sent = true;
+    printf("BLE connected: 3 presets sent to heat module via UART 0x03\n");
 #else
     // 本地模式: 预设已在 lunchbox_uart_init() → lb_local_init_presets() 中初始化
     // 后续用户新增预约 ID 从 6 开始 (lb_next_schedule_id = 6)
+    presets_sent = true;
     printf("BLE connected: local mode, presets already initialized (ID 1~5)\n");
 #endif
 }
