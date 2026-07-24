@@ -143,10 +143,22 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
         return true;
 
     // ─── 0x06 新增预约 → UART 0x03: 插入 action 字节 ───
+    // APP 发来的时间是北京时间(当天秒数), 但加热模块会当成UTC再加8小时,
+    // 导致查询回来时偏移了+8h。这里先减8h抵消加热模块的转换。
     case LB_CMD_SCHEDULE_ADD: {
         if (!rx->data || rx->data_len < 41) return false;
         out_data[0] = 0x01;  // 默认: 自定义加热
         memcpy(out_data + 1, rx->data, 41);
+        // 时间字段位于: BLE data[33..36] → UART out_data[34..37]
+        {
+            u32 t = ((u32)out_data[34] << 24) | ((u32)out_data[35] << 16)
+                  | ((u32)out_data[36] << 8)  |  (u32)out_data[37];
+            t = (t + 86400 - 28800) % 86400;  // 北京→UTC: 减8h, 模一天
+            out_data[34] = (u8)(t >> 24);
+            out_data[35] = (u8)(t >> 16);
+            out_data[36] = (u8)(t >> 8);
+            out_data[37] = (u8)(t);
+        }
         *out_len = 42;
         return true;
     }
@@ -156,6 +168,16 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
         if (!rx->data || rx->data_len < 41) return false;
         out_data[0] = 0x01;
         memcpy(out_data + 1, rx->data, 41);
+        // 时间字段同 0x06: 先减8h抵消加热模块的 UTC→北京 转换
+        {
+            u32 t = ((u32)out_data[34] << 24) | ((u32)out_data[35] << 16)
+                  | ((u32)out_data[36] << 8)  |  (u32)out_data[37];
+            t = (t + 86400 - 28800) % 86400;  // 北京→UTC: 减8h, 模一天
+            out_data[34] = (u8)(t >> 24);
+            out_data[35] = (u8)(t >> 16);
+            out_data[36] = (u8)(t >> 8);
+            out_data[37] = (u8)(t);
+        }
         *out_len = 42;
         return true;
     }

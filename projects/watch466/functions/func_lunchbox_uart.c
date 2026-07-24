@@ -277,8 +277,7 @@ static bool lb_frame_parse(void)
         printf("UART==>RX[%d]: ", total);
         for (u16 i = 0; i < total; i++) printf("%02X ", lb_rx_buf[i]);
         printf("\n");
-        // 仅 0x01 动态属性帧的数据为 DataPoint 格式
-        if (rx.cmd == LB_UART_CMD_DYNAMIC) lb_dp_dump_hex(rx.data, rx.data_len);
+        lb_uart_dump_frame(rx.cmd, rx.data, rx.data_len, true);
     }
 
 #if FUNC_LUNCHBOX_UART_EN
@@ -819,25 +818,57 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             u8  time   = data[41];
             u8  status = data[42];
             u8  rep    = data[43];
-            printf("Schedule[%u/%u] ALL=%u now_id=%u mode=%u ID=%u name=%.32s TIME=%lu(%s) temp=%u time=%umin status=%u rep=0x%02X\n",
-                   now_id, ALL, ALL, now_id, mode, ID, data + 4, (unsigned long)TIME, lb_unix_time_str(TIME), temp, time, status, rep);
+            static const char *mn[] = {"Off","Custom","Chicken","Pasta","Schedule","KeepWarm"};
+            printf("Total   : %u / %u\n", now_id, ALL);
+            printf("Mode    : %s(%u)\n", mode < 6 ? mn[mode] : "?", mode);
+            printf("ID      : %u\n", ID);
+
+            printf("Time    : %02lu:%02lu\n", (unsigned long)(TIME / 3600), (unsigned long)((TIME % 3600) / 60));
+            printf("Temp    : %u\n", temp);
+            printf("Duration: %umin\n", time);
+            printf("Enabled : %u\n", status);
+            printf("Repeat  : 0x%02X\n", rep);
         }
         break;
 
     //=== 0x06: ScheduleAdd =============================================
+    // BLE 协议 §3.6: 41B = ID(1)+name(32)+time(4)+temp(1)+dur(1)+enabled(1)+repeat(1)
+    // 桥翻译后 UART: 42B = mode(1)+BLE 41B (MCU通信协议.md §3.6)
     case LB_CMD_SCHEDULE_ADD:
         if (is_rx && len >= 42) {
-            // APP→MCU: 42 bytes schedule data (MCU通信协议.md §3.6)
+            // UART 格式 (桥翻译后): mode+ID+name+time+temp+dur+enabled+repeat
             u8  mode   = data[0];
             u8  ID     = data[1];
             u32 TIME   = ((u32)data[34] << 24) | ((u32)data[35] << 16)
                        | ((u32)data[36] << 8)  |  (u32)data[37];
             u8  temp   = data[38];
-            u8  time   = data[39];
-            u8  status = data[40];
+            u8  dur    = data[39];
+            u8  enabl  = data[40];
             u8  rep    = data[41];
-            printf("mode=%u ID=%u name=%.32s TIME=%lu(%s) temp=%u time=%umin status=%u rep=0x%02X\n",
-                   mode, ID, data + 2, (unsigned long)TIME, lb_unix_time_str(TIME), temp, time, status, rep);
+            printf("Action  : %s(%u)\n", mode == 1 ? "Add" : mode == 2 ? "Chicken" : "?", mode);
+            printf("ID      : %u\n", ID);
+
+            printf("Time    : %02lu:%02lu\n", (unsigned long)(TIME / 3600), (unsigned long)((TIME % 3600) / 60));
+            printf("Temp    : %u\n", temp);
+            printf("Duration: %umin\n", dur);
+            printf("Enabled : %u\n", enabl);
+            printf("Repeat  : 0x%02X\n", rep);
+        } else if (is_rx && len >= 41) {
+            // BLE 协议 §3.6 原始格式: ID+name+time+temp+dur+enabled+repeat
+            u8  ID     = data[0];
+            u32 TIME   = ((u32)data[33] << 24) | ((u32)data[34] << 16)
+                       | ((u32)data[35] << 8)  |  (u32)data[36];
+            u8  temp   = data[37];
+            u8  dur    = data[38];
+            u8  enabl  = data[39];
+            u8  rep    = data[40];
+            printf("ID      : %u\n", ID);
+
+            printf("Time    : %02lu:%02lu\n", (unsigned long)(TIME / 3600), (unsigned long)((TIME % 3600) / 60));
+            printf("Temp    : %u\n", temp);
+            printf("Duration: %umin\n", dur);
+            printf("Enabled : %u\n", enabl);
+            printf("Repeat  : 0x%02X\n", rep);
         } else if (!is_rx && len >= 1) {
             // MCU→APP: assigned ID(1B)
             printf("AssignedID=%u\n", data[0]);
@@ -845,19 +876,42 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
         break;
 
     //=== 0x07: ScheduleModify ==========================================
+    // 格式同 0x06: BLE 原始 41B, 桥翻译后 UART 42B
     case LB_CMD_SCHEDULE_MODIFY:
         if (is_rx && len >= 42) {
-            // APP→MCU: 42 bytes schedule data (MCU通信协议.md §3.6)
+            // UART 格式 (桥翻译后)
             u8  mode   = data[0];
             u8  ID     = data[1];
             u32 TIME   = ((u32)data[34] << 24) | ((u32)data[35] << 16)
                        | ((u32)data[36] << 8)  |  (u32)data[37];
             u8  temp   = data[38];
-            u8  time   = data[39];
-            u8  status = data[40];
+            u8  dur    = data[39];
+            u8  enabl  = data[40];
             u8  rep    = data[41];
-            printf("mode=%u ID=%u name=%.32s TIME=%lu(%s) temp=%u time=%umin status=%u rep=0x%02X\n",
-                   mode, ID, data + 2, (unsigned long)TIME, lb_unix_time_str(TIME), temp, time, status, rep);
+            printf("Action  : Modify\n");
+            printf("ID      : %u\n", ID);
+
+            printf("Time    : %02lu:%02lu\n", (unsigned long)(TIME / 3600), (unsigned long)((TIME % 3600) / 60));
+            printf("Temp    : %u\n", temp);
+            printf("Duration: %umin\n", dur);
+            printf("Enabled : %u\n", enabl);
+            printf("Repeat  : 0x%02X\n", rep);
+        } else if (is_rx && len >= 41) {
+            // BLE 协议 §3.7 原始格式
+            u8  ID     = data[0];
+            u32 TIME   = ((u32)data[33] << 24) | ((u32)data[34] << 16)
+                       | ((u32)data[35] << 8)  |  (u32)data[36];
+            u8  temp   = data[37];
+            u8  dur    = data[38];
+            u8  enabl  = data[39];
+            u8  rep    = data[40];
+            printf("ID      : %u\n", ID);
+
+            printf("Time    : %02lu:%02lu\n", (unsigned long)(TIME / 3600), (unsigned long)((TIME % 3600) / 60));
+            printf("Temp    : %u\n", temp);
+            printf("Duration: %umin\n", dur);
+            printf("Enabled : %u\n", enabl);
+            printf("Repeat  : 0x%02X\n", rep);
         }
         break;
 
@@ -935,6 +989,125 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             // MCU→APP: target(1B) + result(1B)
             printf("target=0x%02X result=%s(%u)\n", data[0],
                    data[1] ? "SUCCESS" : "FAIL", data[1]);
+        }
+        break;
+
+    default:
+        break;
+    }
+    printf("-------------------------------------------------------\n");
+}
+
+//-----------------------------------------------------------------------------
+// UART 帧数据分析 (MCU通信协议.md §3)
+// 按命令字解析数据字段，输出协议级可读描述
+//   is_rx=true  → 加热模块→MCU 方向
+//   is_rx=false → MCU→加热模块 方向
+//-----------------------------------------------------------------------------
+void lb_uart_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
+{
+    if (!data || !len) return;
+
+    printf("-------------------------------------------------------\n");
+    switch (cmd) {
+
+    //=== 0x01: DynamicAttr — DataPoints ==================================
+    case LB_UART_CMD_DYNAMIC:
+        lb_dp_dump_hex(data, len);
+        break;
+
+    //=== 0x02: ScheduleList — 查询/返回预约列表 ===========================
+    case LB_UART_CMD_SCHEDULE:
+        if (!is_rx) {
+            // MCU→加热模块: 空请求 (或 1B 模式标志 for 0x09 mapping)
+            if (len >= 1) printf("Mode=%u\n", data[0]);
+        } else if (len >= 44) {
+            // 加热模块→MCU: 44B = total(1)+seq(1)+mode(1)+ID(1)+name(32)+time(4)+temp(1)+dur(1)+enabled(1)+repeat(1)
+            u8  total = data[0];
+            u8  seq   = data[1];
+            u8  mode  = data[2];
+            u8  ID    = data[3];
+            u32 TIME  = ((u32)data[36] << 24) | ((u32)data[37] << 16)
+                      | ((u32)data[38] << 8)  |  (u32)data[39];
+            u8  temp  = data[40];
+            u8  dur   = data[41];
+            u8  enabl = data[42];
+            u8  rep   = data[43];
+            static const char *mode_names[] = {"Off","Custom","Chicken","Pasta","Schedule","KeepWarm"};
+            printf("Total   : %u / %u\n", seq, total);
+            printf("Mode    : %s(%u)\n", mode < 6 ? mode_names[mode] : "?", mode);
+            printf("ID      : %u\n", ID);
+
+            printf("Time    : %02lu:%02lu\n", (unsigned long)(TIME / 3600), (unsigned long)((TIME % 3600) / 60));
+            printf("Temp    : %u\n", temp);
+            printf("Duration: %umin\n", dur);
+            printf("Enabled : %u\n", enabl);
+            printf("Repeat  : 0x%02X\n", rep);
+        }
+        break;
+
+    //=== 0x03: ScheduleOp — 新增/修改/删除预约 ===========================
+    case LB_UART_CMD_SCHEDULE_OP:
+        if (!is_rx && len >= 42) {
+            // MCU→加热模块: 42B = mode(1)+ID(1)+name(32)+time(4)+temp(1)+dur(1)+enabled(1)+repeat(1)
+            u8  mode  = data[0];
+            u8  ID    = data[1];
+            u32 TIME  = ((u32)data[34] << 24) | ((u32)data[35] << 16)
+                      | ((u32)data[36] << 8)  |  (u32)data[37];
+            u8  temp  = data[38];
+            u8  dur   = data[39];
+            u8  enabl = data[40];
+            u8  rep   = data[41];
+            static const char *act[] = {"Del","Custom","Chicken"};
+            printf("Action  : %s(%u)\n", mode < 3 ? act[mode] : "?", mode);
+            printf("ID      : %u\n", ID);
+
+            printf("Time    : %02lu:%02lu\n", (unsigned long)(TIME / 3600), (unsigned long)((TIME % 3600) / 60));
+            printf("Temp    : %u\n", temp);
+            printf("Duration: %umin\n", dur);
+            printf("Enabled : %u\n", enabl);
+            printf("Repeat  : 0x%02X\n", rep);
+        } else if (!is_rx && len >= 2 && data[0] == 0x00) {
+            // MCU→加热模块: 删除预约 = action=0 + ID
+            printf("Action  : Del\n");
+            printf("ID      : %u\n", data[1]);
+        } else if (is_rx && len >= 1) {
+            // 加热模块→MCU: assigned ID(1B)
+            printf("AssignedID: %u\n", data[0]);
+        }
+        break;
+
+    //=== 0x04: OTA — 升级包传输 ==========================================
+    case LB_UART_CMD_OTA:
+        if (!is_rx && len >= 4) {
+            // MCU→加热模块: offset(4B,BE) + data
+            u32 offset = ((u32)data[0] << 24) | ((u32)data[1] << 16)
+                       | ((u32)data[2] << 8)  |  (u32)data[3];
+            if (offset == 0xFFFFFFFF && len >= 8) {
+                // offset=0xFFFFFFFF: 复位进boot / 结束+CRC32
+                u32 crc = ((u32)data[4] << 24) | ((u32)data[5] << 16)
+                        | ((u32)data[6] << 8)  |  (u32)data[7];
+                u32 magic = ((u32)data[0] << 24) | ((u32)data[1] << 16)
+                          | ((u32)data[2] << 8)  |  (u32)data[3];
+                printf("OTA: boot/end magic=0x%08lX crc=0x%08lX data_len=%u\n",
+                       (unsigned long)magic, (unsigned long)crc, len - 8);
+            } else {
+                printf("OTA: offset=%lu data_len=%u\n", (unsigned long)offset, len - 4);
+            }
+        } else if (is_rx) {
+            // 加热模块→MCU: ack (usually empty)
+            if (len >= 4) {
+                u32 val = ((u32)data[0] << 24) | ((u32)data[1] << 16)
+                        | ((u32)data[2] << 8)  |  (u32)data[3];
+                printf("OTA: ack val=0x%08lX\n", (unsigned long)val);
+            }
+        }
+        break;
+
+    //=== 0x05: Heartbeat — 心跳包 ========================================
+    case LB_UART_CMD_HEARTBEAT:
+        if (len >= 1) {
+            printf("Heartbeat: %s(%u)\n", data[0] == 0x00 ? "PING" : "PONG", data[0]);
         }
         break;
 
@@ -1209,7 +1382,7 @@ static bool lb_uart_send_internal(u8 uart_cmd, u8 *data, u16 data_len,
             printf("%s[%d]: ", tx_src, off);
             for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
             printf("\n");
-            lb_dp_dump_hex(data, data_len);
+            lb_uart_dump_frame(uart_cmd, data, data_len, false);
         }
 
         uart_bufs_tx(UART_TYPE_1, buf, off);
@@ -1956,6 +2129,7 @@ static void lb_uart_send_process(void)
             printf("UART==>TX[retry %u/%u]: ", lb_send_retry, LB_UART_CMD_MAX_RETRIES);
             for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
             printf("\n");
+            lb_uart_dump_frame(lb_send_cur_cmd, lb_send_cur_data, lb_send_cur_dlen, false);
 
             uart_bufs_tx(UART_TYPE_1, buf, off);
             lb_send_tick = tick_get();
@@ -2009,7 +2183,7 @@ static void lb_uart_send_process(void)
                 printf("%s[%d]: ", tx_src, off);
                 for (u16 i = 0; i < off; i++) printf("%02X ", buf[i]);
                 printf("\n");
-                lb_dp_dump_hex(q->data, q->data_len);
+                lb_uart_dump_frame(q->cmd, q->data, q->data_len, false);
             }
 
             uart_bufs_tx(UART_TYPE_1, buf, off);

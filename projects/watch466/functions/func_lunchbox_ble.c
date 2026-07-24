@@ -217,7 +217,10 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
                 printf("\n");
                 {
                     u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
-                    if (dl) lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
+                    if (dl) {
+                        lb_ble_dump_frame(frame.cmd, uart_buf + 8, dl, true);
+                        lb_uart_dump_frame(uart_buf[4], uart_buf + 8, dl, false);
+                    }
                 }
                 uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
             } else {  // 翻译失败
@@ -309,7 +312,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
         for (u16 i = 0; i < frame_total; i++) printf("%02X ", ble_rx_buf[i]);
         printf("\n");
         {
-            if (frame.data_len) lb_dp_dump_hex(ble_rx_buf + 8, frame.data_len);
+            if (frame.data_len) lb_uart_dump_frame(frame.cmd, ble_rx_buf + 8, frame.data_len, false);
         }
         uart_bufs_tx(UART_TYPE_1, ble_rx_buf, frame_total);
 

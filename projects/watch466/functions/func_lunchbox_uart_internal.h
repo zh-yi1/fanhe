@@ -128,6 +128,9 @@ void lb_dp_dump_hex(const u8 *data, u16 data_len);
 // BLE 帧调试打印 (BLE/桥 模块用)
 void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx);
 
+// UART 帧调试打印 (UART 收发用)
+void lb_uart_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx);
+
 // 按键通知检测 (帧解析用)
 bool lb_data_is_key_notify(u8 *data, u16 len);
 
