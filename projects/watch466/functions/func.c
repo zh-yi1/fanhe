@@ -1856,6 +1856,19 @@ void func_process(void)
     /* 须在加热页切完后再执行：预约与直接加热共用充电进保温 */
     heat_display_warm_charge_route_poll();
 #endif
+#if ELUNCHBOX_PANEL_EN
+    /* ISR 只保留核心计数器递减(sleep_delay/guioff_delay/pwroff_delay)；
+     * idle/guioff tick 挪到此处线程上下文，按 ~100ms 节拍调用，避免 ISR → tmr thread miss */
+    {
+        static u8 idle_tick_cnt;
+        if (++idle_tick_cnt >= 4) {  /* ~100ms: 60fps→64ms, 30fps→132ms */
+            idle_tick_cnt = 0;
+            elunchbox_guioff_sleep_delay_tick();
+            elunchbox_guioff_idle_tick();
+        }
+    }
+    os_task_sleep(0);  /* yield CPU 给 tmr/gui 线程 */
+#endif
 }
 
 //根据任务名创建窗体。此处调用的创建窗体函数不要调用子任务的控制结构体

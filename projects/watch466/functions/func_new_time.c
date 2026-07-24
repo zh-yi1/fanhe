@@ -1123,7 +1123,10 @@ static void func_new_time_process(void)
             f->key_ready = true;
             break;
         }
-        func_process();
+        /* 仅最终阶段触发渲染，避免中间阶段部分页面渲染 → gui thread miss */
+        if (f->key_ready) {
+            func_process();
+        }
         func_home_drain_stale_key_msgs();
         pt8028_release_clear();
         (void)pt8028_take_press_tch();
@@ -1141,11 +1144,7 @@ static void func_new_time_process(void)
         f->display_pending = false;
     }
 
-#if ELUNCHBOX_PANEL_EN
-    if (elunchbox_ui_is_live()) {
-        new_time_status_refresh(f);
-    }
-#endif
+    /* BT/电池图标由 ble_status_poll / battery_feed_dp 按需刷新，不每帧做 GPU 绑定 */
     func_process();
 }
 

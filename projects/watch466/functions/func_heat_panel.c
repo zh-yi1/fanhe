@@ -945,13 +945,8 @@ void func_heat_panel_status_refresh(struct f_heat_t_ *f_heat)
 {
     (void)f_heat;
     home_top_time_txt_tick(&g_hp.top_time, &g_hp.last_top_min, &g_hp.last_top_sec);
-    home_ui_shared_status_init();
-    if (g_hp.pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
-        compo_picturebox_set_ram(g_hp.pic_bt, home_ui_shared_status_bt_ram);
-        compo_picturebox_set_size(g_hp.pic_bt, NEW_HOME_BT_W, NEW_HOME_BT_H);
-        home_ui_shared_status_refresh_bt(g_hp.pic_bt);
-    }
-    home_ui_shared_status_bind_bat(g_hp.pic_bat);
+    /* 蓝牙图标由 home_ui_shared_ble_status_poll() 按需刷新，不每帧做 GPU 重绑 */
+    /* 电池图标由 home_ui_shared_battery_feed_dp → reload → refresh_attached 按需更新 */
 }
 
 void func_heat_panel_process(struct f_heat_t_ *f_heat)
@@ -996,6 +991,7 @@ void func_heat_panel_enter(struct f_heat_t_ *f_heat)
     memset(home_ui_colon_ram, 0, HOME_COLON_RAM_SIZE);
     printf("heat_panel_enter: wait1 done\n");
     home_ui_shared_status_init();
+    home_ui_shared_status_refresh_bt(g_hp.pic_bt);
     func_heat_panel_status_refresh(f_heat);
     printf("heat_panel_enter: status_refresh done\n");
 

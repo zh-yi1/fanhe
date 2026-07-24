@@ -1572,31 +1572,8 @@ static void func_new_heat_process(void)
         gui_widget_refresh();
 
         home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
-        /* 加减帧跳过 BT 图标 Flash 重读，减轻卡顿 */
-        if (!slider_refreshed) {
-            u8 was_blocked = elunchbox_te_block_flag;
-
-            if (!was_blocked) {
-                elunchbox_te_block_flag = 1;
-            }
-            home_ui_shared_status_refresh_bt(f->pic_bt);
-            if (!was_blocked) {
-                elunchbox_te_block_flag = 0;
-            }
-        }
     } else {
         home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
-        {
-            u8 was_blocked = elunchbox_te_block_flag;
-
-            if (!was_blocked) {
-                elunchbox_te_block_flag = 1;
-            }
-            home_ui_shared_status_refresh_bt(f->pic_bt);
-            if (!was_blocked) {
-                elunchbox_te_block_flag = 0;
-            }
-        }
     }
 #endif
     func_process();

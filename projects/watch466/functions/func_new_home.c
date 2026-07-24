@@ -162,6 +162,33 @@ static void new_home_tab_ram_sel_reset(void)
         new_home_tab_ram_sel[i] = 0xff;
     }
 }
+
+/* 预加载 tab 图标 Flash→RAM，不做 GPU 绑定。
+ * 在 TE block 外调用；TE block 内 new_home_tab_apply 将跳过 Flash 读（ram_sel 缓存命中）。 */
+static void new_home_tab_preload_ram(f_new_home_t *f)
+{
+    u8 i;
+
+    if (f == NULL) {
+        return;
+    }
+    for (i = 0; i < NEW_HOME_TAB_CNT; i++) {
+        u8 *ram = home_ui_shared_icon_runtime[i];
+        u32 addr = new_home_tab_flash_addr(i, (i == f->cur_tab));
+        u16 len  = new_home_tab_flash_len(i, (i == f->cur_tab));
+        u8  want_sel = (i == f->cur_tab) ? 1 : 0;
+
+        if (ram == NULL || addr == 0 || len == 0 || len > NEW_HOME_TAB_RAM_SIZE) {
+            continue;
+        }
+        if (new_home_tab_ram_sel[i] == want_sel) {
+            continue;
+        }
+        WDT_CLR();
+        os_spiflash_read(ram, addr, len);
+        new_home_tab_ram_sel[i] = want_sel;
+    }
+}
 #endif
 
 static void new_home_tab_apply_one(f_new_home_t *f, u8 tab_idx)
@@ -393,7 +420,8 @@ static void new_home_status_refresh(f_new_home_t *f)
     home_top_time_txt_tick(&f->top_time, &f->last_top_min, &f->last_top_sec);
     /* 预约提交回 Home 时 RTC 秒未必变化，跑马灯须每帧检查 */
     new_home_res_marquee_refresh(f);
-    home_ui_shared_status_refresh_bt(f->pic_bt);
+    /* 蓝牙图标由 home_ui_shared_ble_status_poll() 在 func_process 中按需刷新，
+     * 不每帧调 refresh_bt 避免 GPU 重绑挤占 TE 间隔 → gui thread miss */
 #if ELUNCHBOX_PANEL_EN
     /* logo 被 detach / RAM 校验失败后自愈：每 16 帧检查一次，避免每帧刷 Flash */
     if (f->display_stage == 0 && f->pic_logo != NULL
@@ -421,11 +449,17 @@ void func_home_force_ui_refresh_after_wake(void)
     new_home_logo_invalidate();
     home_ui_shared_status_inited = false;
     home_ui_shared_status_lock_preloaded = false;
+    home_ui_shared_bt_icon_wake_reset();
     f->tab_gpu_applied = 0xff;
     f->tab_repaint_pending = false;
     new_home_tab_ram_sel_reset();
 
-    /* 唤醒后绑定所有 picturebox：先 TE block 阻止新帧，再等 GPU（快速），再绑定 */
+    /* 唤醒后绑定所有 picturebox。
+     * Flash→RAM 预读在 TE block 外；TE block 内仅 GPU 绑定避免 tmr thread miss。
+     *   阶段1: 状态图标 + logo
+     *   阶段2: tab + 时间 */
+    new_home_logo_load();
+    home_ui_shared_status_init();
     {
         u8 was_blocked = elunchbox_te_block_flag;
         if (!was_blocked) {
@@ -435,6 +469,18 @@ void func_home_force_ui_refresh_after_wake(void)
         WDT_CLR();
         new_home_status_icons_apply(f);
         new_home_logo_apply(f);
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 0;
+        }
+    }
+    new_home_tab_preload_ram(f);
+    {
+        u8 was_blocked = elunchbox_te_block_flag;
+        if (!was_blocked) {
+            elunchbox_te_block_flag = 1;
+        }
+        home_gpu_wait_idle();
+        WDT_CLR();
         new_home_tab_apply(f);
         new_home_top_time_restore(f);
         if (!was_blocked) {
@@ -750,7 +796,9 @@ void func_home_process(void)
     if (f != NULL && f->display_stage != 0) {
         WDT_CLR();
         if (f->display_stage == 1) {
-            /* 首帧阶段1: 先 TE block 阻止新帧，等 GPU（快速），再绑状态图标 + logo */
+            /* 阶段1: Flash→RAM 预读(不在 TE block) → TE block 仅 GPU 绑定 */
+            new_home_logo_load();
+            home_ui_shared_status_init();
             {
                 u8 was_blocked = elunchbox_te_block_flag;
                 if (!was_blocked) {
@@ -767,7 +815,8 @@ void func_home_process(void)
             f->display_stage = 2;
             func_home_gui_mark_dirty();
         } else if (f->display_stage == 2) {
-            /* 首帧阶段2: 先 TE block，等 GPU，再绑 tab + 时间 + 滚动字 */
+            /* 阶段2: Flash→RAM 预读 tab 图标 → TE block 仅 GPU 绑定 */
+            new_home_tab_preload_ram(f);
             {
                 u8 was_blocked = elunchbox_te_block_flag;
                 if (!was_blocked) {
@@ -791,7 +840,7 @@ void func_home_process(void)
             pt8028_gpio_ensure_periodic();
             pt8028_key_scan();
 #endif
-            func_process();
+            /* 仅在最终阶段(display_stage==0)触发渲染，避免中间阶段部分页面渲染 → gui thread miss */
             return;
         }
     }

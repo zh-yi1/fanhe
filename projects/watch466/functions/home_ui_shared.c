@@ -590,6 +590,11 @@ static compo_picturebox_t *home_ui_shared_attached_bt_pic;
 static bool home_ui_shared_bt_last_linked;
 static bool home_ui_shared_bt_link_dirty;
 static bool home_ui_shared_bt_icon_inited;
+
+void home_ui_shared_bt_icon_wake_reset(void)
+{
+    home_ui_shared_bt_icon_inited = false;
+}
 #endif
 
 bool home_ui_shared_ble_linked(void)
@@ -620,22 +625,32 @@ void home_ui_shared_status_refresh_bt(compo_picturebox_t *pic)
     }
     vis = home_ui_shared_ble_linked();
 #if ELUNCHBOX_PANEL_EN
+    /* 仅首次或连接状态变化时才做 GPU 绑定，避免每帧 set_ram/set_size/widget_set_top
+     * 挤占 TE 间隔 → gui thread miss。唤醒后调 home_ui_shared_bt_icon_wake_reset 可强制重绑。 */
     if (!home_ui_shared_bt_icon_inited || vis != home_ui_shared_bt_last_linked) {
         printf("elunchbox: bt icon %s (linked=%u)\n", vis ? "show" : "hide", vis ? 1u : 0u);
         home_ui_shared_bt_last_linked = vis;
         home_ui_shared_bt_icon_inited = true;
-    }
-#endif
-    compo_picturebox_set_ram(pic, home_ui_shared_status_bt_ram);
+
+        compo_picturebox_set_ram(pic, home_ui_shared_status_bt_ram);
 #if defined(NEW_HOME_BT_W) && defined(NEW_HOME_BT_H)
-    compo_picturebox_set_size(pic, NEW_HOME_BT_W, NEW_HOME_BT_H);
+        compo_picturebox_set_size(pic, NEW_HOME_BT_W, NEW_HOME_BT_H);
 #else
-    compo_picturebox_set_size(pic, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
+        compo_picturebox_set_size(pic, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
 #endif
+        compo_picturebox_set_visible(pic, vis);
+        if (vis && pic->img != NULL) {
+            widget_set_top(pic->img, true);
+        }
+    }
+#else
+    compo_picturebox_set_ram(pic, home_ui_shared_status_bt_ram);
+    compo_picturebox_set_size(pic, HOME_STATUS_BT_W, HOME_STATUS_BT_H);
     compo_picturebox_set_visible(pic, vis);
     if (vis && pic->img != NULL) {
         widget_set_top(pic->img, true);
     }
+#endif
 }
 
 void home_ui_shared_ble_status_poll(void)

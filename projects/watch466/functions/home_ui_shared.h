@@ -33,6 +33,8 @@ void home_ui_shared_status_refresh_bt(compo_picturebox_t *pic);
 void home_ui_shared_ble_status_poll(void);
 void home_ui_shared_ble_link_notify(void);
 void home_ui_shared_bt_detach_pic(void);
+/** 唤醒后清除 BT 图标缓存，强制下一次 refresh_bt 做 GPU 重绑 */
+void home_ui_shared_bt_icon_wake_reset(void);
 
 /** 上电预载 dl4 到 bat_ram（不依赖 UART DP） */
 void home_ui_shared_battery_boot_init(void);

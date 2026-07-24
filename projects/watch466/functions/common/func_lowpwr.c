@@ -58,10 +58,10 @@ void lowpwr_tout_ticks(void)
         sys_cb.guioff_delay--;
     }
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    elunchbox_guioff_sleep_delay_tick();
+    /* 挪到 func_process() 线程上下文，避免 ISR 内耗时 → tmr thread miss */
 #endif
 #if ELUNCHBOX_PANEL_EN
-    elunchbox_guioff_idle_tick();
+    /* 挪到 func_process() 线程上下文，避免 ISR 内耗时 → tmr thread miss */
 #endif
     if(sys_cb.pwroff_delay != -1L && sys_cb.pwroff_delay > 0) {
         sys_cb.pwroff_delay--;
