@@ -392,8 +392,8 @@ static bool lb_frame_parse(void)
                 lb_handler_product_info(&synth);
             }
             lb_product_info_pending = false;
-            // 继续走下面的 lb_translate_uart_to_ble —
-            // 此时 pending 已清除, DataPoints 会作为 BLE 0x03 异步上报
+            // 产品信息应答已包含加热模块版本号，无需再通过 0x03 异步上报
+            goto lb_frame_cleanup;
         }
 
         u8 ble_buf[LB_TXBUF_SIZE];

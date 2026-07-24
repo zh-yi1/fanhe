@@ -45,7 +45,7 @@ u8 lb_ble_cmd_to_uart_cmd(u8 ble_cmd)
     case LB_CMD_OTA_DATA:        return LB_UART_CMD_OTA;         // 0x0d → 0x04
     case LB_CMD_OTA_END:         return LB_UART_CMD_OTA;         // 0x0e → 0x04
     case LB_CMD_MODE_QUERY:      return LB_UART_CMD_SCHEDULE;    // 0x09 → 0x02
-    case LB_CMD_MODE_MODIFY:     return LB_UART_CMD_SCHEDULE_OP; // 0x0a → 0x03
+    case LB_CMD_MODE_MODIFY:     return LB_UART_CMD_DYNAMIC;     // 0x0a → 0x01 (直接加热)
     default:                     return 0x00;                    // 不转发
     }
 }
@@ -178,17 +178,18 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
         return true;
     }
 
-    // ─── 0x0a 修改指定模式信息 → UART 0x03: 构造 42B 预约帧 ───
+    // ─── 0x0a 修改指定模式信息 → UART 0x01: 直接加热 DataPoints ───
     case LB_CMD_MODE_MODIFY: {
         if (!rx->data || rx->data_len < 3) return false;
-        memset(out_data, 0, 42);
-        out_data[0] = rx->data[0];       // action = mode
-        out_data[1] = 0;                 // id = 0 (模式模板)
-        out_data[38] = rx->data[1];      // temp
-        out_data[39] = rx->data[2];      // duration
-        out_data[40] = 0x01;             // enabled = 1
-        out_data[41] = 0xff;             // repeat = 0xff
-        *out_len = 42;
+        u8 mode     = rx->data[0];  // 模式标志: 1=自定义 2=鸡腿 3=意面
+        u8 temp     = rx->data[1];  // 加热温度档位
+        u8 duration = rx->data[2];  // 加热时长(分钟)
+        u8 *p = out_data;
+        p += lb_dp_encode_enum(p, LB_DPID_HEAT_MODE, mode);
+        p += lb_dp_encode_enum(p, LB_DPID_HEAT_TEMP, temp);
+        p += lb_dp_encode_value(p, LB_DPID_HEAT_DURATION, duration);
+        p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 0);   // APP未下发立即加热, 置停止
+        *out_len = (u16)(p - out_data);
         return true;
     }
 
@@ -287,6 +288,11 @@ static bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out
                                                     | ((u32)v[2] << 8)  | v[3];
                 }
                 off += 4 + val_len;
+            }
+            // 0x0a 修改模式信息: BLE 协议返回空数据 (仅 ACK)
+            if (ble_cmd == LB_CMD_MODE_MODIFY) {
+                *out_len = 0;
+                return true;
             }
             memcpy(out_data, rx->data, rx->data_len);
             *out_len = rx->data_len;

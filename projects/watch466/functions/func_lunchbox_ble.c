@@ -21,6 +21,7 @@
  *   - 0x03 时间同步 → MCU 本地处理 (不转发 UART)
  */
 #include "include.h"
+#include "func.h"
 #include "func_lunchbox_uart.h"
 #include "func_lunchbox_uart_internal.h"
 #include "func_lunchbox_ble.h"
@@ -263,6 +264,18 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
                 }
             }
             goto next_frame;
+        }
+
+        // 0x04 控制指令 → 本地处理 PowerSwitch (可能触发完整关机)
+        if (frame.cmd == LB_CMD_CONTROL) {
+            if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
+                cmd_handler[frame.cmd](&frame);
+            }
+            // 若已触发完整关机 (lunchbox_mcu_shutdown_sequence 已发送
+            // HeatEnable=0 + PowerSwitch=OFF), 跳过 UART 转发避免重复
+            if (elunchbox_pwr_is_manual_off()) {
+                goto next_frame;
+            }
         }
 
         // 所有其他命令 → 翻译为 UART 协议
