@@ -7,6 +7,13 @@
 //};
 
 enum {
+    STR_HEAT,
+    STR_MODE,
+    STR_SETUP,
+
+
+
+    
     STR_CLOCK,
     STR_CLOCK_PREVIEW,
     STR_MESSAGE,

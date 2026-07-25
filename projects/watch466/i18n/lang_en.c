@@ -1,6 +1,12 @@
 #include "include.h"
 
 const char * const i18n_en[] = {
+    [STR_HEAT]                          = "HEAT",
+    [STR_MODE]                          = "MODE",
+    [STR_SETUP]                         = "SETUP",
+
+
+
     [STR_CLOCK]                         = "clock",
     [STR_CLOCK_PREVIEW]                 = "Dial preview",
     [STR_MESSAGE]                       = "Message",

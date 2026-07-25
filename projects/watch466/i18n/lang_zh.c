@@ -1,6 +1,13 @@
 #include "include.h"
 
 const char * const i18n_zh[] = {
+    [STR_HEAT]                          = "加热",
+    [STR_MODE]                          = "模式",
+    [STR_SETUP]                         = "设置",
+
+
+
+    
     [STR_CLOCK]                         = "时钟",
     [STR_CLOCK_PREVIEW]                 = "表盘预览",
     [STR_MESSAGE]                       = "消息",
