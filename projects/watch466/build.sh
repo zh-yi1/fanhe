@@ -37,6 +37,8 @@ CFLAGS=(
 INCLUDES=(
     -I.
     -Ifunctions
+    -Ifunctions/key
+    -Ifunctions/new_ui
     -Iport
     -Ii18n
     -Iplugin
@@ -96,7 +98,7 @@ SOURCES=(
     main.c config.c
     # functions
     functions/func.c functions/func_activity.c functions/func_ble_gatts.c
-    functions/func_key_lock.c functions/home_ui_lock_overlay.c functions/home_ui_lowbat_overlay.c functions/func_lowbat.c
+    functions/key/func_key.c functions/key/func_key_lock.c functions/home_ui_lock_overlay.c functions/home_ui_lowbat_overlay.c functions/func_lowbat.c
     functions/func_bt.c functions/func_charge.c functions/func_compo_select.c
     functions/func_compo_select_sub.c functions/func_debug_info.c functions/func_heat.c functions/func_heat_panel.c
     functions/heat_display_reg.c functions/func_home.c functions/func_new_home.c
@@ -109,6 +111,7 @@ SOURCES=(
     functions/func_setup.c functions/func_timeing.c functions/func_languageing.c
     functions/func_verinfo.c
     functions/func_new_heat.c functions/func_new_warm.c functions/func_new_mode.c
+    functions/new_ui/func_home_page.c
     functions/func_new_reservation.c functions/func_new_setup.c functions/func_new_timeing.c
     functions/func_lid_confirm.c
     functions/func_new_language.c functions/func_new_verinfo.c
@@ -124,7 +127,7 @@ SOURCES=(
     # plugin
     plugin/bt_call.c plugin/eq_table.c plugin/multi_lang.c plugin/plugin.c
     # port
-    port/port_key.c port/port_pt8028_key.c port/port_panel_led.c
+    port/port_key.c functions/key/port_pt8028_key.c port/port_panel_led.c
     port/port_mute.c port/port_sd.c port/port_update.c port/stubs_elunchbox.c
     # platform/bsp
     "${PLATFORM_DIR}/bsp/bsp_asr.c"

@@ -28,6 +28,8 @@
 			<Add option="-mjump-tables-in-text" />
 			<Add directory="." />
 			<Add directory="functions" />
+		<Add directory="functions/key" />
+		<Add directory="functions/new_ui" />
 			<Add directory="port" />
 			<Add directory="i18n" />
 			<Add directory="plugin" />
@@ -840,10 +842,14 @@
 		<Unit filename="functions/heat_display_reg.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_key_lock.c">
+		<Unit filename="functions/key/func_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_key_lock.h" />
+		<Unit filename="functions/key/func_key.h" />
+		<Unit filename="functions/key/func_key_lock.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/key/func_key_lock.h" />
 		<Unit filename="functions/home_ui_lock_overlay.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -933,6 +939,9 @@
 		</Unit>
 		<Unit filename="functions/home_top_time_txt.h" />
 		<Unit filename="functions/new_home_icon_res.h" />
+		<Unit filename="functions/new_ui/func_home_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_new_heat.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1002,10 +1011,10 @@
 		<Unit filename="port/port_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="port/port_pt8028_key.c">
+		<Unit filename="functions/key/port_pt8028_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="port/port_pt8028_key.h" />
+		<Unit filename="functions/key/port_pt8028_key.h" />
 		<Unit filename="port/port_panel_led.c">
 			<Option compilerVar="CC" />
 		</Unit>

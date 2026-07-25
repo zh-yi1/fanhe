@@ -75,6 +75,7 @@ void run_test()
 //正常启动Main函数
 int main(void)
 {
+    printf("Hello **AB5790**,main start\n");
     u32 rst_reason, rtccon10;
 
     rst_reason = LVDCON;

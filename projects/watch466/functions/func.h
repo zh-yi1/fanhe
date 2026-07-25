@@ -167,6 +167,7 @@ enum {
     FUNC_LANGUAGEING,                   //语言页
     FUNC_VERINFO,                       //版本信息页
     FUNC_LOWBAT,                        //低电模式（全屏 didian 图标）
+    FUNC_HOME_PAGE,                     //新UI主页（new_ui）
     FUNC_MAX_NUM,           //用于计数
 
 };
