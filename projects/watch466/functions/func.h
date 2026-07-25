@@ -251,6 +251,8 @@ void func_elunchbox_switch_to_warm_panel(void);
 void func_elunchbox_switch_to_home(void);
 /** 取消 BLE 延后切页（停止加热时须调用） */
 void func_elunchbox_ble_cancel_pending_switch(void);
+/** 延迟请求回主页（UART 回调上下文安全，不直接调 switch_to） */
+void func_elunchbox_ble_request_home(void);
 /** 设置 BLE 延后切页目标页（下一帧 elunchbox_ble_pending_sta_poll 处理） */
 void func_elunchbox_ble_pending_set(u8 sta);
 /** UART/BLE 停止加热并回 Home（DP10=0 或 DP02=0） */

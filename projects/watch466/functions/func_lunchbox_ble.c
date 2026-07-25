@@ -209,9 +209,9 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             lb_product_info_pending   = true;
             lb_product_info_msg_flag  = frame.msg_flag;
             lb_product_info_pend_tick = tick_get();
-            u8 uart_buf[LB_TXBUF_SIZE];
+            static u8 uart_buf[LB_TXBUF_SIZE];
             u16 uart_len = 0;
-            if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) { // 翻译
+            if (lb_translate_ble_to_uart(&frame, uart_buf, &uart_len)) {   //是否翻译成功，填到uart_buf
                 printf("BLE->UART==>TX[%d]: ", uart_len);
                 for (u16 i = 0; i < uart_len; i++) printf("%02X ", uart_buf[i]);
                 printf("\n");
@@ -222,7 +222,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
                         lb_uart_dump_frame(uart_buf[4], uart_buf + 8, dl, false);
                     }
                 }
-                uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
+                uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len); //翻译成功发送
             } else {  // 翻译失败
                 lb_product_info_pending = false;
                 lb_handler_product_info(&frame);
@@ -274,6 +274,51 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
             if (frame.cmd < 16 && cmd_handler[frame.cmd]) {
                 cmd_handler[frame.cmd](&frame);
             }
+#if LB_BRIDGE_MODE
+            // 桥模式: cmd_handler[0x04] 仅在本地模式注册, 需手动处理 PowerSwitch
+            // 和设置加热标志位。参照 LCD 成熟流程 (func_lunchbox_lcd.c lunchbox_heat_start):
+            //   1. 设置 lb_heat_lcd_active/lb_keep_warm_active 标志位
+            //   2. UART 转发给加热模块 (下方翻译块完成)
+            //   3. UART 应答到达 → lb_frame_parse() 检测标志位为 true → lunchbox_control_apply_panel() 跳转
+            if (frame.data && frame.data_len > 0) {
+#if ELUNCHBOX_PANEL_EN
+                if (elunchbox_ui_is_live()) {
+                    lunchbox_control_apply_power_switch(frame.data, frame.data_len);
+                }
+#else
+                lunchbox_control_apply_power_switch(frame.data, frame.data_len);
+#endif
+                // 扫描 DataPoints: 设置/清除加热标志位
+                // 参照 LCD 成熟流程:
+                //   lunchbox_heat_start → 置位              → UART 应答 → warm/heat 面板
+                //   lunchbox_heat_stop  → 清零 + FUNC_HOME → 立即回主页 (不等 UART 应答)
+                {
+                    u8 mode_val = 0, enable_val = 0;
+                    bool has_mode   = lb_dp_scan_bool(frame.data, frame.data_len, LB_DPID_HEAT_MODE, &mode_val);
+                    bool has_enable = lb_dp_scan_bool(frame.data, frame.data_len, LB_DPID_HEAT_ENABLE, &enable_val);
+
+                    // HeatEnable=0 → 停止加热: 清除标志位 + 立即回主页
+                    // (对标 func_heat.c: lunchbox_heat_stop + func_cb.sta = FUNC_HOME)
+                    if (has_enable && !enable_val) {
+                        lb_heat_lcd_active = false;
+                        lb_keep_warm_active = false;
+#if ELUNCHBOX_PANEL_EN
+                        if (func_cb.sta == FUNC_HEAT) {
+                            func_cb.sta = FUNC_HOME;
+                        }
+#endif
+                    }
+                    // HeatEnable=1 或 鸡腿(2)/意面(3)/保温(5) → 设置标志位
+                    else if ((has_enable && enable_val)
+                        || (has_mode && (mode_val == 2 || mode_val == 3 || mode_val == 5))) {
+                        lb_heat_lcd_active = true;
+                        if (has_mode && mode_val == 5) {
+                            lb_keep_warm_active = true;
+                        }
+                    }
+                }
+            }
+#endif
             // 若已触发完整关机 (lunchbox_mcu_shutdown_sequence 已发送
             // HeatEnable=0 + PowerSwitch=OFF), 跳过 UART 转发避免重复
             if (elunchbox_pwr_is_manual_off()) {
@@ -283,7 +328,7 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 
         // 所有其他命令 → 翻译为 UART 协议
         {
-            u8 uart_buf[LB_TXBUF_SIZE];
+            static u8 uart_buf[LB_TXBUF_SIZE];  /* static: 节省栈空间，避免深层调用栈溢出 */
             u16 uart_len = 0;
 
 #if ELUNCHBOX_PANEL_EN
@@ -326,12 +371,18 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len)
 
 next_frame:
         {
-            u16 remaining = ble_rx_idx - frame_total;
-            if (remaining > 0) {
-                memmove(ble_rx_buf, ble_rx_buf + frame_total, remaining);
-                ble_rx_idx = remaining;
-            } else {
+            if (frame_total > ble_rx_idx || frame_total > sizeof(ble_rx_buf)) {
+                printf("BLE: frame_total=%u overflow ble_rx_idx=%u, reset buf\n",
+                       frame_total, ble_rx_idx);
                 ble_rx_idx = 0;
+            } else {
+                u16 remaining = ble_rx_idx - frame_total;
+                if (remaining > 0) {
+                    memmove(ble_rx_buf, ble_rx_buf + frame_total, remaining);
+                    ble_rx_idx = remaining;
+                } else {
+                    ble_rx_idx = 0;
+                }
             }
         }
     }

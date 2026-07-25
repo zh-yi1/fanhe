@@ -368,7 +368,7 @@ int app_protocol_tx(u8 *buf, u8 len)
     printf("BLE==>TX [%d]: ",len);
     print_r(buf, len);
 
-    int ret = ble_tx_notify(gatts_tx_base.handle, buf, len);
+    int ret = ble_tx_notify(gatts_tx_base.handle, buf, len); //给APP
     if (ret != 0) {
         printf("BLE==>TX FAILED, ret=%d, handle=0x%04x\n", ret, gatts_tx_base.handle);
     }

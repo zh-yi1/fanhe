@@ -961,6 +961,15 @@ void func_new_warm_enter(void)
     heat_display_warm_exit_reset();
     new_warm_show_ready = false;
 
+    /* 清除切换途中可能被重复 UART 应答设置的 pending 标记。
+     * 否则 func_process()→elunchbox_ble_pending_sta_poll() 检测到
+     * pending==FUNC_NEW_WARM 且 func_cb.sta==FUNC_NEW_WARM 时，
+     * 会调用 func_new_warm_ble_restart()→new_warm_heating_stop()→
+     * lunchbox_heat_stop()→发送 HeatEn=OFF，导致保温页被误杀回主页 */
+#if ELUNCHBOX_PANEL_EN
+    func_elunchbox_ble_cancel_pending_switch();
+#endif
+
 #if USER_PT8028_KEY && ELUNCHBOX_PANEL_EN
     pt8028_set_home_msg_block(1);
     func_home_drain_stale_key_msgs();

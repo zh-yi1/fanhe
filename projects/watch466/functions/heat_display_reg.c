@@ -440,6 +440,15 @@ static bool heat_display_mcu_mode_route(bool got_mode, u8 mcu_mode,
     u8 mode = heat_display_mcu_mode_resolve(got_mode, mcu_mode);
     bool charging = heat_display_charging_now(got_charge, charge_val);
 
+    /* DP02=0: APP/用户主动停止加热 → 回主页，不进保温。
+     * 必须在 DP02=5(保温)路由之前处理，否则 HeatEn=OFF + finish_ok
+     * 会将主动停止误判为加热自然结束，错误跳转保温页 */
+    if (got_mode && mcu_mode == 0 && !charging) {
+        printf("[LCD_ROUTE] MCU mode=0 user stop -> home (sta=%u)\n", func_cb.sta);
+        func_elunchbox_uart_stop_and_home();
+        return true;
+    }
+
     /* DP02=5 + 充电：加热页 → 保温 */
     if (heat_display_try_charging_warm_route(got_mode, mcu_mode, got_charge, charge_val,
                                              got_enable, heating)) {
@@ -927,9 +936,24 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
         }
         /* 熄屏时先缓存剩余时间，唤醒跳加热页后 func_heat_sync_mcu_snapshot 可读 */
         heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
-        /* 保温状态下收到非保温应答的过时数据: 跳过路由, 仅更新缓存 */
-        if (!(func_cb.sta == FUNC_NEW_WARM && lb_keep_warm_msg_flag != 0
-              && msg_flag != lb_keep_warm_msg_flag)) {
+        /* 保温状态下收到非保温应答的过时数据: 跳过路由, 仅更新缓存。
+         * 例外: DP02=0(APP主动停止) → 回主页，即使 msg_flag 不匹配。
+         *  使用延迟 home 请求避免在 UART 帧解析上下文中同步调用
+         *  func_switch_to()，防止 GPU/form 状态冲突导致蓝屏。 */
+        if (func_cb.sta == FUNC_NEW_WARM && lb_keep_warm_msg_flag != 0
+            && msg_flag != lb_keep_warm_msg_flag) {
+            if (got_mode && mcu_mode == 0) {
+                printf("[LCD_REG] feed_dp: warm guard mode=0 -> home (ui_ok=0, sta=%u)\n",
+                       func_cb.sta);
+                func_elunchbox_warm_from_charging_set(false);
+                lb_heat_mcu_nav_set(false);
+                func_elunchbox_ble_cancel_pending_switch();
+                heat_display_unregister();
+                lunchbox_heat_clear_local();
+                func_elunchbox_ble_request_home();
+                return;
+            }
+        } else {
             (void)heat_display_mcu_mode_route(got_mode, mcu_mode,
                                               remain_min, got_remain, temp_f, got_temp,
                                               duration_min, got_duration,
@@ -941,9 +965,26 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
 
     /* 保温状态下: 仅接受保温指令应答, 忽略其他 msg_flag 的过时数据
      * (加热模块可能在保温指令到达前发出 mode=0/HeatEn=OFF 的残留报告,
-     *  误将保温页杀回主页) */
+     *  误将保温页杀回主页)
+     * 例外: DP02=0(APP/用户主动停止加热) → 回主页。
+     *  APP 下发停止指令后，桥模块翻译为 UART 0x01(DP02=0+DP10=0)，
+     *  msg_flag=APP指令flag≠保温msg_flag，应答会被此处守卫拦截。
+     *  放行此帧 → 清保温标记 + 延迟请求回主页
+     *  (使用延迟请求避免在 UART 帧解析中同步调 func_switch_to 导致蓝屏) */
     if (func_cb.sta == FUNC_NEW_WARM && lb_keep_warm_msg_flag != 0
         && msg_flag != lb_keep_warm_msg_flag) {
+        /* DP02=0: APP/用户主动停止 → 回主页 (区别于过时的残留 mode=0 报告) */
+        if (got_mode && mcu_mode == 0) {
+            printf("[LCD_REG] feed_dp: warm guard mode=0 stop -> home (sta=%u)\n",
+                   func_cb.sta);
+            func_elunchbox_warm_from_charging_set(false);
+            lb_heat_mcu_nav_set(false);
+            func_elunchbox_ble_cancel_pending_switch();
+            heat_display_unregister();
+            lunchbox_heat_clear_local();
+            func_elunchbox_ble_request_home();
+            return;
+        }
         heat_display_feed_apply(remain_min, got_remain, temp_f, got_temp);
         return;
     }
@@ -1032,6 +1073,14 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
             return;
         }
         if (func_heat_uart_finish_ok()) {
+            /* DP02=0: APP/用户主动停止加热 → 回主页，不进保温。
+             * 区别于 mode=5(自然结束进保温)，mode=0 表示显式停止指令。 */
+            if (got_mode && mcu_mode == 0) {
+                printf("[LCD_REG] feed_dp: mode=0 stop, route to home (sta=%u)\n",
+                       func_cb.sta);
+                func_elunchbox_uart_stop_and_home();
+                return;
+            }
             func_elunchbox_enter_warm_from_heat();
             return;
         }
@@ -1057,6 +1106,13 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
 #if ELUNCHBOX_PANEL_EN
     if (got_remain && remain_min == 0 && func_heat_uart_finish_ok()
         && func_cb.sta != FUNC_LID_CONFIRM) {
+        /* DP02=0: APP/用户主动停止 → 回主页 (无 HeatEn 但有 mode=0 + remain=0 时) */
+        if (got_mode && mcu_mode == 0) {
+            printf("[LCD_REG] feed_dp: remain=0 mode=0 -> home (sta=%u)\n",
+                   func_cb.sta);
+            func_elunchbox_uart_stop_and_home();
+            return;
+        }
         printf("[LCD_REG] feed_dp: remain=0 + finish_ok -> enter warm (sta=%u)\n",
                func_cb.sta);
         func_elunchbox_enter_warm_from_heat();

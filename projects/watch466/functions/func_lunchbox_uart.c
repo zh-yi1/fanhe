@@ -296,10 +296,19 @@ static bool lb_frame_parse(void)
          * lunchbox_control_apply_panel 是为 BLE 0x04 控制指令设计的，
          * 若在保温页被 UART 帧触发，会导致：
          * 1) heat_finish→warm 后同帧 DP10=0 误杀回主页
-         * 2) Mode=5 帧触发 func_new_warm_ble_restart→lunchbox_heat_stop→HeatEn=OFF 死循环 */
-        if (func_cb.sta != FUNC_NEW_WARM && func_cb.sta != FUNC_LID_CONFIRM
-            && !elunchbox_lid_confirm_is_armed() && lb_heat_lcd_active) {
-            lunchbox_control_apply_panel(rx.data, rx.data_len);
+         * 2) Mode=5 帧触发 func_new_warm_ble_restart→lunchbox_heat_stop→HeatEn=OFF 死循环
+         *
+         * 面板跳转条件:
+         *   a) lb_heat_lcd_active: LCD 已下发加热/保温指令 (屏幕触发流程)
+         *   b) HeatEnable==1:  加热模块主动上报加热中 (预约到点/蓝牙触发后UART确认) */
+        {
+            u8 dp10 = 0;
+            bool has_dp10 = lb_dp_scan_bool(rx.data, rx.data_len, LB_DPID_HEAT_ENABLE, &dp10);
+            bool want_panel = lb_heat_lcd_active || (has_dp10 && dp10 == 1);
+            if (func_cb.sta != FUNC_NEW_WARM && func_cb.sta != FUNC_LID_CONFIRM
+                && !elunchbox_lid_confirm_is_armed() && want_panel) {
+                lunchbox_control_apply_panel(rx.data, rx.data_len);
+            }
         }
 #if ELUNCHBOX_PANEL_EN
         }
@@ -352,6 +361,14 @@ static bool lb_frame_parse(void)
     if (rx.cmd == LB_UART_CMD_OTA && heat_ota_is_active()) {
         heat_ota_uart_response(&rx);
         goto lb_frame_cleanup;
+    }
+
+    // ──── 重试机制: 收到加热模块回应 (任意 cmd, msg_flag 匹配) 则清除等待 ────
+    // ⚠️ 必须在桥转发之前清除 lb_send_no_ble_report，否则 _noreport 指令的
+    //    首个应答帧会被拦截，导致 APP 收不到加热模块的状态更新
+    if (lb_send_waiting && rx.msg_flag == lb_send_wait_msg) {
+        lb_send_waiting = false;
+        lb_send_no_ble_report = false;  // 清除 _noreport 标记，允许桥转发
     }
 
 #if LB_BRIDGE_MODE
@@ -418,11 +435,6 @@ static bool lb_frame_parse(void)
         lb_ble_tx_fn = saved_ble;
     }
 #endif
-
-    // ──── 重试机制: 收到加热模块回应 (任意 cmd, msg_flag 匹配) 则清除等待 ────
-    if (lb_send_waiting && rx.msg_flag == lb_send_wait_msg) {
-        lb_send_waiting = false;
-    }
 
 lb_frame_cleanup:
     // 解析成功: 将缓冲区中剩余字节前移 (支持单次 BLE 写入含多帧的场景)
@@ -514,7 +526,10 @@ static void lb_send_frame(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len)
     lb_tx_buf[off] = lb_checksum(lb_tx_buf, off); off++;
 
     if (lb_ble_tx_fn) {
-        lb_ble_tx_fn(lb_tx_buf, off);           // 走 BLE Notify (含 BLE==>TX hex 打印)
+
+        //lb_ble_tx_wrapper(data, len),走 BLE Notify
+        lb_ble_tx_fn(lb_tx_buf, off);   
+
         // 打印 BLE TX 协议分析 (蓝牙通讯协议1.0.7.md §3)
         lb_ble_dump_frame(cmd, data, len, false);
     } else {

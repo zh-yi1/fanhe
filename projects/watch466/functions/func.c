@@ -196,6 +196,14 @@ void func_elunchbox_ble_cancel_pending_switch(void)
 #endif
 }
 
+/** @brief 延迟请求回主页（UART 回调中安全使用，避免同步 switch_to 冲突） */
+void func_elunchbox_ble_request_home(void)
+{
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_ble_pending_home = 1;
+#endif
+}
+
 void func_elunchbox_ble_pending_set(u8 sta)
 {
 #if ELUNCHBOX_PANEL_EN
