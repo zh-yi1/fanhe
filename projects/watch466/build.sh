@@ -102,7 +102,8 @@ SOURCES=(
     functions/heat_display_reg.c functions/func_home.c functions/func_new_home.c
     functions/new_home_top_time.c functions/home_ui_shared.c functions/home_tab_label.c
     functions/home_top_time.c functions/home_top_time_txt.c functions/home_ui_ram.c functions/home_ui_gpu_detach.c
-    functions/func_lunchbox_uart.c functions/func_lunchbox_lcd.c
+    functions/func_lunchbox_uart_app.c functions/func_lunchbox_uart_link.c
+    functions/func_lunchbox_proto.c functions/func_lunchbox_lcd.c
     functions/func_lunchbox_ble_app.c functions/func_lunchbox_bridge.c
     functions/func_lunchbox_ota.c functions/func_lunchbox_uart_heat.c
     functions/func_mode.c functions/func_reservation.c

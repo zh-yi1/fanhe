@@ -877,9 +877,17 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/home_ui_gpu_detach.h" />
-		<Unit filename="functions/func_lunchbox_uart.c">
+		<Unit filename="functions/func_lunchbox_uart_app.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_lunchbox_uart_link.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_lunchbox_uart_link.h" />
+		<Unit filename="functions/func_lunchbox_proto.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_lunchbox_proto.h" />
 		<Unit filename="functions/func_lunchbox_lcd.c">
 			<Option compilerVar="CC" />
 		</Unit>

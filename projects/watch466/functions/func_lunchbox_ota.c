@@ -70,7 +70,6 @@ u32 lb_crc32(const void *data, u32 len, u32 crc)
     return crc;
 }
 
-#if LB_BRIDGE_MODE
 /**
  * @brief 获取 OTA 帧的目标设备标识 (桥模式: 区分主MCU/加热模块)
  *
@@ -94,7 +93,6 @@ u8 lb_ota_get_target(lb_rx_frame_t *rx)
         return 0x00;
     }
 }
-#endif // LB_BRIDGE_MODE
 
 /**
  * @brief 0x0c — 升级启动 (v1.0.7)

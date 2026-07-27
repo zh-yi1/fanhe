@@ -4,9 +4,6 @@
 #include "func.h"
 #include "home_ui_shared.h"
 #include "func_lid_confirm.h"
-#if !LB_BRIDGE_MODE
-#include "func_lunchbox_uart_internal.h"
-#endif
 #if ELUNCHBOX_PANEL_EN
 #include "func_reservation.h"
 #include "func_lowbat.h"
@@ -690,9 +687,6 @@ void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag)
                 mcu_mode = val[0];
                 got_mode = true;
                 got_heat_stop = (val[0] == 0);
-#if !LB_BRIDGE_MODE
-                lb_attr_heat_mode = val[0];
-#endif
 #if ELUNCHBOX_PANEL_EN
                 if (ui_ok)
 #endif

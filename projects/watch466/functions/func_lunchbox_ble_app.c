@@ -19,11 +19,12 @@
  *             帧 → 业务。一个命令一个函数，不再有 goto 和层层嵌套的 #if。
  *
  * 协议: 蓝牙通讯协议1.0.6.md (v1.0.10) §2 帧格式 / §3 命令字
- * 模式: 仅桥模式 (LB_BRIDGE_MODE=1) — MCU 作 BLE↔UART 翻译桥
+ * 模式: MCU 作 BLE↔UART 翻译桥
  */
 #include "include.h"
 #include "app_blue_fit.h"
 #include "func_lunchbox_uart.h"
+#include "func_lunchbox_uart_link.h"
 #include "func_lunchbox_uart_internal.h"
 #include "func_lunchbox_ble_app.h"
 #include "func_lunchbox_bridge.h"
@@ -208,12 +209,22 @@ static void lb_ble_on_product_info(lb_rx_frame_t *rx)
     lb_product_info_msg_flag  = rx->msg_flag;
     lb_product_info_pend_tick = tick_get();
 
-    u8  uart_buf[LB_TXBUF_SIZE];
-    u16 uart_len = 0;
+    u8  uart_data[LB_TXBUF_SIZE];
+    u16 uart_dlen = 0;
+    u8  uart_cmd = lb_ble_cmd_to_uart_cmd(rx->cmd);
 
-    if (!lb_translate_ble_to_uart(rx, uart_buf, &uart_len)) {
+    if (!uart_cmd || !lb_translate_ble_data_to_uart(rx, uart_data, &uart_dlen)) {
         lb_product_info_pending = false;
         lb_handler_product_info(rx);            // 加热模块拿不到, 用本地缓存回复
+        return;
+    }
+
+    u8  uart_buf[LB_TXBUF_SIZE];
+    u16 uart_len = lb_proto_build_frame(uart_buf, uart_cmd, rx->msg_flag,
+                                        LB_ERR_SUCCESS, uart_data, uart_dlen);
+    if (!uart_len) {
+        lb_product_info_pending = false;
+        lb_handler_product_info(rx);
         return;
     }
 
@@ -222,15 +233,12 @@ static void lb_ble_on_product_info(lb_rx_frame_t *rx)
         printf("%02X ", uart_buf[i]);
     }
     printf("\n");
-    {
-        u16 dl = ((u16)uart_buf[6] << 8) | uart_buf[7];
-        if (dl) {
-            lb_ble_dump_frame(rx->cmd, uart_buf + 8, dl, true);
-        }
+    if (uart_dlen) {
+        lb_ble_dump_frame(rx->cmd, uart_data, uart_dlen, true);
     }
-    // 注: 0x01 直发 UART, 不进重试队列 —— 与加热模块的应答配对靠
+    // 注: 0x01 直发 UART, 不进转发队列 —— 与加热模块的应答配对靠
     //     lb_product_info_pending, 排队会打乱 1 秒超时窗口
-    uart_bufs_tx(UART_TYPE_1, uart_buf, uart_len);
+    lb_link_tx(uart_buf, uart_len);
 }
 
 /**
@@ -278,9 +286,7 @@ static void lb_ble_on_ota(lb_rx_frame_t *rx)
     if (target == 0x00 || target == LB_OTA_TARGET_MAIN_MCU) {
         printf("OTA: target=0x%02X -> main mcu\n",
                target ? target : LB_OTA_TARGET_MAIN_MCU);
-        if (rx->cmd < 16 && cmd_handler[rx->cmd]) {
-            cmd_handler[rx->cmd](rx);
-        }
+        lunchbox_uart_call_handler(rx);
         return;
     }
 
@@ -306,10 +312,10 @@ static void lb_ble_on_ota(lb_rx_frame_t *rx)
 }
 
 /**
- * @brief 其余命令 — 翻译成 UART 帧转发加热模块
+ * @brief 其余命令 — 翻译后经转发队列发往加热模块
  *
  * 0x02 查询动态属性 / 0x04 控制 / 0x05~0x08 预约 / 0x09~0x0a 模式
- * 应答由 UART 侧收到回帧后按 msg_flag 配对回传 APP。
+ * 异步: 入队即返回。应答到达/重试耗尽后由 lb_bridge 自动回传 APP。
  */
 static void lb_ble_on_forward(lb_rx_frame_t *rx)
 {
@@ -320,18 +326,16 @@ static void lb_ble_on_forward(lb_rx_frame_t *rx)
     }
 #endif
 
-    u8  uart_buf[LB_TXBUF_SIZE];
-    u16 uart_len = 0;
+    u8  uart_data[LB_TXBUF_SIZE];
+    u16 uart_dlen = 0;
+    u8  uart_cmd = lb_ble_cmd_to_uart_cmd(rx->cmd);
 
-    if (!lb_translate_ble_to_uart(rx, uart_buf, &uart_len)) {
+    if (!uart_cmd || !lb_translate_ble_data_to_uart(rx, uart_data, &uart_dlen)) {
         printf("BLE: cmd=0x%02X not forwardable\n", rx->cmd);
         return;
     }
 
-    u16 uart_dlen = ((u16)uart_buf[6] << 8) | uart_buf[7];
-    lb_uart_send_from_ble(uart_buf[4],
-                          uart_dlen ? uart_buf + 8 : NULL, uart_dlen,
-                          rx->cmd, rx->msg_flag);
+    lb_bridge_forward(rx->cmd, rx->msg_flag, uart_cmd, uart_data, uart_dlen);
 }
 
 /** @brief 命令分发 */
@@ -395,14 +399,21 @@ bool lunchbox_ble_rx_pending(void)
     return ble_rx_len > 0;
 }
 
-void lunchbox_ble_rx_reset(void)
-{
-    ble_rx_len  = 0;
-    ble_rx_tick = 0;
-}
+// BLE 发送通道 (平台侧连接后注册)
+static lb_ble_tx_fn_t lb_ble_tx_fn;
 
 void lunchbox_ble_set_tx_fn(lb_ble_tx_fn_t fn)
 {
     lb_ble_tx_fn = fn;
+}
+
+/** @brief 发送一条完整 BLE 帧给 APP; false=通道未注册(未连接) */
+bool lunchbox_ble_tx(u8 *frame, u16 len)
+{
+    if (!lb_ble_tx_fn) {
+        return false;
+    }
+    lb_ble_tx_fn(frame, len);
+    return true;
 }
 

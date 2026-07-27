@@ -834,28 +834,6 @@ void func_heat_ble_remote_restart(void)
     func_heat_countdown_set(f_heat->set_hour, f_heat->set_min);
     func_heat_countdown_stop();
 
-#if FUNC_LUNCHBOX_UART_EN && !LB_BRIDGE_MODE
-    {
-        u16 target_temp_f = (f_heat->temp_idx < HEAT_TEMP_PRESET_CNT)
-                          ? tbl_heat_temp_preset[f_heat->temp_idx]
-                          : tbl_heat_temp_preset[0];
-        u32 duration_min = f_heat->heat_total_sec / 60;
-
-        if (duration_min < LB_HEAT_DURATION_MIN_MIN) {
-            duration_min = LB_HEAT_DURATION_MIN_MIN;
-        } else if (duration_min > LB_HEAT_DURATION_MAX_MIN) {
-            duration_min = LB_HEAT_DURATION_MAX_MIN;
-        }
-        if (!lb_heat_uart_remote_peek()) {
-            lunchbox_heat_start(f_heat->proto_mode, lunchbox_temp_f_to_idx(target_temp_f), duration_min);
-        } else {
-            (void)lb_heat_uart_remote_consume();
-            lunchbox_heat_start_local(f_heat->proto_mode,
-                                      lunchbox_temp_f_to_idx(target_temp_f),
-                                      duration_min);
-        }
-    }
-#else
     /* MCU 驱动导航时(mcu_nav)勿消费 uart_remote: 留给 heat_enter 的 start_heating 用
      * 否则 route_resume_heat 设的 uart_remote=1 被此处吃掉, heat_enter 就会误发 UART */
     if (!lb_heat_mcu_nav_active()) {
@@ -865,7 +843,6 @@ void func_heat_ble_remote_restart(void)
         elunchbox_user_activity_reset();
         func_key_lock_on_heating_start();
     }
-#endif
 
     func_heat_sync_mcu_snapshot(f_heat);
     func_heat_led_sync(true);

@@ -18,18 +18,13 @@
 //是否开启串口协议：
 #if FUNC_LUNCHBOX_UART_EN
 
-//-----------------------------------------------------------------------------
-// 协议常量
-//-----------------------------------------------------------------------------
-#define LB_FRAME_HEADER         0x55aa      // 帧头固定值
-#define LB_FRAME_VERSION        0x00        // 协议版本号
+// 协议常量/枚举/帧结构/收发 API → 协议层头 (重构后唯一定义处)
+#include "func_lunchbox_proto.h"
 
+//-----------------------------------------------------------------------------
+// 应用配置
+//-----------------------------------------------------------------------------
 #define LB_BAUD                 115200      // 波特率（按需修改）
-#define LB_SELFTEST_EN          0           // 自测开关：1=开启echo，0=关闭
-#define LB_BRIDGE_MODE          1           // 1=翻译桥(加热模块已到), 0=本地处理(调试用)
-#define LB_RXBUF_SIZE           256         // 接收缓冲区大小(字节)
-#define LB_TXBUF_SIZE           256         // 发送缓冲区大小(字节)
-#define LB_FRAME_TIMEOUT_MS     300         // 帧超时时间(毫秒)，超过此时间未收完一帧则丢弃
 
 // RTCCNT 从 2020-01-01 起算(秒), 且 RTCCNT 存的是北京时间(UTC+8)
 // tm_to_time 的基准也是 2020-01-01 00:00:00 (北京时间)
@@ -37,33 +32,8 @@
 // 其 Unix 时间戳 = (50年×365天 + 12闰日) × 86400秒 - 8小时 = 1,577,808,000秒
 #define LB_RTC_UNIX_OFFSET      (1577836800u - 8*3600)   // = 1577808000
 
-//-----------------------------------------------------------------------------
-// 属性 ID（DataPoint dpid）— 蓝牙通讯协议1.0.5.md §4 + MCU通信协议.md §4
-//-----------------------------------------------------------------------------
-enum {
-    LB_DPID_POWER_SWITCH    = 1,        // 总开关: bool, 1=开 0=关
-    LB_DPID_HEAT_MODE       = 2,        // 加热模式: enum, 0=关 1=自定义 2=鸡腿 3=意面 4=预约 5=保温
-    LB_DPID_BATTERY         = 3,        // 电量: enum, 0=没电 1=低 2=中 3=高 4=满
-    LB_DPID_CHARGE_STATUS   = 4,        // 充电状态: enum, 0=未充电 1=充电中 2=已充满
-    LB_DPID_HEAT_DURATION   = 5,        // 加热时长: value(4B), 60~210 分钟
-    LB_DPID_REMAIN_TIME     = 6,        // 剩余加热时间: value(4B), 分钟
-    LB_DPID_HEAT_TEMP       = 7,        // 加热温度: enum, 0=40°C ~ 6=100°C
-    LB_DPID_LANGUAGE        = 8,        // 语言: enum, 0=中文 1=英文...
-    LB_DPID_FAULT           = 9,        // 故障: enum, 0=正常 1=高温告警
-    LB_DPID_HEAT_ENABLE     = 10,       // 是否加热: bool, 0=停止 1=加热 (v1.0.5 新增)
-    LB_DPID_MCU_VERSION     = 13,       // MCU版本号: value(4B), 固件版本号 (v1.0.7 新增)
-    LB_DPID_TIME_SYNC       = 11,       // app同步时间戳: value(4B) unix时间 (APP→加热模块设置时间)
-    LB_DPID_KEY_NOTIFY      = 12,       // 模组按键通知: enum, 0-9, MCU→加热模块通知按键按下
-    LB_DPID_RTC_TIME        = 14,       // rtc的unix时间: value(4B) unix时间 (加热模块→MCU上报设备时间, v1.0.7新增)
-};
-
-#define LB_HEAT_DURATION_MIN_MIN          30      // 加热时长下限(分钟)，协议范围 30-210 (v1.0.7 §4)
-#define LB_HEAT_DURATION_MAX_MIN          210     // 加热时长上限(分钟)，协议范围 30-210 (v1.0.7 §4)
-
-// DataPoint 数据类型
-#define LB_DP_TYPE_BOOL     0x01
-#define LB_DP_TYPE_VALUE    0x02
-#define LB_DP_TYPE_ENUM     0x04
+#define LB_HEAT_DURATION_MIN_MIN          60      // 加热时长下限(分钟)，协议范围 30-210 (v1.0.7 §4)
+#define LB_HEAT_DURATION_MAX_MIN          120     // 加热时长上限(分钟)，协议范围 30-210 (v1.0.7 §4)
 
 //-----------------------------------------------------------------------------
 // BLE 预约记录 (蓝牙通讯协议1.0.5.md — 41B payload)
@@ -137,31 +107,6 @@ typedef struct {
 } lb_attr_t;
 
 //-----------------------------------------------------------------------------
-// BLE 命令字 (蓝牙通讯协议1.0.5.md — APP ↔ MCU)
-// 同步(SYNC): APP→MCU 一问一答
-// 异步(ASYNC): MCU 主动推送
-//-----------------------------------------------------------------------------
-enum {
-    // --- 同步命令：APP 请求 → MCU 应答 ---
-    LB_CMD_PRODUCT_INFO     = 0x01,     // [同步] 查询产品信息 (v1.0.7: 同时透传加热模块)
-    LB_CMD_DYNAMIC_ATTR     = 0x02,     // [同步] 查询设备动态属性
-    LB_CMD_CONTROL          = 0x04,     // [同步] 控制指令 (DataPoints修改属性, v1.0.5新增)
-    LB_CMD_SCHEDULE_LIST    = 0x05,     // [同步] 查询预约列表
-    LB_CMD_SCHEDULE_ADD     = 0x06,     // [同步] 新增预约
-    LB_CMD_SCHEDULE_MODIFY  = 0x07,     // [同步] 修改预约
-    LB_CMD_SCHEDULE_DELETE  = 0x08,     // [同步] 删除预约
-    LB_CMD_MODE_QUERY       = 0x09,     // [同步] 获取指定模式信息
-    LB_CMD_MODE_MODIFY      = 0x0a,     // [同步] 修改指定模式信息
-    // 0x0b 升级查询已删除 (v1.0.7)
-    LB_CMD_OTA_START        = 0x0c,     // [同步] 升级启动
-    LB_CMD_OTA_DATA         = 0x0d,     // [同步] 升级包传输
-    LB_CMD_OTA_END          = 0x0e,     // [同步] 升级结束
-
-    // --- 异步命令：MCU 主动推送 ---
-    LB_CMD_STATUS_REPORT    = 0x03,     // [异步] 状态上报（属性变化/故障通知）
-};
-
-//-----------------------------------------------------------------------------
 // OTA 目标设备标识 (蓝牙通讯协议1.0.7.md §5)
 // APP 通过 target 字段区分升级目标设备
 //-----------------------------------------------------------------------------
@@ -183,26 +128,6 @@ enum {
 #define LB_OTA_RESULT_SUCCESS       0x01    // 升级成功
 
 //-----------------------------------------------------------------------------
-// MCU UART 命令字 (MCU通信协议.md v1.0.7 — MCU ↔ 加热模块)
-//-----------------------------------------------------------------------------
-enum {
-    LB_UART_CMD_DYNAMIC     = 0x01,     // 查询设备动态属性+状态上报(合并)
-    LB_UART_CMD_SCHEDULE    = 0x02,     // 查询预约列表
-    LB_UART_CMD_SCHEDULE_OP = 0x03,     // 新增/修改/删除预约(合并)
-    LB_UART_CMD_OTA         = 0x04,     // OTA(合并start/transfer/end)
-    LB_UART_CMD_HEARTBEAT   = 0x05,     // 心跳包: MCU↔加热模块, 验证双方在线 (MCU协议 v1.0.7 §6.1)
-};
-
-/*
-    执行结果：LB_ERR_SUCCESS    (成功)
-              LB_ERR_EXEC_FAIL  (失败)
-*/
-enum {
-    LB_ERR_SUCCESS = 0x00,
-    LB_ERR_EXEC_FAIL = 0x01,
-};
-
-//-----------------------------------------------------------------------------
 // 加热温度档位 (MCU通信协议 §4.1.4 ID=7): 0=40°C .. 6=100°C
 //-----------------------------------------------------------------------------
 #define LB_HEAT_TEMP_CNT    7
@@ -212,160 +137,72 @@ static const u16 tbl_heat_temp_f[LB_HEAT_TEMP_CNT] = {
 };
 
 //-----------------------------------------------------------------------------
-// 帧结构（#pragma pack(1) 保证与线上字节序一致，禁止编译器插入填充）
-//-----------------------------------------------------------------------------
-#pragma pack(1)
-
-/**
- * @brief 协议帧头（发送/接收共用）
- *
- * 一条完整帧 = lb_frame_head_t + data[data_len] + checksum(1B)
- * checksum 为从 head.header 开始逐字节累加后对256取余
- */
-typedef struct {
-    u16 header;             // 帧头，固定 0x55aa
-    u8  version;            // 协议版本号
-    u8  msg_flag;           // 消息标志，请求与应答保持一致，用于匹配
-    u8  cmd;                // 命令字，见 LB_CMD_* / LB_UART_CMD_* 枚举
-    u8  err_flag;           // 错误标志，0=成功，其他见 LB_ERR_* 枚举
-    u16 data_len;           // 数据区长度(字节)，大端序
-} lb_frame_head_t;
-
-#pragma pack()
-
-/**
- * @brief 解析后的接收帧（给业务回调用）
- *
- * 帧解析器校验通过后，把各字段拆好填入此结构体，
- * data 指针直接指向接收缓冲区内对应位置，非独立拷贝。
- */
-typedef struct {
-    u8  version;            // 协议版本号
-    u8  msg_flag;           // 消息标志
-    u8  cmd;                // 命令字
-    u8  err_flag;           // 错误标志
-    u16 data_len;           // 数据区长度(字节)
-    u8  *data;              // 指向数据区首字节，data_len==0 时为 NULL
-    bool valid;             // 帧校验是否通过（true=通过）
-} lb_rx_frame_t;
-
-/**
- * @brief 命令处理回调函数类型
- *
- * @param[in] rx  解析好的接收帧指针
- * @return        错误码，LB_ERR_SUCCESS(0) 表示处理成功
- *
- * 注意：回调在 lunchbox_uart_process() 的调用上下文中执行，
- *       不应长时间阻塞，否则会影响帧接收。
- */
-typedef u8 (*lb_cmd_handler_t)(lb_rx_frame_t *rx);
-
-//-----------------------------------------------------------------------------
-// API
+// 应用层核心 API (func_lunchbox_uart_app.c)
 //-----------------------------------------------------------------------------
 
 /**
- * @brief 初始化串口协议模块
- *
- * 配置 UART1 引脚(PB8-TX, PB9-RX)、波特率，初始化内部缓冲区和回调表。
- * 应在系统初始化阶段调用一次。
- *
- * @param[in] baud  波特率，如 9600、115200
+ * @brief 初始化串口模块 (解析器 + UART1 硬件), 系统初始化阶段调用一次
+ * @param[in] baud  波特率, 如 115200
  */
 void lunchbox_uart_init(u32 baud);
 
-/** @brief 手动关机时关闭 UART1 硬件以降低功耗；唤醒后调用 lunchbox_uart_resume() */
 void lunchbox_uart_suspend(void);
-
-/** @brief 从手动关机唤醒后恢复 UART1 */
 void lunchbox_uart_resume(void);
 
 /**
- * @brief 主循环处理（需在 func_process 或主循环中轮询调用）
+ * @brief 主循环处理（func_process 每轮调用）
  *
- * 职责：从 UART1 缓冲区取字节 → 拼帧 → 超时检测 → 帧校验 → 分发给注册的回调。
- * 调用频率越高越好，建议每帧调用一次。
+ * 底层取字节 → 协议层拼帧/超时 → 逐帧调用帧处理入口
  */
 void lunchbox_uart_process(void);
 
-/** 手动关机期间阻止所有 UART TX；参数 true=阻塞 false=恢复 */
+/**
+ * @brief 组帧并从串口发出 (应用层唯一发送原语)
+ * @return true=已发出, false=被阻断或组帧失败
+ */
+bool lunchbox_uart_send_frame(u8 cmd, u8 msg_flag, u8 err,
+                              const u8 *data, u16 len);
+
 void lb_uart_tx_block(bool block);
 bool lb_uart_tx_is_blocked(void);
 
 /**
- * @brief 发送请求/命令帧（同步模式下主机侧使用，err_flag 固定为成功）
+ * @brief BLE→UART 异步转发 (入队即返回)
  *
- * 按协议格式组帧（大端），计算校验和，通过 UART1 发出。
- * 一般用于外部主机→MCU的方向；MCU 内部测试/转发也可调用。
- *
- * @param[in] cmd       命令字
- * @param[in] msg_flag  消息标志（同步模式下由调用者管理配对）
- * @param[in] data      待发送数据（可为 NULL）
- * @param[in] len       数据长度(字节)，0 表示无数据
+ * 一发一收: 队首在飞, 其余排队。应答超时重发 (共 3 次),
+ * 应答到达或重试耗尽后自动翻译回传 APP (lunchbox_ble_tx)。
+ * @param ble_cmd       来源 BLE 命令字
+ * @param ble_msg_flag  来源 BLE msg_flag (串口转发沿用, 应答按它配对)
+ * @param uart_cmd      转发的 UART 命令字
+ * @return false=数据过长或队列满 (请求被丢弃)
  */
-void lunchbox_uart_send(u8 cmd, u8 msg_flag, u8 *data, u16 len);
+bool lb_bridge_forward(u8 ble_cmd, u8 ble_msg_flag, u8 uart_cmd,
+                       const u8 *data, u16 len);
 
-/**
- * @brief 发送应答帧（同步模式，MCU 回复主机请求）
- *
- * 与 lunchbox_uart_send 类似，但 err_flag 由调用者指定。
- * msg_flag 应与请求帧一致，用于请求-应答配对。
- *
- * @param[in] cmd       命令字（与请求帧一致）
- * @param[in] msg_flag  消息标志（与请求帧一致）
- * @param[in] err       错误码，见 LB_ERR_* 枚举
- * @param[in] data      待发送数据（可为 NULL）
- * @param[in] len       数据长度(字节)
- */
+//=============================================================================
+// ↓↓↓ 待重建业务接口 — 仅保留声明供旧调用方编译, 实现随功能重构逐步恢复 ↓↓↓
+//=============================================================================
+
+// ── 发送队列 (stop-and-wait, 待重建) ──
+void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
+void lb_uart_send_raw_noreport(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
+
+// ── BLE 应答/上报 (待重建) ──
 void lunchbox_uart_send_response(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len);
-
-/**
- * @brief 异步发送帧（MCU 主动上报，无需主机先请求）
- *
- * 用于 LB_CMD_STATUS_REPORT 等异步命令。
- * msg_flag 自动递增（0~255 循环），主机可据此检测是否丢帧。
- * err_flag 固定为 LB_ERR_SUCCESS。
- *
- * @param[in] cmd       命令字（异步类，如 LB_CMD_STATUS_REPORT）
- * @param[in] data      待发送数据（可为 NULL）
- * @param[in] len       数据长度(字节)，0 表示无数据
- */
 void lunchbox_uart_send_async(u8 cmd, u8 *data, u16 len);
 
-/**
- * @brief 注册命令处理回调
- *
- * 收到完整帧且校验通过后，根据 cmd 查表调用对应的 handler。
- * 一个 cmd 只能注册一个 handler，后注册的覆盖前面的。
- *
- * @param[in] cmd       命令字
- * @param[in] handler   处理回调函数指针
- */
-void lunchbox_uart_reg_handler(u8 cmd, lb_cmd_handler_t handler);
+// ── BLE 命令分发 (待重建, 现方案为 switch-case 无 handler 表) ──
+bool lunchbox_uart_call_handler(lb_rx_frame_t *rx);
 
 //-----------------------------------------------------------------------------
-// 业务 API（应用层使用）
+// 业务 API（待重建）
 //-----------------------------------------------------------------------------
-
-/** @brief 注册所有协议命令的业务处理器，初始化后调用一次 */
-void lunchbox_uart_init_handlers(void);
 
 /** @brief 设置设备信息（用于 0x01 产品信息查询应答） */
 void lunchbox_set_device_info(lb_device_info_t *info);
 
-/** @brief 设置属性值并触发异步上报（用于 MCU 状态变化通知 APP） */
-void lunchbox_set_attr_bool(u8 dpid, u8 val);
-void lunchbox_set_attr_enum(u8 dpid, u8 val);
-void lunchbox_set_attr_value(u8 dpid, u32 val);
-
-/** @brief 主动上报所有属性（0x03 全量推送） */
-void lunchbox_report_all_attrs(void);
-
-/** @brief 主动上报单个属性变化（0x03 增量推送） */
-void lunchbox_report_attr(u8 dpid);
-
 //-----------------------------------------------------------------------------
-// LCD 加热/预约控制接口 (桥模式和本地模式均可用)
+// LCD 加热/预约控制接口
 // 按键: 加热键→切页, 确认键→lunchbox_heat_start, 开关键→lunchbox_heat_stop,
 //       预约键→lunchbox_reservation_send, 模式键/加/减/锁键→仅UI本地
 //-----------------------------------------------------------------------------
@@ -416,9 +253,6 @@ u32 lb_get_unix_time(void);
  */
 tm_t lb_get_display_tm(void);
 
-/** @brief 扫描 DataPoint 缓冲区，查找指定 dpid 的 bool/enum 首字节 */
-bool lb_dp_scan_bool(const u8 *data, u16 len, u8 dpid, u8 *val);
-
 /** @brief 进入保温页时下发保温指令 (模式5, 默认 194°F) */
 void lunchbox_keep_warm_apply(void);
 
@@ -461,11 +295,7 @@ void lunchbox_reservation_send(u8 action, u8 id, const char *name, u32 unix_time
 /** @brief LCD 删除预约 */
 void lunchbox_reservation_delete(u8 id);
 
-#if !LB_BRIDGE_MODE
-u8 lb_schedule_alloc_id(void);          // 分配下一个可用预约ID (>=6)
-#else
-static inline u8 lb_schedule_alloc_id(void) { return 6; }  // 桥模式: APP分配ID
-#endif
+static inline u8 lb_schedule_alloc_id(void) { return 6; }  // 预约 ID 由 APP 分配, 本地固定返回起始值
 
 /** @brief 获取指定模式的预设温度档位 */
 u8 lunchbox_mode_get_temp(u8 mode);
@@ -574,44 +404,10 @@ u8 lb_ble_cmd_to_uart_cmd(u8 ble_cmd);
  */
 u8 lb_uart_cmd_to_ble_cmd(u8 uart_cmd, bool is_async);
 
-/**
- * @brief BLE帧数据 → UART帧数据翻译
- * @param rx        BLE 接收帧(已解析)
- * @param out_buf   输出缓冲区
- * @param out_len   输出数据长度
- * @return true=翻译成功, false=不转发
- */
-bool lb_translate_ble_to_uart(lb_rx_frame_t *rx, u8 *out_buf, u16 *out_len);
+/* 数据级翻译 lb_translate_ble_data_to_uart / lb_translate_uart_data_to_ble
+ * 声明见 func_lunchbox_bridge.h (下方 include) */
 
-/**
- * @brief UART帧数据 → BLE帧数据翻译
- * @param rx        UART 接收帧(已解析)
- * @param out_buf   输出缓冲区
- * @param out_len   输出数据长度
- * @return true=翻译成功, false=不转发
- */
-bool lb_translate_uart_to_ble(lb_rx_frame_t *rx, u8 *out_buf, u16 *out_len);
-
-//-----------------------------------------------------------------------------
-// 自测
-//-----------------------------------------------------------------------------
-
-/**
- * @brief 自测函数：上电发测试字符串 + 注册 echo 处理器
- *
- * 在初始化后调用一次即可验证串口收发链路。
- * 同时在 UART1 发送 LUNCHBOX_UART_OK\r\n 和注册命令 echo。
- */
-void func_lunchbox_uart_test(void);
-
-//-----------------------------------------------------------------------------
-// BLE 通道接口
-//-----------------------------------------------------------------------------
-
-/** @brief BLE 发送回调函数类型 */
-typedef void (*lb_ble_tx_fn_t)(u8 *data, u16 len);
-
-/* BLE 接收/分发接口见 func_lunchbox_ble_app.h (下方 include) */
+/* BLE 通道注册见 func_lunchbox_ble_app.h (下方 include) */
 
 // 子系统 API (拆分后的独立模块)
 #include "func_lunchbox_lcd.h"

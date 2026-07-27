@@ -672,9 +672,7 @@ void func_new_warm_ble_restart(void)
     f->start_tick = tick_get();
     f->last_progress_idx = 0xff;
     f->last_elapsed_min = 0;
-#if LB_BRIDGE_MODE
     lb_heat_uart_remote_set(true);
-#endif
     new_warm_heating_start(f);
     printf("new_warm_ble_restart: ok\n");
 }

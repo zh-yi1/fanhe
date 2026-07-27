@@ -2,7 +2,7 @@
  * @file    func_lunchbox_bridge.c
  * @brief   饭盒协议翻译层实现 (BLE ↔ UART)
  *
- * 桥模式(LB_BRIDGE_MODE=1): BLE ↔ UART 双向翻译。
+ * BLE ↔ UART 双向翻译。
  *
  * BLE→UART 翻译:
  *   - 命令字映射: 0x01→0x01, 0x02→0x01, 0x04→0x01, 0x05→0x02, 0x06~0x08→0x03, ...
@@ -72,7 +72,7 @@ u8 lb_uart_cmd_to_ble_cmd(u8 uart_cmd, bool is_async)
 /**
  * @brief BLE帧数据 → UART帧数据翻译
  */
-static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *out_len)
+bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *out_len)
 {
     *out_len = 0;
 
@@ -230,44 +230,9 @@ static bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *
 }
 
 /**
- * @brief BLE帧 → UART帧 (完整帧, 含帧头+校验)
- */
-bool lb_translate_ble_to_uart(lb_rx_frame_t *rx, u8 *out_buf, u16 *out_len)
-{
-    u8 uart_cmd = lb_ble_cmd_to_uart_cmd(rx->cmd);
-    if (uart_cmd == 0x00) return false;
-
-    u8 data_buf[LB_TXBUF_SIZE];
-    u16 data_len = 0;
-    if (!lb_translate_ble_data_to_uart(rx, data_buf, &data_len)) return false;
-
-    // 组 UART 帧
-    u16 off = 0;
-    out_buf[off++] = (u8)(LB_FRAME_HEADER >> 8);   // 0x55
-    out_buf[off++] = (u8)LB_FRAME_HEADER;           // 0xaa
-    out_buf[off++] = LB_FRAME_VERSION;
-    out_buf[off++] = rx->msg_flag;
-    out_buf[off++] = uart_cmd;
-    out_buf[off++] = LB_ERR_SUCCESS;
-    out_buf[off++] = (u8)(data_len >> 8);
-    out_buf[off++] = (u8)(data_len & 0xFF);
-    if (data_len > 0) {
-        memcpy(out_buf + off, data_buf, data_len);
-        off += data_len;
-    }
-    out_buf[off] = lb_checksum(out_buf, off);
-    *out_len = off + 1;
-
-    lb_uart_sync_pending = true;
-    lb_pending_ble_cmd[rx->msg_flag] = rx->cmd;
-
-    return true;
-}
-
-/**
  * @brief UART帧数据 → BLE帧数据翻译
  */
-static bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out_data, u16 *out_len)
+bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out_data, u16 *out_len)
 {
     *out_len = 0;
 
@@ -342,59 +307,6 @@ static bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out
     default:
         return false;
     }
-}
-
-/**
- * @brief UART帧 → BLE帧 (完整帧, 含帧头+校验)
- */
-bool lb_translate_uart_to_ble(lb_rx_frame_t *rx, u8 *out_buf, u16 *out_len)
-{
-    bool is_async = false;
-    u8 ble_cmd = 0;
-
-    // 直接按 msg_flag 查 BLE cmd 映射 (msg_flag 唯一索引, 无需门控)
-    ble_cmd = lb_pending_ble_cmd[rx->msg_flag];
-    if (ble_cmd != 0) {
-        lb_pending_ble_cmd[rx->msg_flag] = 0;
-    }
-
-    if (ble_cmd == 0) {
-        if (rx->cmd == LB_UART_CMD_DYNAMIC) {
-            is_async = true;
-            ble_cmd = LB_CMD_STATUS_REPORT;
-        } else {
-            ble_cmd = lb_uart_cmd_to_ble_cmd(rx->cmd, false);
-        }
-    }
-
-    if (ble_cmd == 0x00) return false;
-
-    u8 data_buf[LB_TXBUF_SIZE];
-    u16 data_len = 0;
-    if (!lb_translate_uart_data_to_ble(rx, ble_cmd, data_buf, &data_len)) return false;
-
-    // 组 BLE 帧
-    u16 off = 0;
-    out_buf[off++] = (u8)(LB_FRAME_HEADER >> 8);
-    out_buf[off++] = (u8)LB_FRAME_HEADER;
-    out_buf[off++] = LB_FRAME_VERSION;
-    out_buf[off++] = is_async ? lb_async_msg_flag++ : rx->msg_flag;
-    out_buf[off++] = ble_cmd;
-    out_buf[off++] = rx->err_flag;
-    out_buf[off++] = (u8)(data_len >> 8);
-    out_buf[off++] = (u8)(data_len & 0xFF);
-    if (data_len > 0) {
-        memcpy(out_buf + off, data_buf, data_len);
-        off += data_len;
-    }
-    out_buf[off] = lb_checksum(out_buf, off);
-    *out_len = off + 1;
-
-    printf("UART->BLE[%d]: ", *out_len);
-    for (u16 i = 0; i < *out_len; i++) printf("%02X ", out_buf[i]);
-    printf("\n");
-
-    return true;
 }
 
 #endif // FUNC_LUNCHBOX_UART_EN

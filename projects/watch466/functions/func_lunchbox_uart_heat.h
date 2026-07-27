@@ -20,6 +20,7 @@
 #define __FUNC_LUNCHBOX_UART_HEAT_H
 
 #include "include.h"
+#include "func_lunchbox_proto.h"   // lb_rx_frame_t / 帧常量
 
 #if FUNC_LUNCHBOX_UART_EN
 

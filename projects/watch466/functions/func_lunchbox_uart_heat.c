@@ -19,8 +19,12 @@
  */
 #include "include.h"
 #include "func_lunchbox_uart.h"
+#include "func_lunchbox_uart_link.h"
 #include "func_lunchbox_uart_internal.h"
 #include "func_lunchbox_uart_heat.h"
+
+/* 单帧最大升级数据: 128B 包 + mod16 补齐余量 (与 packet_buf 尺寸一致) */
+#define HEAT_OTA_UART_MAX_DATA      (HEAT_OTA_PACKET_SIZE + 16)
 #include "func.h"      // elunchbox_guioff_sleep_delay_reset()
 
 #if FUNC_LUNCHBOX_UART_EN
@@ -404,40 +408,37 @@ static bool heat_ota_crc_step(void)
     return false;
 }
 
-/** @brief 构建并发送 UART OTA 帧到加热模块 */
+/** @brief 构建并发送 UART OTA 帧到加热模块
+ *  @note  走协议层组帧 + 收发层直发, 刻意绕过 stop-and-wait 队列和 tx 门控:
+ *         OTA 自带 3s 超时/3 次重试状态机, 且常在充电 RX-only 场景下运行 */
 static void heat_ota_uart_send(u32 offset, const u8 *data, u16 data_len, u8 msg_flag)
 {
-    u8 buf[LB_TXBUF_SIZE];
-    u16 off = 0;
+    u8  payload[4 + HEAT_OTA_UART_MAX_DATA];   // offset(4B, BE) + 升级数据
+    u16 plen = 0;
 
-    buf[off++] = (u8)(LB_FRAME_HEADER >> 8);  // 0x55
-    buf[off++] = (u8)LB_FRAME_HEADER;          // 0xAA
-    buf[off++] = LB_FRAME_VERSION;
-    buf[off++] = msg_flag;
-    buf[off++] = LB_UART_CMD_OTA;              // 0x04
-    buf[off++] = 0x00;                         // err_flag
-
-    u16 total_len = 4 + data_len;  // offset(4) + data
-    buf[off++] = (u8)(total_len >> 8);
-    buf[off++] = (u8)(total_len & 0xFF);
-
-    buf[off++] = (u8)(offset >> 24);           // offset BE
-    buf[off++] = (u8)(offset >> 16);
-    buf[off++] = (u8)(offset >> 8);
-    buf[off++] = (u8)(offset);
-
+    payload[plen++] = (u8)(offset >> 24);
+    payload[plen++] = (u8)(offset >> 16);
+    payload[plen++] = (u8)(offset >> 8);
+    payload[plen++] = (u8)(offset);
     if (data && data_len) {
-        memcpy(buf + off, data, data_len);
-        off += data_len;
+        if (data_len > HEAT_OTA_UART_MAX_DATA) {
+            data_len = HEAT_OTA_UART_MAX_DATA;
+        }
+        memcpy(payload + plen, data, data_len);
+        plen += data_len;
     }
 
-    buf[off] = lb_checksum(buf, off);
-    off++;
+    u8  buf[LB_TXBUF_SIZE];
+    u16 off = lb_proto_build_frame(buf, LB_UART_CMD_OTA, msg_flag,
+                                   LB_ERR_SUCCESS, payload, plen);
+    if (!off) {
+        return;
+    }
 
     printf("UART==>TX[%u]: ", off);
     print_r(buf, off);
 
-    uart_bufs_tx(UART_TYPE_1, buf, off);
+    lb_link_tx(buf, off);
 
     g_heat_ota.uart_send_tick = tick_get();
 }

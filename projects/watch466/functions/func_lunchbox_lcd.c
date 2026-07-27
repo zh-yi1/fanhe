@@ -163,14 +163,6 @@ bool lunchbox_heating_task_active(void)
     if (lb_heat_lcd_active || lb_keep_warm_active || lb_heat_task_active) {
         return true;
     }
-#if !LB_BRIDGE_MODE
-    if (lb_attr_heat_enable) {
-        return true;
-    }
-    if (lb_attr_heat_mode != 0 && lb_attr_remain_time > 0) {
-        return true;
-    }
-#endif
     return false;
 }
 
@@ -203,13 +195,8 @@ u8 lunchbox_mode_get_duration(u8 mode) {
     return (mode <= 5) ? lb_mode_duration[mode] : 0;
 }
 
-#if LB_BRIDGE_MODE
 u8 lunchbox_get_heat_mode(void)   { return 0; }
 u8 lunchbox_get_heat_enable(void) { return 0; }
-#else
-u8 lunchbox_get_heat_mode(void)   { return lb_attr_heat_mode; }
-u8 lunchbox_get_heat_enable(void) { return lb_attr_heat_enable; }
-#endif
 
 //-----------------------------------------------------------------------------
 // 加热控制
@@ -260,13 +247,6 @@ heat_start_local_done:
     func_key_lock_on_heating_start();
 #endif
 
-#if !LB_BRIDGE_MODE
-    lb_attr_heat_mode     = mode;
-    lb_attr_heat_temp     = temp;
-    lb_attr_heat_duration = duration;
-    lb_attr_heat_enable   = 1;
-    lunchbox_report_all_attrs();
-#endif
 }
 
 /**
@@ -284,10 +264,6 @@ void lunchbox_heat_stop(void)
 #if ELUNCHBOX_PANEL_EN
     if (lb_heat_skip_uart_tx()) {
         printf("lb: heat_stop skipped UART (MCU/RX-only)\n");
-#if !LB_BRIDGE_MODE
-        lb_attr_heat_enable = 0;
-        lb_attr_heat_mode   = 0;
-#endif
         return;
     }
 #endif
@@ -300,11 +276,6 @@ void lunchbox_heat_stop(void)
     u16 data_len = (u16)(p - data);
     lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, data_len, false);
 
-#if !LB_BRIDGE_MODE
-    lb_attr_heat_enable = 0;
-    lb_attr_heat_mode   = 0;
-    lunchbox_report_all_attrs();
-#endif
 }
 
 /** @brief MCU 已控制加热时仅同步本地状态，不向加热模块回发 UART */
@@ -316,12 +287,6 @@ void lunchbox_heat_start_local(u8 mode, u8 temp, u32 duration)
     lb_keep_warm_active = (mode == LB_KEEP_WARM_MODE);
     lb_heat_lcd_active = true;
     lb_heat_task_active = true;
-#if !LB_BRIDGE_MODE
-    lb_attr_heat_mode     = mode;
-    lb_attr_heat_temp     = temp;
-    lb_attr_heat_duration = duration;
-    lb_attr_heat_enable   = 1;
-#endif
 #if ELUNCHBOX_PANEL_EN
     if (!elunchbox_pwr_is_manual_off()
         && (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta)) {
@@ -344,10 +309,6 @@ void lunchbox_heat_clear_local(void)
     lb_heat_lcd_active = false;
     lb_heat_task_active = false;
     lb_keep_warm_msg_flag = 0;   /* 本地清暖状态时同步清标记，避免下次判重误跳过 */
-#if !LB_BRIDGE_MODE
-    lb_attr_heat_enable = 0;
-    lb_attr_heat_mode   = 0;
-#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -383,7 +344,6 @@ void lunchbox_keep_warm_apply(void)
         temp_idx = lunchbox_temp_f_to_idx(LB_KEEP_WARM_TEMP_F);
     }
 
-#if LB_BRIDGE_MODE
     if (lb_heat_uart_remote_consume()) {
 #if ELUNCHBOX_PANEL_EN
         lunchbox_warm_mark_active();
@@ -391,7 +351,6 @@ void lunchbox_keep_warm_apply(void)
         printf("keep_warm_apply: bridge skip UART temp_idx=%u\n", temp_idx);
         return;
     }
-#endif
     lunchbox_heat_start(LB_KEEP_WARM_MODE, temp_idx, LB_KEEP_WARM_DURATION_MIN);
 }
 
@@ -562,12 +521,11 @@ static u32 lb_next_time_of_day(u8 hour, u8 min)
  * @brief BLE 连接后发送5个固定预约预设到加热模块 (UART 0x03)
  *
  * 桥模式: 通过 UART 0x03 发往加热模块 (ID 1~5 固定不可改)。
- * 本地模式: 预设已在 lb_local_init_presets() 中初始化到 lb_schedules[]，
+ * 预设由 BLE 连接后经 UART 0x03 下发到加热模块，
  *           此处只需向 APP 上报当前预约列表即可。
  */
 void lunchbox_ble_send_presets(void)
 {
-#if LB_BRIDGE_MODE
     // 守护: 未收到 APP 权威时间戳前不发预设, 避免时间偏差
     if (!lb_has_ble_ts) {
         //printf("BLE: presets skipped, no synced timestamp yet\n");
@@ -589,11 +547,6 @@ void lunchbox_ble_send_presets(void)
                               lb_get_unix_time(), temp_idx, 60, 0, 0xff);
 
     printf("BLE connected: 5 presets sent to heat module via UART 0x03\n");
-#else
-    // 本地模式: 预设已在 lunchbox_uart_init() → lb_local_init_presets() 中初始化
-    // 后续用户新增预约 ID 从 6 开始 (lb_next_schedule_id = 6)
-    printf("BLE connected: local mode, presets already initialized (ID 1~5)\n");
-#endif
 }
 
 /**
@@ -722,9 +675,7 @@ static void lunchbox_ble_goto_heat_panel(u8 proto_mode, u16 temp_f, u8 hour, u8 
     } else {
         lb_heat_autostart_set(true);
     }
-#if LB_BRIDGE_MODE
     lb_heat_uart_remote_set(true);
-#endif
     func_elunchbox_switch_to_heat_panel();
 }
 
@@ -732,9 +683,7 @@ static void lunchbox_ble_goto_heat_panel(u8 proto_mode, u16 temp_f, u8 hour, u8 
 static void lunchbox_ble_goto_warm_panel(u8 temp_idx)
 {
     lunchbox_keep_warm_set_temp_idx(temp_idx);
-#if LB_BRIDGE_MODE
     lb_heat_uart_remote_set(true);
-#endif
     func_elunchbox_switch_to_warm_panel();
 }
 

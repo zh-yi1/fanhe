@@ -1692,7 +1692,7 @@ void func_process(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     /* UART 必须在 sleep_process 之前处理：预约加热来的指令先解析
-       → lb_attr_heat_enable=1 → elunchbox_heating_blocks_idle()=true
+       → lb_heat_task_active=true → elunchbox_heating_blocks_idle()=true
        → sleep_process 内的自动关屏判断才能正确跳过，避免"先关屏再唤醒"的抖动 */
     if (!guioff) {
         lunchbox_uart_process();
