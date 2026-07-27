@@ -106,6 +106,7 @@ SOURCES=(
     functions/func_lunchbox_proto.c functions/func_lunchbox_lcd.c
     functions/func_lunchbox_ble_app.c functions/func_lunchbox_bridge.c
     functions/func_lunchbox_ota.c functions/func_lunchbox_uart_heat.c
+    functions/func_lunchbox_off.c functions/func_lunchbox_wake.c
     functions/func_mode.c functions/func_reservation.c
     functions/func_setup.c functions/func_timeing.c functions/func_languageing.c
     functions/func_verinfo.c
