@@ -611,16 +611,11 @@ void func_lunchbox_uart_test(void);
 /** @brief BLE 发送回调函数类型 */
 typedef void (*lb_ble_tx_fn_t)(u8 *data, u16 len);
 
-/** @brief 注册 BLE 发送函数 */
-void lunchbox_ble_set_tx_fn(lb_ble_tx_fn_t fn);
-
-/** @brief 处理 BLE 接收到的饭盒协议帧，自动校验+分发给命令处理器/翻译转发 */
-void lunchbox_ble_rx_handle(u8 *data, u16 len);
-bool lunchbox_ble_rx_pending(void);     // 累积缓冲区是否有待处理数据
+/* BLE 接收/分发接口见 func_lunchbox_ble_app.h (下方 include) */
 
 // 子系统 API (拆分后的独立模块)
 #include "func_lunchbox_lcd.h"
-#include "func_lunchbox_ble.h"
+#include "func_lunchbox_ble_app.h"
 #include "func_lunchbox_bridge.h"
 #include "func_lunchbox_ota.h"
 #include "func_lunchbox_uart_heat.h"

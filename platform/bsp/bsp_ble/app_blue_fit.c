@@ -33,12 +33,19 @@
 /**
  * ble rx buf set
  */
-#if SECURITY_PAY_EN && SECURITY_TRANSITCODE_EN
+// #if SECURITY_PAY_EN && SECURITY_TRANSITCODE_EN
+// #define BLE_CMD_BUF_LEN         4
+// #else
+// #define BLE_CMD_BUF_LEN         6
+// #endif
 #define BLE_CMD_BUF_LEN         4
-#else
-#define BLE_CMD_BUF_LEN         6
-#endif
 #define BLE_CMD_BUF_MASK        (BLE_CMD_BUF_LEN - 1)
+/* 容量必须是 2 的幂: 读写指针靠 &BLE_CMD_BUF_MASK 折算下标,
+ * 非 2 的幂时该掩码不等价于取模(如 LEN=6 时 MASK=5, 下标退化成
+ * 0,1,0,1,4,5,4,5 —— 槽 2/3 永不使用, 第 3 包就覆盖第 1 包) */
+#if (BLE_CMD_BUF_LEN & BLE_CMD_BUF_MASK)
+#error "BLE_CMD_BUF_LEN must be a power of two"
+#endif
 #define BLE_RX_BUF_LEN          256
 
 struct ble_cmd_t {
@@ -48,7 +55,7 @@ struct ble_cmd_t {
 };
 
 struct ble_cmd_cb_t {
-    struct ble_cmd_t cmd[BLE_CMD_BUF_LEN];  // 环形缓冲区数组 (6个槽位)
+    struct ble_cmd_t cmd[BLE_CMD_BUF_LEN];  // 环形缓冲区数组 (4个槽位)
     u8 cmd_rptr;                            // 读指针 (主循环消费)
     u8 cmd_wptr;                            // 写指针 (中断产生)
     bool wakeup;                            // 是否有新数据待处理
@@ -536,7 +543,7 @@ void ble_app_watch_process(void)
         return;
     }
 
-    u8 rptr = ble_cmd_cb.cmd_rptr & BLE_CMD_BUF_MASK;  //&5等价于%6（取模运算），把不断递增的读指针映射回 0~5 的数组下标
+    u8 rptr = ble_cmd_cb.cmd_rptr & BLE_CMD_BUF_MASK;  //&3等价于%4（取模运算），把不断递增的读指针映射回 0~3 的数组下标
     ble_cmd_cb.cmd_rptr++;
     u8 *ptr = ble_cmd_cb.cmd[rptr].buf;                //取出指向本次数据内容的指针
     u8 len = ble_cmd_cb.cmd[rptr].len;                 //取出数据长度（字节数）
@@ -550,6 +557,42 @@ void ble_app_watch_process(void)
         gatt_alipay_rx(ptr, len);
     }
 #endif
+}
+
+/**
+ * @brief 取出一包饭盒协议数据 (供 func_lunchbox_ble_app.c 在主循环调用)
+ *
+ * 饭盒协议的接收/分析已整体迁到 func_lunchbox_ble_app.c，主循环不再走
+ * ble_app_watch_process()。本函数是平台侧唯一对外出口：只负责从
+ * gatt_callback_app() 填好的环形缓冲区里取一包并**拷贝**给调用者。
+ *
+ * 拷贝而不是返回槽内指针，是为了避免解析期间蓝牙中断覆写同一个槽。
+ *
+ * @param[out] out  接收缓冲区
+ * @param[in]  cap  接收缓冲区容量
+ * @return 本包字节数; 0 表示队列已空
+ */
+u16 ble_app_lunchbox_rx_pop(u8 *out, u16 cap)
+{
+    while (ble_cmd_cb.cmd_rptr != ble_cmd_cb.cmd_wptr) {
+        u8  rptr   = ble_cmd_cb.cmd_rptr & BLE_CMD_BUF_MASK;
+        u16 len    = ble_cmd_cb.cmd[rptr].len;
+        u16 handle = ble_cmd_cb.cmd[rptr].handle;
+
+        if (handle != gatts_rx_base.handle) {   //非饭盒通道: 跳过
+            ble_cmd_cb.cmd_rptr++;
+            continue;
+        }
+        if (len > cap) {
+            len = cap;
+        }
+        memcpy(out, ble_cmd_cb.cmd[rptr].buf, len);
+        ble_cmd_cb.cmd_rptr++;                  //拷完再释放槽位
+        return len;
+    }
+
+    ble_cmd_cb.wakeup = false;                  //队列空, 清唤醒标志
+    return 0;
 }
 
 AT(.com_text.sleep.app.wakeup)

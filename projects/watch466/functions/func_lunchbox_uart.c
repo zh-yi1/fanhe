@@ -15,7 +15,7 @@
 #include "func_lunchbox_bridge.h"
 #include "func_lunchbox_uart_heat.h"
 #include "home_ui_shared.h"
-#include "func_lunchbox_ble.h"
+#include "func_lunchbox_ble_app.h"
 #include "func_lunchbox_partition.h"
 
 #include "func_lunchbox_lcd.h"
