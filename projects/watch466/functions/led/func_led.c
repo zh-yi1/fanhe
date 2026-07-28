@@ -15,13 +15,13 @@
  * ============================================================================
  *
  *  PT8028S (U3) 8 通道电容触摸 → AB5790T (U2) PE1~PE4 BCD 接口
- *  面板 LED1~LED6 (白色 0603) → AB5790T PB4~PB9 GPIO 直驱 (510R 限流)
+ *  面板 LED1~LED6 (白色 0603) → AB5790T PB0/PB1/PB2/PB5/PB6/PB7 GPIO 直驱
  *
  *  原理图接线：
- *    TCH0 锁键   → LED5 (PB8)     TCH1 加热   → LED6 (PB9)
- *    TCH2 减号   → 无 LED          TCH3 模式   → LED3 (PB6)
- *    TCH4 确认   → LED2 (PB5)     TCH5 开关   → LED1 (PB4)
- *    TCH6 加号   → 无 LED          TCH7 预约   → LED4 (PB7)
+ *    TCH0 锁键   → LED5 (PB6)     TCH1 加热   → LED6 (PB7)
+ *    TCH2 减号   → 无 LED          TCH3 模式   → LED3 (PB2)
+ *    TCH4 确认   → LED2 (PB1)     TCH5 开关   → LED1 (PB0)
+ *    TCH6 加号   → 无 LED          TCH7 预约   → LED4 (PB5)
  *
  *  行为：单灯模式 — 按下哪个键亮哪个灯，松开全灭，同时只亮一盏。
  * ============================================================================
@@ -29,27 +29,27 @@
 
 /* ---- TCH → LED ID 映射表 (PT8028_KEY_TCH0 ~ TCH7) ---- */
 static const u8 tbl_tch_to_led[8] = {
-    FUNC_LED_ID_LOCK,       /* TCH0 锁键   → LED5 (PB8) */
-    FUNC_LED_ID_HEAT,       /* TCH1 加热   → LED6 (PB9) */
+    FUNC_LED_ID_LOCK,       /* TCH0 锁键   → LED5 (PB6) */
+    FUNC_LED_ID_HEAT,       /* TCH1 加热   → LED6 (PB7) */
     FUNC_LED_NONE,          /* TCH2 减号   → 无 LED      */
-    FUNC_LED_ID_MODE,       /* TCH3 模式   → LED3 (PB6) */
-    FUNC_LED_ID_OK,         /* TCH4 确认   → LED2 (PB5) */
-    FUNC_LED_ID_SWITCH,     /* TCH5 开关   → LED1 (PB4) */
+    FUNC_LED_ID_MODE,       /* TCH3 模式   → LED3 (PB2) */
+    FUNC_LED_ID_OK,         /* TCH4 确认   → LED2 (PB1) */
+    FUNC_LED_ID_SWITCH,     /* TCH5 开关   → LED1 (PB0) */
     FUNC_LED_NONE,          /* TCH6 加号   → 无 LED      */
-    FUNC_LED_ID_RES,        /* TCH7 预约   → LED4 (PB7) */
+    FUNC_LED_ID_RES,        /* TCH7 预约   → LED4 (PB5) */
 };
 
 /* ---- LED ID → GPIO 表 (索引 = id - 1) ---- */
 static const u8 tbl_led_gpio[FUNC_LED_ID_CNT] = {
-    FUNC_LED1_GPIO,         /* LED1 PB4 — 开关 */
-    FUNC_LED2_GPIO,         /* LED2 PB5 — 确认 */
-    FUNC_LED3_GPIO,         /* LED3 PB6 — 模式 */
-    FUNC_LED4_GPIO,         /* LED4 PB7 — 预约 */
-    FUNC_LED5_GPIO,         /* LED5 PB8 — 童锁 */
-    FUNC_LED6_GPIO,         /* LED6 PB9 — 加热 */
+    FUNC_LED1_GPIO,         /* LED1 PB0 — 开关 */
+    FUNC_LED2_GPIO,         /* LED2 PB1 — 确认 */
+    FUNC_LED3_GPIO,         /* LED3 PB2 — 模式 */
+    FUNC_LED4_GPIO,         /* LED4 PB5 — 预约 */
+    FUNC_LED5_GPIO,         /* LED5 PB6 — 童锁 */
+    FUNC_LED6_GPIO,         /* LED6 PB7 — 加热 */
 };
 
-static u8 led_last_tch;     /* 上次点亮的 TCH，去抖用 */
+static u8 led_last_tch;     /* 上次点亮的 TCH，去抖用。初始化为哨兵值避免与 PT8028_KEY_NONE(0xFF) 碰撞导致首帧跳过 */
 
 /* ---- 底层 GPIO 操作 ---- */
 static void led_gpio_set(u8 gpio, bool on)
@@ -67,13 +67,15 @@ static void led_gpio_set(u8 gpio, bool on)
     port_gpio_set_out(gpio, level);
 }
 
+#define LED_TCH_SENTINEL               0xFE    /* 不等于任何有效 TCH(0~7) 也不同于 NONE(0xFF) */
+
 /* ---- 公开 API ---- */
 
 void func_led_init(void)
 {
     u8 i;
 
-    led_last_tch = PT8028_KEY_NONE;
+    led_last_tch = LED_TCH_SENTINEL;
     for (i = 0; i < FUNC_LED_ID_CNT; i++) {
         led_gpio_set(tbl_led_gpio[i], false);
     }
