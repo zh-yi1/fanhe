@@ -1,6 +1,20 @@
 #ifndef _GENERAL_UI_H
 #define _GENERAL_UI_H
 
+/* 加热页共享参数（定义在 func_heat_set_page.c） */
+typedef struct {
+    u16 temp;
+    u16 time_min;
+    u16 keep_warm_min;
+} ui_heat_t;
+extern ui_heat_t g_ui_heat;
+
+/* 系统级 UI 状态（定义在 func_home_page.c） */
+typedef struct {
+    u8 reserved;
+} ui_sys_t;
+extern ui_sys_t g_ui_sys;
+
 /* 通用顶部状态栏：时间、页面名、蓝牙、电量（含充电动画）
  * 使用方式：
  *   1. 在 xxx_form_create() 中调用 general_status_bar_create()
