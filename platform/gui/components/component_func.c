@@ -115,7 +115,7 @@ void compo_set_bonddata(component_t *compo, tm_t tm)
     case COMPO_BOND_WEEKDAY:
         value = tm.weekday;
         sprintf(value_str, "%d", value);
-        strcpy(value_str, i18n[STR_SUNDAY + value]);
+        //strcpy(value_str, i18n[STR_SUNDAY + value]);
         break;
 
     case COMPO_BOND_HOUR:
@@ -244,7 +244,7 @@ void compo_set_bonddata(component_t *compo, tm_t tm)
 
     case COMPO_BOND_WEATHER:
         value = sys_cb.weather_idx;
-        sprintf(value_str, "%s", i18n[STR_CLOUDY + value]);
+       // sprintf(value_str, "%s", i18n[STR_CLOUDY + value]);
         break;
 
     case COMPO_BOND_ATMOMS:
