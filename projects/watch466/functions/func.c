@@ -228,7 +228,9 @@ void func_process(void)
     if(bt_cb.bt_is_inited) {
         bt_thread_check_trigger();
 #if LE_EN
-        ble_app_process();
+        /* 饭盒协议接收/分发在 functions/comm/lb_ble_app.c,
+         * 不再经过 ble_app_process() → ble_app_watch_process() 那条老链路 */
+        lunchbox_ble_process();
 #endif
 #if LE_AB_FOT_EN
     	bsp_fot_process();

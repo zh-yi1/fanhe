@@ -1,6 +1,9 @@
 #include "include.h"
 #include "app_ab_link.h"
 
+/* home_ui_shared BLE 连接状态通知: 新 UI 尚无该模块, 待接入
+ * (elunchbox 原为 #include "home_ui_shared.h" + home_ui_shared_ble_link_notify) */
+
 #if SECURITY_PAY_EN
 #include "alipay_bind.h"
 #endif
@@ -22,35 +25,45 @@
 #define MAX_NOTIFY_LEN          110    //max=247
 #else
 #define MAX_NOTIFY_NUM          4
-#define MAX_NOTIFY_LEN          69     //max=247
+#define MAX_NOTIFY_LEN          247    //max=247, 饭盒协议帧需82+字节
 #endif
 #define NOTIFY_POOL_SIZE       (MAX_NOTIFY_LEN + sizeof(struct txbuf_tag)) * MAX_NOTIFY_NUM
 
 /**
  * ble rx buf set
  */
-#if SECURITY_PAY_EN && SECURITY_TRANSITCODE_EN
+// #if SECURITY_PAY_EN && SECURITY_TRANSITCODE_EN
+// #define BLE_CMD_BUF_LEN         4
+// #else
+// #define BLE_CMD_BUF_LEN         6
+// #endif
 #define BLE_CMD_BUF_LEN         4
-#else
-#define BLE_CMD_BUF_LEN         6
-#endif
 #define BLE_CMD_BUF_MASK        (BLE_CMD_BUF_LEN - 1)
+/* 容量必须是 2 的幂: 读写指针靠 &BLE_CMD_BUF_MASK 折算下标,
+ * 非 2 的幂时该掩码不等价于取模(如 LEN=6 时 MASK=5, 下标退化成
+ * 0,1,0,1,4,5,4,5 —— 槽 2/3 永不使用, 第 3 包就覆盖第 1 包) */
+#if (BLE_CMD_BUF_LEN & BLE_CMD_BUF_MASK)
+#error "BLE_CMD_BUF_LEN must be a power of two"
+#endif
 #define BLE_RX_BUF_LEN          256
 
 struct ble_cmd_t {
     u8 len;
-    u16 handle;
-    u8 buf[BLE_RX_BUF_LEN];
+    u16 handle;                //哪个 GATT 特征值被写入
+    u8 buf[BLE_RX_BUF_LEN];    //数据内容 BLE_RX_BUF_LEN --> 256
 };
 
 struct ble_cmd_cb_t {
-    struct ble_cmd_t cmd[BLE_CMD_BUF_LEN];
-    u8 cmd_rptr;
-    u8 cmd_wptr;
-    bool wakeup;
+    struct ble_cmd_t cmd[BLE_CMD_BUF_LEN];  // 环形缓冲区数组 (4个槽位)
+    u8 cmd_rptr;                            // 读指针 (主循环消费)
+    u8 cmd_wptr;                            // 写指针 (中断产生)
+    bool wakeup;                            // 是否有新数据待处理
 };
 
 static int gatt_callback_app(uint16_t con_handle, uint16_t handle, uint32_t flag, uint8_t *ptr, uint16_t len);
+#if LE_AB_FOT_EN
+static int gatt_callback_fota(uint16_t con_handle, uint16_t handle, uint32_t flag, uint8_t *ptr, uint16_t len);
+#endif
 #if LE_SERVICE_CHANGED
 static int gatt_service_changed_callback(uint16_t con_handle, uint16_t handle, uint32_t flag, uint8_t *ptr, uint16_t len);
 #endif
@@ -80,24 +93,24 @@ static const uint8_t scan_data_const[] = {
 };
 
 static const uint8_t uart_service_primay_uuid128[16] = {
-    0x9d, 0xca, 0xdc, 0x24,
-    0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5,
-    0x01, 0x00, 0x40, 0x6e
+    0xfb, 0x34, 0x9b, 0x5f,
+    0x80, 0x00, 0x00, 0x80,
+    0x00, 0x10, 0x00, 0x00,
+    0x30, 0xae, 0x00, 0x00
 };
 
 static const uint8_t tx_uuid128[16] = {
-    0x9d, 0xca, 0xdc, 0x24,
-    0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5,
-    0x03, 0x00, 0x40, 0x6e
+    0xfb, 0x34, 0x9b, 0x5f,
+    0x80, 0x00, 0x00, 0x80,
+    0x00, 0x10, 0x00, 0x00,
+    0x04, 0xae, 0x00, 0x00
 };
 
 static const uint8_t rx_uuid128[16] = {
-    0x9d, 0xca, 0xdc, 0x24,
-    0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5,
-    0x02, 0x00, 0x40, 0x6e
+    0xfb, 0x34, 0x9b, 0x5f,
+    0x80, 0x00, 0x00, 0x80,
+    0x00, 0x10, 0x00, 0x00,
+    0x03, 0xae, 0x00, 0x00
 };
 
 static const gatts_uuid_base_st uuid_tx_primay_base = {
@@ -112,7 +125,7 @@ static const gatts_uuid_base_st gatt_tx_base = {
 };
 
 static const gatts_uuid_base_st gatt_rx_base = {
-    .props = ATT_WRITE_WITHOUT_RESPONSE,
+    .props = ATT_WRITE | ATT_WRITE_WITHOUT_RESPONSE,
     .type = BLE_GATTS_UUID_TYPE_128BIT,
     .uuid = rx_uuid128,
 };
@@ -319,15 +332,36 @@ void ble_txpkt_init(void)
     ble_txpkt_init_with_pool(ble_send_kick, notify_tx_pool, MAX_NOTIFY_NUM, MAX_NOTIFY_LEN);
 }
 
+/**
+ * @brief 通过 BLE Notify 发送数据帧（饭盒 & 普通双协议兼容）
+ *
+ * 双协议兼容处理：
+ *   - 饭盒帧（0x55AA 开头）：帧头本身就是协议标识，不能覆写 buf[0]
+ *   - 普通帧（非饭盒）：SDK 默认格式要求 buf[0] 存放序号(seq_num 0~15)
+ *
+ * 最终调用 ble_tx_notify() 通过 TX Characteristic（...ae04...）发出。
+ *
+ * @param buf  待发送的数据帧
+ * @param len  帧长度
+ * @return ble_tx_notify() 的返回值（0=成功）
+ */
 int app_protocol_tx(u8 *buf, u8 len)
 {
     if (!ble_is_connect()) {
         return false;
     }
 
+    // 饭盒协议帧(0x55AA)不覆写序号，保持帧头完整
+    bool lunchbox_frame = false;
+#if FUNC_LUNCHBOX_UART_EN
+    if (buf[0] == 0x55 && buf[1] == 0xAA)
+        lunchbox_frame = true;
+#endif
+
 #if FUNC_CAMERA_TRANS_EN
 	if ((buf[0] != 0xaa) && (buf[1] != 55))
 #endif
+    if (!lunchbox_frame)
     {
         static u8 seq_num = 0;
         buf[0] = seq_num;
@@ -337,10 +371,14 @@ int app_protocol_tx(u8 *buf, u8 len)
         }
     }
 
-    printf("%s:app_tx:", __func__);
+    printf("BLE==>TX [%d]: ",len);
     print_r(buf, len);
 
-    return ble_tx_notify(gatts_tx_base.handle, buf, len);
+    int ret = ble_tx_notify(gatts_tx_base.handle, buf, len);
+    if (ret != 0) {
+        printf("BLE==>TX FAILED, ret=%d, handle=0x%04x\n", ret, gatts_tx_base.handle);
+    }
+    return ret;
 }
 
 #if SECURITY_TRANSITCODE_EN
@@ -350,6 +388,20 @@ int alipay_iot_socket_tx(u8 *buf, u8 len)
 }
 #endif
 
+/**
+ * @brief BLE Write 回调 — 手机往 RX Characteristic 写数据时触发
+ *
+ * 本函数在蓝牙中断上下文中执行，必须快速返回，不做耗时操作。
+ * 策略：仅拷贝数据到环形缓冲区 ble_cmd_cb，标记 wakeup=true，
+ *       由主循环中的 ble_app_watch_process() 取走并处理。
+ *
+ * @param con_handle  BLE 连接句柄（SDK 内部用）
+ * @param handle      写入的特征值 handle（据此区分是饭盒通道还是支付宝等）
+ * @param flag        操作标志（读/写/通知等）
+ * @param ptr         手机发来的原始数据指针（比如 13 字节的饭盒协议帧）
+ * @param len         数据长度（字节数）
+ * @return 0
+ */
 static int gatt_callback_app(uint16_t con_handle, uint16_t handle, uint32_t flag, uint8_t *ptr, uint16_t len)
 {
     u8 wptr = ble_cmd_cb.cmd_wptr & BLE_CMD_BUF_MASK;
@@ -357,22 +409,46 @@ static int gatt_callback_app(uint16_t con_handle, uint16_t handle, uint32_t flag
 //    printf("BLE_RX len[%d] handle[%d]\n", len, handle);
 //    print_r(ptr, len);
 
-    ble_cmd_cb.cmd_wptr++;
+    ble_cmd_cb.cmd_wptr++;                            //环形缓冲区写指针+1
     if (len > BLE_RX_BUF_LEN) {
         len = BLE_RX_BUF_LEN;
     }
-    memcpy(ble_cmd_cb.cmd[wptr].buf, ptr, len);
-    ble_cmd_cb.cmd[wptr].len = len;
-    ble_cmd_cb.cmd[wptr].handle = handle;
-    ble_cmd_cb.wakeup = true;
+    memcpy(ble_cmd_cb.cmd[wptr].buf, ptr, len);       //将发到单片机的数据拷贝过来
+    ble_cmd_cb.cmd[wptr].len = len;                   //记录数据长度
+    ble_cmd_cb.cmd[wptr].handle = handle;             // 记录是哪个特征值-->写入
+    ble_cmd_cb.wakeup = true;                         //标记有新数据
 
     return 0;
 }
 
+/**
+ * @brief BLE 数据路由分发 — 判断数据该走哪个协议处理
+ *
+ * 数据从 gatt_callback_app() 存入环形缓冲区，由主循环取出后交此函数分发。
+ * 路由规则（按优先级）：
+ *   1. 前两字节 0x55 0xAA → 饭盒协议帧 → lunchbox_ble_rx_handle()
+ *   2. 相机模式帧         → func_camera_jpeg_rx()
+ *   3. 支付宝模式帧       → alipay_iot_socket_rx_callback()
+ *   4. 其他               → ble_uart_service_write()（透传串口）
+ *
+ * @param ptr  数据指针
+ * @param len  数据长度
+ */
 static void ble_app_blue_fit_rx_callback(u8 *ptr, u16 len)
 {
-//    printf("--->app_rx len:%d:\n");
+    //printf("BLE rx len=%d: %02x %02x %02x\n", len, ptr[0], ptr[1], ptr[2]);
 //    print_r(ptr, len);
+
+#if FUNC_LUNCHBOX_UART_EN
+    // 饭盒协议帧：0x55AA 帧头，或缓冲区有待处理数据时继续路由
+    // (文件发送时 BLE 栈按 MTU 分包，后续包不以 55 AA 开头，需依赖 pending 状态)
+    if ((len >= 2 && ptr[0] == 0x55 && ptr[1] == 0xAA)
+        || lunchbox_ble_rx_pending()) {
+        lunchbox_ble_rx_handle(ptr, len);
+        return;
+    }
+#endif
+
 #if FUNC_CAMERA_TRANS_EN
 	if (func_cb.sta == FUNC_CAMERA) {
 		func_camera_jpeg_rx(ptr, len);
@@ -445,28 +521,77 @@ bool ble_fot_send_packet(u8 *buf, u8 len)
 }
 #endif
 
+/**
+ * @brief BLE 接收数据处理 — 主循环中调用，从环形缓冲区取出数据并分发
+ *
+ * 环形缓冲区原理（生产者-消费者模型）：
+ *   - cmd_wptr（写指针）：gatt_callback_app() 写入后递增（中断上下文）
+ *   - cmd_rptr（读指针）：本函数读取后递增（主循环上下文）
+ *   - wptr == rptr → 缓冲区空，无新数据，直接返回
+ *   - wptr != rptr → 有新数据，取出处理
+ *
+ * 根据 handle 区分数据来源：
+ *   - gatts_rx_base.handle   → 饭盒协议通道 → ble_app_blue_fit_rx_callback()
+ *   - alipay_gatts_tx_base   → 支付宝通道    → gatt_alipay_rx()
+ */
 //----------------------------------------------------------------------------
 void ble_app_watch_process(void)
 {
     if (ble_cmd_cb.cmd_rptr == ble_cmd_cb.cmd_wptr) {
-        ble_cmd_cb.wakeup = false;
+        ble_cmd_cb.wakeup = false; //清除唤醒标志-->没数据
         return;
     }
 
-    u8 rptr = ble_cmd_cb.cmd_rptr & BLE_CMD_BUF_MASK;
+    u8 rptr = ble_cmd_cb.cmd_rptr & BLE_CMD_BUF_MASK;  //&3等价于%4（取模运算），把不断递增的读指针映射回 0~3 的数组下标
     ble_cmd_cb.cmd_rptr++;
-    u8 *ptr = ble_cmd_cb.cmd[rptr].buf;
-    u8 len = ble_cmd_cb.cmd[rptr].len;
-    u16 handle = ble_cmd_cb.cmd[rptr].handle;
+    u8 *ptr = ble_cmd_cb.cmd[rptr].buf;                //取出指向本次数据内容的指针
+    u8 len = ble_cmd_cb.cmd[rptr].len;                 //取出数据长度（字节数）
+    u16 handle = ble_cmd_cb.cmd[rptr].handle;          //取出特征值 handle —— 数据是从哪个 GATT Characteristic 写入的。
 
-    if (handle == gatts_rx_base.handle) {
-        ble_app_blue_fit_rx_callback(ptr, len);
+    if (handle == gatts_rx_base.handle) {              //判断通道
+        ble_app_blue_fit_rx_callback(ptr, len);        // → 饭盒协议帧 0x55AA
     }
 #if SECURITY_PAY_EN
     if (handle == alipay_gatts_tx_base.handle) {
         gatt_alipay_rx(ptr, len);
     }
 #endif
+}
+
+/**
+ * @brief 取出一包饭盒协议数据 (供 lb_ble_app.c (functions/comm) 在主循环调用)
+ *
+ * 饭盒协议的接收/分析已整体迁到 lb_ble_app.c (functions/comm)，主循环不再走
+ * ble_app_watch_process()。本函数是平台侧唯一对外出口：只负责从
+ * gatt_callback_app() 填好的环形缓冲区里取一包并**拷贝**给调用者。
+ *
+ * 拷贝而不是返回槽内指针，是为了避免解析期间蓝牙中断覆写同一个槽。
+ *
+ * @param[out] out  接收缓冲区
+ * @param[in]  cap  接收缓冲区容量
+ * @return 本包字节数; 0 表示队列已空
+ */
+u16 ble_app_lunchbox_rx_pop(u8 *out, u16 cap)
+{
+    while (ble_cmd_cb.cmd_rptr != ble_cmd_cb.cmd_wptr) {
+        u8  rptr   = ble_cmd_cb.cmd_rptr & BLE_CMD_BUF_MASK;
+        u16 len    = ble_cmd_cb.cmd[rptr].len;
+        u16 handle = ble_cmd_cb.cmd[rptr].handle;
+
+        if (handle != gatts_rx_base.handle) {   //非饭盒通道: 跳过
+            ble_cmd_cb.cmd_rptr++;
+            continue;
+        }
+        if (len > cap) {
+            len = cap;
+        }
+        memcpy(out, ble_cmd_cb.cmd[rptr].buf, len);
+        ble_cmd_cb.cmd_rptr++;                  //拷完再释放槽位
+        return len;
+    }
+
+    ble_cmd_cb.wakeup = false;                  //队列空, 清唤醒标志
+    return 0;
 }
 
 AT(.com_text.sleep.app.wakeup)
@@ -488,6 +613,23 @@ static int gatt_service_changed_callback(uint16_t con_handle, uint16_t handle, u
 }
 #endif
 
+/**
+ * @brief 注册 BLE GATT 服务 — 构建 MCU 的"属性表"
+ *
+ * GATT 层级结构（类比写字楼）：
+ *   Profile（整栋楼）
+ *   └── Service: 饭盒通信部（UUID ...ae30...）
+ *       ├── Characteristic TX: MCU→手机 Notify（UUID ...ae04...）
+ *       └── Characteristic RX: 手机→MCU Write  （UUID ...ae03...）
+ *
+ * 注册顺序必须严格（SDK 要求）：
+ *   1. ble_gatts_service_add()          — 先创建 Service
+ *   2. ble_gatts_characteristic_add()   — 添加 TX 特征值（ATT_NOTIFY）
+ *   3. ble_gatts_characteristic_add()   — 添加 RX 特征值（ATT_WRITE）
+ *
+ * TX: ATT_NOTIFY → MCU 可主动向手机推送数据，手机订阅后生效
+ * RX: ATT_WRITE | ATT_WRITE_WITHOUT_RESPONSE → 手机可写数据，不需 MCU 确认
+ */
 static void ble_app_gatts_service_init(void)
 {
     int ret = 0;
@@ -497,19 +639,19 @@ static void ble_app_gatts_service_init(void)
     ret |= ble_gatts_service_add(BLE_GATTS_SRVC_TYPE_PRIMARY,
                                  uuid_tx_primay_base.uuid,
                                  uuid_tx_primay_base.type,
-                                 NULL);
+                                 NULL);                        //创建service
 
-    // ret |= ble_gatts_characteristic_add(gatt_tx_base.uuid,
-    //                                     gatt_tx_base.type,
-    //                                     gatt_tx_base.props,
-    //                                     &gatts_tx_base.handle,
-    //                                     &gatts_app_protocol_tx_cb_info);      //characteristic
+    ret |= ble_gatts_characteristic_add(gatt_tx_base.uuid,
+                                         gatt_tx_base.type,
+                                         gatt_tx_base.props,
+                                         &gatts_tx_base.handle,
+                                         &gatts_app_protocol_tx_cb_info);      //characteristic
 
-    // ret |= ble_gatts_characteristic_add(gatt_rx_base.uuid,
-    //                                     gatt_rx_base.type,
-    //                                     gatt_rx_base.props,
-    //                                     &gatts_rx_base.handle,
-    //                                     &gatts_app_protocol_rx_cb_info);      //characteristic
+    ret |= ble_gatts_characteristic_add(gatt_rx_base.uuid,
+                                         gatt_rx_base.type,
+                                         gatt_rx_base.props,
+                                         &gatts_rx_base.handle,
+                                         &gatts_app_protocol_rx_cb_info);      //characteristic
 
 #if SECURITY_PAY_EN
     //alipay
@@ -576,30 +718,88 @@ static void ble_app_gatts_service_init(void)
 
 //----------------------------------------------------------------------------
 //
+#if FUNC_LUNCHBOX_UART_EN
+/**
+ * @brief BLE 发送包装 — 饭盒协议层 → 蓝牙发送的桥梁
+ *
+ * 注册给饭盒协议层（lunchbox_ble_set_tx_fn），使 lb_send_frame()
+ * 组帧后通过本函数走 BLE Notify。
+ * 调用链: lb_send_frame() → lb_ble_tx_wrapper() → app_protocol_tx() → ble_tx_notify()
+ */
+static void lb_ble_tx_wrapper(u8 *data, u16 len) { app_protocol_tx(data, (u8)len); }
+#endif
+
+/**
+ * @brief 蓝牙初始化入口 — 上电时调用一次
+ *
+ * 执行步骤：
+ *   1. 读取芯片 MAC 地址
+ *   2. 拼蓝牙广播名：AR0MA-NY_XXXX（XXXX = MAC 后 2 字节大写）
+ *   3. 把名字写入扫描响应包 → 手机扫描时可见
+ *   4. 注册 GATT Service + TX/RX Characteristic
+ *   5. 告诉饭盒协议层"蓝牙通道可用"（注册 lb_ble_tx_wrapper）
+ *
+ * 此后 lb_send_frame() 组帧后通过 lb_ble_tx_wrapper → ble_tx_notify() 走蓝牙发出。
+ */
 void ble_app_watch_init(void)
 {
-    ble_change_name("ebadges");
+    // 蓝牙名称: AR0MA-NY_xxxx (xxxx = MAC 后两字节大写十六进制)
+    u8 ble_addr[6];
+    char ble_name[16];
+    ble_get_local_bd_addr(ble_addr);
+    sprintf(ble_name, "AR0MA-NY_%02X%02X", ble_addr[4], ble_addr[5]);
+    ble_change_name(ble_name);
+
     ble_app_gatts_service_init();
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_ble_set_tx_fn(lb_ble_tx_wrapper);
+#endif
+
+    // 显式设置 BLE 空口地址为 flash 持久化的固定地址
+    // 避免 SDK 库每次初始化时生成随机地址导致手机无法重连
+    bt_ctrl0_msg(BT_CTL0_BLE_SET_BLE_ADDR);
 }
 
+/**
+ * @brief 蓝牙断开连接回调 — 清除绑定状态
+ */
 void ble_app_watch_disconnect_callback(void)
 {
     bind_sta_set(BIND_NULL);
+    /* TODO: 新 UI 接入 BLE 连接状态通知 (原 home_ui_shared_ble_link_notify) */
 }
 
+/**
+ * @brief 蓝牙连接成功回调 — 当前为空，可在此添加连接后的初始化操作
+ */
 void ble_app_watch_connect_callback(void)
 {
-
+#if FUNC_LUNCHBOX_UART_EN
+    // BLE 连接成功后主动上报时间戳给 APP (蓝牙通讯协议1.0.8 §3.3)
+    // 帧格式: 0x03 状态上报, DataPoint dpid=11(时间戳) value=4B Unix时间戳
+    lunchbox_ble_on_connected();
+#endif
+    /* TODO: 新 UI 接入 BLE 连接状态通知 (原 home_ui_shared_ble_link_notify) */
 }
 
+/**
+ * @brief 客户端配置变更回调 — 手机订阅/取消订阅 Notify 时触发
+ *
+ * @param handle  发生配置变更的特征值 handle
+ * @param cfg     订阅状态：非 0 = 已订阅，0 = 取消订阅
+ *
+ * 手机订阅 TX Notify 后，MCU 才可以通过 ble_tx_notify() 向手机推送数据。
+ */
 void ble_app_watch_client_cfg_callback(u16 handle, u8 cfg)
 {
+    printf("BLE CCCD: handle=0x%04x, cfg=%d (TX handle=0x%04x)\n", handle, cfg, gatts_tx_base.handle);
     if (cfg) {
 #if SECURITY_PAY_EN && SECURITY_TRANSITCODE_EN
         if (func_cb.sta != FUNC_ALIPAY)
 #endif
         {
-            ab_app_sync_info();
+            // 饭盒项目不需要手表状态同步，关闭 ab_app_sync_info
+            // ab_app_sync_info();
         }
     }
 }

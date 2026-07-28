@@ -53,6 +53,7 @@
 			<Add option="-mjump-tables-in-text" />
 			<Add directory="." />
 			<Add directory="functions" />
+			<Add directory="functions/comm" />
 			<Add directory="port" />
 			<Add directory="i18n" />
 			<Add directory="plugin" />
@@ -1216,6 +1217,14 @@
 		<Unit filename="functions/func_watch_stubs.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/comm/lb_proto.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_proto.h" />
+		<Unit filename="functions/comm/lb_ble_app.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_ble_app.h" />
 <Unit filename="functions/func.h" />
 <Unit filename="functions/func_alipay.h" />
 		<Unit filename="functions/func_bt.c">

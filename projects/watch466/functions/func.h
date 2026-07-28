@@ -19,6 +19,10 @@
 #if FUNC_BLE_GATTS_EN
 #include "func_ble_gatts.h"
 #endif
+#if FUNC_LUNCHBOX_UART_EN
+#include "lb_proto.h"       // 饭盒 0x55AA 帧协议 (functions/comm)
+#include "lb_ble_app.h"     // BLE 接收链路 + 发送接口
+#endif
 
 #define TICK_IGNORE_KEY            700      //忽略700ms内的部分消息
 
