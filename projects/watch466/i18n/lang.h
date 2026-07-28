@@ -6,7 +6,32 @@
 //    LANG_ZH,
 //};
 
-enum {
+enum
+{
+    STR_HEAT,
+    STR_MODE,
+    STR_SETUP,
+    STR_ORDER,
+    STR_CHICKEN,
+    STR_PASTA,
+    STR_WARM,
+    STR_SETUP_TIME,
+    STR_LANGUAGE,
+    STR_VER_INFO,
+    STR_VER_INFO_TEXT,
+    STR_HEAT_LAB,
+    STR_TIME_LAB,
+    STR_RESIDUE_LAB,
+    STR_YUYUE_NAME,
+    STR_CHICKEN_MODE,
+    STR_PASTA_MODE,
+    STR_WARM1,
+    STR_WARM_LAB,
+    STR_BTN_YES,
+    STR_BTN_NO,
+    STR_CONFIRM_LID_OPEN,
+    STR_CONFIRM_CONTINUE_HEAT,
+
     STR_CLOCK,
     STR_CLOCK_PREVIEW,
     STR_MESSAGE,
@@ -82,6 +107,8 @@ enum {
     STR_SETTING_LANGUAGE,
     STR_LANGUAGE_CN,
     STR_LANGUAGE_ENG,
+    STR_LANGUAGE_DE,
+    STR_LANGUAGE_IT,
     STR_LANGUAGE_FN,
     STR_LANGUAGE_RU,
     STR_LANGUAGE_AT,
@@ -130,15 +157,15 @@ enum {
     STR_TRANSITCODE_SCAN_TO_ACT,
     STR_TRANSITCODE_SWITH,
     STR_TRANSITCODE_UPDATE,
-    //卡列表页
+    // 卡列表页
     STR_TRANSITCODE_NET_ERROR,
     STR_TRANSITCODE_NET_DETAILS_ERROR,
     STR_TRANSITCODE_UNKNOW_ERROR,
     STR_TRANSITCODE_LIMIT_ERROR,
-    //乘车码页
+    // 乘车码页
     STR_TRANSITCODE_UNSUP_ERROR,
     STR_TRANSITCODE_SECURITY_ERROR,
-    //按钮
+    // 按钮
     STR_TRANSITCODE_BTN_YES,
     STR_TRANSITCODE_BTN_RETRY,
     STR_TRANSITCODE_BTN_DETAILS,
@@ -220,20 +247,20 @@ enum {
 #endif
 
 #if AVI_DVP_DEMOLIST
-    STR_SD_REMINDER,                //插入sd卡
-    STR_SD_FILELESS,                //无文件
-    STR_SD_FULL,                    //存储已用完
-    STR_SD_PLEASE_FORMAT,           //请格式化
-    STR_DELET,                     //删除
-    STR_YES,                        //是
-    STR_NO,                         //否
-    STR_VIDEO_MODE,                 //VIDEO功能
+    STR_SD_REMINDER,      // 插入sd卡
+    STR_SD_FILELESS,      // 无文件
+    STR_SD_FULL,          // 存储已用完
+    STR_SD_PLEASE_FORMAT, // 请格式化
+    STR_DELET,            // 删除
+    STR_YES,              // 是
+    STR_NO,               // 否
+    STR_VIDEO_MODE,       // VIDEO功能
 
-    STR_VIDEO_PLAY,                 //视频播放
-    STR_PHOTO_VIEW,                 //相片显示
-    STR_GIF_VIEW,                   //GIF显示
-    STR_VIDEO_RECODE,               //视频录制
-    STR_TAKE_PHOTO,                 //照片拍照
+    STR_VIDEO_PLAY,   // 视频播放
+    STR_PHOTO_VIEW,   // 相片显示
+    STR_GIF_VIEW,     // GIF显示
+    STR_VIDEO_RECODE, // 视频录制
+    STR_TAKE_PHOTO,   // 照片拍照
 #endif // AVI_DVP_DEMOLIST
 
 #if FUNC_MUSIC_EN
@@ -245,7 +272,7 @@ enum {
     STR_MIC_RECORD,
 #endif // FUNC_RECORDER_EN
 
-	STR_NAV_ZOOM,
+    STR_NAV_ZOOM,
     STR_NAV_FADE,
     STR_NAV_SHIFT,
     STR_NAV_FLIP,
