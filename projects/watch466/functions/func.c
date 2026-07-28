@@ -3,9 +3,6 @@
 #include "func_tbl.h"
 #include "func.h"
 #include "func_reservation.h"
-#if ELUNCHBOX_PANEL_EN
-#include "home_ui_shared.h"
-#endif
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #endif
@@ -18,6 +15,12 @@
 #else
 #define TRACE(...)
 #endif
+
+void home_gpu_wait_idle(void)
+{
+    os_gui_draw_w4_done();
+    os_gui_draw_w4_done();
+}
 
 bool func_music_is_play(void);
 void func_music_play(bool sta);

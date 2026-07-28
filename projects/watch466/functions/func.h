@@ -225,6 +225,9 @@ u8 func_directly_back_to(void);                 //页面直接回退,无动画�
 
 bool func_video_allow_warning_tone(void);
 
+/* 原 home_ui_shared 中的 GPU 空闲等待；home bin 支持文件已删，保留同名接口 */
+void home_gpu_wait_idle(void);
+
 #if ELUNCHBOX_PANEL_EN
 void func_home_gui_mark_dirty(void);
 bool func_home_gui_need_refresh(void);

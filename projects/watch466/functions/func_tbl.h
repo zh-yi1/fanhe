@@ -1,6 +1,12 @@
 #ifndef __FUNC_TBL_H__
 #define __FUNC_TBL_H__
 
+/*
+ * ELUNCHBOX: 饭盒页（HOME/HEAT/MODE/SETUP/RESERVATION/TIMEING/LANGUAGEING/VERINFO/CHARGE）
+ * 及 BT/BLE_GATTS/IDLE/OTA 等系统页指向真实实现；其余手表页由 func_watch_stubs.c 提供空实现（进页回 HOME）。
+ * FUNC 枚举值保持不变，避免错位。
+ */
+
 #define FUNC_CREATE_CNT                       ((int)(sizeof(tbl_func_create) / sizeof(tbl_func_create[0])))
 #define FUNC_ENTRY_CNT                        ((int)(sizeof(tbl_func_entry) / sizeof(tbl_func_entry[0])))
 #define FUNC_ENTER_CNT                        ((int)(sizeof(tbl_func_enter) / sizeof(tbl_func_enter[0])))
