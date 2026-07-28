@@ -458,11 +458,6 @@ void pt8028_defer_key_sound_tch(u8 tch)
     (void)tch;
 }
 
-void panel_led_set_lock_latched(bool latched)
-{
-    (void)latched;
-}
-
 bool heat_display_heating_active(void)
 {
     return false;

@@ -8,7 +8,7 @@
 #include "func.h"
 #include "port_pt8028_key.h"
 #if USER_PANEL_LED
-#include "port_panel_led.h"
+#include "func_led.h"
 #endif
 
 /*
@@ -163,8 +163,7 @@ static void lock_enter(void)
     key_lock_hint_cooldown_tick = 0;
     key_lock_entry_hint_settled = false;
 #if USER_PANEL_LED
-    panel_led_set_lock_latched(true);
-    panel_led_scan();
+    func_led_scan();
 #endif
     hint_show(false);  /* 锁定图标 */
 }
@@ -176,8 +175,7 @@ static void lock_exit(void)
     key_lock_need_key_rel = false;
     key_lock_entry_hint_settled = false;
 #if USER_PANEL_LED
-    panel_led_set_lock_latched(false);
-    panel_led_scan();
+    func_led_scan();
 #endif
     hint_show(true);   /* 解锁图标 */
 }

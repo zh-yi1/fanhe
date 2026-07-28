@@ -188,35 +188,40 @@ compo_form_t *func_appointment_time_form_create(void)
     return frm;
 }
 
-/* ---- 按键处理 ---- */
+/*
+ * 按键处理 — 逻辑键由 func_key_map_logical 映射：
+ *   TCH6 → UP, TCH2 → DOWN, TCH4 → CONFIRM, TCH5 → BACK
+ *
+ * 滚轮操作：
+ *   UP/DOWN — 当前列（时/分/秒）增减，分秒 5 步进
+ *   CONFIRM — 时→分→秒→进入加热设置页
+ *   BACK    — 秒→分→时→返回模式页
+ */
 static void func_appointment_time_handle_keys(void)
 {
     f_appointment_t *inf = (f_appointment_t *)func_cb.f_cb;
     func_key_event_t evt;
 
-    while (func_key_get_event(&evt)) {
+    while (func_key_get_event(&evt))
+    {
         func_key_logical_t key = func_key_map_logical(evt.tch);
 
-        switch (key) {
+        switch (key)
+        {
         case FUNC_KEY_UP:
-            if (inf->focus_col == FOCUS_HOUR)
-                inf->hour = roll_step(FOCUS_HOUR, inf->hour, 1);
-            else if (inf->focus_col == FOCUS_MIN)
-                inf->min = roll_step(FOCUS_MIN, inf->min, 1);
-            else
-                inf->sec = roll_step(FOCUS_SEC, inf->sec, 1);
-            appointment_update_display();
-            break;
-
         case FUNC_KEY_DOWN:
+        {
+            s8 dir = (key == FUNC_KEY_UP) ? 1 : -1;
+
             if (inf->focus_col == FOCUS_HOUR)
-                inf->hour = roll_step(FOCUS_HOUR, inf->hour, -1);
+                inf->hour = roll_step(FOCUS_HOUR, inf->hour, dir);
             else if (inf->focus_col == FOCUS_MIN)
-                inf->min = roll_step(FOCUS_MIN, inf->min, -1);
+                inf->min = roll_step(FOCUS_MIN, inf->min, dir);
             else
-                inf->sec = roll_step(FOCUS_SEC, inf->sec, -1);
+                inf->sec = roll_step(FOCUS_SEC, inf->sec, dir);
             appointment_update_display();
             break;
+        }
 
         case FUNC_KEY_CONFIRM:
             if (inf->focus_col == FOCUS_HOUR) {
@@ -253,20 +258,32 @@ static void func_appointment_time_process(void)
 {
     f_appointment_t *inf = (f_appointment_t *)func_cb.f_cb;
 
-    if (inf->display_stage != 0) {
+#if ELUNCHBOX_PANEL_EN
+    if (inf->display_stage != 0)
+    {
         inf->display_stage = 0;
         return;
     }
+#endif
 
+    /* 1. 按键处理：扫描 → 长按检测 → 童锁过滤 → 事件入队 */
     func_key_poll();
     func_appointment_time_handle_keys();
+
+    /* 2. 童锁计时器（hint过期/自动锁），不碰 GUI */
     func_key_lock_poll();
 
-    if (func_key_lock_gui_dirty()) {
+    /* 3. 锁标志位 → UI 渲染（页面负责显示，key 模块不管 UI） */
+    if (func_key_lock_gui_dirty())
+    {
         if (func_key_lock_overlay_visible())
+        {
             func_lock_page_show(func_key_lock_overlay_is_unlock());
+        }
         else
+        {
             func_lock_page_hide();
+        }
     }
 
     func_process();
@@ -274,6 +291,7 @@ static void func_appointment_time_process(void)
 
 static void func_appointment_time_message(size_msg_t msg)
 {
+    /* PT8028 按键已由 func_key_poll 统一处理，消息队列仅处理系统事件 */
     func_message(msg);
 }
 

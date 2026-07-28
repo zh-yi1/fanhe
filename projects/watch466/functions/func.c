@@ -7,7 +7,7 @@
 #include "bsp_pt8028_key.h"
 #endif
 #if USER_PANEL_LED
-#include "port_panel_led.h"
+#include "func_led.h"
 #endif
 
 #if TRACE_EN
@@ -140,7 +140,7 @@ void func_process(void)
 #endif
 
 #if USER_PANEL_LED
-    panel_led_scan();                       /* 主线程刷新 LED，勿放 5ms 中断(易花屏) */
+    func_led_scan();                        /* 主线程刷新 LED，勿放 5ms 中断(易花屏) */
 #endif
 
 #if CPU_USAGE_MONITOT_EN
@@ -1248,7 +1248,7 @@ void func_run(void)
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
 #if ELUNCHBOX_PANEL_EN && USER_PANEL_LED
-    panel_led_set(PANEL_LED_ID_SWITCH, true);   /* 进 func_run 点亮 LED1，便于无屏时确认固件已跑 */
+    func_led_set(FUNC_LED_ID_SWITCH, true);     /* 进 func_run 点亮 LED1，便于无屏时确认固件已跑 */
 #endif
     // func.c
 

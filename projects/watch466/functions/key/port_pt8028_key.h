@@ -62,7 +62,6 @@ u8   pt8028_peek_press_tch(void);
 void pt8028_try_commit_pwr_long(void);
 void pt8028_defer_key_sound_tch(u8 tch);
 void elunchbox_user_activity_reset(void);
-void panel_led_set_lock_latched(bool latched);
 bool heat_display_heating_active(void);
 bool func_heat_ui_is_heating(void);
 bool elunchbox_pwr_is_manual_off(void);
