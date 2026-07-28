@@ -187,24 +187,16 @@ bool lb_bridge_forward(u8 ble_cmd, u8 ble_msg_flag, u8 uart_cmd,
 void lb_uart_send_raw(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
 void lb_uart_send_raw_noreport(u8 uart_cmd, u8 *data, u16 data_len, bool no_wait);
 
-// ── BLE 应答/上报 (待重建) ──
-void lunchbox_uart_send_response(u8 cmd, u8 msg_flag, u8 err, u8 *data, u16 len);
-void lunchbox_uart_send_async(u8 cmd, u8 *data, u16 len);
-
-// ── BLE 命令分发 (待重建, 现方案为 switch-case 无 handler 表) ──
-bool lunchbox_uart_call_handler(lb_rx_frame_t *rx);
 
 //-----------------------------------------------------------------------------
 // 业务 API（待重建）
 //-----------------------------------------------------------------------------
 
-/** @brief 设置设备信息（用于 0x01 产品信息查询应答） */
-void lunchbox_set_device_info(lb_device_info_t *info);
-
 //-----------------------------------------------------------------------------
 // LCD 加热/预约控制接口
-// 按键: 加热键→切页, 确认键→lunchbox_heat_start, 开关键→lunchbox_heat_stop,
-//       预约键→lunchbox_reservation_send, 模式键/加/减/锁键→仅UI本地
+// !! 旧实现已随重构删除 — 发送统一走 func_lunchbox_heat_cmd.h 的 lb_heat_cmd_*,
+// !! 以下声明仅供旧调用方(func_heat/func_new_warm/func.c 等)过编译,
+// !! 各调用点迁移到新接口后逐条删除。
 //-----------------------------------------------------------------------------
 
 /** @brief LCD 启动加热 — 构造 UART 0x03 帧发给加热模块
@@ -235,23 +227,7 @@ void lunchbox_time_sync(u32 unix_time);
 /** @brief LCD 查询预约列表 — 发送 UART 0x02 帧查询加热模块的预约列表 */
 void lunchbox_query_reservation_list(void);
 
-/** @brief 获取当前 Unix 时间戳
- *
- * 若已通过 APP 0x01 同步过权威时间，则用 synced_unix_ts + (RTCCNT - synced_rtccnt) 推算；
- * 否则回退到 RTCCNT + LB_RTC_UNIX_OFFSET (本地RTC)。
- */
-u32 lb_get_unix_time(void);
-
-/** @brief 获取屏幕显示时间 (优先级: APP > 加热模块 > 本地RTC)
- *
- * 开机时:
- *   - 若 APP 已蓝牙同步过时间 → 使用 APP 权威时间
- *   - 若 APP 未同步但加热模块已上报时间 → 使用加热模块时间
- *   - 若两者均未同步 → 使用本地 RTC 默认时间
- *
- * @return tm_t 结构体 (北京时间), 可直接替代 rtc_clock_get() 用于 UI 显示
- */
-tm_t lb_get_display_tm(void);
+/* 时间服务 lb_get_unix_time / lb_get_display_tm → 声明见 func_lunchbox_ui_state.h */
 
 /** @brief 进入保温页时下发保温指令 (模式5, 默认 194°F) */
 void lunchbox_keep_warm_apply(void);
@@ -297,50 +273,14 @@ void lunchbox_reservation_delete(u8 id);
 
 static inline u8 lb_schedule_alloc_id(void) { return 6; }  // 预约 ID 由 APP 分配, 本地固定返回起始值
 
-/** @brief 获取指定模式的预设温度档位 */
-u8 lunchbox_mode_get_temp(u8 mode);
+/* 模式预设/状态查询/温度换算 → 声明见 func_lunchbox_ui_state.h / func_lunchbox_heat_cmd.h */
 
-/** @brief 获取指定模式的预设加热时长(分钟) */
-u8 lunchbox_mode_get_duration(u8 mode);
-
-/** @brief 华氏度转温度档位 (0=40°C ~ 6=100°C, 取最近档位) */
-u8 lunchbox_temp_f_to_idx(u16 temp_f);
-
-/** @brief 获取当前加热模式 (无本地缓存时返回0) */
-u8 lunchbox_get_heat_mode(void);
-
-/** @brief 获取当前加热使能状态 (无本地缓存时返回0) */
-u8 lunchbox_get_heat_enable(void);
-
-/** @brief 是否有进行中的加热/保温任务（用于禁止自动息屏） */
-bool lunchbox_heating_task_active(void);
-
-/** @brief BLE 连接成功回调 — 主动上报时间戳(0x03, dpid=11)给 APP
+/** @brief BLE 连接成功回调 (平台 app_blue_fit.c 调用, 实现在 func_lunchbox_ble_app.c)
  *
- * 触发时机: ble_app_watch_connect_callback() 中调用。
- * MCU 向 APP 发送一条 0x03 状态上报帧，仅含时间戳 DataPoint(dpid=11)。
- * 时间戳来源: lb_get_unix_time() (已同步则用APP权威时间推算, 否则用本地RTC)。
- *
- * APP 可通过两条路径回传权威时间戳:
- *   - 0x03 回传 dpid=11 → lb_ble_handle_app_time_sync() 处理 (桥模式/本地模式均支持)
- *   - 0x01 产品信息查询 (数据区带 4B 时间戳) → lb_handler_product_info() 处理 (原有路径)
- *
- * MCU 收到 APP 时间戳后 → 下发 5 个固定预设 (ID 1~5) 到加热模块。
+ * 流程: 向 APP 请求权威时间(0x03 dpid=11) → APP 回时间戳 → 同步给加热模块
+ *       → 模块应答后下发早/午/晚三餐预约预设 (每次连接一次)。
  */
 void lunchbox_ble_on_connected(void);
-
-/** @brief BLE 连接后发送5个固定预约预设到加热模块 (UART 0x03)
- *
- * 触发时机: lunchbox_ble_on_connected() 中调用。
- * MCU 向加热模块发送5条不可修改的固定预约(ID=1~5)，
- * 命令字 0x03 (LB_UART_CMD_SCHEDULE_OP), 帧格式见 MCU通信协议.md §3.6。
- *
- * 预设列表:
- *   ID=1: 早餐(8:00),   ID=2: 午餐(10:50), ID=3: 晚餐(16:30),
- *   ID=4: 鸡腿模式,      ID=5: 意面模式
- * 温度统一 149°F(60°C), enabled=0(停止加热), repeat=每天。
- */
-void lunchbox_ble_send_presets(void);
 
 //-----------------------------------------------------------------------------
 // OTA 升级流程 (蓝牙通讯协议1.0.7.md §5)
@@ -356,6 +296,9 @@ void lb_ota_process(void);
 
 //-----------------------------------------------------------------------------
 // 模式界面 → 加热界面 预设参数传递
+// !! 页面胶水旧实现已删除 — 新规则: 进页读 lb_ui_state 渲染, 用户动作时调
+// !! lb_heat_cmd_*, 不再进页/出页自动发命令。以下声明仅供旧页面过编译,
+// !! 页面迁移时逐条删除; 确需跳页带参的用显式"草稿"结构重建。
 // 鸡腿/意面模式按确认键后跳转到加热界面并自动开始加热
 //-----------------------------------------------------------------------------
 
@@ -410,7 +353,8 @@ u8 lb_uart_cmd_to_ble_cmd(u8 uart_cmd, bool is_async);
 /* BLE 通道注册见 func_lunchbox_ble_app.h (下方 include) */
 
 // 子系统 API (拆分后的独立模块)
-#include "func_lunchbox_lcd.h"
+#include "func_lunchbox_heat_cmd.h"
+#include "func_lunchbox_ui_state.h"
 #include "func_lunchbox_ble_app.h"
 #include "func_lunchbox_bridge.h"
 #include "func_lunchbox_ota.h"

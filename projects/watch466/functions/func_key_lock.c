@@ -7,7 +7,7 @@
 #include "bsp_pt8028_key.h"
 #include "port_pt8028_key.h"
 #include "func.h"
-#include "func_lunchbox_lcd.h"
+#include "func_lunchbox_uart.h"
 #include "heat_display_reg.h"
 #if USER_PANEL_LED
 #include "port_panel_led.h"

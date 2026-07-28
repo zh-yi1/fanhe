@@ -104,7 +104,7 @@ u8 lb_ota_get_target(lb_rx_frame_t *rx)
 u8 lb_handler_ota_start(lb_rx_frame_t *rx)
 {
     if (!rx->data || rx->data_len < 5) {
-        lunchbox_uart_send_response(LB_CMD_OTA_START, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        lb_ble_send_response(LB_CMD_OTA_START, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
         return LB_ERR_EXEC_FAIL;
     }
 
@@ -130,7 +130,7 @@ u8 lb_handler_ota_start(lb_rx_frame_t *rx)
     u8 rsp[2];
     rsp[0] = target;
     rsp[1] = LB_OTA_START_ERASE_DONE;  // 初始化完成，可以传输升级包
-    lunchbox_uart_send_response(LB_CMD_OTA_START, rx->msg_flag, LB_ERR_SUCCESS, rsp, 2);
+    lb_ble_send_response(LB_CMD_OTA_START, rx->msg_flag, LB_ERR_SUCCESS, rsp, 2);
     return LB_ERR_SUCCESS;
 }
 
@@ -144,14 +144,14 @@ u8 lb_handler_ota_start(lb_rx_frame_t *rx)
 u8 lb_handler_ota_data(lb_rx_frame_t *rx)
 {
     if (!rx->data || rx->data_len < 5) {
-        lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        lb_ble_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
         return LB_ERR_EXEC_FAIL;
     }
 
     // 必须先收到启动命令
     if (lb_ota_ctx.state < LB_OTA_READY) {
         printf("OTA data err: not started\n");
-        lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        lb_ble_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
         return LB_ERR_EXEC_FAIL;
     }
 
@@ -165,14 +165,14 @@ u8 lb_handler_ota_data(lb_rx_frame_t *rx)
     // 校验 16 字节对齐 (蓝牙通讯协议1.0.7 §5.2: 每包数据长度必须可被 16 整除)
     if (data_size & 0x0F) {
         printf("OTA data err: size=%u not 16B aligned\n", data_size);
-        lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        lb_ble_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
         return LB_ERR_EXEC_FAIL;
     }
 
     // 校验 offset 连续性 (ota_pack_write 顺序写入，不支持随机偏移)
     if (offset != lb_ota_ctx.next_offset) {
         printf("OTA seq err: expected=%lu got=%lu\n", lb_ota_ctx.next_offset, offset);
-        lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        lb_ble_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
         return LB_ERR_EXEC_FAIL;
     }
 
@@ -230,7 +230,7 @@ u8 lb_handler_ota_data(lb_rx_frame_t *rx)
             // 整包都是包头，无固件数据
             lb_ota_ctx.next_offset = offset + orig_data_size;
             lb_ota_ctx.recv_size += orig_data_size;
-            lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
+            lb_ble_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
             return LB_ERR_SUCCESS;
         }
     }
@@ -260,7 +260,7 @@ u8 lb_handler_ota_data(lb_rx_frame_t *rx)
 
             if (ota_pack_get_err() != FOT_ERR_OK) {
                 printf("OTA write err: 0x%x\n", ota_pack_get_err());
-                lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+                lb_ble_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
                 return LB_ERR_EXEC_FAIL;
             }
         }
@@ -269,7 +269,7 @@ u8 lb_handler_ota_data(lb_rx_frame_t *rx)
     lb_ota_ctx.next_offset = offset + orig_data_size;
     lb_ota_ctx.recv_size += orig_data_size;
 
-    lunchbox_uart_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
+    lb_ble_send_response(LB_CMD_OTA_DATA, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
     return LB_ERR_SUCCESS;
 }
 
@@ -283,7 +283,7 @@ u8 lb_handler_ota_data(lb_rx_frame_t *rx)
 u8 lb_handler_ota_end(lb_rx_frame_t *rx)
 {
     if (!rx->data || rx->data_len < 1) {
-        lunchbox_uart_send_response(LB_CMD_OTA_END, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        lb_ble_send_response(LB_CMD_OTA_END, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
         return LB_ERR_EXEC_FAIL;
     }
 
@@ -354,7 +354,7 @@ u8 lb_handler_ota_end(lb_rx_frame_t *rx)
     u8 rsp[2];
     rsp[0] = target;
     rsp[1] = result;
-    lunchbox_uart_send_response(LB_CMD_OTA_END, rx->msg_flag, LB_ERR_SUCCESS, rsp, 2);
+    lb_ble_send_response(LB_CMD_OTA_END, rx->msg_flag, LB_ERR_SUCCESS, rsp, 2);
     return LB_ERR_SUCCESS;
 }
 

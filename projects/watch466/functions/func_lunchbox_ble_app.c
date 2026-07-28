@@ -29,7 +29,8 @@
 #include "func_lunchbox_ble_app.h"
 #include "func_lunchbox_bridge.h"
 #include "func_lunchbox_uart_heat.h"
-#include "func_lunchbox_lcd.h"
+#include "func_lunchbox_heat_cmd.h"
+#include "func_lunchbox_ui_state.h"
 
 //=============================================================================
 // 配置
@@ -174,21 +175,191 @@ static void lb_ble_stream_timeout(void)
 // §3 分发层 — 帧 → 业务
 //=============================================================================
 
+//-----------------------------------------------------------------------------
+// 0x01 产品信息查询流程 (§3.1, v1.0.7 起需带加热模块版本号)
+//
+//   APP 0x01 → ①透传加热模块 (直发, 不进转发队列)
+//            → ②模块 0x01 应答: dpid=13 回填加热模块版本 → 回 APP 81B 设备信息
+//            → ②' 1 秒无应答: 用缓存版本号直接回 APP
+//-----------------------------------------------------------------------------
+
+#define LB_PRODUCT_INFO_TIMEOUT_MS  1000    // 等加热模块应答的窗口
+
+static bool lb_product_info_pending;        // 已透传加热模块, 等其应答
+static u8   lb_product_info_msg_flag;       // 待回复 APP 的 msg_flag
+static u32  lb_product_info_pend_tick;      // 开始等待时刻
+
+/** @brief 组 81B 设备信息回复 APP (§3.1 布局, 各字段大端) */
+static void lb_ble_reply_product_info(u8 msg_flag)
+{
+    u8  info[81];   // bt_name(16)+version(8)+model(10)+mac(6)+sn(32)+color(1)+主版本(4)+模块版本(4)
+    u16 off = 0;
+
+    memcpy(info + off, lb_dev_info.bt_name, 16); off += 16;
+    memcpy(info + off, lb_dev_info.version, 8);  off += 8;
+    memcpy(info + off, lb_dev_info.model, 10);   off += 10;
+    memcpy(info + off, lb_dev_info.mac, 6);      off += 6;
+    memcpy(info + off, lb_dev_info.sn, 32);      off += 32;
+    info[off++] = lb_dev_info.color;
+    info[off++] = (u8)(lb_dev_info.main_mcu_version >> 24);
+    info[off++] = (u8)(lb_dev_info.main_mcu_version >> 16);
+    info[off++] = (u8)(lb_dev_info.main_mcu_version >> 8);
+    info[off++] = (u8)(lb_dev_info.main_mcu_version);
+    info[off++] = (u8)(lb_dev_info.heat_module_version >> 24);
+    info[off++] = (u8)(lb_dev_info.heat_module_version >> 16);
+    info[off++] = (u8)(lb_dev_info.heat_module_version >> 8);
+    info[off++] = (u8)(lb_dev_info.heat_module_version);
+
+    u8  frame[128];
+    u16 total = lb_proto_build_frame(frame, LB_CMD_PRODUCT_INFO, msg_flag,
+                                     LB_ERR_SUCCESS, info, off);
+    if (total) {
+        lunchbox_ble_tx(frame, total);
+    }
+}
+
 /**
- * @brief 记录 APP 下发的权威时间戳
- *
- * 收到后若有挂起的预设下发请求, 立即补发 (预设的触发时间依赖正确的时基)。
+ * @brief 串口 0x01 帧到达时的产品信息应答配对 (uart_app 的 on_frame 调用)
+ * @return true=该帧是产品信息查询的应答, 已消化 (勿再当模块主动上报转发 APP)
  */
+bool lb_ble_product_info_on_heat_frame(lb_rx_frame_t *rx)
+{
+    if (!lb_product_info_pending) {
+        return false;
+    }
+    if (rx->msg_flag != lb_product_info_msg_flag) {
+        return false;                       // 模块自己的上报, 不是本次查询的应答
+    }
+
+    // 应答 DataPoints 里取加热模块固件版本 (dpid=13)
+    if (rx->data) {
+        u16 off = 0;
+        while (off + 4 <= rx->data_len) {
+            u8  dpid    = rx->data[off];
+            u16 val_len = ((u16)rx->data[off + 2] << 8) | rx->data[off + 3];
+            if (off + 4 + val_len > rx->data_len) {
+                break;
+            }
+            if (dpid == LB_DPID_MCU_VERSION && val_len >= 4) {
+                const u8 *v = rx->data + off + 4;
+                lb_dev_info.heat_module_version = ((u32)v[0] << 24) | ((u32)v[1] << 16)
+                                                | ((u32)v[2] << 8)  |  (u32)v[3];
+            }
+            off += 4 + val_len;
+        }
+    }
+
+    lb_product_info_pending = false;
+    lb_ble_reply_product_info(lb_product_info_msg_flag);
+    return true;
+}
+
+/** @brief 超时保护: 模块无应答时用缓存版本号回复 APP (lunchbox_ble_process 轮询) */
+static void lb_ble_product_info_poll(void)
+{
+    if (lb_product_info_pending
+        && tick_check_expire(lb_product_info_pend_tick, LB_PRODUCT_INFO_TIMEOUT_MS)) {
+        lb_product_info_pending = false;
+        printf("product info: heat module no reply, use cached ver\n");
+        lb_ble_reply_product_info(lb_product_info_msg_flag);
+    }
+}
+
+//-----------------------------------------------------------------------------
+// BLE 连接后的时间同步 + 三餐预设下发流程
+//
+//   连接 → ①向 APP 上报当前时间(0x03 dpid=11) = 获取权威时间请求
+//        → ②APP 回时间戳(经 0x03 或 0x01) → 存时间 → time_sync 发加热模块
+//        → ③模块应答该 msg_flag → 下发早/午/晚三餐预约预设 (每次连接一次)
+//-----------------------------------------------------------------------------
+
+static struct {
+    bool wait_heat_ack;    // 已向模块发 time_sync, 等其应答
+    u8   sync_flag;        // time_sync 的 msg_flag (配对应答用)
+    bool presets_sent;     // 本次连接已发过三餐预设
+    u8   report_flag;      // 上报 APP 的异步流水号
+} lb_timesync;
+
+/** @brief 计算下一个指定时分(北京时间)的 Unix 时间戳 */
+static u32 lb_next_time_of_day(u8 hour, u8 min)
+{
+    u32 now_unix = lb_get_unix_time();
+    u32 today_midnight = now_unix - (now_unix % 86400);
+    u32 target_unix = today_midnight + (u32)hour * 3600 + (u32)min * 60;
+    if (target_unix <= now_unix) {
+        target_unix += 86400;
+    }
+    return target_unix;
+}
+
+/** @brief ③ 时间同步成功后: 下发早/午/晚三餐预约预设 (ID 1~3 固定) */
+static void lb_ble_send_meal_presets(void)
+{
+    u8 temp_idx = lunchbox_temp_f_to_idx(149);
+
+    lb_heat_cmd_schedule_set(1, 1, "\xe6\x97\xa9\xe9\xa4\x90",          // 早餐 8:00
+                             lb_next_time_of_day(8, 0), temp_idx, 60, 0, 0xff);
+    lb_heat_cmd_schedule_set(1, 2, "\xe5\x8d\x88\xe9\xa4\x90",          // 午餐 10:50
+                             lb_next_time_of_day(10, 50), temp_idx, 70, 0, 0xff);
+    lb_heat_cmd_schedule_set(1, 3, "\xe6\x99\x9a\xe9\xa4\x90",          // 晚餐 16:30
+                             lb_next_time_of_day(16, 30), temp_idx, 90, 0, 0xff);
+    printf("timesync: 3 meal presets sent to heat module\n");
+}
+
+/** @brief ② APP 权威时间到达 (0x03 dpid=11 或 0x01 数据区) */
 static void lb_ble_accept_app_time(u32 unix_ts)
 {
-    lb_synced_unix_ts = unix_ts;
-    lb_synced_rtccnt  = RTCCNT;
-    lb_has_ble_ts     = true;
+    lb_time_set_synced(unix_ts);
 
-    if (lb_ble_presets_pending) {
-        lb_ble_presets_pending = false;
-        lunchbox_ble_send_presets();
+    // 同步给加热模块, 记 msg_flag 等它应答
+    if (lb_heat_cmd_time_sync(unix_ts)) {
+        lb_timesync.sync_flag = lb_heat_cmd_last_flag();
+        lb_timesync.wait_heat_ack = true;
     }
+}
+
+/**
+ * @brief 串口 0x01 帧到达时的时间同步应答配对 (uart_app 的 on_frame 调用)
+ * @return true=该帧是时间同步的应答, 已消化 (勿再当模块主动上报转发 APP)
+ */
+bool lb_ble_timesync_on_heat_frame(lb_rx_frame_t *rx)
+{
+    if (!lb_timesync.wait_heat_ack) {
+        return false;
+    }
+    if (rx->cmd != LB_UART_CMD_DYNAMIC || rx->msg_flag != lb_timesync.sync_flag) {
+        return false;
+    }
+    lb_timesync.wait_heat_ack = false;
+    printf("timesync: heat module acked\n");
+
+    if (!lb_timesync.presets_sent) {
+        lb_timesync.presets_sent = true;
+        lb_ble_send_meal_presets();
+    }
+    return true;
+}
+
+/** @brief ① BLE 连接成功 (平台 app_blue_fit.c 调用) — 向 APP 请求权威时间 */
+void lunchbox_ble_on_connected(void)
+{
+    lb_timesync.wait_heat_ack = false;
+    lb_timesync.presets_sent = false;
+    lb_product_info_pending = false;       // 上次连接的挂起查询作废
+
+    // 上报当前时间戳(0x03 dpid=11), APP 收到后回权威时间戳
+    u8 dp[8];
+    u16 dlen = lb_dp_encode_value(dp, LB_DPID_TIME_SYNC, lb_get_unix_time());
+    u8  frame[32];
+    u16 total = lb_proto_build_frame(frame, LB_CMD_STATUS_REPORT,
+                                     lb_timesync.report_flag, LB_ERR_SUCCESS, dp, dlen);
+    lb_timesync.report_flag++;
+    if (total && lunchbox_ble_tx(frame, total)) {
+        printf("BLE connected: time request sent via 0x03\n");
+    }
+
+    // 断电恢复后延迟的 OTA 升级结果补报
+    heat_ota_send_deferred_result();
 }
 
 /**
@@ -215,7 +386,7 @@ static void lb_ble_on_product_info(lb_rx_frame_t *rx)
 
     if (!uart_cmd || !lb_translate_ble_data_to_uart(rx, uart_data, &uart_dlen)) {
         lb_product_info_pending = false;
-        lb_handler_product_info(rx);            // 加热模块拿不到, 用本地缓存回复
+        lb_ble_reply_product_info(rx->msg_flag);    // 加热模块拿不到, 用本地缓存回复
         return;
     }
 
@@ -224,7 +395,7 @@ static void lb_ble_on_product_info(lb_rx_frame_t *rx)
                                         LB_ERR_SUCCESS, uart_data, uart_dlen);
     if (!uart_len) {
         lb_product_info_pending = false;
-        lb_handler_product_info(rx);
+        lb_ble_reply_product_info(rx->msg_flag);
         return;
     }
 
@@ -286,7 +457,19 @@ static void lb_ble_on_ota(lb_rx_frame_t *rx)
     if (target == 0x00 || target == LB_OTA_TARGET_MAIN_MCU) {
         printf("OTA: target=0x%02X -> main mcu\n",
                target ? target : LB_OTA_TARGET_MAIN_MCU);
-        lunchbox_uart_call_handler(rx);
+        switch (rx->cmd) {
+        case LB_CMD_OTA_START:
+            lb_handler_ota_start(rx);
+            break;
+        case LB_CMD_OTA_DATA:
+            lb_handler_ota_data(rx);
+            break;
+        case LB_CMD_OTA_END:
+            lb_handler_ota_end(rx);
+            break;
+        default:
+            break;
+        }
         return;
     }
 
@@ -312,19 +495,63 @@ static void lb_ble_on_ota(lb_rx_frame_t *rx)
 }
 
 /**
+ * @brief 0x09 获取指定模式信息 — 模式预设是手表本地数据, 不转发加热模块
+ *
+ * 协议 §3.9: APP 可查的模式仅 1~3 (自定义/鸡腿/意面);
+ * 预约的参数跟每条预约走, 保温行为固定, 都不是可编辑模板。
+ * APP 发送: 无数据=查询全部 3 种模式; 1 字节 mode(1~3)=查询指定模式
+ * MCU 返回: 每条 3 字节 (模式标志 + 温度档位 + 加热时长)
+ */
+static void lb_ble_on_mode_query(lb_rx_frame_t *rx)
+{
+    u8  buf[9];     // 最多 3 条 × 3 字节
+    u16 off = 0;
+
+    if (rx->data && rx->data_len == 1
+        && rx->data[0] >= LB_MODE_CUSTOM && rx->data[0] <= LB_MODE_PASTA) {
+        u8 mode = rx->data[0];
+        buf[off++] = mode;
+        buf[off++] = lunchbox_mode_get_temp(mode);
+        buf[off++] = lunchbox_mode_get_duration(mode);
+    } else {
+        for (u8 m = LB_MODE_CUSTOM; m <= LB_MODE_PASTA; m++) {
+            buf[off++] = m;
+            buf[off++] = lunchbox_mode_get_temp(m);
+            buf[off++] = lunchbox_mode_get_duration(m);
+        }
+    }
+    lb_ble_send_response(LB_CMD_MODE_QUERY, rx->msg_flag, LB_ERR_SUCCESS, buf, off);
+}
+
+/**
+ * @brief 0x0a 修改指定模式信息 — 更新本地预设表后直接应答
+ *
+ * 协议 §3.10: APP 可改的模式仅 1~3, 越界回执行失败
+ * APP 发送: 3 字节 (模式标志 + 温度档位 + 加热时长)
+ */
+static void lb_ble_on_mode_modify(lb_rx_frame_t *rx)
+{
+    if (!rx->data || rx->data_len < 3) {
+        lb_ble_send_response(LB_CMD_MODE_MODIFY, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return;
+    }
+    u8 mode = rx->data[0];
+    if (mode < LB_MODE_CUSTOM || mode > LB_MODE_PASTA) {
+        lb_ble_send_response(LB_CMD_MODE_MODIFY, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        return;
+    }
+    lunchbox_mode_preset_local_set(mode, rx->data[1], rx->data[2]);
+    lb_ble_send_response(LB_CMD_MODE_MODIFY, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
+}
+
+/**
  * @brief 其余命令 — 翻译后经转发队列发往加热模块
  *
- * 0x02 查询动态属性 / 0x04 控制 / 0x05~0x08 预约 / 0x09~0x0a 模式
+ * 0x02 查询动态属性 / 0x04 控制 / 0x05~0x08 预约
  * 异步: 入队即返回。应答到达/重试耗尽后由 lb_bridge 自动回传 APP。
  */
 static void lb_ble_on_forward(lb_rx_frame_t *rx)
 {
-#if ELUNCHBOX_PANEL_EN
-    // 0x0a 修改模式预设: 本地也存一份, 供后续 0x04 跳加热页时取用
-    if (rx->cmd == LB_CMD_MODE_MODIFY && rx->data && rx->data_len >= 3) {
-        lunchbox_mode_preset_local_set(rx->data[0], rx->data[1], rx->data[2]);
-    }
-#endif
 
     u8  uart_data[LB_TXBUF_SIZE];
     u16 uart_dlen = 0;
@@ -350,13 +577,21 @@ static void lb_ble_dispatch(lb_rx_frame_t *rx)
         lb_ble_on_status_report(rx);
         break;
 
+    case LB_CMD_MODE_QUERY:                     // 0x09 模式预设是本地数据
+        lb_ble_on_mode_query(rx);
+        break;
+
+    case LB_CMD_MODE_MODIFY:                    // 0x0a 同上
+        lb_ble_on_mode_modify(rx);
+        break;
+
     case LB_CMD_OTA_START:                      // 0x0c
     case LB_CMD_OTA_DATA:                       // 0x0d
     case LB_CMD_OTA_END:                        // 0x0e
         lb_ble_on_ota(rx);
         break;
 
-    default:                                    // 0x02/0x04~0x0a
+    default:                                    // 0x02/0x04~0x08
         lb_ble_on_forward(rx);
         break;
     }
@@ -386,6 +621,7 @@ void lunchbox_ble_process(void)
     }
 
     lb_ble_stream_timeout();
+    lb_ble_product_info_poll();
 }
 
 void lunchbox_ble_rx_handle(u8 *data, u16 len)
@@ -415,5 +651,26 @@ bool lunchbox_ble_tx(u8 *frame, u16 len)
     }
     lb_ble_tx_fn(frame, len);
     return true;
+}
+
+/** @brief 组帧并应答 APP (echo 请求的 msg_flag; OTA 等本地处理的业务用) */
+bool lb_ble_send_response(u8 ble_cmd, u8 msg_flag, u8 err, const u8 *data, u16 len)
+{
+    u8  frame[LB_TXBUF_SIZE];
+    u16 total = lb_proto_build_frame(frame, ble_cmd, msg_flag, err, data, len);
+    if (!total) {
+        return false;
+    }
+    return lunchbox_ble_tx(frame, total);
+}
+
+static u8 lb_ble_async_flag;    // MCU 主动推送的自增流水号
+
+/** @brief 组帧并主动推送 APP (MCU 发起, msg_flag 自增) */
+bool lb_ble_send_async(u8 ble_cmd, const u8 *data, u16 len)
+{
+    bool ok = lb_ble_send_response(ble_cmd, lb_ble_async_flag, LB_ERR_SUCCESS, data, len);
+    lb_ble_async_flag++;
+    return ok;
 }
 

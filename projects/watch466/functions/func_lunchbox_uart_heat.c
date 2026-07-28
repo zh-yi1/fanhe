@@ -243,7 +243,7 @@ static void heat_ota_send_end_response(u8 result)
         u8 rsp[2];
         rsp[0] = g_heat_ota.ble_target;
         rsp[1] = result;
-        lunchbox_uart_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
+        lb_ble_send_response(LB_CMD_OTA_END, g_heat_ota.ble_msg_flag_end,
                                     result ? LB_ERR_SUCCESS : LB_ERR_EXEC_FAIL, rsp, 2);
         printf("[HEAT_OTA] 0x0e %s response sent to APP\n", result ? "success" : "failure");
     }
@@ -270,7 +270,7 @@ bool heat_ota_send_deferred_result(void)
     u8 rsp[2];
     rsp[0] = def.ble_target;
     rsp[1] = def.result;
-    lunchbox_uart_send_async(LB_CMD_OTA_END, rsp, 2);
+    lb_ble_send_async(LB_CMD_OTA_END, rsp, 2);
 
     // 清除延迟结果
     heat_ota_clear_deferred_result();
@@ -758,7 +758,7 @@ u8 heat_ota_handler_start(lb_rx_frame_t *rx, u8 msg_flag)
         printf("[HEAT_OTA] fw_size=%lu > flash=%u\n",
                (unsigned long)fw_size, HEAT_OTA_FLASH_SIZE);
         u8 rsp[2] = { rx->data[0], 0x00 };
-        lunchbox_uart_send_response(LB_CMD_OTA_START, msg_flag, LB_ERR_EXEC_FAIL, rsp, 2);
+        lb_ble_send_response(LB_CMD_OTA_START, msg_flag, LB_ERR_EXEC_FAIL, rsp, 2);
         WDT_EN();  // 恢复正常 WDT 超时
         return LB_ERR_EXEC_FAIL;
     }
@@ -801,7 +801,7 @@ u8 heat_ota_handler_start(lb_rx_frame_t *rx, u8 msg_flag)
     u8 rsp[2];
     rsp[0] = rx->data[0];  // target = 0x02
     rsp[1] = 0x02;          // 擦除完成
-    lunchbox_uart_send_response(LB_CMD_OTA_START, msg_flag, LB_ERR_SUCCESS, rsp, 2);
+    lb_ble_send_response(LB_CMD_OTA_START, msg_flag, LB_ERR_SUCCESS, rsp, 2);
     printf("[HEAT_OTA] START: replied OK\n");
 
     return LB_ERR_SUCCESS;
@@ -853,7 +853,7 @@ u8 heat_ota_handler_data(lb_rx_frame_t *rx, u8 msg_flag)
     }
 
     // ACK 立即回复 (Flash 写入延后, 不影响协议时序)
-    lunchbox_uart_send_response(LB_CMD_OTA_DATA, msg_flag, LB_ERR_SUCCESS, NULL, 0);
+    lb_ble_send_response(LB_CMD_OTA_DATA, msg_flag, LB_ERR_SUCCESS, NULL, 0);
     return LB_ERR_SUCCESS;
 }
 

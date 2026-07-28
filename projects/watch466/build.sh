@@ -103,10 +103,11 @@ SOURCES=(
     functions/new_home_top_time.c functions/home_ui_shared.c functions/home_tab_label.c
     functions/home_top_time.c functions/home_top_time_txt.c functions/home_ui_ram.c functions/home_ui_gpu_detach.c
     functions/func_lunchbox_uart_app.c functions/func_lunchbox_uart_link.c
-    functions/func_lunchbox_proto.c functions/func_lunchbox_lcd.c
+    functions/func_lunchbox_proto.c
     functions/func_lunchbox_ble_app.c functions/func_lunchbox_bridge.c
     functions/func_lunchbox_ota.c functions/func_lunchbox_uart_heat.c
     functions/func_lunchbox_off.c functions/func_lunchbox_wake.c
+    functions/func_lunchbox_ui_state.c functions/func_lunchbox_heat_cmd.c
     functions/func_mode.c functions/func_reservation.c
     functions/func_setup.c functions/func_timeing.c functions/func_languageing.c
     functions/func_verinfo.c

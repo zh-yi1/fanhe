@@ -46,23 +46,6 @@ bool heat_display_get_last(heat_display_info_t *out);
 /** 最近一次推送显示加热剩余时间 > 0（UART 已确认在加热） */
 bool heat_display_heating_active(void);
 
-/**
- * @brief 从 DataPoint 数组提取剩余时间/温度/加热使能，推送给已注册的显示回调
- *
- * 解析协议 DataPoint 格式（dpid:1B + type:1B + len:2B-BE + val:lenB），
- * 提取 LB_DPID_REMAIN_TIME / LB_DPID_HEAT_TEMP / LB_DPID_HEAT_ENABLE，
- * 调用 heat_display_show() 通知 LCD 刷新。
- *
- * 适用场景：
- *   - UART 收到 0x01 动态属性上报
- *   - BLE 收到 0x02 动态属性查询应答 / 0x03 状态上报 / 0x04 控制指令
- *
- * @param data     DataPoint 数组首字节指针
- * @param len      数组总长度(字节)
- * @param msg_flag UART/BLE 帧的消息标志位 (保温状态用于过滤过时数据)
- */
-void heat_display_feed_dp(u8 *data, u16 len, u8 msg_flag);
-
 /** 查询是否收到充电中状态(charge_status==1)，调用后自动清除 */
 bool heat_display_charge_wake_pending(void);
 

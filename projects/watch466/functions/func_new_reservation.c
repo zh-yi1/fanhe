@@ -3,7 +3,7 @@
 #include "func_reservation.h"
 #include "func_key_lock.h"
 #include "home_ui_shared.h"
-#include "func_lunchbox_lcd.h"
+#include "func_lunchbox_uart.h"
 
 #if ELUNCHBOX_PANEL_EN
 extern volatile u8 elunchbox_te_block_flag;

@@ -48,6 +48,17 @@ enum {
     LB_DPID_RTC_TIME        = 14,       // rtc的unix时间: value(4B) unix时间 (加热模块→MCU上报设备时间, v1.0.7新增)
 };
 
+// 加热模式 (DP2 取值)
+enum {
+    LB_MODE_OFF     = 0,    // 关
+    LB_MODE_CUSTOM  = 1,    // 自定义加热
+    LB_MODE_CHICKEN = 2,    // 鸡腿
+    LB_MODE_PASTA   = 3,    // 意面
+    LB_MODE_RESERVE = 4,    // 预约
+    LB_MODE_WARM    = 5,    // 保温
+    LB_MODE_MAX     = LB_MODE_WARM,
+};
+
 // DataPoint 数据类型
 #define LB_DP_TYPE_BOOL     0x01
 #define LB_DP_TYPE_VALUE    0x02

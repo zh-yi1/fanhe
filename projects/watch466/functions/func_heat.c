@@ -13,7 +13,6 @@
 #include "port_pt8028_key.h"
 #include "func_key_lock.h"
 #include "func_heat_panel.h"
-#include "func_lunchbox_lcd.h"
 
 extern volatile u8 elunchbox_te_block_flag;
 #endif

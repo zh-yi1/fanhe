@@ -888,9 +888,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_lunchbox_proto.h" />
-		<Unit filename="functions/func_lunchbox_lcd.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/func_lunchbox_off.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -903,6 +900,14 @@
 		<Unit filename="functions/func_lunchbox_uart_heat.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/func_lunchbox_ui_state.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_lunchbox_ui_state.h" />
+		<Unit filename="functions/func_lunchbox_heat_cmd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/func_lunchbox_heat_cmd.h" />
 		<Unit filename="functions/func_lunchbox_bridge.c">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -16,6 +16,7 @@
 #include "include.h"
 #include "func_lunchbox_uart.h"
 #include "func_lunchbox_uart_link.h"
+#include "func_lunchbox_ui_state.h"
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -193,15 +194,18 @@ static bool lb_bridge_rsp_is_last(lb_bridge_req_t *req, lb_rx_frame_t *rx)
     return true;
 }
 
-/** @brief 串口帧到达时的应答配对 (cmd + msg_flag 与在飞请求一致才算应答) */
-static void lb_bridge_on_response(lb_rx_frame_t *rx)
+/**
+ * @brief 串口帧到达时的应答配对 (cmd + msg_flag 与在飞请求一致才算应答)
+ * @return true=该帧是转发请求的应答, 已翻译回传 APP
+ */
+static bool lb_bridge_on_response(lb_rx_frame_t *rx)
 {
     if (!lb_uart.br_waiting) {
-        return;
+        return false;
     }
     lb_bridge_req_t *req = &lb_uart.brq[lb_uart.br_head];
     if (rx->cmd != req->uart_cmd || rx->msg_flag != req->msg_flag) {
-        return;
+        return false;
     }
 
     lb_bridge_ble_reply(req, rx);
@@ -210,6 +214,7 @@ static void lb_bridge_on_response(lb_rx_frame_t *rx)
     } else {
         lb_uart.br_tick = tick_get();    // 多帧应答: 刷新超时, 继续等后续帧
     }
+    return true;
 }
 
 /** @brief 主循环轮询: 队首应答超时 → 重发, 重试耗尽 → 回 APP 失败 */
@@ -241,6 +246,29 @@ static void lb_bridge_poll(void)
 //-----------------------------------------------------------------------------
 
 /**
+ * @brief 模块主动上报的 0x01 → 翻译成 BLE 0x03 状态上报推送 APP
+ *
+ * 仅处理不属于任何在等应答的帧 (桥接/时间同步/产品信息都没认领)。
+ * 含本地指令(加热启停等)的应答 —— 手表侧操作后 APP 也能同步到最新状态。
+ */
+static void lb_report_forward_to_app(lb_rx_frame_t *rx)
+{
+    if (!ble_is_connected()) {
+        return;                         // 未连接不翻译不发送, 省功耗
+    }
+    if (lb_data_is_key_notify(rx->data, rx->data_len)) {
+        return;                         // 按键通知仅 MCU↔模块内部使用
+    }
+
+    u8  data[LB_TXBUF_SIZE];
+    u16 data_len = 0;
+    if (!lb_translate_uart_data_to_ble(rx, LB_CMD_STATUS_REPORT, data, &data_len)) {
+        return;
+    }
+    lb_ble_send_async(LB_CMD_STATUS_REPORT, data, data_len);
+}
+
+/**
  * @brief 收到一条完整帧 (校验已通过, 主循环上下文)
  *
  * 业务处理按需求在此逐项添加 (心跳应答/状态同步/BLE转发/OTA 等)。
@@ -260,27 +288,46 @@ static void lb_uart_on_frame(lb_rx_frame_t *rx)
     }
 
     // BLE 桥: 若是转发请求的应答, 翻译回传 APP (与本地业务处理不互斥)
-    lb_bridge_on_response(rx);
+    bool consumed = lb_bridge_on_response(rx);
 
     switch (rx->cmd) {
     case LB_UART_CMD_DYNAMIC:       // 0x01 动态属性上报/查询应答
-        // TODO: DP 解析 → 状态同步 / 喂 UI
+        lb_ui_state_feed_dp(rx->data, rx->data_len);   // 更新 UI 状态镜像
+        if (lb_ble_timesync_on_heat_frame(rx)) {       // 时间同步应答 → 触发三餐预设
+            consumed = true;
+        }
+        if (lb_ble_product_info_on_heat_frame(rx)) {   // 产品信息查询应答 → 回复 APP
+            consumed = true;
+        }
+        // 谁的应答都不是 → 模块主动上报 (状态变化/故障), 翻译成 0x03 推送 APP
+        if (!consumed) {
+            lb_report_forward_to_app(rx);
+        }
         break;
 
-    case LB_UART_CMD_SCHEDULE:      // 0x02 预约列表应答
-        // TODO: 写入本地预约缓存
+    case LB_UART_CMD_SCHEDULE:      // 0x02 预约列表应答: 逐帧填充列表镜像
+        lb_ui_schedules_feed_entry(rx->data, rx->data_len);
         break;
 
-    case LB_UART_CMD_SCHEDULE_OP:   // 0x03 预约增/改/删应答
-        // TODO: 操作结果确认
+    case LB_UART_CMD_SCHEDULE_OP:   // 0x03 预约增/改/删应答: 生效则本地列表过期
+        if (rx->err_flag == LB_ERR_SUCCESS) {
+            lb_ui_schedules_mark_dirty();
+        }
         break;
 
-    case LB_UART_CMD_OTA:           // 0x04 OTA 应答
-        // TODO: 加热模块 OTA 状态机
+    case LB_UART_CMD_OTA:           // 0x04 OTA 应答: 加热模块升级期间驱动状态机
+        // 蓝牙协议1.0.6 §7: 升级过程只回 APP 成功/失败, 0x04 应答不转发 APP
+        if (heat_ota_is_active()) {
+            heat_ota_uart_response(rx);
+        }
         break;
 
-    case LB_UART_CMD_HEARTBEAT:     // 0x05 心跳请求
-        // TODO: 回心跳应答
+    case LB_UART_CMD_HEARTBEAT:     // 0x05 心跳: 收到请求(0x00)回应答(0x01)
+        if (rx->data && rx->data_len >= 1 && rx->data[0] == 0x00) {
+            u8 ack = 0x01;
+            lunchbox_uart_send_frame(LB_UART_CMD_HEARTBEAT, rx->msg_flag,
+                                     LB_ERR_SUCCESS, &ack, 1);
+        }
         break;
 
     default:                        // 未知命令
@@ -318,6 +365,9 @@ void lunchbox_uart_process(void)
     // BLE 转发请求的应答超时/重试
     lb_bridge_poll();
 
+    // 加热模块 OTA 状态机轮询 (超时检测/重试/继续发送)
+    heat_ota_process();
+
     // 收发层溢出诊断 (读清零, 正常应恒为 0)
     u16 ovf = lb_link_rx_overflow();
     if (ovf) {
@@ -329,10 +379,33 @@ void lunchbox_uart_process(void)
 // 生命周期
 //-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
+// 设备信息 — 0x01 产品信息查询的应答内容
+// 加热模块版本号开机为 0, 由模块 0x01 应答里的 dpid=13 回填
+//-----------------------------------------------------------------------------
+
+lb_device_info_t lb_dev_info;
+
+/** @brief 填默认设备信息 (SN/颜色出厂默认 0) */
+static void lb_dev_info_init(void)
+{
+    u8 ble_addr[6];
+
+    memset(&lb_dev_info, 0, sizeof(lb_dev_info));
+    ble_get_local_bd_addr(ble_addr);
+    sprintf(lb_dev_info.bt_name, "AR0MA-NY_%02X%02X", ble_addr[4], ble_addr[5]);
+    memcpy(lb_dev_info.version, "01.00.00", 8);
+    memcpy(lb_dev_info.model, "SF101\0\0\0\0\0", 10);
+    memcpy(lb_dev_info.mac, ble_addr, 6);
+    lb_dev_info.main_mcu_version    = 0x76303031;   // "v001" 主MCU固件版本
+    lb_dev_info.heat_module_version = 0;
+}
+
 void lunchbox_uart_init(u32 baud)
 {
     memset(&lb_uart, 0, sizeof(lb_uart));
     lb_proto_parser_reset(&lb_uart.parser);
+    lb_dev_info_init();
     if (!lb_link_init(baud)) {
         return;
     }

@@ -1,8 +1,7 @@
 #include "include.h"
 #include "func.h"
 #if ELUNCHBOX_PANEL_EN
-#include "func_lunchbox_uart_internal.h"
-extern bool lb_send_waiting;
+#include "func_lunchbox_uart.h"
 #endif
 #if ELUNCHBOX_PANEL_EN && FUNC_RESERVATION_UI_EN
 #include "func_reservation.h"
@@ -785,21 +784,26 @@ static void sfunc_sleep(void)
     if (elunchbox_guioff_slp && !s_pwroff_sent) {
         int timeout;
 
-        /* Step ①: 停加热 */
+        /* Step ①: 停加热 — 等状态镜像确认 heat_enable=0 再睡
+         * (模块的应答/主动上报会刷新 lb_ui_state, 比旧版"等帧ACK"更准:
+         *  确认的是状态真变了, 不只是帧被收到了) */
         {
-            u8 data[8];
-            u16 len = lb_dp_encode_bool(data, LB_DPID_HEAT_ENABLE, 0);
-            lb_uart_send_raw(LB_UART_CMD_DYNAMIC, data, len, false);  /* false=等ACK */
-            printf("elunchbox: sfunc_sleep step1 HeatEnable=0 (wait ACK)\n");
-            timeout = 0;
-            while (lb_send_waiting && timeout < 200) {
-                lunchbox_uart_process();
-                delay_5ms(5);
-                timeout++;
-            }
-            if (lb_send_waiting) {
-                printf("elunchbox: HeatEnable=0 ACK timeout, force clear\n");
-                lb_send_waiting = false;
+            lb_ui_state_t *st = lb_ui_state_get();
+
+            if (!st->valid || st->heat_enable) {
+                lb_heat_cmd_stop();     /* 状态未知也发一发, 保险 */
+                printf("elunchbox: sfunc_sleep step1 heat stop (wait state)\n");
+                timeout = 0;
+                while (st->heat_enable && timeout < 200) {   /* 最多等 1s */
+                    lunchbox_uart_process();
+                    delay_5ms(5);
+                    timeout++;
+                }
+                if (st->heat_enable) {
+                    printf("elunchbox: heat stop not confirmed, sleep anyway\n");
+                }
+            } else {
+                printf("elunchbox: sfunc_sleep step1 skip (not heating)\n");
             }
         }
 

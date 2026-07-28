@@ -44,8 +44,7 @@ u8 lb_ble_cmd_to_uart_cmd(u8 ble_cmd)
     case LB_CMD_OTA_START:       return LB_UART_CMD_OTA;         // 0x0c → 0x04
     case LB_CMD_OTA_DATA:        return LB_UART_CMD_OTA;         // 0x0d → 0x04
     case LB_CMD_OTA_END:         return LB_UART_CMD_OTA;         // 0x0e → 0x04
-    case LB_CMD_MODE_QUERY:      return LB_UART_CMD_SCHEDULE;    // 0x09 → 0x02
-    case LB_CMD_MODE_MODIFY:     return LB_UART_CMD_SCHEDULE_OP; // 0x0a → 0x03
+    // 0x09/0x0a 模式查询/修改: 预设是手表本地数据, 本地应答不转发 (ble_app.c)
     default:                     return 0x00;                    // 不转发
     }
 }
@@ -169,28 +168,7 @@ bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *out_len
         return true;
     }
 
-    // ─── 0x09 获取指定模式信息 → UART 0x02 ───
-    case LB_CMD_MODE_QUERY: {
-        if (rx->data && rx->data_len >= 1) {
-            out_data[0] = rx->data[0];
-            *out_len = 1;
-        }
-        return true;
-    }
-
-    // ─── 0x0a 修改指定模式信息 → UART 0x03: 构造 42B 预约帧 ───
-    case LB_CMD_MODE_MODIFY: {
-        if (!rx->data || rx->data_len < 3) return false;
-        memset(out_data, 0, 42);
-        out_data[0] = rx->data[0];       // action = mode
-        out_data[1] = 0;                 // id = 0 (模式模板)
-        out_data[38] = rx->data[1];      // temp
-        out_data[39] = rx->data[2];      // duration
-        out_data[40] = 0x01;             // enabled = 1
-        out_data[41] = 0xff;             // repeat = 0xff
-        *out_len = 42;
-        return true;
-    }
+    // 0x09/0x0a 模式查询/修改: 本地应答不转发, 无需翻译 (ble_app.c)
 
     // ─── OTA 命令 → UART 0x04 ───
     case LB_CMD_OTA_START: {
@@ -260,17 +238,9 @@ bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out_data, 
         return false;
     }
 
-    // ─── UART 0x02 → BLE 0x05/0x09 ───
+    // ─── UART 0x02 → BLE 0x05 ───
     case LB_UART_CMD_SCHEDULE: {
         if (!rx->data || rx->data_len < 44) return false;
-
-        if (ble_cmd == LB_CMD_MODE_QUERY) {
-            out_data[0] = rx->data[2];   // set_mode → mode
-            out_data[1] = rx->data[37];  // temp
-            out_data[2] = rx->data[38];  // duration
-            *out_len = 3;
-            return true;
-        }
 
         out_data[0] = rx->data[0];  // total_count
         out_data[1] = rx->data[1];  // seq
@@ -280,12 +250,8 @@ bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out_data, 
         return true;
     }
 
-    // ─── UART 0x03 → BLE 0x06/0x07/0x08/0x0a ───
+    // ─── UART 0x03 → BLE 0x06/0x07/0x08 ───
     case LB_UART_CMD_SCHEDULE_OP: {
-        if (ble_cmd == LB_CMD_MODE_MODIFY) {
-            *out_len = 0;
-            return true;
-        }
         if (rx->data && rx->data_len >= 1) {
             out_data[0] = rx->data[0];
             *out_len = 1;

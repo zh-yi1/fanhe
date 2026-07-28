@@ -35,6 +35,24 @@ void lunchbox_ble_set_tx_fn(lb_ble_tx_fn_t fn);
 /** @brief 发送一条完整 BLE 帧给 APP; false=通道未注册(未连接) */
 bool lunchbox_ble_tx(u8 *frame, u16 len);
 
+/** @brief 组帧并应答 APP (echo 请求的 msg_flag; OTA 等本地处理的业务用) */
+bool lb_ble_send_response(u8 ble_cmd, u8 msg_flag, u8 err, const u8 *data, u16 len);
+
+/** @brief 组帧并主动推送 APP (MCU 发起, msg_flag 自增) */
+bool lb_ble_send_async(u8 ble_cmd, const u8 *data, u16 len);
+
+/**
+ * @brief 串口 0x01 帧到达时的时间同步应答配对 (uart_app 的 on_frame 调用)
+ * @return true=已消化, 勿再当模块主动上报转发 APP
+ */
+bool lb_ble_timesync_on_heat_frame(lb_rx_frame_t *rx);
+
+/**
+ * @brief 串口 0x01 帧到达时的产品信息应答配对 (uart_app 的 on_frame 调用)
+ * @return true=已消化, 勿再当模块主动上报转发 APP
+ */
+bool lb_ble_product_info_on_heat_frame(lb_rx_frame_t *rx);
+
 /**
  * @brief 直接投喂一段 BLE 原始字节 (兼容旧入口, 平台侧仍可能调用)
  *
