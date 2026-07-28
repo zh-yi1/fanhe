@@ -237,6 +237,11 @@ void func_process(void)
 #endif
     }
 
+#if FUNC_LUNCHBOX_UART_EN
+    /* 加热模块串口: 取字节 → 拼帧 → lb_uart_on_frame 分发 (functions/comm/lb_uart_app.c) */
+    lunchbox_uart_process();
+#endif
+
 //#if MUSCI_BACKSTAGE_EN
 //    bsp_music_process();
 //#endif

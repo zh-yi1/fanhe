@@ -22,6 +22,8 @@
 #if FUNC_LUNCHBOX_UART_EN
 #include "lb_proto.h"       // 饭盒 0x55AA 帧协议 (functions/comm)
 #include "lb_ble_app.h"     // BLE 接收链路 + 发送接口
+#include "lb_uart_link.h"   // UART1 收发层 (硬件 + RX 环形缓冲)
+#include "lb_uart_app.h"    // 串口应用层: 解析调度 + 发送接口
 #endif
 
 #define TICK_IGNORE_KEY            700      //忽略700ms内的部分消息

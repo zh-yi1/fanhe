@@ -119,6 +119,10 @@ int main(void)
 
     bsp_flash_disk_mount();
 
+#if FUNC_LUNCHBOX_UART_EN
+    lunchbox_uart_init(LB_BAUD);
+#endif
+
     func_run();
     return 0;
 }
