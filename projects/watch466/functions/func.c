@@ -2,7 +2,7 @@
 #include "func_menu.h"
 #include "func_tbl.h"
 #include "func.h"
-#include "func_reservation.h"
+//#include "func_reservation.h"
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #endif
@@ -123,7 +123,7 @@ void func_process(void)
     pt8028_gpio_ensure_periodic();
 #if ELUNCHBOX_PANEL_EN
     pt8028_key_scan();
-    
+
 #endif
     pt8028_log_flush();
     pt8028_poll_reinit();
@@ -176,7 +176,7 @@ void func_process(void)
         gui_process();                                      //刷新UI
 #endif
 
-        func_reservation_poll();
+
 
     }
 
@@ -1250,7 +1250,7 @@ void func_run(void)
     panel_led_set(PANEL_LED_ID_SWITCH, true);   /* 进 func_run 点亮 LED1，便于无屏时确认固件已跑 */
 #endif
     // func.c
-    
+
     for (;;) {
 #if !ELUNCHBOX_PANEL_EN
         printf("func_enter <<\n");

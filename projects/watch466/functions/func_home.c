@@ -1,6 +1,5 @@
 #include "include.h"
 #include "func.h"
-#include "func_reservation.h"
 
 #if USER_PANEL_LED
 #include "port_panel_led.h"
@@ -210,15 +209,15 @@ static void func_home_res_marquee_refresh(f_home_t *f_home)
         return;
     }
 
-    if (!func_reservation_is_waiting()) {
+ /*   if (!func_reservation_is_waiting()) {
         compo_textbox_set_visible(f_home->txt_res_marquee, false);
 #if ELUNCHBOX_PANEL_EN
         func_home_gui_mark_dirty();
 #endif
         return;
     }
-
-    func_reservation_marquee_text(buf, sizeof(buf));
+*/
+  //  func_reservation_marquee_text(buf, sizeof(buf));
     compo_textbox_set(f_home->txt_res_marquee, buf);
     compo_textbox_set_visible(f_home->txt_res_marquee, true);
 #if ELUNCHBOX_PANEL_EN
