@@ -29,6 +29,10 @@ u8 func_menu_sub_skyrer_get_first_idx(void);
 compo_form_t *func_clock_form_create_by_screenshoot(void);
 
 func_cb_t func_cb AT(.buf.func_cb);
+#if ELUNCHBOX_PANEL_EN
+u8 func_res_allow_switch;
+volatile u8 elunchbox_te_block_flag;
+#endif
 
 #if BT_BACKSTAGE_EN
 AT(.text.func.process)
@@ -70,7 +74,6 @@ static bool func_elunchbox_res_key_page_ok(void)
     case FUNC_HOME:
     case FUNC_MODE:
     case FUNC_SETUP:
-    case FUNC_HEAT:
     case FUNC_LANGUAGEING:
     case FUNC_TIMEING:
     case FUNC_VERINFO:
@@ -1058,9 +1061,7 @@ void func_message(size_msg_t msg)
                 break;
             }
 #endif
-            if (func_cb.sta == FUNC_HOME) {
-                func_home_mode_key();
-            } else if (func_cb.sta != FUNC_HEAT && func_cb.sta != FUNC_MODE &&
+            if (func_cb.sta != FUNC_MODE &&
                        func_cb.sta != FUNC_SETUP && func_cb.sta != FUNC_RESERVATION &&
                        func_cb.sta != FUNC_TIMEING && func_cb.sta != FUNC_LANGUAGEING &&
                        func_cb.sta != FUNC_VERINFO) {

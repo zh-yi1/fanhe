@@ -160,6 +160,20 @@ enum {
     FUNC_TIMEING,                       //定时页
     FUNC_LANGUAGEING,                   //语言页
     FUNC_VERINFO,                       //版本信息页
+    FUNC_NEW_HEAT_SET,                  //新UI加热设置页
+    FUNC_NEW_HEAT_PAGE,                 //新UI加热运行页
+    FUNC_NEW_HEAT_CHICKEN,              //新UI鸡肉加热
+    FUNC_NEW_HEAT_PASTA,                //新UI意面加热
+    FUNC_NEW_WARM_PAGE,                 //新UI保温页
+    FUNC_NEW_MODE,                      //新UI模式页
+    FUNC_NEW_SETUP,                     //新UI设置页
+    FUNC_NEW_TIME,                      //新UI时间页
+    FUNC_NEW_LANGUAGE,                  //新UI语言页
+    FUNC_NEW_VERINFO,                   //新UI版本信息页
+    FUNC_NEW_CONFIRM,                   //新UI确认页
+    FUNC_HOME_PAGE,                     //新UI主页
+    FUNC_APPOINTMENT_TIME,              //预约时间页
+    FUNC_LOWBAT,                        //低电量页
     FUNC_MAX_NUM,           //用于计数
 
 };
@@ -229,12 +243,10 @@ bool func_video_allow_warning_tone(void);
 void home_gpu_wait_idle(void);
 
 #if ELUNCHBOX_PANEL_EN
-void func_home_gui_mark_dirty(void);
-bool func_home_gui_need_refresh(void);
 extern u8 func_res_allow_switch;
+extern volatile u8 elunchbox_te_block_flag;
 void func_elunchbox_switch_to_reservation(void);
 void func_elunchbox_res_key_poll(void);
-void func_home_switch_to_reservation(void);
 #endif
 
 #endif // _FUNC_H

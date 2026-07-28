@@ -94,6 +94,8 @@
 			<Add directory="../../platform/libs/alipay_secure_sdk/softse" />
 			<Add directory="../../platform/gui/ctp/axs5106" />
 			<Add directory="functions/common" />
+		<Add directory="key" />
+		<Add directory="new_ui" />
 			<Add directory="../../platform/libs/alipay_secure_sdk/hal/cert" />
 			<Add directory="../../platform/modules/yj" />
 			<Add directory="../../platform/modules/awk_map" />
@@ -1242,31 +1244,58 @@
 		</Unit>
 		<Unit filename="functions/func_ble_gatts.h" />
 <Unit filename="functions/func_fmrx.h" />
-		<Unit filename="functions/func_heat.c">
+		<Unit filename="key/func_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_home.c">
+		<Unit filename="key/func_key_lock.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_mode.c">
+		<Unit filename="key/port_pt8028_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_reservation.c">
+		<Unit filename="new_ui/general_ui.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/general_title_ui.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_home_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_heat_set_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_heat_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_heat_chicken.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_heat_pasta.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_mode_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_setup_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_language_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_verInfo_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_lock_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_lowbat_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="new_ui/func_warm_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_reservation.h" />
-		<Unit filename="functions/func_setup.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_timeing.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_languageing.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/func_verinfo.c">
-			<Option compilerVar="CC" />
-		</Unit>
 <Unit filename="functions/func_menu.h" />
 <Unit filename="functions/func_music.h" />
 <Unit filename="functions/func_recorder.h" />
@@ -1303,9 +1332,6 @@
 		<Unit filename="plugin/user_halt.h" />
 		<Unit filename="port/port_ctp.h" />
 		<Unit filename="port/port_key.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="port/port_pt8028_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="port/port_pt8028_key.h" />
