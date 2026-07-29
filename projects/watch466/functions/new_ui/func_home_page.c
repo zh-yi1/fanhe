@@ -8,10 +8,6 @@
 /* 系统状态实例 */
 ui_sys_t g_ui_sys;
 
-#if ELUNCHBOX_PANEL_EN
-extern volatile u8 elunchbox_te_block_flag;
-#endif
-
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
 #else
@@ -200,28 +196,10 @@ void func_home_page_enter(void)
     func_key_reset();
     func_cb.frm_main = func_home_page_form_create();
 
-#if ELUNCHBOX_PANEL_EN
-    /* enter 全程 TE block：form_create + attach 都可能触发 GPU 工作，
-     * 阻止 TE 信号在此期间触发 gui_process → gui thread miss → task_stack_pop */
-    {
-        u8 was_blocked = elunchbox_te_block_flag;
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 1;
-        }
-        home_gpu_wait_idle();
-        WDT_CLR();
-#endif
+    home_gpu_wait_idle();
+    WDT_CLR();
 
     general_status_bar_attach(&((f_home_t *)func_cb.f_cb)->sb);
-
-#if ELUNCHBOX_PANEL_EN
-        home_gpu_wait_idle();
-        WDT_CLR();
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 0;
-        }
-    }
-#endif
 }
 
 void func_home_page_exit(void)

@@ -246,7 +246,6 @@ void home_gpu_wait_idle(void);
 
 #if ELUNCHBOX_PANEL_EN
 extern u8 func_res_allow_switch;
-extern volatile u8 elunchbox_te_block_flag;
 void func_elunchbox_switch_to_reservation(void);
 void func_elunchbox_res_key_poll(void);
 #endif

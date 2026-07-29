@@ -8,10 +8,6 @@
 /* 页面间共享加热参数实例 */
 ui_heat_t g_ui_heat = { .temp = 140, .time_min = 60, .keep_warm_min = 30 };
 
-#if ELUNCHBOX_PANEL_EN
-extern volatile u8 elunchbox_te_block_flag;
-#endif
-
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
 #else
@@ -384,26 +380,10 @@ void func_heat_set_page_enter(void)
     inf->temp_index = TEMP_DEFAULT;
     inf->time_min = TIME_DEFAULT;
 
-#if ELUNCHBOX_PANEL_EN
-    {
-        u8 was_blocked = elunchbox_te_block_flag;
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 1;
-        }
-        home_gpu_wait_idle();
-        WDT_CLR();
-#endif
+    home_gpu_wait_idle();
+    WDT_CLR();
 
     general_status_bar_attach(&inf->sb);
-
-#if ELUNCHBOX_PANEL_EN
-        home_gpu_wait_idle();
-        WDT_CLR();
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 0;
-        }
-    }
-#endif
 }
 
 void func_heat_set_page_exit(void)

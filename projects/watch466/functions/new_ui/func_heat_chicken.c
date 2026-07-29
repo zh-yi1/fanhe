@@ -5,10 +5,6 @@
 #include "general_ui.h"
 #include "ui.h"
 
-#if ELUNCHBOX_PANEL_EN
-extern volatile u8 elunchbox_te_block_flag;
-#endif
-
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
 #else
@@ -313,26 +309,10 @@ void func_heat_chicken_enter(void)
     inf->display_stage = 1;
     inf->time_min = TIME_DEFAULT;
 
-#if ELUNCHBOX_PANEL_EN
-    {
-        u8 was_blocked = elunchbox_te_block_flag;
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 1;
-        }
-        home_gpu_wait_idle();
-        WDT_CLR();
-#endif
+    home_gpu_wait_idle();
+    WDT_CLR();
 
     general_status_bar_attach(&inf->sb);
-
-#if ELUNCHBOX_PANEL_EN
-        home_gpu_wait_idle();
-        WDT_CLR();
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 0;
-        }
-    }
-#endif
 }
 
 void func_heat_chicken_exit(void)
