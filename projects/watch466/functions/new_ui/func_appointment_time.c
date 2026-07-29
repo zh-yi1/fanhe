@@ -211,7 +211,7 @@ static void func_appointment_time_handle_keys(void)
         case FUNC_KEY_UP:
         case FUNC_KEY_DOWN:
         {
-            s8 dir = (key == FUNC_KEY_UP) ? 1 : -1;
+            s8 dir = (key == FUNC_KEY_UP) ? -1 : 1;
 
             if (inf->focus_col == FOCUS_HOUR)
                 inf->hour = roll_step(FOCUS_HOUR, inf->hour, dir);

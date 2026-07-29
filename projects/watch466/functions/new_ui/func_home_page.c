@@ -21,7 +21,7 @@ ui_sys_t g_ui_sys = {
     .lowbat = false,      /* 低电状态 → 进入低电页 */
     .full_charge = false,
     .bt_linked = false, /* 蓝牙已连 → 图标显示 */
-    .lid_open = true, /* 上盖打开 → 进入上盖页 */
+    .lid_open = false, /* 上盖打开 → 进入上盖页 */
     .hour = 12, /* 时间 12:34 */
     .min = 34,
 };

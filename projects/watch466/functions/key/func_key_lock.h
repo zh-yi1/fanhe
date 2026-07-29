@@ -79,6 +79,7 @@ void func_key_lock_on_heating_stop(void);
 
 void func_lock_page_show(bool unlock_icon);
 void func_lock_page_hide(void);
+void func_lock_page_on_form_destroy(void);
 
 /*===========================================================================
  * 兼容旧接口（逐步废弃）
@@ -127,6 +128,9 @@ static inline void func_key_lock_poll(void) {}
 static inline bool func_key_lock_pre_gui_poll(void) { return false; }
 static inline void func_key_lock_on_page_change(void) {}
 static inline void func_key_lock_on_form_destroy(void) {}
+static inline void func_lock_page_show(bool unlock_icon) { (void)unlock_icon; }
+static inline void func_lock_page_hide(void) {}
+static inline void func_lock_page_on_form_destroy(void) {}
 static inline void func_key_lock_on_manual_shutdown(void) {}
 static inline void func_key_lock_overlay_to_front(void) {}
 static inline void func_key_lock_on_heating_start(void) {}

@@ -86,17 +86,17 @@ static void func_heat_chicken_handle_keys(void)
 
         switch (key) {
         case FUNC_KEY_UP:
-            inf->time_min += TIME_STEP;
-            if (inf->time_min > TIME_MAX_MINUTES)
-                inf->time_min = TIME_MIN_MINUTES;
-            heat_chicken_update_display();
-            break;
-
-        case FUNC_KEY_DOWN:
             if (inf->time_min <= TIME_MIN_MINUTES)
                 inf->time_min = TIME_MAX_MINUTES;
             else
                 inf->time_min -= TIME_STEP;
+            heat_chicken_update_display();
+            break;
+
+        case FUNC_KEY_DOWN:
+            inf->time_min += TIME_STEP;
+            if (inf->time_min > TIME_MAX_MINUTES)
+                inf->time_min = TIME_MIN_MINUTES;
             heat_chicken_update_display();
             break;
 

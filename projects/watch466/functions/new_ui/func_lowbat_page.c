@@ -3,8 +3,8 @@
 #include "func_key.h"
 
 #ifndef NEW_UI_DIDIAN_W
-#define NEW_UI_DIDIAN_W  48
-#define NEW_UI_DIDIAN_H  48
+#define NEW_UI_DIDIAN_W  320
+#define NEW_UI_DIDIAN_H  240
 #endif
 
 #if TRACE_EN

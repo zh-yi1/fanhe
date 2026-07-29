@@ -8,6 +8,7 @@
 #if USER_PANEL_LED
 
 #include "bsp_pt8028_key.h"
+#include "func_key_lock.h"
 
 /*
  * ============================================================================
@@ -23,7 +24,9 @@
  *    TCH4 确认   → LED2 (PB1)     TCH5 开关   → LED1 (PB0)
  *    TCH6 加号   → 无 LED          TCH7 预约   → LED4 (PB5)
  *
- *  行为：单灯模式 — 按下哪个键亮哪个灯，松开全灭，同时只亮一盏。
+ *  行为：
+ *    - 未锁：按下哪个键亮哪个灯，松开全灭
+ *    - 童锁中：锁键灯(LED5)常亮；其它键按下时仍可亮对应灯，且锁灯不灭
  * ============================================================================
  */
 
@@ -50,6 +53,7 @@ static const u8 tbl_led_gpio[FUNC_LED_ID_CNT] = {
 };
 
 static u8 led_last_tch;     /* 上次点亮的 TCH，去抖用。初始化为哨兵值避免与 PT8028_KEY_NONE(0xFF) 碰撞导致首帧跳过 */
+static bool led_last_locked;
 
 /* ---- 底层 GPIO 操作 ---- */
 static void led_gpio_set(u8 gpio, bool on)
@@ -76,6 +80,7 @@ void func_led_init(void)
     u8 i;
 
     led_last_tch = LED_TCH_SENTINEL;
+    led_last_locked = false;
     for (i = 0; i < FUNC_LED_ID_CNT; i++) {
         led_gpio_set(tbl_led_gpio[i], false);
     }
@@ -117,22 +122,30 @@ static void func_led_show_tch(u8 tch)
 
 /*
  * 每帧调用 — 读取 PT8028 当前按下的 TCH，点亮对应 LED。
- * 无按键时全灭。有去抖：同 TCH 连续帧不重复操作 GPIO。
+ * 童锁激活时 LED5 常亮；松开其它键时也不灭锁灯。
  * 主线程调用，勿放中断（GPIO 操作可能干扰 LCD 刷新）。
  */
 void func_led_scan(void)
 {
     u8 tch = pt8028_get_led_tch();
+    bool locked = func_key_lock_is_active();
 
-    if (tch == led_last_tch) {
-        return;                         /* 同键，跳过 */
+    if (tch == led_last_tch && locked == led_last_locked) {
+        return;                         /* 同态，跳过 */
     }
     led_last_tch = tch;
+    led_last_locked = locked;
 
     if (tch <= PT8028_KEY_TCH7) {
         func_led_show_tch(tch);         /* 按下 → 亮对应灯 */
+        if (locked) {
+            func_led_set(FUNC_LED_ID_LOCK, true); /* 童锁态锁灯常亮 */
+        }
+    } else if (locked) {
+        func_led_all_off();
+        func_led_set(FUNC_LED_ID_LOCK, true);
     } else {
-        func_led_all_off();             /* 松开 → 全灭 */
+        func_led_all_off();             /* 松开且未锁 → 全灭 */
     }
 }
 
