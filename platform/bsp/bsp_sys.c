@@ -27,6 +27,46 @@ const char str_pc_remove[] = "->pc remove\n";
 
 xcfg_cb_t xcfg_cb;
 sys_cb_t sys_cb AT(.buf.bsp.sys_cb);
+
+/*----------------------------------------------------------------------------*/
+/** @brief: MAC 地址持久化 — 首次开机写入 flash，之后每次开机读取覆盖 xcfg_cb.bt_addr
+ *  @note:  解决重新烧录固件后 MAC 地址变化的问题。
+ *          flash 布局: 0x3F0000 (4K 扇区), 位于加热模块 OTA 区(0x3E0000~0x3EA000)
+ *          和 app 数据区(0x3F9000)之间的空闲区。
+ *          数据格式: [magic:4B][bt_addr:6B]，magic=0x4D4143 ("MAC")
+ */
+#define FLASH_MAC_ADDR          0x3F0000
+#define MAC_MAGIC_MARKER        0x4D4143    // "MAC" in ASCII
+
+typedef struct {
+    u32 magic;
+    u8  bt_addr[6];
+} mac_persist_t;
+
+static void bt_addr_persist_init(void)
+{
+    mac_persist_t mac_data;
+
+    os_spiflash_read(&mac_data, FLASH_MAC_ADDR, sizeof(mac_persist_t));
+
+    if (mac_data.magic == MAC_MAGIC_MARKER) {
+        // 已有存储的 MAC，覆盖 xcfg_cb（重新烧录固件也不会变）
+        memcpy(xcfg_cb.bt_addr, mac_data.bt_addr, 6);
+        printf("[MAC persist] loaded from flash: %02X:%02X:%02X:%02X:%02X:%02X\n",
+               mac_data.bt_addr[0], mac_data.bt_addr[1], mac_data.bt_addr[2],
+               mac_data.bt_addr[3], mac_data.bt_addr[4], mac_data.bt_addr[5]);
+    } else {
+        // 首次开机，将当前 MAC 写入 flash 永久保存
+        mac_data.magic = MAC_MAGIC_MARKER;
+        memcpy(mac_data.bt_addr, xcfg_cb.bt_addr, 6);
+        os_spiflash_erase(FLASH_MAC_ADDR);
+        os_spiflash_program(&mac_data, FLASH_MAC_ADDR, sizeof(mac_persist_t));
+        printf("[MAC persist] first boot, saved MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+               xcfg_cb.bt_addr[0], xcfg_cb.bt_addr[1], xcfg_cb.bt_addr[2],
+               xcfg_cb.bt_addr[3], xcfg_cb.bt_addr[4], xcfg_cb.bt_addr[5]);
+    }
+}
+
 volatile int micl2gnd_flag;
 volatile u32 ticks_50ms;
 
@@ -799,6 +839,10 @@ void bsp_sys_init(void)
     if (!xcfg_init(&xcfg_cb, sizeof(xcfg_cb))) {           //获取配置参数
         printf("xcfg init error\n");
     }
+
+    // MAC 地址持久化：首次开机保存到 flash，之后从 flash 读取（覆盖 xcfg 配置工具的值）
+    bt_addr_persist_init();
+
     print_comm_info();
 
     // io init
@@ -863,11 +907,16 @@ void bsp_sys_init(void)
     sys_set_tmr_enable(1, 1);
 
 #if ELUNCHBOX_PANEL_EN
-    /* 饭盒：跳过 BT/DAC/mic 等可能阻塞项，尽快点亮 LCD */
+    /* 饭盒：跳过 DAC/mic 等可能阻塞项，尽快点亮 LCD */
     lang_select(sys_cb.lang_id);
     bsp_sys_mute();
     gui_init();
     customer_heap_init();
+    /* 启动 BLE 广播: bt_init 仅初始化变量, func_bt_init→bsp_bt_init→bt_setup
+     * 才真正启动模块, 并置 bt_cb.bt_is_inited=1 (func.c 主循环靠它跑
+     * lunchbox_ble_process) —— 缺这两行则蓝牙完全不工作 */
+    bt_init();
+    func_bt_init();
     return;
 #endif
 
