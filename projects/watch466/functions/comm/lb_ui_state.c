@@ -5,6 +5,7 @@
 #include "include.h"
 #include "lb_proto.h"
 #include "lb_ui_state.h"
+#include "lb_heat_cmd.h"    // 列表同步状态机自己发 0x02 查询
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -17,10 +18,9 @@ lb_ui_state_t *lb_ui_state_get(void)
 
 void lb_ui_state_reset(void)
 {
-    memset(&lb_ui_state, 0, sizeof(lb_ui_state));
     // 蓝牙连接标志由 BLE 回调维护, 与模块上报无关, 复位时保留
     bool ble = lb_ui_state.ble_connected;
-}
+    memset(&lb_ui_state, 0, sizeof(lb_ui_state));
     lb_ui_state.ble_connected = ble;
 }
 
@@ -37,6 +37,7 @@ void lb_ui_ble_link_set(bool connected)
 bool lb_ui_ble_is_connected(void)
 {
     return lb_ui_state.ble_connected;
+}
 
 /** @brief 更新 u8 字段, 变化时返回 true */
 static bool lb_ui_set_u8(u8 *field, u8 val)
@@ -141,10 +142,92 @@ lb_ui_schedules_t *lb_ui_schedules_get(void)
     return &lb_ui_schedules;
 }
 
+//-----------------------------------------------------------------------------
+// 列表同步状态机 — 标脏后自动重查, 超时重发, 用尽置 FAIL
+//
+// 时序: dirty ──> 发 0x02 ──> 等首帧/后续帧 ──> 收齐(complete) ──> IDLE
+//                    ↑           │ 静默超过 LB_SCH_SYNC_TIMEOUT_MS
+//                    └───────────┘ 重发, 满 LB_SCH_SYNC_MAX_RETRY 次 → FAIL
+//-----------------------------------------------------------------------------
+
+#define LB_SCH_SYNC_TIMEOUT_MS  1000    // 发出查询/收到上一帧后的静默上限
+#define LB_SCH_SYNC_MAX_RETRY   3       // 超时重发次数, 用尽置 FAIL
+
+static struct {
+    bool dirty;         // 有待办的重查请求
+    bool waiting;       // 查询已发出, 等应答中
+    bool failed;        // 重试用尽
+    u8   retry;         // 本轮已重发次数
+    u8   gen;           // 标脏世代号: 每次 mark_dirty/refresh 自增
+    u8   sent_gen;      // 当前在途查询发出时的世代号
+    u32  tick;          // 发出查询 / 收到上一帧的时刻
+} lb_sch_sync;
+
+/** @brief 置重查请求 (世代号自增, 使在途的旧查询结果不再算数) */
+static void lb_sch_sync_request(void)
+{
+    lb_sch_sync.dirty = true;
+    lb_sch_sync.failed = false;
+    lb_sch_sync.gen++;
+}
+
+/** @brief 发出查询, 进入等待 */
+static void lb_sch_sync_send(void)
+{
+    if (!lb_heat_cmd_schedule_query()) {
+        return;                          // TX 被阻断, 下一轮再试
+    }
+    lb_sch_sync.waiting  = true;
+    lb_sch_sync.sent_gen = lb_sch_sync.gen;
+    lb_sch_sync.tick     = tick_get();
+}
+
+void lb_ui_schedules_refresh(void)
+{
+    lb_sch_sync_request();
+}
+
+lb_sch_sync_t lb_ui_schedules_sync_state(void)
+{
+    if (lb_sch_sync.failed) {
+        return LB_SCH_SYNC_FAIL;
+    }
+    return (lb_sch_sync.waiting || lb_sch_sync.dirty) ? LB_SCH_SYNC_BUSY
+                                                      : LB_SCH_SYNC_IDLE;
+}
+
+void lb_ui_schedules_sync_process(void)
+{
+    if (lb_sch_sync.waiting) {
+        if (!tick_check_expire(lb_sch_sync.tick, LB_SCH_SYNC_TIMEOUT_MS)) {
+            return;                      // 还在等, 帧到达时会刷新 tick
+        }
+        lb_sch_sync.waiting = false;
+        if (lb_sch_sync.retry >= LB_SCH_SYNC_MAX_RETRY) {
+            lb_sch_sync.dirty  = false;  // 别再自动重试, 等下次 refresh
+            lb_sch_sync.failed = true;
+            lb_sch_sync.retry  = 0;
+            printf("schedules: sync FAILED (no reply)\n");
+            return;
+        }
+        lb_sch_sync.retry++;
+        printf("schedules: sync timeout, retry %u/%u\n",
+               lb_sch_sync.retry, LB_SCH_SYNC_MAX_RETRY);
+        lb_sch_sync_send();
+        return;
+    }
+
+    if (lb_sch_sync.dirty) {
+        lb_sch_sync.retry = 0;
+        lb_sch_sync_send();
+    }
+}
+
 void lb_ui_schedules_mark_dirty(void)
 {
     lb_ui_schedules.complete = false;
     lb_ui_schedules.seq++;
+    lb_sch_sync_request();               // 增/删/改生效 → 自动重查
 }
 
 bool lb_ui_schedules_feed_entry(const u8 *data, u16 len)
@@ -189,6 +272,21 @@ bool lb_ui_schedules_feed_entry(const u8 *data, u16 len)
     lb_ui_schedules.valid = true;
     lb_ui_schedules.tick = tick_get();
     lb_ui_schedules.seq++;
+
+    // 同步状态机: 每收一帧刷新静默计时, 收齐则本轮结束
+    // (APP 自己查列表时 waiting=false, 应答照常入镜像, 不影响状态机)
+    if (lb_sch_sync.waiting) {
+        lb_sch_sync.tick = tick_get();
+        if (lb_ui_schedules.complete) {
+            lb_sch_sync.waiting = false;
+            lb_sch_sync.failed  = false;
+            lb_sch_sync.retry   = 0;
+            // 收齐期间又被标脏 → 这份已过时, 保留 dirty 让下一轮再查
+            if (lb_sch_sync.sent_gen == lb_sch_sync.gen) {
+                lb_sch_sync.dirty = false;
+            }
+        }
+    }
     return true;
 }
 

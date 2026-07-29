@@ -69,10 +69,19 @@ bool lb_ui_ble_is_connected(void);
 //-----------------------------------------------------------------------------
 // 预约列表镜像 (串口 0x02 应答逐帧填充)
 //
+// 查询/重发/超时由本模块的同步状态机负责, 页面不用发命令:
+//   预约增/删/改成功 → 自动重查; 进页面/手动刷新 → lb_ui_schedules_refresh()
+//
 // UI 用法 (预约页):
-//   lb_ui_schedules_t *sch = lb_ui_schedules_get();
-//   if (sch->complete && sch->seq != last_seq) { last_seq = sch->seq; 刷新列表; }
-//   if (!sch->complete) { ...列表过期/未收齐, 可触发重新查询... }
+//   进入页面: lb_ui_schedules_refresh();
+//   周期刷新:
+//     lb_ui_schedules_t *sch = lb_ui_schedules_get();
+//     if (sch->complete && sch->seq != last_seq) { last_seq = sch->seq; 刷新列表; }
+//
+// ⚠ 判断条件必须带 complete: 多帧接收途中 seq 会连跳数次且 count 从 0 递增,
+//   只看 seq 会画出残缺列表(闪烁)。收齐了才画, 传输中沿用上一份显示内容。
+//   "有没有东西可显示"看 valid/count, 不看 complete。
+//   要显示转圈/失败提示则查 lb_ui_schedules_sync_state()。
 //-----------------------------------------------------------------------------
 
 #define LB_SCHEDULE_MAX         10      // 最大预约条数
@@ -100,6 +109,29 @@ typedef struct {
 
 /** @brief 获取预约列表 (只读使用) */
 lb_ui_schedules_t *lb_ui_schedules_get(void);
+
+/** @brief 列表同步状态 (给页面显示"同步中"/"同步失败"用) */
+typedef enum {
+    LB_SCH_SYNC_IDLE = 0,      // 空闲: 列表可信, 或从未查过 (看 valid)
+    LB_SCH_SYNC_BUSY,          // 查询已发出 / 多帧接收中
+    LB_SCH_SYNC_FAIL,          // 重试用尽, 列表不可信 (调 refresh 可重来)
+} lb_sch_sync_t;
+
+lb_sch_sync_t lb_ui_schedules_sync_state(void);
+
+/**
+ * @brief 请求重新拉取列表 (页面进入 / 手动刷新 / 重试按钮)
+ *
+ * 只置标记, 实际查询由 lb_ui_schedules_sync_process() 发出; 连点无害。
+ */
+void lb_ui_schedules_refresh(void);
+
+/**
+ * @brief 列表同步状态机 (lunchbox_uart_process 每轮调用, UI 不用管)
+ *
+ * 负责: 标脏后自动发 0x02 重查、应答超时重发 3 次、失败置 FAIL。
+ */
+void lb_ui_schedules_sync_process(void);
 
 /**
  * @brief 串口 0x02 应答(44B 条目) → 填充列表 (串口应用层调用)

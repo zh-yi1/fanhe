@@ -397,6 +397,9 @@ void lunchbox_uart_process(void)
     // BLE 转发请求的应答超时/重试
     lb_bridge_poll();
 
+    // 预约列表同步: 标脏后自动重查 + 超时重发
+    lb_ui_schedules_sync_process();
+
     // 加热模块 OTA 状态机轮询 (超时检测/重试/继续发送)
     heat_ota_process();
 
