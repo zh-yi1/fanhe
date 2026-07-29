@@ -3,7 +3,6 @@
 #include "func_key.h"
 #include "func_key_lock.h"
 #include "general_ui.h"
-#include "new_time_res.h"
 #include "lang.h"
 
 #if TRACE_EN
@@ -36,6 +35,8 @@
 #define CONFIRM_SUB_Y                   ((s16)(CONFIRM_PANEL_Y + 10))
 
 #define CONFIRM_BTN_DIST                130
+#define NEW_TIME_BTN_W                  110
+#define NEW_TIME_BTN_H                  44
 #define CONFIRM_BTN_Y                   ((s16)(CONFIRM_PANEL_Y + CONFIRM_PANEL_H / 2 \
                                                - NEW_TIME_BTN_H / 2 - 14))
 #define CONFIRM_BTN_NO_X                ((s16)(GUI_SCREEN_CENTER_X - CONFIRM_BTN_DIST / 2))

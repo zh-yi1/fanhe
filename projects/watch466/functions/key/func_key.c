@@ -201,6 +201,17 @@ void func_key_poll(void)
     evt.type = FUNC_KEY_EVENT_PRESS;
     evt.tch = press_tch;
     key_queue_push(evt);
+
+    /* 10. 清除 pt8028_key_scan 同时发到系统消息队列的 KU_* 消息，
+     *     避免一次物理按键被 func_key handler 和 func_message 双重处理 */
+    msg_queue_detach(KU_NEXT, 0);
+    msg_queue_detach(KU_MODE, 0);
+    msg_queue_detach(KU_BACK, 0);
+    msg_queue_detach(KU_PREV, 0);
+    msg_queue_detach(KU_LEFT, 0);
+    msg_queue_detach(KU_RIGHT, 0);
+    msg_queue_detach(KU_VOL_UP, 0);
+    msg_queue_detach(KU_VOL_DOWN, 0);
 }
 
 /*===========================================================================
@@ -267,7 +278,6 @@ void func_key_flush(void)
     key_queue_head = 0;
     key_queue_count = 0;
 
-    func_key_release_clear();
     {
         u8 drain_tch;
         while (func_key_take_raw_press(&drain_tch)) {}

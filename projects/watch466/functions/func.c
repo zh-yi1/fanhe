@@ -960,6 +960,23 @@ static bool func_clock_subui_active(void)
 //func common message process
 void func_message(size_msg_t msg)
 {
+#if ELUNCHBOX_PANEL_EN
+    /* new_ui pages handle navigation via func_key, not old-style msg queue */
+    if (func_cb.sta == FUNC_HOME || func_cb.sta == FUNC_HOME_PAGE
+        || func_cb.sta >= FUNC_NEW_HEAT_SET) {
+        switch (msg) {
+        case MSG_CTP_SHORT_LEFT:
+        case MSG_CTP_SHORT_RIGHT:
+        case KU_BACK:
+        case KU_PREV:
+        case MSG_QDEC_FORWARD:
+        case MSG_QDEC_BACKWARD:
+            return;
+        default:
+            break;
+        }
+    }
+#endif
     switch (msg) {
     case MSG_CTP_SHORT_LEFT:
         if (func_cb.sta == FUNC_CLOCK) {

@@ -93,7 +93,8 @@ void general_status_bar_bind(general_status_bar_t *bar)
 
     /* 蓝牙图标：载入 Flash → RAM → 绑定到 pic */
     home_ui_shared_status_init();
-    if (bar->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
+    if (bar->pic_bt != NULL && home_ui_shared_status_bt_ram != NULL
+        && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         home_ui_shared_status_refresh_bt(bar->pic_bt);
     }
 
@@ -125,7 +126,7 @@ void general_status_bar_attach(general_status_bar_t *bar)
         WDT_CLR();
 #endif
 
-    if (bar->pic_bt != NULL
+    if (bar->pic_bt != NULL && home_ui_shared_status_bt_ram != NULL
         && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         home_ui_shared_status_refresh_bt(bar->pic_bt);
     }

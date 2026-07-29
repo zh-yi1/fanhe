@@ -305,7 +305,7 @@ void func_appointment_time_enter(void)
 
     /* 先同步系统时间，再创建 form，滚轮初始值即为当前时间 */
     {
-        tm_t tm = lb_get_display_tm();
+        tm_t tm = rtc_clock_get();
         inf->hour = tm.hour;
         inf->min  = tm.min;
     }
