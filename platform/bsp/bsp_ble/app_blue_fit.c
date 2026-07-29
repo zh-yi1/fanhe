@@ -1,8 +1,8 @@
 #include "include.h"
 #include "app_ab_link.h"
 
-/* home_ui_shared BLE 连接状态通知: 新 UI 尚无该模块, 待接入
- * (elunchbox 原为 #include "home_ui_shared.h" + home_ui_shared_ble_link_notify) */
+/* BLE 连接状态通知: 连接/断开回调调 lb_ui_ble_link_set(), 标志存 lb_ui_state,
+ * UI 页面自己读 (elunchbox 原为 home_ui_shared_ble_link_notify) */
 
 #if SECURITY_PAY_EN
 #include "alipay_bind.h"
@@ -766,7 +766,9 @@ void ble_app_watch_init(void)
 void ble_app_watch_disconnect_callback(void)
 {
     bind_sta_set(BIND_NULL);
-    /* TODO: 新 UI 接入 BLE 连接状态通知 (原 home_ui_shared_ble_link_notify) */
+#if FUNC_LUNCHBOX_UART_EN
+    lb_ui_ble_link_set(false);          // UI 侧连接标志: 页面读 lb_ui_state
+#endif
 }
 
 /**
@@ -775,11 +777,12 @@ void ble_app_watch_disconnect_callback(void)
 void ble_app_watch_connect_callback(void)
 {
 #if FUNC_LUNCHBOX_UART_EN
+    lb_ui_ble_link_set(true);           // UI 侧连接标志: 页面读 lb_ui_state
+
     // BLE 连接成功后主动上报时间戳给 APP (蓝牙通讯协议1.0.8 §3.3)
     // 帧格式: 0x03 状态上报, DataPoint dpid=11(时间戳) value=4B Unix时间戳
     lunchbox_ble_on_connected();
 #endif
-    /* TODO: 新 UI 接入 BLE 连接状态通知 (原 home_ui_shared_ble_link_notify) */
 }
 
 /**

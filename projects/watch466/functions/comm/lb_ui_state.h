@@ -35,8 +35,11 @@ typedef struct {
     u8  fault;             // DP9  故障: 0=正常, 其他见协议 §4.1.6 fault_code
     u8  heat_enable;       // DP10 是否加热: 0=停止 1=加热中
 
+    // ── 链路状态 (非模块上报, 由 BLE 回调写入) ──
+    bool ble_connected;    // 蓝牙是否已连上 APP (画连接图标用)
+
     // ── 元信息 ──
-    bool valid;            // 是否收到过至少一次上报 (false=以上字段无意义)
+    bool valid;            // 是否收到过至少一次上报 (false=以上加热字段无意义)
     u8   seq;              // 更新序号: 任一字段变化时自增, UI 对比判断是否刷新
     u32  tick;             // 最近一次上报时刻 (tick_get)
 } lb_ui_state_t;
@@ -50,8 +53,18 @@ lb_ui_state_t *lb_ui_state_get(void);
  */
 bool lb_ui_state_feed_dp(const u8 *data, u16 len);
 
-/** @brief 复位为未同步状态 (关机/模块失联时可调) */
+/** @brief 复位为未同步状态 (关机/模块失联时可调); 不影响蓝牙连接标志 */
 void lb_ui_state_reset(void);
+
+/**
+ * @brief BLE 连接/断开通知 (平台 app_blue_fit.c 的连接/断开回调调用)
+ *
+ * 状态变化时 seq 自增, 页面按 seq 刷新即可连带刷新蓝牙图标。
+ */
+void lb_ui_ble_link_set(bool connected);
+
+/** @brief 蓝牙是否已连上 APP (等价于 lb_ui_state_get()->ble_connected) */
+bool lb_ui_ble_is_connected(void);
 
 //-----------------------------------------------------------------------------
 // 预约列表镜像 (串口 0x02 应答逐帧填充)

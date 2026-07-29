@@ -18,7 +18,25 @@ lb_ui_state_t *lb_ui_state_get(void)
 void lb_ui_state_reset(void)
 {
     memset(&lb_ui_state, 0, sizeof(lb_ui_state));
+    // 蓝牙连接标志由 BLE 回调维护, 与模块上报无关, 复位时保留
+    bool ble = lb_ui_state.ble_connected;
 }
+    lb_ui_state.ble_connected = ble;
+}
+
+void lb_ui_ble_link_set(bool connected)
+{
+    if (lb_ui_state.ble_connected == connected) {
+        return;
+    }
+    lb_ui_state.ble_connected = connected;
+    lb_ui_state.seq++;                   // 页面按 seq 刷新时连带刷新蓝牙图标
+    printf("BLE link: %s\n", connected ? "connected" : "disconnected");
+}
+
+bool lb_ui_ble_is_connected(void)
+{
+    return lb_ui_state.ble_connected;
 
 /** @brief 更新 u8 字段, 变化时返回 true */
 static bool lb_ui_set_u8(u8 *field, u8 val)
