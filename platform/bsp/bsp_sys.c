@@ -337,10 +337,6 @@ void usr_tmr5ms_isr(void)
         }
 #endif // UDE_HID_EN
         lowpwr_tick(&g_lowpwr);
-#if ELUNCHBOX_PANEL_EN
-        elunchbox_guioff_idle_tick();           /* 无操作自动息屏倒计时 */
-        elunchbox_guioff_sleep_delay_tick();    /* 息屏后进深睡倒计时 */
-#endif
         if (sys_cb.lpwr_cnt > 0) {
             sys_cb.lpwr_cnt++;
         }

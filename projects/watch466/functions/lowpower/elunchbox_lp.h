@@ -25,6 +25,7 @@ void elunchbox_lp_user_activity_reset(void);  /* 重置空闲计时 (由 port_pt
 void elunchbox_guioff_idle_tick(void);      /* 100ms tick: 空闲倒计时 */
 void elunchbox_guioff_sleep_delay_tick(void); /* 100ms tick: 息屏→深睡倒计时 */
 void elunchbox_guioff_sleep_delay_reset(void);
+void elunchbox_guioff_sleep_arm_immediate(void); /* 息屏后立刻允许深睡 (TCH5 长按) */
 
 void elunchbox_screen_off(void);            /* 关屏 */
 void elunchbox_pwr_gui_wake(void);          /* 亮屏唤醒 */

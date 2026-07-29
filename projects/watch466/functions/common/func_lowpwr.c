@@ -2,6 +2,10 @@
 #include "func.h"
 #if ELUNCHBOX_PANEL_EN
 #include "lowpower/elunchbox_lp.h"
+#if USER_PT8028_KEY
+#include "port_pt8028_key.h"
+#include "bsp_pt8028_key.h"
+#endif
 #endif
 
 AT(.sleep_backup.gui)
@@ -9,6 +13,9 @@ u8 sys_backup_buf[32 * 1024];
 
 extern u8 *cache_backup;
 extern u32 __dynamic_pool_start, __dynamic_pool_end;
+#if ELUNCHBOX_PANEL_EN
+extern u32 elunchbox_saved_clkgat0;   /* elunchbox_lp.c: 息屏前保存，唤醒须先恢复 */
+#endif
 
 bool power_off_check(void);
 void lock_code_pwrsave(void);
@@ -343,7 +350,9 @@ void elunchbox_enter_sleep(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    if (!elunchbox_pwr_gui_off_is_on())             /* 饭盒息屏路径已关物理屏, 跳过 gui_sleep */
+    /* 饭盒息屏：只关物理屏、保持 GPU，不走 keep_ram/gpu_exit（避免与 BT 抢内存）。
+     * 非息屏路径仍走经典 gui_sleep。 */
+    if (!elunchbox_pwr_gui_off_is_on())
 #endif
         gui_sleep(true);
 
@@ -380,26 +389,38 @@ void elunchbox_enter_sleep(void)
 
     u32 pf_keep = 0;
 
-    u8 sensor_type = bsp_sensor_init_sta_get(SENSOR_INIT_ALL);
-    if (sensor_type) {
-        bool sensor_type_hr = (sensor_type & SENSOR_INIT_HR);
-        bool sensor_type_step = (sensor_type & SENSOR_INIT_STEP);
-        u32 gpioede = (BIT(4) | BIT(3))*sensor_type_hr | (BIT(8) | BIT(7))*sensor_type_step;
-//        printf("hr: %d, step:%d\n", sensor_type_hr, sensor_type_step);
-        gpioede |= BIT(4) | BIT(3);          //SENSOR I2C
-        pf_keep |= BIT(2);                      //SENSOR PG
-    } else {
-        GPIOEDE = 0;
-    }
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    /* 与 lowpower 分支一致：息屏深睡须保留 PE0/PE1(PT8028) 与 UART，
+     * 切勿 GPIOEDE=0，否则进睡/唤醒易 halt:8001 蓝屏 */
+    if (elunchbox_pwr_gui_off_is_on()) {
+        GPIOBDE = BIT(3) | BIT(8) | BIT(9);     /* PB3 调试 / PB8 PB9 UART1 */
+        GPIOEDE = (BIT(0) | BIT(1));            /* PE0/PE1 PT8028 */
+        GPIOFDE = 0;
+        pf_keep = 0;
+    } else
+#endif
+    {
+        u8 sensor_type = bsp_sensor_init_sta_get(SENSOR_INIT_ALL);
+        if (sensor_type) {
+            bool sensor_type_hr = (sensor_type & SENSOR_INIT_HR);
+            bool sensor_type_step = (sensor_type & SENSOR_INIT_STEP);
+            u32 gpioede = (BIT(4) | BIT(3))*sensor_type_hr | (BIT(8) | BIT(7))*sensor_type_step;
+            gpioede |= BIT(4) | BIT(3);          //SENSOR I2C
+            pf_keep |= BIT(2);                      //SENSOR PG
+            GPIOEDE = gpioede;
+        } else {
+            GPIOEDE = 0;
+        }
 
 #if MODEM_CAT1_EN
-    if (bsp_modem_get_init_flag()) {
-        pf_keep |= BIT(1) | BIT(2) | BIT(3);
-    } else {
-        pf_keep |= BIT(3);
-    }
+        if (bsp_modem_get_init_flag()) {
+            pf_keep |= BIT(1) | BIT(2) | BIT(3);
+        } else {
+            pf_keep |= BIT(3);
+        }
 #endif
-    GPIOFDE = pf_keep;
+        GPIOFDE = pf_keep;
+    }
 
 #if AVI_DVP_USE_CAMERA && IMG_SENSOR_SELECT
     image_sensor_drv_enter_pwdn();
@@ -475,6 +496,19 @@ void elunchbox_enter_sleep(void)
     noc_init((NOC_PSRAM_EN << 1) | NOC_FLASH_EN);
 #endif
 
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    /* 息屏深睡未调 gui_sleep：恢复 CLKGAT0/按键即可，亮屏由主循环
+     * elunchbox_pwr_gui_wake()（lunchbox_display_on）负责。 */
+    if (elunchbox_pwr_gui_off_is_on()) {
+        CLKGAT0 = elunchbox_saved_clkgat0;
+#if USER_PT8028_KEY
+        pt8028_port_gpio_init();
+        pt8028_key_scan();
+#endif
+        printf("elunchbox: sleep wake guioff defer screen wkp=%u\n",
+               gui_need_wkp ? 1u : 0u);
+    } else
+#endif
     if (gui_need_wkp) {
         printf("gui_wakeup\n");
 //        func_create_form(func_cb.sta);

@@ -30,6 +30,12 @@
 
 #include "include.h"
 #include "lowpwr.h"
+#if ELUNCHBOX_PANEL_EN
+#include "elunchbox_lp.h"
+#if USER_PT8028_KEY
+#include "bsp_pt8028_key.h"
+#endif
+#endif
 
 /* ============================================================
  * BSP 回调所需的全局变量
@@ -121,6 +127,11 @@ void lowpwr_tick(lowpwr_t *ctx)
     sys_cb.pwroff_delay      = s->pwroff_delay;
     sys_cb.sleep_en          = s->sleep_en;
     sys_cb.sleep_wakeup_time = s->sleep_wakeup_time;
+
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_guioff_sleep_delay_tick();
+    elunchbox_guioff_idle_tick();
+#endif
 }
 
 /* ============================================================
@@ -546,25 +557,36 @@ void lowpwr_enter_deepsleep(lowpwr_t *ctx)
     GPIOGDE = 0x3F;        /* MCP FLASH */
 
     u32 pf_keep = 0;
-    u8 sensor_type = bsp_sensor_init_sta_get(SENSOR_INIT_ALL);
-    if (sensor_type) {
-        bool hr   = (sensor_type & SENSOR_INIT_HR);
-        bool step = (sensor_type & SENSOR_INIT_STEP);
-        u32 gpioede = (BIT(4) | BIT(3)) * hr | (BIT(8) | BIT(7)) * step;
-        gpioede |= BIT(4) | BIT(3);
-        pf_keep |= BIT(2);
-    } else {
-        GPIOEDE = 0;
-    }
-
-#if MODEM_CAT1_EN
-    if (bsp_modem_get_init_flag()) {
-        pf_keep |= BIT(1) | BIT(2) | BIT(3);
-    } else {
-        pf_keep |= BIT(3);
-    }
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    /* 与 elunchbox_enter_sleep / lowpower 一致：息屏深睡保留 PE0/PE1 */
+    if (elunchbox_pwr_gui_off_is_on()) {
+        GPIOBDE = BIT(3) | BIT(8) | BIT(9);
+        GPIOEDE = (BIT(0) | BIT(1));
+        GPIOFDE = 0;
+        pf_keep = 0;
+    } else
 #endif
-    GPIOFDE = pf_keep;
+    {
+        u8 sensor_type = bsp_sensor_init_sta_get(SENSOR_INIT_ALL);
+        if (sensor_type) {
+            bool hr   = (sensor_type & SENSOR_INIT_HR);
+            bool step = (sensor_type & SENSOR_INIT_STEP);
+            u32 gpioede = (BIT(4) | BIT(3)) * hr | (BIT(8) | BIT(7)) * step;
+            gpioede |= BIT(4) | BIT(3);
+            pf_keep |= BIT(2);
+            GPIOEDE = gpioede;
+        } else {
+            GPIOEDE = 0;
+        }
+#if MODEM_CAT1_EN
+        if (bsp_modem_get_init_flag()) {
+            pf_keep |= BIT(1) | BIT(2) | BIT(3);
+        } else {
+            pf_keep |= BIT(3);
+        }
+#endif
+        GPIOFDE = pf_keep;
+    }
 
 #if AVI_DVP_USE_CAMERA && IMG_SENSOR_SELECT
     image_sensor_drv_enter_pwdn();
@@ -696,14 +718,26 @@ bool lowpwr_sleep_process(lowpwr_t *ctx)
     if (elunchbox_pwr_gui_off_is_on() || sys_cb.gui_sleep_sta) {
         s->gui_need_wakeup = 0;
 
-        if (elunchbox_guioff_sleep_ready()) {  /* 屏已关, 不等 BT, 直入深睡 */
-            extern void elunchbox_enter_sleep(void);
-            elunchbox_enter_sleep();            /* 老版 sfunc_sleep, 已验证 */
-            LPWR_DELAY_INIT_ALL(ctx);
-            LPWR_PWROFF_DELAY_KILL(ctx);
-            return true;
+        if (!elunchbox_guioff_sleep_ready()) {
+            return false;
         }
-        return false;
+#if USER_PT8028_KEY
+        /* 与 lowpower 一致：电源键仍按住时不进深睡，避免进睡瞬间 bts 异常 */
+        if (pt8028_get_press_tch() == PT8028_KEY_TCH5) {
+            return false;
+        }
+#endif
+        /* 必须等 BT 允许休眠再 bt_enter_sleep，否则 bts 任务易 ERR:80 */
+        if (!bt_is_allow_sleep()) {
+            return false;
+        }
+
+        extern void elunchbox_enter_sleep(void);
+        printf("elunchbox: deep sleep enter (bt ok)\n");
+        elunchbox_enter_sleep();
+        LPWR_DELAY_INIT_ALL(ctx);
+        LPWR_PWROFF_DELAY_KILL(ctx);
+        return true;
     }
 #endif /* ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN */
 

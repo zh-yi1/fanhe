@@ -32,11 +32,13 @@ void lunchbox_display_on(void)
 /* --- 状态变量 --- */
 static bool elunchbox_pwr_gui_off;              /* 息屏标志 */
 static s32  elunchbox_guioff_sleep_delay = -1L; /* 息屏→深睡倒计时 (100ms) */
-static u32  elunchbox_idle_tmr;                 /* 无操作自动息屏倒计时 (100ms) */
+static u32  elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10; /* 开机即开始空闲计时 */
 u32  elunchbox_saved_clkgat0;                   /* 息屏前保存 CLKGAT0 */
 
-/* --- 状态查询 --- */
+/* --- 状态查询 (tick 在 tmr 5ms 路径调用, 须放 com_text 避免 Flash 抢占 miss) --- */
+AT(.com_text.sleep)
 bool elunchbox_is_guioff(void)                  { return sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off; }
+AT(.com_text.sleep)
 bool elunchbox_pwr_gui_off_is_on(void)           { return elunchbox_pwr_gui_off; }
 bool elunchbox_guioff_sleep_ready(void)          { return elunchbox_guioff_sleep_delay == 0; }
 bool elunchbox_guioff_idle_expired(void)         { return elunchbox_idle_tmr == 0; }
@@ -45,6 +47,10 @@ bool elunchbox_guioff_idle_expired(void)         { return elunchbox_idle_tmr == 
 void elunchbox_guioff_sleep_delay_reset(void) {
     elunchbox_guioff_sleep_delay = (s32)ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC * 10;
 }
+void elunchbox_guioff_sleep_arm_immediate(void) {
+    elunchbox_guioff_sleep_delay = 0;       /* 与 lowpower manual_off 一致：立刻进深睡 */
+}
+AT(.com_text.sleep)
 void elunchbox_guioff_sleep_delay_tick(void) {
     if (elunchbox_guioff_sleep_delay > 0) elunchbox_guioff_sleep_delay--;
 }
@@ -54,8 +60,9 @@ void elunchbox_lp_user_activity_reset(void) {
     if (elunchbox_is_guioff()) return;
     elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
 }
+AT(.com_text.sleep)
 void elunchbox_guioff_idle_tick(void) {
-    if (elunchbox_is_guioff()) {
+    if (sys_cb.gui_sleep_sta || elunchbox_pwr_gui_off) {
         elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
         return;
     }
