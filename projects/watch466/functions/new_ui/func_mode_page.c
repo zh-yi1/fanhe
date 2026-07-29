@@ -112,9 +112,10 @@ static void func_mode_page_handle_keys(void)
             break;
 
         case FUNC_KEY_CONFIRM:
-            if (inf->selection == 0)
+            if (inf->selection == 0) {
+                func_cb.last = FUNC_NEW_MODE;
                 func_cb.sta = FUNC_APPOINTMENT_TIME;
-            else if (inf->selection == 1)
+            } else if (inf->selection == 1)
                 func_cb.sta = FUNC_NEW_HEAT_CHICKEN;
             else if (inf->selection == 2)
                 func_cb.sta = FUNC_NEW_HEAT_PASTA;

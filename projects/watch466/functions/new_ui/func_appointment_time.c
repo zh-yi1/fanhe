@@ -42,6 +42,7 @@ typedef struct
     u8 min;
     u8 sec;
     u8 focus_col;
+    u8 prev_sta;        /* 上一个页面状态，退出时根据它决定返回 */
     compo_textbox_t *txt_title;
     compo_textbox_t *txt_roll[ROLL_COLS][ROLL_ROWS];
     compo_textbox_t *txt_colon[2];
@@ -243,7 +244,9 @@ static void func_appointment_time_handle_keys(void)
                 inf->focus_col = FOCUS_HOUR;
                 appointment_update_display();
             } else {
-                func_cb.sta = FUNC_NEW_MODE;
+                /* 从模式页进入 → 回模式页；其他情况 → 回主页 */
+                func_cb.sta = (inf->prev_sta == FUNC_NEW_MODE)
+                              ? FUNC_NEW_MODE : FUNC_HOME;
             }
             break;
 
@@ -318,6 +321,9 @@ void func_appointment_time_enter(void)
     func_cb.f_cb = func_zalloc(sizeof(f_appointment_t));
     func_key_reset();
     inf = (f_appointment_t *)func_cb.f_cb;
+
+    /* 记录进入前的页面状态，退出时根据它决定返回 */
+    inf->prev_sta = func_cb.last;
 
     /* 先同步系统时间，再创建 form，滚轮初始值即为当前时间 */
     {
