@@ -79,7 +79,8 @@ void general_title_bar_bind(general_title_bar_t *bar)
     bar->pic_bat   = (compo_picturebox_t *)compo_getobj_byid(GENERAL_TB_ID_PIC_BAT);
 
     home_ui_shared_status_init();
-    if (bar->pic_bt != NULL && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
+    if (bar->pic_bt != NULL && home_ui_shared_status_bt_ram != NULL
+        && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         home_ui_shared_status_refresh_bt(bar->pic_bt);
     }
     home_ui_shared_status_bind_bat(bar->pic_bat);
@@ -100,7 +101,7 @@ void general_title_bar_attach(general_title_bar_t *bar)
     home_ui_shared_status_init();
     home_ui_shared_bt_icon_wake_reset();
 
-    if (bar->pic_bt != NULL
+    if (bar->pic_bt != NULL && home_ui_shared_status_bt_ram != NULL
         && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
         home_ui_shared_status_refresh_bt(bar->pic_bt);
     }

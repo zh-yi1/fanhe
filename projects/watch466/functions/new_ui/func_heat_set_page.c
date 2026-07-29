@@ -408,6 +408,7 @@ void func_heat_set_page_enter(void)
 
 void func_heat_set_page_exit(void)
 {
+    printf("%s\n", __func__);
     func_key_flush();
     general_status_bar_detach();
 }

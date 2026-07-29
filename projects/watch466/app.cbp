@@ -1299,6 +1299,15 @@
 		<Unit filename="functions/new_ui/func_warm_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_ui/func_time_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/new_ui/func_confirm_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/new_ui/func_appointment_time.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/func_reservation.h" />
 <Unit filename="functions/func_menu.h" />
 <Unit filename="functions/func_music.h" />

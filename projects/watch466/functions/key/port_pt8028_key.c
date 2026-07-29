@@ -437,6 +437,13 @@ bool pt8028_is_press_active(void)
 
 void pt8028_key_scan_page(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    /* lunchbox 走 func_key_poll → func_key_get_event 按键路径，
+     * 不依赖 pt8028_key_scan 内部顺便发的 KU_* 系统消息；
+     * 设 home_msg_block 从源头阻止 msg_enqueue(KU_*)，与原厂
+     * bsp_key.c:463 的 !ELUNCHBOX_PANEL_EN 守卫设计一致 */
+    pt8028_set_home_msg_block(1);
+#endif
     pt8028_key_scan();
 }
 
