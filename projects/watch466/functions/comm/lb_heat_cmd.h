@@ -55,7 +55,7 @@ bool lb_heat_cmd_mode_preset(u8 mode, u8 temp_idx, u32 duration_min);
 bool lb_heat_cmd_schedule_set(u8 action, u8 id, const char *name, u32 unix_time,
                               u8 temp_idx, u8 duration, u8 enabled, u8 repeat);
 
-/** @brief 删除预约 (0x03, 2B: action=0 + id) */
+/** @brief 删除预约 (0x03, 42B: action=0 + id, 其余填 0) */
 bool lb_heat_cmd_schedule_delete(u8 id);
 
 /** @brief 查询预约列表 (0x02, 无数据; 应答逐帧回到 lb_uart_on_frame) */

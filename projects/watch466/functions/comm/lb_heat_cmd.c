@@ -117,10 +117,9 @@ bool lb_heat_cmd_schedule_set(u8 action, u8 id, const char *name, u32 unix_time,
 
 bool lb_heat_cmd_schedule_delete(u8 id)
 {
-    u8 data[2];
-    data[0] = 0x00;                // action=0 → 删除
-    data[1] = id;
-    return lb_heat_cmd_send(LB_UART_CMD_SCHEDULE_OP, data, 2);
+    // MCU 协议 §3.6 要求完整 42 字节结构体, 只发 [action,id] 模块回 err=01。
+    // 除 action/ID 外全部填 0, 模块按 action=0 删除对应 ID。
+    return lb_heat_cmd_schedule_set(0x00, id, NULL, 0, 0, 0, 0, 0);
 }
 
 bool lb_heat_cmd_schedule_query(void)
