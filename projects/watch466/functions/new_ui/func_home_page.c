@@ -8,19 +8,19 @@
 /* 系统状态实例 */
 /* TODO-TEST: 写死测试初值，串口调通后删掉初始化器恢复 ui_sys_t g_ui_sys; */
 ui_sys_t g_ui_sys = {
-    .temp         = 140,
-    .time_min     = 60,
+    .temp = 140,
     .keep_warm_min = 30,
-    .remain_sec   = 0,
-    .bat_level    = 3,        /* 电量 0 档 → DL1 空电图标 */
-    .bat_pct      = 0,
-    .charging     = false,     /* 充电中 → 轮播 CHARGING_1~4 动画 */
-    .lowbat       = false,
-    .full_charge  = false,
-    .bt_linked    = false,     /* 蓝牙已连 → 图标显示 */
-    .lid_open     = false,
-    .hour         = 12,       /* 时间 12:34 */
-    .min          = 34,
+    .time_min = 60,   /* TODO-TEST: 总时长 120 分钟 → 模拟 120 秒跑完 */
+    .remain_min = 60, /* TODO-TEST: 初始满倒计时 */
+    .bat_level = 3,    /* 电量 0 档 → DL1 空电图标 */
+    .bat_pct = 0,
+    .charging = false, /* 充电中 → 轮播 CHARGING_1~4 动画 */
+    .lowbat = false,
+    .full_charge = false,
+    .bt_linked = false, /* 蓝牙已连 → 图标显示 */
+    .lid_open = false,
+    .hour = 12, /* 时间 12:34 */
+    .min = 34,
 };
 
 #if TRACE_EN

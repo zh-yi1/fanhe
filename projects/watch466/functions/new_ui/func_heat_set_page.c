@@ -159,9 +159,7 @@ static void func_heat_set_page_handle_keys(void)
                 inf->mode = MODE_TIME;
                 heat_set_update_display();
             } else {
-                /* 时间选好 → 保存选择结果，跳到加热页 */
-                g_ui_sys.temp = TEMP_VALUES[inf->temp_index];
-                g_ui_sys.time_min = inf->time_min;
+                /* 时间选好 → 跳到加热页 */
                 func_cb.sta = FUNC_NEW_HEAT_PAGE;
             }
             break;

@@ -11,29 +11,27 @@
 #define TRACE(...)
 #endif
 
-/* 圆环进度图 13 张，每 5 分钟切换 */
+/* 圆环进度图 13 张：ANNULUS_0 固定满环 + ANNULUS_1~12 按 time_min 均分 */
 static const u32 ANNULUS_PICS[13] = {
-    UI_BUF_NEW_UI_ANNULUS_0_BIN,
-    UI_BUF_NEW_UI_ANNULUS_1_BIN,
-    UI_BUF_NEW_UI_ANNULUS_2_BIN,
-    UI_BUF_NEW_UI_ANNULUS_3_BIN,
-    UI_BUF_NEW_UI_ANNULUS_4_BIN,
-    UI_BUF_NEW_UI_ANNULUS_5_BIN,
-    UI_BUF_NEW_UI_ANNULUS_6_BIN,
-    UI_BUF_NEW_UI_ANNULUS_7_BIN,
-    UI_BUF_NEW_UI_ANNULUS_8_BIN,
-    UI_BUF_NEW_UI_ANNULUS_9_BIN,
-    UI_BUF_NEW_UI_ANNULUS_10_BIN,
-    UI_BUF_NEW_UI_ANNULUS_11_BIN,
-    UI_BUF_NEW_UI_ANNULUS_12_BIN,
+    UI_BUF_NEW_UI_ANNULUS_0_BIN,   /*  0: 满环 (0%   已过，固定) */
+    UI_BUF_NEW_UI_ANNULUS_1_BIN,   /*  1:       (~8%  已过) */
+    UI_BUF_NEW_UI_ANNULUS_2_BIN,   /*  2:       (~17% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_3_BIN,   /*  3:       ( 25% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_4_BIN,   /*  4:       (~33% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_5_BIN,   /*  5:       (~42% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_6_BIN,   /*  6:       ( 50% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_7_BIN,   /*  7:       (~58% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_8_BIN,   /*  8:       (~67% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_9_BIN,   /*  9:       ( 75% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_10_BIN,  /* 10:       (~83% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_11_BIN,  /* 11:       (~92% 已过) */
+    UI_BUF_NEW_UI_ANNULUS_12_BIN,  /* 12: 空环 (100% 已过) */
 };
 
 /* 加热页私有状态 */
 typedef struct
 {
     u8 display_stage; // 0 = 正常运行, 1 = 首帧跳过 func_process
-    u32 total_sec;      // 总秒数
-    u32 start_tick;     // 进入时的 tick
     u8  last_idx;       // 上次圆环索引，避免重复刷新
     general_status_bar_t sb;
     compo_picturebox_t *state_pic;
@@ -73,16 +71,6 @@ compo_form_t *func_heat_page_form_create(void)
     compo_textbox_set_font(inf->residue_time_text, UI_BUF_0FONT_FONT_TEST_BIN);
     compo_textbox_set_multiline(inf->residue_time_text, false);
     compo_textbox_set_forecolor(inf->residue_time_text, COLOR_BLUE);
-    {
-        char buf[8];
-        if (g_ui_sys.time_min % 60 == 0) {
-            snprintf(buf, sizeof(buf), "%uH", g_ui_sys.time_min / 60);
-        } else {
-            snprintf(buf, sizeof(buf), "%uH%02uMin",
-                     g_ui_sys.time_min / 60, g_ui_sys.time_min % 60);
-        }
-        compo_textbox_set(inf->residue_time_text, buf);
-    }
 
     inf->residue_time_text1 = compo_textbox_create(frm, 21);
     compo_textbox_set_location(inf->residue_time_text1, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y + 20, 0, 0);
@@ -193,37 +181,46 @@ static void func_heat_page_process(void)
             func_lock_page_hide();
     }
 
-    /* 倒计时：根据启动时刻计算剩余秒数，只在圆环索引变化时刷新 */
+    /* TODO-TEST: 模拟倒计时每秒减 1 分钟，串口调通后删 */
     {
-        u32 elapsed = (tick_get() - inf->start_tick) / 1000;
-        u32 remain;
+        static u32 sim_tick = 0;
+        if (tick_check_expire(sim_tick, 1000) && g_ui_sys.remain_min > 0) {
+            sim_tick = tick_get();
+            g_ui_sys.remain_min--;
+        }
+    }
 
-        if (elapsed >= inf->total_sec) {
-            remain = 0;
+    /* 倒计时：从串口 g_ui_sys.remain_min 读取剩余分钟数
+     *  idx=0 固定 ANNULUS_0（满环），idx=1~12 按 time_min 均分 */
+    {
+        u32 total_sec  = (u32)g_ui_sys.time_min * 60;
+        u32 remain_sec = (u32)g_ui_sys.remain_min * 60;
+        u8  idx;
+
+        if (total_sec == 0 || remain_sec >= total_sec) {
+            idx = 0; /* 边界：ANNULUS_0 满环 */
         } else {
-            remain = inf->total_sec - elapsed;
+            u32 elapsed = total_sec - remain_sec;
+            idx = (u8)(elapsed * 12 / total_sec); /* 1~12 */
         }
 
+        /* 圆环：索引变化时切换图片 */
+        if (idx != inf->last_idx) {
+            inf->last_idx = idx;
+            compo_picturebox_set(inf->schedule_pic, ANNULUS_PICS[idx]);
+        }
+
+        /* 残留时间文本：每帧刷新（remain_min 持续变化） */
         {
-            u8 idx = (u8)(12 - remain * 12 / inf->total_sec);
-
-            if (idx != inf->last_idx) {
-                inf->last_idx = idx;
-                compo_picturebox_set(inf->schedule_pic, ANNULUS_PICS[idx]);
-
-                /* 更新圆环内的时间文本 */
-                {
-                    char buf[16];
-                    u16 rm = (u16)(remain / 60);
-                    if (remain % 60 == 0) {
-                        snprintf(buf, sizeof(buf), "%uH", rm / 60);
-                    } else {
-                        snprintf(buf, sizeof(buf), "%uH%02uMin",
-                                 rm / 60, rm % 60);
-                    }
-                    compo_textbox_set(inf->residue_time_text, buf);
-                }
+            char buf[16];
+            u32 remain_min = g_ui_sys.remain_min;
+            if (remain_min % 60 == 0) {
+                snprintf(buf, sizeof(buf), "%uH", remain_min / 60);
+            } else {
+                snprintf(buf, sizeof(buf), "%uH%02uMin",
+                         remain_min / 60, remain_min % 60);
             }
+            compo_textbox_set(inf->residue_time_text, buf);
         }
     }
 
@@ -245,12 +242,26 @@ void func_heat_page_enter(void)
     func_cb.frm_main = func_heat_page_form_create();
     inf = (f_heat_page_t *)func_cb.f_cb;
     inf->display_stage = 1;
-    inf->total_sec  = (u32)g_ui_sys.time_min * 60;
-    inf->start_tick = tick_get();
     inf->last_idx   = 0;
+
+    /* 倒计时从总时长开始，串口调通后此句删除（由串口下发 remain_min） */
+    g_ui_sys.remain_min = g_ui_sys.time_min;
 
     /* 初始圆环图：满环 */
     compo_picturebox_set(inf->schedule_pic, ANNULUS_PICS[0]);
+
+    /* 初始残留时间文本 */
+    {
+        char buf[16];
+        u32 remain_min = g_ui_sys.remain_min;
+        if (remain_min % 60 == 0) {
+            snprintf(buf, sizeof(buf), "%uH", remain_min / 60);
+        } else {
+            snprintf(buf, sizeof(buf), "%uH%02uMin",
+                     remain_min / 60, remain_min % 60);
+        }
+        compo_textbox_set(inf->residue_time_text, buf);
+    }
 
     home_gpu_wait_idle();
     WDT_CLR();

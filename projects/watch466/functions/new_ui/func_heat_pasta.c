@@ -101,8 +101,6 @@ static void func_heat_pasta_handle_keys(void)
             break;
 
         case FUNC_KEY_CONFIRM:
-            g_ui_sys.temp = 194;
-            g_ui_sys.time_min = inf->time_min;
             func_cb.sta = FUNC_NEW_HEAT_PAGE;
             break;
 

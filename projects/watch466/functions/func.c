@@ -717,9 +717,6 @@ void func_run(void)
     func_cb.sta = FUNC_HOME;
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
-#if ELUNCHBOX_PANEL_EN && USER_PANEL_LED
-    func_led_set(FUNC_LED_ID_SWITCH, true);     /* 进 func_run 点亮 LED1，便于无屏时确认固件已跑 */
-#endif
 
     for (;;) {
         func_enter();
