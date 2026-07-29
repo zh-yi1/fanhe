@@ -1219,6 +1219,9 @@
 		<Unit filename="functions/func_watch_stubs.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/home_ui_lock_overlay.c">
+			<Option compilerVar="CC" />
+		</Unit>
 <Unit filename="functions/func.h" />
 <Unit filename="functions/func_alipay.h" />
 		<Unit filename="functions/func_bt.c">
