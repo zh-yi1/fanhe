@@ -423,6 +423,22 @@ static void func_time_page_handle_keys(void)
             func_cb.sta = FUNC_NEW_SETUP;
             break;
 
+        /* 直接按键：加热键 → 加热设置页 */
+        case FUNC_KEY_HEAT:
+            func_cb.sta = FUNC_NEW_HEAT_SET;
+            break;
+
+        /* 直接按键：模式键 → 模式页 */
+        case FUNC_KEY_MODE:
+            func_cb.sta = FUNC_NEW_MODE;
+            break;
+
+        /* 直接按键：预约键 → 预约页 */
+        case FUNC_KEY_RESERVATION:
+            func_cb.sta = FUNC_APPOINTMENT_TIME;
+            break;
+
+
         default:
             break;
         }
