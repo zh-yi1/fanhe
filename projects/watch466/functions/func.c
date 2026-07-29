@@ -1,6 +1,7 @@
 #include "include.h"
 #include "func_tbl.h"
 #include "func.h"
+#include "new_ui/ui.h"
 //#include "func_reservation.h"
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
@@ -167,6 +168,11 @@ void func_process(void)
 #if LE_EN
         ble_app_process();
 #endif
+    }
+
+    /* 串口上报低电 → 切换到低电页面 */
+    if (g_ui_sys.lowbat && func_cb.sta != FUNC_LOWBAT && !sys_cb.flag_swithing) {
+        func_cb.sta = FUNC_LOWBAT;
     }
 
    if (gui_get_auto_power_en()) {
