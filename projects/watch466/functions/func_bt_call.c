@@ -62,7 +62,6 @@ compo_form_t *func_bt_call_form_create(void)
     //printf("%s\n", __func__);
     //新建窗体, 通话页面
     compo_form_t *frm = compo_form_create(true);
-    compo_button_t *btn;
 
     compo_textbox_t *number_txt = compo_textbox_create(frm, 20);
     compo_textbox_set_location(number_txt, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y - 100, GUI_SCREEN_WIDTH, 50);
@@ -75,15 +74,13 @@ compo_form_t *func_bt_call_form_create(void)
     compo_textbox_set_autosize(time_txt, true);
     compo_setid(time_txt, COMPO_ID_TXT_TIME);
 
-    //挂断按钮
-   // btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
-    compo_setid(btn, COMPO_ID_BTN_REJECT);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 387);
-
-    //mic
-  //  btn = compo_button_create_by_image(frm, UI_BUF_CALL_MUTE_BIN);
-    compo_setid(btn, COMPO_ID_BTN_MIC);
-    compo_button_set_pos(btn, 109, 352);
+    /*
+     * 挂断 / mic 按钮随 UI bin 一起裁剪。图片资源恢复后重建:
+     *   btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
+     *   compo_setid(btn, COMPO_ID_BTN_REJECT); compo_button_set_pos(btn, CENTER_X, 387);
+     *   btn = compo_button_create_by_image(frm, UI_BUF_CALL_MUTE_BIN);
+     *   compo_setid(btn, COMPO_ID_BTN_MIC);    compo_button_set_pos(btn, 109, 352);
+     */
 
     return frm;
 }
@@ -93,7 +90,6 @@ compo_form_t *func_bt_outgoing_form_create(void)
 {
     //新建窗体, 呼出页面
     compo_form_t *frm = compo_form_create(true);
-    compo_button_t *btn;
 
     compo_textbox_t *number_txt = compo_textbox_create(frm, 20);
     compo_textbox_set_location(number_txt, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y - 50, GUI_SCREEN_WIDTH, 50);
@@ -101,10 +97,11 @@ compo_form_t *func_bt_outgoing_form_create(void)
     compo_setid(number_txt, COMPO_ID_TXT_NUMBER);
     msg_enqueue(EVT_CALL_NUMBER_UPDATE);
 
-    //挂断按钮
-   // btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
-    compo_setid(btn, COMPO_ID_BTN_REJECT);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 387);
+    /*
+     * 挂断按钮随 UI bin 一起裁剪。图片资源恢复后重建:
+     *   btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
+     *   compo_setid(btn, COMPO_ID_BTN_REJECT); compo_button_set_pos(btn, CENTER_X, 387);
+     */
 
     return frm;
 }

@@ -27,7 +27,6 @@ compo_form_t *func_bt_ring_form_create(void)
     //printf("%s\n", __func__);
     //新建窗体
     compo_form_t *frm = compo_form_create(true);
-    compo_button_t *btn;
 
     compo_textbox_t *number_txt = compo_textbox_create(frm, 20);
     compo_textbox_set_location(number_txt, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y - 100, GUI_SCREEN_WIDTH, 50);
@@ -35,21 +34,13 @@ compo_form_t *func_bt_ring_form_create(void)
     compo_setid(number_txt, COMPO_ID_TXT_NUMBER);
     msg_enqueue(EVT_CALL_NUMBER_UPDATE);
 
-    //接听
-   // btn = compo_button_create_by_image(frm, UI_BUF_CALL_ANSWER_BIN);
-    compo_setid(btn, COMPO_ID_BTN_ANSWER);
-    compo_button_set_pos(btn, 344, 337);
-
-    //挂断
-    //btn = compo_button_create_by_image(frm, UI_BUF_CALL_REJECT_BIN);
-    compo_setid(btn, COMPO_ID_BTN_REJECT);
-    compo_button_set_pos(btn, 122, 337);
-
-    //信息按钮
-    //btn = compo_button_create_by_image(frm, UI_BUF_CALL_MES_BIN);
-    compo_setid(btn, COMPO_ID_BTN_MSG);
-    compo_button_set_pos(btn, GUI_SCREEN_CENTER_X, 377);
-    compo_button_set_alpha(btn, UI_BTN_CLICK_EFFECT_ALPHA1); //// 180跟原来的更接近
+    /*
+     * 接听 / 挂断 / 信息 三个按钮随 UI bin 一起裁剪 (UI_BUF_CALL_ANSWER_BIN 等)。
+     * 图片资源恢复后按此顺序重建:
+     *   btn = compo_button_create_by_image(frm, UI_BUF_CALL_ANSWER_BIN);
+     *   compo_setid(btn, COMPO_ID_BTN_ANSWER);  compo_button_set_pos(btn, 344, 337);
+     *   ... REJECT (122,337) / MSG (CENTER_X,377) + set_alpha(UI_BTN_CLICK_EFFECT_ALPHA1)
+     */
 
     //创建消息文本
     compo_textbox_t *txt = compo_textbox_create(frm, 4);

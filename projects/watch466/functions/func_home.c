@@ -11,7 +11,7 @@
 #endif
 
 /*
- * home bin 已移除（Output/bin/ui/home/*.bin 及 home_ui_* / home_top_time /
+ * home bin 已移除（Output/bin/ui/home 下的 bin 及 home_ui_* / home_top_time /
  * home_tab_label / home_icon_res 支持文件已删）。本文件仅保留按键/Tab/跳转
  * 逻辑骨架；图标 / UI_BUF_HOME_* / set_ram 相关代码已去掉，用系统字体文字代替。
  */
@@ -203,23 +203,19 @@ static void func_home_tab_enter(f_home_t *f_home)
 
 static void func_home_res_marquee_refresh(f_home_t *f_home)
 {
-    char buf[48];
-
     if (f_home->txt_res_marquee == NULL) {
         return;
     }
 
- /*   if (!func_reservation_is_waiting()) {
-        compo_textbox_set_visible(f_home->txt_res_marquee, false);
-#if ELUNCHBOX_PANEL_EN
-        func_home_gui_mark_dirty();
-#endif
-        return;
-    }
-*/
-  //  func_reservation_marquee_text(buf, sizeof(buf));
-    compo_textbox_set(f_home->txt_res_marquee, buf);
-    compo_textbox_set_visible(f_home->txt_res_marquee, true);
+    /*
+     * 预约页已裁剪, 跑马灯暂无文本来源, 保持隐藏。页面重建后恢复:
+     *   char buf[48];
+     *   if (!func_reservation_is_waiting()) { 隐藏; return; }
+     *   func_reservation_marquee_text(buf, sizeof(buf));
+     *   compo_textbox_set(f_home->txt_res_marquee, buf);
+     *   compo_textbox_set_visible(f_home->txt_res_marquee, true);
+     */
+    compo_textbox_set_visible(f_home->txt_res_marquee, false);
 #if ELUNCHBOX_PANEL_EN
     func_home_gui_mark_dirty();
 #endif
