@@ -4,6 +4,9 @@
 #include "func_key_lock.h"
 #include "general_ui.h"
 #include "ui.h"
+extern bool func_confirm_overlay_visible(void);
+extern void func_confirm_overlay_show(void);
+extern bool func_confirm_overlay_poll(void);
 
 /* 系统状态实例 */
 /* TODO-TEST: 写死测试初值，串口调通后删掉初始化器恢复 ui_sys_t g_ui_sys; */
@@ -15,10 +18,10 @@ ui_sys_t g_ui_sys = {
     .bat_level = 0,    /* 电量 0 档 → DL1 空电图标 */
     .bat_pct = 0,
     .charging = false, /* 充电中 → 轮播 CHARGING_1~4 动画 */
-    .lowbat = true,      /* 低电状态 → 进入低电页 */
+    .lowbat = false,      /* 低电状态 → 进入低电页 */
     .full_charge = false,
     .bt_linked = false, /* 蓝牙已连 → 图标显示 */
-    .lid_open = false,
+    .lid_open = true, /* 上盖打开 → 进入上盖页 */
     .hour = 12, /* 时间 12:34 */
     .min = 34,
 };
@@ -193,7 +196,8 @@ static void func_home_page_process(void)
 
     /* 1. 按键处理：扫描 → 长按检测 → 童锁过滤 → 事件入队 */
     func_key_poll();
-    func_home_page_handle_keys();
+    if (!func_confirm_overlay_visible())
+            func_home_page_handle_keys();
 
     /* 2. 童锁计时器（hint过期/自动锁），不碰 GUI */
     func_key_lock_poll();
@@ -204,6 +208,17 @@ static void func_home_page_process(void)
             func_lock_page_show(func_key_lock_overlay_is_unlock());
         } else {
             func_lock_page_hide();
+        }
+    }
+
+    /* 4. 开盖弹窗：仅首页检测 lid_open */
+    if (g_ui_sys.lid_open && !func_confirm_overlay_visible() && !g_ui_sys.lowbat) {
+        func_confirm_overlay_show();
+    }
+    if (func_confirm_overlay_visible()) {
+        func_confirm_overlay_poll();
+        if (!func_confirm_overlay_visible()) {
+            g_ui_sys.lid_open = false; /* 用户已处理 */
         }
     }
 

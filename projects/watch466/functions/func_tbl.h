@@ -101,7 +101,6 @@ compo_form_t *func_setup_page_form_create(void);
 compo_form_t *func_time_page_form_create(void);
 compo_form_t *func_language_page_form_create(void);
 compo_form_t *func_verInfo_page_form_create(void);
-compo_form_t *func_confirm_page_form_create(void);
 compo_form_t *func_appointment_time_form_create(void);
 compo_form_t * func_smartstack_form_create(void);
 compo_form_t *func_music_form_create(void);
@@ -223,7 +222,6 @@ const func_t tbl_func_create[] = {
     {FUNC_NEW_TIME,                     func_time_page_form_create},
     {FUNC_NEW_LANGUAGE,                 func_language_page_form_create},
     {FUNC_NEW_VERINFO,                  func_verInfo_page_form_create},
-    {FUNC_NEW_CONFIRM,                  func_confirm_page_form_create},
     {FUNC_APPOINTMENT_TIME,             func_appointment_time_form_create},
     {FUNC_SMARTSTACK,                   func_smartstack_form_create},
 #if BT_EMIT_EN
@@ -353,7 +351,6 @@ extern void func_setup_page(void);
 extern void func_time_page(void);
 extern void func_language_page(void);
 extern void func_verInfo_page(void);
-extern void func_confirm_page(void);
 extern void func_appointment_time(void);
 extern void func_music(void);
 extern void func_music_src(void);
@@ -482,7 +479,6 @@ const func_t tbl_func_entry[] = {
     {FUNC_NEW_TIME,                     func_time_page},                //时间
     {FUNC_NEW_LANGUAGE,                 func_language_page},            //语言
     {FUNC_NEW_VERINFO,                  func_verInfo_page},             //版本信息
-    {FUNC_NEW_CONFIRM,                  func_confirm_page},             //确认
     {FUNC_APPOINTMENT_TIME,             func_appointment_time},         //预约时间
     {FUNC_SMARTSTACK,                   func_smartstack},               //智能堆栈
 #if FUNC_BT_EN
@@ -689,7 +685,6 @@ void func_setup_page_enter(void);
 void func_time_page_enter(void);
 void func_language_page_enter(void);
 void func_verInfo_page_enter(void);
-void func_confirm_page_enter(void);
 void func_appointment_time_enter(void);
 
 const func_t tbl_func_enter[] = {
@@ -777,7 +772,6 @@ const func_t tbl_func_enter[] = {
     {FUNC_NEW_TIME,                     func_time_page_enter},
     {FUNC_NEW_LANGUAGE,                 func_language_page_enter},
     {FUNC_NEW_VERINFO,                  func_verInfo_page_enter},
-    {FUNC_NEW_CONFIRM,                  func_confirm_page_enter},
     {FUNC_APPOINTMENT_TIME,             func_appointment_time_enter},
     {FUNC_SMARTSTACK,                   func_smartstack_enter},               //智能堆栈
 #if FUNC_BT_EN
@@ -925,7 +919,6 @@ void func_setup_page_exit(void);
 void func_time_page_exit(void);
 void func_language_page_exit(void);
 void func_verInfo_page_exit(void);
-void func_confirm_page_exit(void);
 void func_appointment_time_exit(void);
 void func_smartstack_exit(void);
 #if FUNC_BT_EN
@@ -1068,7 +1061,6 @@ const func_t tbl_func_exit[] = {
     {FUNC_NEW_TIME,                     func_time_page_exit},
     {FUNC_NEW_LANGUAGE,                 func_language_page_exit},
     {FUNC_NEW_VERINFO,                  func_verInfo_page_exit},
-    {FUNC_NEW_CONFIRM,                  func_confirm_page_exit},
     {FUNC_APPOINTMENT_TIME,             func_appointment_time_exit},
     {FUNC_SMARTSTACK,                   func_smartstack_exit},               //智能堆栈
 #if FUNC_BT_EN

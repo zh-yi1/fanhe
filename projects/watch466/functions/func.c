@@ -2,6 +2,10 @@
 #include "func_tbl.h"
 #include "func.h"
 #include "new_ui/ui.h"
+extern void func_confirm_overlay_show(void);
+extern void func_confirm_overlay_hide(void);
+extern bool func_confirm_overlay_visible(void);
+extern bool func_confirm_overlay_poll(void);
 //#include "func_reservation.h"
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
