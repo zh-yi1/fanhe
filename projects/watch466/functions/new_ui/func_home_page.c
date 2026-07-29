@@ -147,12 +147,12 @@ static void func_home_page_handle_keys(void)
 
         switch (key) {
         case FUNC_KEY_UP:
-            inf->selection = (inf->selection + 1) % 3;
+            inf->selection = (inf->selection == 0) ? 2 : inf->selection - 1;
             home_update_display();
             break;
 
         case FUNC_KEY_DOWN:
-            inf->selection = (inf->selection == 0) ? 2 : inf->selection - 1;
+            inf->selection = (inf->selection + 1) % 3;
             home_update_display();
             break;
 
