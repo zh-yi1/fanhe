@@ -35,9 +35,9 @@ void general_status_bar_create(compo_form_t *frm, general_status_bar_t *bar, con
     txt = compo_textbox_create(frm, 32);
     compo_setid(txt, GENERAL_SB_ID_TXT_TIME);
     compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_TEST_18_BIN);
-    /* textbox Y 是左上角，图标 Y 是中心；减去半高让文本与图标垂直居中 */
+    /* textbox Y 左上角，图标 Y 中心；18px 字偏高，-14 补偿 */
     compo_textbox_set_location(txt, GENERAL_SB_LEFT_MARGIN,
-                               (s16)(GENERAL_SB_Y - 9), 0, 0);
+                               (s16)(GENERAL_SB_Y - 14), 0, 0);
     compo_textbox_set_autosize(txt, true);
     compo_textbox_set_align_center(txt, false);
     compo_textbox_set_forecolor(txt, COLOR_BLACK);
@@ -50,7 +50,7 @@ void general_status_bar_create(compo_form_t *frm, general_status_bar_t *bar, con
         compo_setid(txt, GENERAL_SB_ID_TXT_PAGENAME);
         compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_TEST_14_BIN);
         compo_textbox_set_location(txt, name_x,
-                                   (s16)(GENERAL_SB_Y - 7), 0, 0);
+                                   (s16)(GENERAL_SB_Y - 12), 0, 0);
         compo_textbox_set_autosize(txt, true);
         compo_textbox_set_align_center(txt, false);
         compo_textbox_set_forecolor(txt, COLOR_BLACK);
@@ -61,14 +61,14 @@ void general_status_bar_create(compo_form_t *frm, general_status_bar_t *bar, con
     }
 
     /* 蓝牙图标 */
-    pic = compo_picturebox_create(frm, UI_BUF_ICON_ACTIVITY_BIN);
+    pic = compo_picturebox_create(frm, UI_BUF_NEW_UI_BLUETOOTH_BIN);
     compo_setid(pic, GENERAL_SB_ID_PIC_BT);
     compo_picturebox_set_pos(pic, bt_x, GENERAL_SB_Y);
     compo_picturebox_set_size(pic, NEW_HOME_BT_W, NEW_HOME_BT_H);
     bar->pic_bt = pic;
 
     /* 电量图标 */
-    pic = compo_picturebox_create(frm, UI_BUF_ICON_ACTIVITY_BIN);
+    pic = compo_picturebox_create(frm, UI_BUF_NEW_UI_DL1_BIN);
     compo_setid(pic, GENERAL_SB_ID_PIC_BAT);
     compo_picturebox_set_pos(pic, bat_x, GENERAL_SB_Y);
     compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);

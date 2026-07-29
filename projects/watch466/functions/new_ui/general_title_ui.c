@@ -34,9 +34,9 @@ void general_title_bar_create(compo_form_t *frm, general_title_bar_t *bar, const
         txt = compo_textbox_create(frm, 32);
         compo_setid(txt, GENERAL_TB_ID_TXT_TITLE);
         compo_textbox_set_font(txt, UI_BUF_0FONT_FONT_TEST_14_BIN);
-        /* textbox Y 是左上角，图标 Y 是中心；减去半高让文本与图标垂直居中 */
+        /* textbox Y 左上角，图标 Y 中心；14px 字实际偏高，-10 补偿上移 */
         compo_textbox_set_location(txt, GENERAL_TB_LEFT_MARGIN,
-                                   (s16)(GENERAL_TB_Y - 7), 0, 0);
+                                   (s16)(GENERAL_TB_Y - 12), 0, 0);
         compo_textbox_set_autosize(txt, true);
         compo_textbox_set_align_center(txt, false);
         compo_textbox_set_forecolor(txt, COLOR_BLACK);
