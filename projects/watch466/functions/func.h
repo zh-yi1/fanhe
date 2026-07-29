@@ -26,6 +26,7 @@
 #include "lb_uart_app.h"    // 串口应用层: 解析调度 + 发送接口 + 转发队列
 #include "lb_bridge.h"      // BLE↔UART 翻译层 + 时间服务
 #include "lb_heat_cmd.h"    // 主机→加热模块 命令封装
+#include "lb_ui_state.h"    // 设备状态镜像 / 预约列表镜像 / 跳页路由 (UI 读取)
 #endif
 
 #define TICK_IGNORE_KEY            700      //忽略700ms内的部分消息

@@ -12,7 +12,8 @@
  *            发: lunchbox_uart_send_frame() 协议层组帧 → link 发出
  *
  *          帧处理 (lb_uart_on_frame): 桥应答配对回传 APP / 时间与产品信息配对 /
- *          dpid=14 分钟时间同步 / 心跳应答; UI 状态镜像等本地业务为 ZH TODO。
+ *          dpid=14 分钟时间同步 / UI 状态与预约镜像 / 心跳应答;
+ *          仅 0x04 加热模块 OTA 应答为 ZH TODO (OTA 暂缓移植)。
  */
 #include "include.h"
 #include "lb_proto.h"
@@ -20,6 +21,7 @@
 #include "lb_uart_app.h"
 #include "lb_bridge.h"
 #include "lb_ble_app.h"
+#include "lb_ui_state.h"
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -326,19 +328,21 @@ static void lb_uart_on_frame(lb_rx_frame_t *rx)
         if (lb_ble_product_info_on_heat_frame(rx)) {   // 产品信息查询应答 → 回复 APP
             consumed = true;
         }
-        // ZH TODO: 本地业务 (如更新 UI 状态镜像)
+        lb_ui_state_feed_dp(rx->data, rx->data_len);   // 更新 UI 状态镜像
         // 谁的应答都不是 → 模块主动上报 (状态变化/故障), 翻译成 0x03 推送 APP
         if (!consumed) {
             lb_report_forward_to_app(rx);
         }
         break;
 
-    case LB_UART_CMD_SCHEDULE:      // 0x02 预约列表应答 (44B/条, 多帧, 桥已回传 APP)
-        // ZH TODO: 本地业务 (如填充预约列表镜像)
+    case LB_UART_CMD_SCHEDULE:      // 0x02 预约列表应答: 逐帧填充列表镜像 (桥已回传 APP)
+        lb_ui_schedules_feed_entry(rx->data, rx->data_len);
         break;
 
-    case LB_UART_CMD_SCHEDULE_OP:   // 0x03 预约增/改/删应答 (桥已回传 APP)
-        // ZH TODO: 本地业务 (如本地预约列表标记过期)
+    case LB_UART_CMD_SCHEDULE_OP:   // 0x03 预约增/改/删应答: 生效则本地列表过期 (桥已回传 APP)
+        if (rx->err_flag == LB_ERR_SUCCESS) {
+            lb_ui_schedules_mark_dirty();
+        }
         break;
 
     case LB_UART_CMD_OTA:           // 0x04 加热模块 OTA 应答
