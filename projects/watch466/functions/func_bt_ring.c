@@ -45,7 +45,8 @@ compo_form_t *func_bt_ring_form_create(void)
     //创建消息文本
     compo_textbox_t *txt = compo_textbox_create(frm, 4);
     compo_textbox_set_pos(txt, GUI_SCREEN_CENTER_X, 410);
-    compo_textbox_set(txt, i18n[STR_INFO]);
+    // compo_textbox_set(txt, i18n[STR_INFO]); /* STR_INFO 已删 */
+    compo_textbox_set(txt, "");
 
     return frm;
 }

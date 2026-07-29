@@ -89,8 +89,19 @@ compo_form_t *func_clock_preview_form_create(void);
 compo_form_t *func_compo_select_form_create(void);
 compo_form_t *func_compo_select_sub_form_create(void);
 compo_form_t *func_debug_info_form_create(void);
-compo_form_t *func_home_form_create(void);
-compo_form_t *func_heat_form_create(void);
+compo_form_t *func_home_page_form_create(void);
+compo_form_t *func_heat_set_page_form_create(void);
+compo_form_t *func_heat_page_form_create(void);
+compo_form_t *func_heat_chicken_form_create(void);
+compo_form_t *func_heat_pasta_form_create(void);
+compo_form_t *func_warm_page_form_create(void);
+compo_form_t *func_lowbat_page_form_create(void);
+compo_form_t *func_mode_page_form_create(void);
+compo_form_t *func_setup_page_form_create(void);
+compo_form_t *func_time_page_form_create(void);
+compo_form_t *func_language_page_form_create(void);
+compo_form_t *func_verInfo_page_form_create(void);
+compo_form_t *func_appointment_time_form_create(void);
 compo_form_t * func_smartstack_form_create(void);
 compo_form_t *func_music_form_create(void);
 #if BT_EMIT_EN
@@ -197,8 +208,21 @@ const func_t tbl_func_create[] = {
     {FUNC_SET_SUB_OFF,                  func_set_sub_off_form_create},
     {FUNC_CHARGE,                       func_charge_form_create},
     {FUNC_DEBUG_INFO,                   func_debug_info_form_create},
-    {FUNC_HEAT,                         func_heat_form_create},
-    {FUNC_HOME,                         func_home_form_create},
+    {FUNC_HOME,                         func_home_page_form_create},
+    {FUNC_HOME_PAGE,                    func_home_page_form_create},
+    /* ---- 新UI页面 ---- */
+    {FUNC_NEW_HEAT_SET,                 func_heat_set_page_form_create},
+    {FUNC_NEW_HEAT_PAGE,                func_heat_page_form_create},
+    {FUNC_NEW_HEAT_CHICKEN,             func_heat_chicken_form_create},
+    {FUNC_NEW_HEAT_PASTA,               func_heat_pasta_form_create},
+    {FUNC_NEW_WARM_PAGE,                func_warm_page_form_create},
+    {FUNC_LOWBAT,                       func_lowbat_page_form_create},
+    {FUNC_NEW_MODE,                     func_mode_page_form_create},
+    {FUNC_NEW_SETUP,                    func_setup_page_form_create},
+    {FUNC_NEW_TIME,                     func_time_page_form_create},
+    {FUNC_NEW_LANGUAGE,                 func_language_page_form_create},
+    {FUNC_NEW_VERINFO,                  func_verInfo_page_form_create},
+    {FUNC_APPOINTMENT_TIME,             func_appointment_time_form_create},
     {FUNC_SMARTSTACK,                   func_smartstack_form_create},
 #if BT_EMIT_EN
     {FUNC_MUSIC_SRC,                    func_music_src_form_create},
@@ -315,12 +339,19 @@ extern void func_flashlight(void);
 extern void func_brightness(void);
 extern void func_charge(void);
 extern void func_debug_info(void);
-extern void func_home(void);
-extern void func_heat(void);
-void func_home_process(void);
-void func_home_message(size_msg_t msg);
-void func_home_mode_key(void);
-
+extern void func_home_page(void);
+extern void func_heat_set_page(void);
+extern void func_heat_page(void);
+extern void func_heat_chicken(void);
+extern void func_heat_pasta(void);
+extern void func_warm_page(void);
+extern void func_lowbat_page(void);
+extern void func_mode_page(void);
+extern void func_setup_page(void);
+extern void func_time_page(void);
+extern void func_language_page(void);
+extern void func_verInfo_page(void);
+extern void func_appointment_time(void);
 extern void func_music(void);
 extern void func_music_src(void);
 extern void func_idle(void);
@@ -434,8 +465,21 @@ const func_t tbl_func_entry[] = {
     {FUNC_SET_SUB_OFF,                  func_set_sub_off},              //设置--关机
     {FUNC_CHARGE,                       func_charge},                   //充电
     {FUNC_DEBUG_INFO,                   func_debug_info},               //DEBUG
-    {FUNC_HEAT,                         func_heat},                     //加热页
-    {FUNC_HOME,                         func_home},                     //默认主页
+    {FUNC_HOME,                         func_home_page},                //默认主页
+    {FUNC_HOME_PAGE,                    func_home_page},                //新UI主页(别名)
+    /* ---- 新UI页面 ---- */
+    {FUNC_NEW_HEAT_SET,                 func_heat_set_page},            //加热设置
+    {FUNC_NEW_HEAT_PAGE,                func_heat_page},                //加热运行
+    {FUNC_NEW_HEAT_CHICKEN,             func_heat_chicken},             //鸡肉加热
+    {FUNC_NEW_HEAT_PASTA,               func_heat_pasta},               //意面加热
+    {FUNC_NEW_WARM_PAGE,                func_warm_page},                //保温
+    {FUNC_LOWBAT,                       func_lowbat_page},              //低电
+    {FUNC_NEW_MODE,                     func_mode_page},                //模式
+    {FUNC_NEW_SETUP,                    func_setup_page},               //设置
+    {FUNC_NEW_TIME,                     func_time_page},                //时间
+    {FUNC_NEW_LANGUAGE,                 func_language_page},            //语言
+    {FUNC_NEW_VERINFO,                  func_verInfo_page},             //版本信息
+    {FUNC_APPOINTMENT_TIME,             func_appointment_time},         //预约时间
     {FUNC_SMARTSTACK,                   func_smartstack},               //智能堆栈
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt},
@@ -629,14 +673,19 @@ void func_video_recode_enter(void);
 void func_take_photo_enter(void);
 #endif // VIDEO_RECODE_TAKE_PHOTO_EN
 void func_gif_enter(void);
-void func_heat_enter(void);
-void func_heat_exit(void);
-void func_home_enter(void);
-void func_heat_countdown_set(u8 hour, u8 min);
-void func_heat_countdown_start(void);
-void func_heat_countdown_stop(void);
-u32 func_heat_countdown_remain_sec(void);
-void func_heat_temp_set_f(u16 temp_f);
+void func_home_page_enter(void);
+void func_heat_set_page_enter(void);
+void func_heat_page_enter(void);
+void func_heat_chicken_enter(void);
+void func_heat_pasta_enter(void);
+void func_warm_page_enter(void);
+void func_lowbat_page_enter(void);
+void func_mode_page_enter(void);
+void func_setup_page_enter(void);
+void func_time_page_enter(void);
+void func_language_page_enter(void);
+void func_verInfo_page_enter(void);
+void func_appointment_time_enter(void);
 
 const func_t tbl_func_enter[] = {
     {FUNC_MENU,                         func_menu_enter},                     //主菜单(蜂窝)
@@ -709,8 +758,21 @@ const func_t tbl_func_enter[] = {
     {FUNC_SET_SUB_OFF,                  func_set_sub_off_enter},              //设置--关机
     {FUNC_CHARGE,                       func_charge_enter},                   //充电
     {FUNC_DEBUG_INFO,                   func_debug_enter},               //DEBUG
-    {FUNC_HEAT,                         func_heat_enter},                //加热页
-    {FUNC_HOME,                         func_home_enter},               //默认主页
+    {FUNC_HOME,                         func_home_page_enter},           //默认主页
+    {FUNC_HOME_PAGE,                    func_home_page_enter},           //新UI主页(别名)
+    /* ---- 新UI页面 ---- */
+    {FUNC_NEW_HEAT_SET,                 func_heat_set_page_enter},
+    {FUNC_NEW_HEAT_PAGE,                func_heat_page_enter},
+    {FUNC_NEW_HEAT_CHICKEN,             func_heat_chicken_enter},
+    {FUNC_NEW_HEAT_PASTA,               func_heat_pasta_enter},
+    {FUNC_NEW_WARM_PAGE,                func_warm_page_enter},
+    {FUNC_LOWBAT,                       func_lowbat_page_enter},
+    {FUNC_NEW_MODE,                     func_mode_page_enter},
+    {FUNC_NEW_SETUP,                    func_setup_page_enter},
+    {FUNC_NEW_TIME,                     func_time_page_enter},
+    {FUNC_NEW_LANGUAGE,                 func_language_page_enter},
+    {FUNC_NEW_VERINFO,                  func_verInfo_page_enter},
+    {FUNC_APPOINTMENT_TIME,             func_appointment_time_enter},
     {FUNC_SMARTSTACK,                   func_smartstack_enter},               //智能堆栈
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt_enter},
@@ -845,8 +907,19 @@ void func_set_sub_rstfy_exit(void);
 void func_set_sub_off_exit(void);
 void func_charge_exit(void);
 void func_debug_info_exit(void);
-void func_heat_exit(void);
-void func_home_exit(void);
+void func_home_page_exit(void);
+void func_heat_set_page_exit(void);
+void func_heat_page_exit(void);
+void func_heat_chicken_exit(void);
+void func_heat_pasta_exit(void);
+void func_warm_page_exit(void);
+void func_lowbat_page_exit(void);
+void func_mode_page_exit(void);
+void func_setup_page_exit(void);
+void func_time_page_exit(void);
+void func_language_page_exit(void);
+void func_verInfo_page_exit(void);
+void func_appointment_time_exit(void);
 void func_smartstack_exit(void);
 #if FUNC_BT_EN
 void func_bt_exit(void);
@@ -974,8 +1047,21 @@ const func_t tbl_func_exit[] = {
     {FUNC_SET_SUB_OFF,                  func_set_sub_off_exit},              //设置--关机
     {FUNC_CHARGE,                       func_charge_exit},                   //充电
     {FUNC_DEBUG_INFO,                   func_debug_info_exit},               //DEBUG
-    {FUNC_HEAT,                         func_heat_exit},                    //加热页
-    {FUNC_HOME,                         func_home_exit},                    //默认主页
+    {FUNC_HOME,                         func_home_page_exit},               //默认主页
+    {FUNC_HOME_PAGE,                    func_home_page_exit},               //新UI主页(别名)
+    /* ---- 新UI页面 ---- */
+    {FUNC_NEW_HEAT_SET,                 func_heat_set_page_exit},
+    {FUNC_NEW_HEAT_PAGE,                func_heat_page_exit},
+    {FUNC_NEW_HEAT_CHICKEN,             func_heat_chicken_exit},
+    {FUNC_NEW_HEAT_PASTA,               func_heat_pasta_exit},
+    {FUNC_NEW_WARM_PAGE,                func_warm_page_exit},
+    {FUNC_LOWBAT,                       func_lowbat_page_exit},
+    {FUNC_NEW_MODE,                     func_mode_page_exit},
+    {FUNC_NEW_SETUP,                    func_setup_page_exit},
+    {FUNC_NEW_TIME,                     func_time_page_exit},
+    {FUNC_NEW_LANGUAGE,                 func_language_page_exit},
+    {FUNC_NEW_VERINFO,                  func_verInfo_page_exit},
+    {FUNC_APPOINTMENT_TIME,             func_appointment_time_exit},
     {FUNC_SMARTSTACK,                   func_smartstack_exit},               //智能堆栈
 #if FUNC_BT_EN
     {FUNC_BT,                           func_bt_exit},

@@ -9,6 +9,8 @@
 
 static u8 animation_id = 0;
 
+/* 手表表盘多语言表已随 i18n 精简删除，饭盒工程不再使用 */
+#if 0
 //表盘文本编号表
 const u8 text_str_tbl[] =
 {
@@ -31,6 +33,7 @@ const u8 text_str_tbl[] =
     STR_MIN,
     STR_SEC,
 };
+#endif
 
 void compo_set_bonddata(component_t *compo, tm_t tm);
 
@@ -161,7 +164,14 @@ void bsp_uitool_text_create(compo_form_t *frm, uitool_res_t *uitool_res, u32 res
     TRACE("UITOOL_TYPE_TEXT:%d\n", index);
     compo_textbox_t *txt = compo_textbox_create(frm, 10);
     compo_textbox_set_location(txt, uitool_res->x, uitool_res->y, 80, 40);
+#if 0
+    /* 依赖已删除的手表 STR_* / text_str_tbl */
     compo_textbox_set(txt, i18n[text_str_tbl[index]]);
+#else
+    (void)index;
+    (void)res_addr;
+    compo_textbox_set(txt, "");
+#endif
 }
 
 //图片/字库数字
