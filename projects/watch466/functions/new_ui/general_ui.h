@@ -34,10 +34,10 @@ extern ui_sys_t g_ui_sys;
 #define GENERAL_SB_NAME_FONT_H          16
 
 /* home bin 图标尺寸（原 home_ui_shared.h） */
-#define NEW_HOME_BT_W                   32
-#define NEW_HOME_BT_H                   32
-#define NEW_HOME_BAT_W                  32
-#define NEW_HOME_BAT_H                  32
+#define NEW_HOME_BT_W                   10
+#define NEW_HOME_BT_H                   16
+#define NEW_HOME_BAT_W                  31
+#define NEW_HOME_BAT_H                  18
 
 /* composet ID，跨页面复用（不同 form 互不干扰） */
 enum {
