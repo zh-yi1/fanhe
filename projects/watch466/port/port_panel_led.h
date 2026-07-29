@@ -13,12 +13,12 @@
 #define PANEL_LED_ACTIVE_HIGH           1
 #endif
 
-#define PANEL_LED1_GPIO                 IO_PB4
-#define PANEL_LED2_GPIO                 IO_PB5
-#define PANEL_LED3_GPIO                 IO_PB6
-#define PANEL_LED4_GPIO                 IO_PB7
-#define PANEL_LED5_GPIO                 IO_PB8
-#define PANEL_LED6_GPIO                 IO_PB9
+#define PANEL_LED1_GPIO                 IO_PB0
+#define PANEL_LED2_GPIO                 IO_PB1
+#define PANEL_LED3_GPIO                 IO_PB2
+#define PANEL_LED4_GPIO                 IO_PB5
+#define PANEL_LED5_GPIO                 IO_PB6
+#define PANEL_LED6_GPIO                 IO_PB7
 
 #define PANEL_LED_NONE                  0xFF
 
@@ -35,6 +35,10 @@ typedef enum {
 void panel_led_init(void);
 void panel_led_all_off(void);
 void panel_led_set(panel_led_id_t id, bool on);
+void panel_led_set_switch_latched(bool on);
+void panel_led_set_lock_latched(bool on);
+void panel_led_set_res_latched(bool on);
+void panel_led_set_heat_latched(bool on);
 void panel_led_scan(void);
 u8 panel_led_get_last_tch(void);
 
