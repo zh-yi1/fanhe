@@ -1245,6 +1245,14 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/comm/lb_ui_state.h" />
+		<Unit filename="functions/comm/lb_ota.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_ota.h" />
+		<Unit filename="functions/comm/lb_uart_heat.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_uart_heat.h" />
 <Unit filename="functions/func.h" />
 <Unit filename="functions/func_alipay.h" />
 		<Unit filename="functions/func_bt.c">

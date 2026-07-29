@@ -7,7 +7,7 @@
  *        ↓ ble_app_lunchbox_rx_pop()
  *   lunchbox_ble_process()         主循环: 取包 → 字节流重组 → 逐帧分发
  *        ↓
- *   lb_ble_dispatch()              按命令字分发 (OTA 尚未实现, 为 ZH TODO)
+ *   lb_ble_dispatch()              按命令字分发 → 本地业务 / 桥转发 / OTA
  */
 #ifndef __LB_BLE_APP_H
 #define __LB_BLE_APP_H

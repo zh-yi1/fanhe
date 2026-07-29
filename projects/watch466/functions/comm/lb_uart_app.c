@@ -13,7 +13,7 @@
  *
  *          帧处理 (lb_uart_on_frame): 桥应答配对回传 APP / 时间与产品信息配对 /
  *          dpid=14 分钟时间同步 / UI 状态与预约镜像 / 心跳应答;
- *          仅 0x04 加热模块 OTA 应答为 ZH TODO (OTA 暂缓移植)。
+ *          0x04 应答驱动加热模块 OTA 状态机。
  */
 #include "include.h"
 #include "lb_proto.h"
@@ -22,6 +22,7 @@
 #include "lb_bridge.h"
 #include "lb_ble_app.h"
 #include "lb_ui_state.h"
+#include "lb_uart_heat.h"   // 加热模块 OTA 状态机
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -345,8 +346,11 @@ static void lb_uart_on_frame(lb_rx_frame_t *rx)
         }
         break;
 
-    case LB_UART_CMD_OTA:           // 0x04 加热模块 OTA 应答
-        // ZH TODO (加热模块 OTA 状态机移植后接入; 0x04 应答不转发 APP)
+    case LB_UART_CMD_OTA:           // 0x04 OTA 应答: 加热模块升级期间驱动状态机
+        // 蓝牙协议 §7: 升级过程只回 APP 成功/失败, 0x04 应答不转发 APP
+        if (heat_ota_is_active()) {
+            heat_ota_uart_response(rx);
+        }
         break;
 
     case LB_UART_CMD_HEARTBEAT:     // 0x05 心跳: 收到请求(0x00)回应答(0x01)
@@ -392,6 +396,9 @@ void lunchbox_uart_process(void)
 
     // BLE 转发请求的应答超时/重试
     lb_bridge_poll();
+
+    // 加热模块 OTA 状态机轮询 (超时检测/重试/继续发送)
+    heat_ota_process();
 
     // 收发层溢出诊断 (读清零, 正常应恒为 0)
     u16 ovf = lb_link_rx_overflow();

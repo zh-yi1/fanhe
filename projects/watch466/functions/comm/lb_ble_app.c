@@ -16,7 +16,7 @@
  *
  *   §3 分发   lb_ble_dispatch()
  *             帧 → 业务。0x01产品信息/0x03时间同步/0x09,0x0a模式预设已实现,
- *             0x02/0x04~0x08 经桥转发加热模块, OTA(0x0c~0x0e) 为 ZH TODO。
+ *             0x02/0x04~0x08 经桥转发加热模块, OTA(0x0c~0x0e) 按 target 分流。
  *
  * 协议: 蓝牙通讯协议1.0.6.md §2 帧格式 / §3 命令字
  */
@@ -28,6 +28,8 @@
 #include "lb_uart_app.h"    // lb_bridge_forward 转发队列 / lb_dev_info
 #include "lb_uart_link.h"   // lb_link_tx (0x01 直发不进队列)
 #include "lb_heat_cmd.h"    // 时间同步/模式预设 下发加热模块
+#include "lb_ota.h"         // 主MCU OTA (target=0x01)
+#include "lb_uart_heat.h"   // 加热模块 OTA (target=0x02)
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -488,6 +490,57 @@ static void lb_ble_on_mode_modify(lb_rx_frame_t *rx)
 }
 
 /**
+ * @brief 0x0c/0x0d/0x0e OTA (§5) — 按 target 字段分流
+ *
+ * target=0x01 主单片机 → 本地 OTA 处理器 (写自身 Flash)
+ * target=0x02 加热模块 → 加热模块 OTA 处理器 (存 SPI Flash 后经 UART 转发)
+ * target=0x00 (缺省)   → 按主单片机处理, 兼容不带 target 的老 APP
+ */
+static void lb_ble_on_ota(lb_rx_frame_t *rx)
+{
+    u8 target = lb_ota_get_target(rx);
+
+    if (target == 0x00 || target == LB_OTA_TARGET_MAIN_MCU) {
+        printf("OTA: target=0x%02X -> main mcu\n",
+               target ? target : LB_OTA_TARGET_MAIN_MCU);
+        switch (rx->cmd) {
+        case LB_CMD_OTA_START:
+            lb_handler_ota_start(rx);
+            break;
+        case LB_CMD_OTA_DATA:
+            lb_handler_ota_data(rx);
+            break;
+        case LB_CMD_OTA_END:
+            lb_handler_ota_end(rx);
+            break;
+        default:
+            break;
+        }
+        return;
+    }
+
+    if (target == LB_OTA_TARGET_HEAT_MODULE) {
+        printf("OTA: target=0x%02X -> heat module\n", target);
+        switch (rx->cmd) {
+        case LB_CMD_OTA_START:
+            heat_ota_handler_start(rx, rx->msg_flag);
+            break;
+        case LB_CMD_OTA_DATA:
+            heat_ota_handler_data(rx, rx->msg_flag);
+            break;
+        case LB_CMD_OTA_END:
+            heat_ota_handler_end(rx, rx->msg_flag);
+            break;
+        default:
+            break;
+        }
+        return;
+    }
+
+    printf("OTA: unknown target=0x%02X, ignore\n", target);
+}
+
+/**
  * @brief 转发类命令 — 翻译后经转发队列发往加热模块
  *
  * 异步: 入队即返回。应答到达/重试耗尽后由桥 (lb_uart_app.c) 自动回传 APP。
@@ -542,15 +595,9 @@ static void lb_ble_dispatch(lb_rx_frame_t *rx)
         break;
 
     case LB_CMD_OTA_START:          // 0x0c 升级启动 (data[0]=target: 0x01主MCU/0x02加热模块)
-        // ZH TODO
-        break;
-
     case LB_CMD_OTA_DATA:           // 0x0d 升级包传输
-        // ZH TODO
-        break;
-
     case LB_CMD_OTA_END:            // 0x0e 升级结束
-        // ZH TODO
+        lb_ble_on_ota(rx);
         break;
 
     default:
@@ -614,6 +661,9 @@ void lunchbox_ble_on_connected(void)
     if (total && lunchbox_ble_tx(frame, total)) {
         printf("BLE connected: time request sent via 0x03\n");
     }
+
+    // 断电恢复后延迟的 OTA 升级结果补报
+    heat_ota_send_deferred_result();
 }
 
 //=============================================================================

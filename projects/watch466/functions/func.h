@@ -27,6 +27,8 @@
 #include "lb_bridge.h"      // BLE↔UART 翻译层 + 时间服务
 #include "lb_heat_cmd.h"    // 主机→加热模块 命令封装
 #include "lb_ui_state.h"    // 设备状态镜像 / 预约列表镜像 / 跳页路由 (UI 读取)
+#include "lb_ota.h"         // 主MCU OTA (0x0c~0x0e target=0x01)
+#include "lb_uart_heat.h"   // 加热模块 OTA (target=0x02, BLE收→SPI Flash→UART推送)
 #endif
 
 #define TICK_IGNORE_KEY            700      //忽略700ms内的部分消息
