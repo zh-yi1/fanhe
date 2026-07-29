@@ -1,5 +1,4 @@
 #include "include.h"
-#include "func_menu.h"
 #include "func_tbl.h"
 #include "func.h"
 //#include "func_reservation.h"
@@ -22,48 +21,11 @@ void home_gpu_wait_idle(void)
     os_gui_draw_w4_done();
 }
 
-bool func_music_is_play(void);
-void func_music_play(bool sta);
-void func_call_mgr_process(void);
-u8 func_menu_sub_skyrer_get_first_idx(void);
-compo_form_t *func_clock_form_create_by_screenshoot(void);
-
 func_cb_t func_cb AT(.buf.func_cb);
 #if ELUNCHBOX_PANEL_EN
 u8 func_res_allow_switch;
 #endif
 
-#if BT_BACKSTAGE_EN
-AT(.text.func.process)
-void func_watch_bt_process(void)
-{
-    uint disp_status = bsp_bt_disp_status();
-
-    if (disp_status == BT_STA_OTA) {
-        sfunc_bt_ota();
-    }
-#if !CALL_MGR_EN
-    else if (sys_cb.reject_tick) {
-        if (tick_check_expire(sys_cb.reject_tick, 3000) || disp_status < BT_STA_INCOMING) {
-            sys_cb.reject_tick = 0;
-        }
-#if BT_VOIP_REJECT_EN
-    } else if (bt_cb.disp_status == BT_STA_INCOMING && bt_cb.call_type == CALL_TYPE_PHONE) {
-#else
-    } else if (bt_cb.disp_status == BT_STA_INCOMING) {
-#endif
-        func_cb.sta = FUNC_BT_RING;
-
-#if BT_VOIP_REJECT_EN
-    } else if (bt_cb.disp_status >= BT_STA_OUTGOING && bt_cb.call_type == CALL_TYPE_PHONE) {
-#else
-    } else if (bt_cb.disp_status >= BT_STA_OUTGOING) {
-#endif
-        func_cb.sta = FUNC_BT_CALL;
-    }
-#endif
-}
-#endif // BT_BACKSTAGE_EN
 bool gui_get_auto_power_en(void);
 
 #if ELUNCHBOX_PANEL_EN
@@ -153,12 +115,7 @@ void func_process(void)
     tft_bglight_frist_set_check();
 
     // gui 没有休眠才更新
-	#if FOTA_UI_EN
-    if ((!sys_cb.gui_sleep_sta) && (func_cb.sta != FUNC_OTA_UI_MODE) && !sys_cb.flag_halt) {
-	#else
 	if (!sys_cb.gui_sleep_sta && !sys_cb.flag_halt) {
-	#endif
-
 #if ELUNCHBOX_PANEL_EN
         bool gui_do_refresh = true;
 
@@ -174,24 +131,9 @@ void func_process(void)
 #endif
 #else
         compo_update();                                     //更新组件
-
         gui_process();                                      //刷新UI
 #endif
-
-
-
     }
-
-//#if OPUS_ENC_EN
-//    if (bsp_opus_is_encode()) {
-//        reset_sleep_delay_all();
-//        u8 temp_buf[80];
-//        memset(temp_buf, 0, sizeof(temp_buf));
-//        if (bsp_opus_get_enc_frame(temp_buf, sizeof(temp_buf))) {
-//            print_r(temp_buf, sizeof(temp_buf));
-//        }
-//    }
-//#endif//OPUS_ENC_EN
 
     co_timer_pro(false);
     bsp_sensor_step_pro_isr();
@@ -208,13 +150,6 @@ void func_process(void)
     bsp_vbat_lpwr_process();
 #endif
 
-#if BT_BACKSTAGE_EN
-    func_watch_bt_process();
-#endif
-
-#if CALL_MGR_EN
-    func_call_mgr_process();
-#endif
     //PWRKEY模拟硬开关关机处理
     if ((PWRKEY_2_HW_PWRON) && (sys_cb.pwrdwn_hw_flag)) {
         func_cb.sta = FUNC_PWROFF;
@@ -232,34 +167,7 @@ void func_process(void)
 #if LE_EN
         ble_app_process();
 #endif
-#if LE_AB_FOT_EN
-    	bsp_fot_process();
-#endif
     }
-
-//#if MUSCI_BACKSTAGE_EN
-//    bsp_music_process();
-//#endif
-
-#if ASR_SELECT
-    bsp_asr_process();
-#endif
-
-#if SENSOR_HUB_EN
-    bsp_sensorhub_process();
-#endif
-
-#if VBAT_ADC_EN
-    static u32 ticks = 0;
-    u32 vadc_process(void);
-    if (tick_check_expire(ticks, 500)) {
-        ticks = tick_get();
-        /*u32 val = */vadc_process();
-//        printf("vadc:%d uv, vbat:%d mv\n", val, sys_cb.vbat);
-//        void vadc_test(void);
-//        vadc_test();
-    }
-#endif
 
    if (gui_get_auto_power_en()) {
         sys_clk_free(INDEX_GUI);
@@ -317,11 +225,6 @@ void func_cur_sta_exit(void)
 //切换到上一个任务
 void func_switch_prev(bool flag_auto)
 {
-#if VIDEO_PLAY_EN
-    compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
-    compo_video_exit_lock(video);
-#endif // VIDEO_PLAY_EN
-
     compo_form_t *frm = NULL;
     u8 mode = func_get_switching_mode_byidx(sys_cb.nav_index, false);
     u16 switch_mode = flag_auto ? (mode | FUNC_SWITCH_AUTO) : mode;
@@ -335,22 +238,9 @@ void func_switch_prev(bool flag_auto)
     }
 #if !FUNC_RESERVATION_UI_EN
     if (sta == FUNC_RESERVATION) {
-#if VIDEO_PLAY_EN
-        compo_video_exit_unlock(video);
-#endif
         return;
     }
 #endif
-#if GUI_USE_SCREENSHOOT
-    compo_form_t *frm_cur = NULL;
-    func_switching3d_form_create(switch_mode, sta, &frm_cur, &frm);
-    bool res = func_switching(switch_mode, NULL);                     //切换动画
-    if (frm != NULL) {
-        compo_form_destroy(frm);                                      //切换完成或取消，销毁窗体
-    }
-    compo_form_destroy(frm_cur);                                      //切换完成或取消，销毁窗体
-
-#else
     if (mode != FUNC_SWITCH_FADE_OUT) {
         frm = func_create_form(sta);                                  //创建下一个任务的窗体
     }
@@ -360,19 +250,6 @@ void func_switch_prev(bool flag_auto)
     if (frm) {
         compo_form_destroy(frm);                                      //切换完成或取消，销毁窗体
     }
-#endif
-
-#if GUI_USE_SCREENSHOOT
-//    func_cb.frm_main = func_create_form(func_cb.sta);                 //换回真实的窗体
-    void (*enter)(void) = NULL;
-    for (int i = 0; i < FUNC_ENTER_CNT; i++) {
-        if (tbl_func_enter[i].func_idx == func_cb.sta) {
-            enter = tbl_func_enter[i].func;
-            enter();
-            break;
-        }
-    }
-#endif
 
     if (res) {
         if (sta == FUNC_CLOCK) {
@@ -380,20 +257,11 @@ void func_switch_prev(bool flag_auto)
         }
         func_cb.sta = sta;
     }
-
-#if VIDEO_PLAY_EN
-    compo_video_exit_unlock(video);
-#endif // VIDEO_PLAY_EN
 }
 
 //切换到下一个任务
 void func_switch_next(bool flag_auto, bool flag_loop)
 {
-#if VIDEO_PLAY_EN
-    compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
-    compo_video_exit_lock(video);
-#endif // VIDEO_PLAY_EN
-
     compo_form_t *frm = NULL;
     u8 sta;
     u8 mode = func_get_switching_mode_byidx(sys_cb.nav_index, true);
@@ -415,22 +283,10 @@ void func_switch_next(bool flag_auto, bool flag_loop)
 
 #if !FUNC_RESERVATION_UI_EN
     if (sta == FUNC_RESERVATION) {
-#if VIDEO_PLAY_EN
-        compo_video_exit_unlock(video);
-#endif
         return;
     }
 #endif
 
-#if GUI_USE_SCREENSHOOT
-    compo_form_t *frm_cur = NULL;
-    func_switching3d_form_create(switch_mode, sta, &frm_cur, &frm);
-    bool res = func_switching(switch_mode, NULL);                     //切换动画
-    if (NULL != frm) {
-        compo_form_destroy(frm);                                      	  //切换完成或取消，销毁窗体
-    }
-    compo_form_destroy(frm_cur);                                      //切换完成或取消，销毁窗体
-#else
     if (mode != FUNC_SWITCH_FADE_OUT) {
         frm = func_create_form(sta);                                  //创建下一个任务的窗体
     }
@@ -440,19 +296,6 @@ void func_switch_next(bool flag_auto, bool flag_loop)
     if (frm) {
         compo_form_destroy(frm);                                      //切换完成或取消，销毁窗体
     }
-#endif
-
-#if GUI_USE_SCREENSHOOT
-//    func_cb.frm_main = func_create_form(func_cb.sta);                 //换回真实的窗体
-    void (*enter)(void) = NULL;
-    for (int i = 0; i < FUNC_ENTER_CNT; i++) {
-        if (tbl_func_enter[i].func_idx == func_cb.sta) {
-            enter = tbl_func_enter[i].func;
-            enter();
-            break;
-        }
-    }
-#endif
 
     if (res) {
         if (sta == FUNC_CLOCK) {
@@ -462,10 +305,6 @@ void func_switch_next(bool flag_auto, bool flag_loop)
         }
         func_cb.sta = sta;
     }
-
-#if VIDEO_PLAY_EN
-    compo_video_exit_unlock(video);
-#endif // VIDEO_PLAY_EN
 }
 
 
@@ -488,27 +327,9 @@ void func_switch_to(u8 sta, u16 switch_mode)
     }
     home_gpu_wait_idle();
 #endif
-#if VIDEO_PLAY_EN
-    compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
-    compo_video_exit_lock(video);
-#endif // VIDEO_PLAY_EN
 
     compo_form_t *frm = NULL;
 
-#if GUI_USE_SCREENSHOOT
-    compo_form_t *frm_cur = NULL;
-    if (sta == FUNC_SMARTSTACK) {
-        frm = func_create_form(sta);
-        switch_mode = (switch_mode & 0x8000) | FUNC_SWITCH_DIRECT;
-    } else {
-        func_switching3d_form_create(switch_mode, sta, &frm_cur, &frm);
-    }
-    bool res = func_switching(switch_mode, NULL);                     //切换动画
-    if (frm) {
-        compo_form_destroy(frm);                                      //切换完成或取消，销毁窗体
-    }
-    compo_form_destroy(frm_cur);                                      //切换完成或取消，销毁窗体
-#else
     u8 mode = switch_mode & 0x7fff;
     if (mode != FUNC_SWITCH_FADE_OUT) {
         frm = func_create_form(sta);                                  //创建下一个任务的窗体
@@ -526,250 +347,66 @@ void func_switch_to(u8 sta, u16 switch_mode)
         compo_form_destroy(frm);                                      //切换完成或取消，销毁窗体
     }
 
-#endif
-
-#if GUI_USE_SCREENSHOOT
-//    func_cb.frm_main = func_create_form(func_cb.sta);                 //换回真实的窗体
-    if (sta != FUNC_SMARTSTACK) {
-        void (*enter)(void) = NULL;
-        for (int i = 0; i < FUNC_ENTER_CNT; i++) {
-            if (tbl_func_enter[i].func_idx == func_cb.sta) {
-                enter = tbl_func_enter[i].func;
-                enter();
-                break;
-            }
-        }
-    }
-#endif
-
     if (res) {
         func_cb.sta = sta;
     }
-
-#if VIDEO_PLAY_EN
-    compo_video_exit_unlock(video);
-#endif // VIDEO_PLAY_EN
 }
 
-//切换回主时钟
+/* 手表表盘/菜单切换已移除：饭盒统一回 Home */
 void func_switch_to_clock(void)
 {
-    func_switch_to(FUNC_CLOCK, FUNC_SWITCH_LR_ZOOM_RIGHT | FUNC_SWITCH_AUTO);
+    func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
     func_cb.flag_sort = false;
 }
 
-
-//退回到主菜单
 void func_switch_to_menu(void)
 {
-#if VIDEO_PLAY_EN
-    compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
-    compo_video_exit_lock(video);
-#endif // VIDEO_PLAY_EN
-    u16 switch_mode;
-    bool flag_frm_menu;                                                         //是否需要创建菜单窗体
-    flag_frm_menu = true;
-    if (func_cb.menu_style == MENU_STYLE_FOOTBALL) {
-        switch_mode = FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO;;
-        flag_frm_menu = false;
-    } else if (func_cb.sta != FUNC_CLOCK || func_cb.menu_style == MENU_STYLE_HONEYCOMB) {
-        switch_mode = FUNC_SWITCH_ZOOM_EXIT | FUNC_SWITCH_AUTO;
-    } else if (func_cb.menu_style == MENU_STYLE_WATERFALL) {
-        switch_mode = FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO;
-        func_cb.flag_animation = true;                                          //淡出后进入入场动画
-        flag_frm_menu = false;
-    } else {
-        switch_mode = FUNC_SWITCH_ZOOM_FADE_EXIT | FUNC_SWITCH_AUTO;
-    }
-    if (flag_frm_menu) {
-        widget_icon_t *icon;
-        compo_form_t *frm = func_create_form(FUNC_MENU);                        //创建下一个任务的窗体
-#if (ASR_SELECT && ASR_VOICE_BALL_ANIM)
-        component_t *compo = compo_get_next((component_t *)frm->anim);
-#else
-        component_t *compo = compo_get_next((component_t *)frm->title);
-#endif
-
-        if (compo->type == COMPO_TYPE_ICONLIST) {
-            compo_iconlist_t *iconlist = (compo_iconlist_t *)compo;
-            icon = compo_iconlist_select_byidx(iconlist, func_cb.menu_idx);
-        } else if (compo->type == COMPO_TYPE_LISTBOX) {
-            compo_listbox_t *listbox = (compo_listbox_t *)compo;
-            icon = compo_listbox_select_byidx(listbox, func_cb.menu_idx);
-        } else if (compo->type == COMPO_TYPE_DISKLIST) {
-            compo_disklist_t *disklist = (compo_disklist_t *)compo;
-            icon = compo_disklist_select_byidx(disklist, func_cb.menu_idx);
-        } else if (compo->type == COMPO_TYPE_KALEIDOSCOPE) {
-            compo_kaleidoscope_t *kale = (compo_kaleidoscope_t *)compo;
-            icon = compo_kale_select_byidx(kale, func_cb.menu_idx);
-        } else if (compo->type == COMPO_TYPE_RINGS) {
-            compo_rings_t *rings = (compo_rings_t *)compo;
-            icon = compo_rings_select_byidx(rings, func_cb.menu_idx);
-            if (icon == NULL) {
-                func_cb.menu_idx = func_menu_sub_skyrer_get_first_idx();
-                icon = compo_rings_select_byidx(rings, func_cb.menu_idx);
-            }
-        } else {
-//            printf("%s\n", __func__);
-//            halt(HALT_GUI_COMPO_ICONLIST_TYPE);
-//            return;
-            icon = NULL;
-        }
-        if (icon == NULL) {
-            switch_mode = FUNC_SWITCH_FADE_OUT;
-        }
-        func_switching(switch_mode, icon);                                      //退出动画
-        compo_form_destroy(frm);                                                //切换完成或取消，销毁窗体
-    } else {
-        func_switching(switch_mode, NULL);                                      //退出动画
-    }
-    func_cb.sta = FUNC_MENU;
-#if VIDEO_PLAY_EN
-    compo_video_exit_unlock(video);
-#endif // VIDEO_PLAY_EN
+    func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
-//上滑进入足球菜单
 void func_switch_to_football_menu(void)
 {
-    func_cb.menu_style = MENU_STYLE_FOOTBALL;
-    func_switch_to_menu();
+    func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
 
-//手动退回到主菜单
 void func_switching_to_menu(void)
 {
-#if VIDEO_PLAY_EN
-    compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
-    compo_video_exit_lock(video);
-#endif // VIDEO_PLAY_EN
-
-    widget_icon_t *icon;
-    u16 switch_mode;
-    compo_form_t *frm = func_create_form(FUNC_MENU);                            //创建下一个任务的窗体
-#if (ASR_SELECT && ASR_VOICE_BALL_ANIM)
-        component_t *compo = compo_get_next((component_t *)frm->anim);
-#else
-        component_t *compo = compo_get_next((component_t *)frm->title);
-#endif
-    if (compo->type == COMPO_TYPE_ICONLIST) {
-        compo_iconlist_t *iconlist = (compo_iconlist_t *)compo;
-        icon = compo_iconlist_select_byidx(iconlist, func_cb.menu_idx);
-    } else if (compo->type == COMPO_TYPE_LISTBOX) {
-        compo_listbox_t *listbox = (compo_listbox_t *)compo;
-        icon = compo_listbox_select_byidx(listbox, func_cb.menu_idx);
-    } else if (compo->type == COMPO_TYPE_DISKLIST) {
-        compo_disklist_t *disklist = (compo_disklist_t *)compo;
-        icon = compo_disklist_select_byidx(disklist, func_cb.menu_idx);
-    } else if (compo->type == COMPO_TYPE_KALEIDOSCOPE) {
-        compo_kaleidoscope_t *kale = (compo_kaleidoscope_t *)compo;
-        icon = compo_kale_select_byidx(kale, func_cb.menu_idx);
-    } else if (compo->type == COMPO_TYPE_RINGS) {
-            compo_rings_t *rings = (compo_rings_t *)compo;
-            icon = compo_rings_select_byidx(rings, func_cb.menu_idx);
-            if (icon == NULL) {
-                func_cb.menu_idx = func_menu_sub_skyrer_get_first_idx();
-                icon = compo_rings_select_byidx(rings, func_cb.menu_idx);
-            }
-    } else {
-//            printf("%s\n", __func__);
-//            halt(HALT_GUI_COMPO_ICONLIST_TYPE);
-//            return;
-            icon = NULL;
-    }
-    if (func_cb.sta != FUNC_CLOCK || func_cb.menu_style == MENU_STYLE_HONEYCOMB) {
-        switch_mode = FUNC_SWITCH_ZOOM_EXIT;
-    } else {
-        switch_mode = FUNC_SWITCH_ZOOM_FADE_EXIT;
-    }
-
-    if (icon == NULL) {
-        switch_mode = FUNC_SWITCH_FADE_OUT;
-    }
-
-    bool res = func_switching(switch_mode, icon);                               //退出动画
-    compo_form_destroy(frm);                                                    //切换完成或取消，销毁窗体
-    if (res) {
-        func_cb.sta = FUNC_MENU;
-    }
-#if VIDEO_PLAY_EN
-    compo_video_exit_unlock(video);
-#endif // VIDEO_PLAY_EN
+    func_switch_to(FUNC_HOME, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
 }
-
 
 //页面滑动回退功能
 void func_backing_to(void)
 {
-#if VIDEO_PLAY_EN
-    compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
-    compo_video_exit_lock(video);
-#endif // VIDEO_PLAY_EN
     if (func_cb.sta == FUNC_BT_RING || func_cb.sta == FUNC_BT_CALL) {
-
         return;
     }
 
     u8 stack_top = task_stack_pop();
 
-    if (!stack_top) {
-#if ELUNCHBOX_PANEL_EN
-        stack_top = FUNC_HOME;                                  //异常返回 Home
-#else
-        stack_top = FUNC_CLOCK;                                 //异常返回表盘
-#endif
+    if (!stack_top || stack_top == FUNC_MENU || stack_top == FUNC_SMARTSTACK) {
+        stack_top = FUNC_HOME;
     }
 
-    if (stack_top == FUNC_MENU
-    ) {
-        func_switching_to_menu();                               //右滑缓慢退出任务
-    } else if (stack_top == FUNC_SMARTSTACK
-    ) {
-        func_switch_to(stack_top, FUNC_SWITCH_LR_ZOOM_RIGHT);   //返回上一个界面
-    } else {
-        func_switch_to(stack_top, func_get_switching_mode_byidx(sys_cb.nav_index, false));   //返回上一个界面
-    }
-    if (func_cb.sta != stack_top) {                             //如果页面没切换需要重新入栈
+    func_switch_to(stack_top, func_get_switching_mode_byidx(sys_cb.nav_index, false));
+    if (func_cb.sta != stack_top) {
         task_stack_push(func_cb.sta);
     }
-#if VIDEO_PLAY_EN
-    compo_video_exit_unlock(video);
-#endif // VIDEO_PLAY_EN
 }
 
 //页面按键回退功能
 void func_back_to(void)
 {
-#if VIDEO_PLAY_EN
-    compo_video_t *video = compo_getobj_bytype(COMPO_TYPE_VIDEO);
-    compo_video_exit_lock(video);
-#endif // VIDEO_PLAY_EN
     if (func_cb.sta == FUNC_BT_RING || func_cb.sta == FUNC_BT_CALL) {
         return;
     }
 
     u8 stack_top = task_stack_pop();
 
-    if (!stack_top) {
-#if ELUNCHBOX_PANEL_EN
-        stack_top = FUNC_HOME;                                  //异常返回 Home
-#else
-        stack_top = FUNC_CLOCK;                                 //异常返回表盘
-#endif
+    if (!stack_top || stack_top == FUNC_MENU || stack_top == FUNC_SMARTSTACK) {
+        stack_top = FUNC_HOME;
     }
 
-    if (stack_top == FUNC_MENU
-    ) {
-        func_switch_to_menu();                                  //返回主菜单
-    } else if (stack_top == FUNC_SMARTSTACK
-    ) {
-        func_switch_to(stack_top, FUNC_SWITCH_LR_ZOOM_RIGHT | FUNC_SWITCH_AUTO);  //返回上一个界面
-    }  else {
-        func_switch_to(stack_top, func_get_switching_mode_byidx(sys_cb.nav_index, false) | FUNC_SWITCH_AUTO);    //返回上一个界面
-    }
-#if VIDEO_PLAY_EN
-    compo_video_exit_unlock(video);
-#endif // VIDEO_PLAY_EN
+    func_switch_to(stack_top, func_get_switching_mode_byidx(sys_cb.nav_index, false) | FUNC_SWITCH_AUTO);
 }
 
 //页面直接回退,无动画效果
@@ -818,17 +455,6 @@ void evt_message(size_msg_t msg)
                 func_update();                                  //尝试升级
 #endif // USB_SD_UPDATE_EN
 
-//                CLKGAT0 |= BIT(16);                   //sd0_clken
-//                CLKGAT0 |= BIT(21);
-//                SD0_LDO_EN();
-//
-//                sd0_set_speed_mhz(2);
-//                FRESULT res = fs_mount (&fat_fs, "B:", 1);
-//                printf("f_mount:%d\n", res);
-
-//#if FUNC_MUSIC_EN
-//				func_cb.sta = FUNC_MUSIC;
-//#endif // FUNC_MUSIC_EN
                 msg_enqueue(EVT_SD_CARD_INTER);
             }
             break;
@@ -876,9 +502,6 @@ void evt_message(size_msg_t msg)
             } else {
                 if (!sbc_is_bypass()) {
                     printf("EVT_A2DP_MUSIC_PLAY\n");
-    #if BT_EMIT_EN
-                    music_control(MUSIC_MSG_BT_PLAY);
-    #endif
                     bsp_sys_unmute();
                 }
                 bt_cb.music_playing = true;
@@ -886,13 +509,11 @@ void evt_message(size_msg_t msg)
             break;
 
         case EVT_A2DP_MUSIC_STOP:
-#if !BT_EMIT_EN
             if (!sbc_is_bypass()) {
                 printf("EVT_A2DP_MUSIC_STOP\n");
                 bsp_sys_mute();
             }
             bt_cb.music_playing = false;
-#endif
             break;
 
         case EVT_BT_SCAN_START:
@@ -946,16 +567,6 @@ void evt_message(size_msg_t msg)
     }
 }
 
-/* 表盘子界面（下拉/侧边/转盘等）仍占用 func_cb.sta==FUNC_CLOCK，但 f_clk->sta!=MAIN。
- * 此时若仍走 func_switch_next / func_switch_to_menu 等，会与 sub_frm、转场状态机冲突，易 WDT。 */
-static bool func_clock_subui_active(void)
-{
-    if (func_cb.sta != FUNC_CLOCK || func_cb.f_cb == NULL) {
-        return false;
-    }
-    return ((f_clock_t *)func_cb.f_cb)->sta != FUNC_CLOCK_MAIN;
-}
-
 //func common message process
 void func_message(size_msg_t msg)
 {
@@ -978,53 +589,16 @@ void func_message(size_msg_t msg)
 #endif
     switch (msg) {
     case MSG_CTP_SHORT_LEFT:
-        if (func_cb.sta == FUNC_CLOCK) {
-            if (!func_clock_subui_active()) {
-                func_switch_next(false, true);                    //切到下一个任务
-            }
-        } else if (func_cb.flag_sort) {
-            func_switch_next(false, true);
-        }
-        break;
-
     case MSG_CTP_SHORT_RIGHT:
-        if (func_cb.sta == FUNC_CLOCK && func_clock_subui_active()) {
-            break;
-        }
-        if (func_cb.flag_sort){
-            func_switch_prev(false);                    //切到上一个任务
-        } else if(func_cb.menu_style == MENU_STYLE_FOOTBALL) {
-            func_back_to();
-        } else /*if (ctp_get_sxy().x <= 32)*/ {
-            func_backing_to();							//右滑缓慢退出任务
-        }
+    case MSG_QDEC_FORWARD:
+    case MSG_QDEC_BACKWARD:
+        /* 手表触控/编码器切任务已移除 */
         break;
 
     case MSG_CTP_COVER:
 #if !ELUNCHBOX_KEEP_AWAKE
         sys_cb.sleep_delay = 1; //100ms后进入休眠
 #endif
-        break;
-
-    case MSG_QDEC_FORWARD:
-        if (func_cb.sta == FUNC_CLOCK) {
-            if (!func_clock_subui_active()) {
-                msg_queue_detach(MSG_QDEC_FORWARD, 0);  //防止不停滚动
-                func_switch_next(true, true);                     //切到下一个任务
-            }
-        } else if (func_cb.flag_sort) {
-            msg_queue_detach(MSG_QDEC_FORWARD, 0);
-            func_switch_next(true, true);
-        }
-        break;
-
-    case MSG_QDEC_BACKWARD:
-        if (func_cb.sta == FUNC_CLOCK || func_cb.flag_sort) {
-            msg_queue_detach(MSG_QDEC_BACKWARD, 0);
-            if (func_cb.flag_sort != 0) {
-                func_switch_prev(true);                     //切到下一个任务
-            }
-        }
         break;
 
     case KU_PREV:
@@ -1034,33 +608,14 @@ void func_message(size_msg_t msg)
         break;
 
     case KU_NEXT:
-#if !FUNC_RESERVATION_UI_EN
-        break;
-#elif ELUNCHBOX_PANEL_EN
         /* 饭盒：预约 UI 由 pt8028_take_res_key_pending 专用入口进入 */
-        break;
-#else
-        if (func_cb.sta != FUNC_RESERVATION) {
-            func_switch_to(FUNC_RESERVATION, FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO);
-        }
-#endif
         break;
 
     case KU_BACK:
-#if ELUNCHBOX_PANEL_EN
         if (func_cb.sta == FUNC_HOME) {
             break;
         }
-#endif
-        if (func_cb.flag_sort) {
-            func_switch_to_clock();                     //切换回主时钟
-        } else if (func_cb.sta == FUNC_CLOCK) {
-            if (!func_clock_subui_active()) {
-                func_switch_to_menu();                  //退回到主菜单
-            }
-        } else {
-            func_back_to();								//直接退出任务
-        }
+        func_back_to();
         break;
 
 #if SOFT_POWER_ON_OFF
@@ -1072,11 +627,9 @@ void func_message(size_msg_t msg)
 #endif
 
     case KU_MODE:
-#if ELUNCHBOX_PANEL_EN
             if (func_cb.sta == FUNC_HOME) {
                 break;
             }
-#endif
             if (func_cb.sta != FUNC_MODE &&
                        func_cb.sta != FUNC_SETUP && func_cb.sta != FUNC_RESERVATION &&
                        func_cb.sta != FUNC_TIMEING && func_cb.sta != FUNC_LANGUAGEING &&
@@ -1085,92 +638,19 @@ void func_message(size_msg_t msg)
             }
             break;
 
-        case KL_BACK:   //堆栈后台
-            /* 下拉等子界面内勿切智能堆栈：避免 sub_frm 与切换栈交错导致异常 PC（如 0xfff9xxxx） */
-            if (func_cb.sta == FUNC_CLOCK && func_clock_subui_active()) {
-                break;
-            }
-            if (bt_cb.disp_status < BT_STA_INCOMING && func_cb.sta != FUNC_MENUSTYLE) {
-                if (func_cb.sta == FUNC_CLOCK) {
-                    f_clock_t *f_clk = (f_clock_t *)func_cb.f_cb;
-                    /* 仅在主表盘态销毁 sub_frm。FUNC_CLOCK_SUB_* 子界面在自有 while 内仍持有 sub_frm，
-                     * 若此处销毁，子界面 exit 会二次 compo_form_destroy -> 堆损坏 / WDT。 */
-                    if (f_clk != NULL && f_clk->sta == FUNC_CLOCK_MAIN && f_clk->sub_frm != NULL) {
-                        compo_form_destroy(f_clk->sub_frm);     //下拉界面存在双窗体
-                    }
-                }
-
-                if (func_cb.menu_style == MENU_STYLE_FOOTBALL) {
-                    func_switching(FUNC_SWITCH_FADE_OUT | FUNC_SWITCH_AUTO, NULL);
-                    func_cb.sta = FUNC_SMARTSTACK;
-                } else {
-                    func_switch_to(FUNC_SMARTSTACK, FUNC_SWITCH_ZOOM_FADE_ENTER | FUNC_SWITCH_AUTO);
-                }
-            }
-            break;
-
-
-//        case KU_LEFT:
-//            ble_bt_connect();               //ios一键双连测试
-//            printf("send sm req\n");
-//            break;
-
-//        case KU_LEFT:
-//            bt_audio_enable();
-//            printf("bt_audio_enable\n");
-//            break;
-//
-//        case KU_RIGHT:
-//            bt_audio_bypass();
-//            printf("bt_audio_bypass\n");
-//            break;
-
-//#if EQ_MODE_EN
-//        case KU_EQ:
-//            sys_set_eq();
-//            break;
-//#endif // EQ_MODE_EN
-//
-//        case KU_MUTE:
-//            if (sys_cb.mute) {
-//                bsp_sys_unmute();
-//            } else {
-//                bsp_sys_mute();
-//            }
-//            break;
-//
         case MSG_SYS_500MS:
             break;
 
         case MSG_SYS_1S:
-#if CALL_MGR_EN
-            bsp_bt_call_times_inc();
-            bsp_modem_call_times_inc();
-#endif
 #if BT_HFP_BAT_REPORT_EN
             bt_hfp_report_bat();
 #endif
             break;
 
-        // case EVT_4G_INIT_DONE:
-        //     modem_test_machine();
-        //     break;
-#if BT_EMIT_EN
-        case EVT_BT_DISCONNECT:
-            if (func_music_is_play()) {
-                func_music_play(false);
-            }
-            break;
-#endif // BT_EMIT_EN
-
         default:
             evt_message(msg);
             break;
     }
-
-#if (ASR_SELECT == ASR_YJ && !ASR_DEAL_TYPE)
-    third_func_message(msg);
-#endif
 
     //调节音量，3秒后写入flash
     if ((sys_cb.cm_vol_change) && (sys_cb.cm_times >= 6)) {
@@ -1208,9 +688,6 @@ void func_enter(void)
 AT(.text.func)
 void func_exit(void)
 {
-#if ASR_SELECT
-    bsp_asr_voice_wake_sta_clr();
-#endif
     //销毁窗体
     if (func_cb.frm_main != NULL) {
         home_gpu_wait_idle();
@@ -1222,15 +699,6 @@ void func_exit(void)
     }
     func_cb.frm_main = NULL;
     func_cb.f_cb = NULL;
-
-#if SECURITY_PAY_EN && SECURITY_TRANSITCODE_EN
-    if (func_cb.last == FUNC_ALIPAY) {
-        void gui_sw_init(void);
-        gui_sw_init();
-        printf("gui_reinit\n");
-    }
-#endif
-
 }
 
 AT(.text.func)
@@ -1243,34 +711,18 @@ void func_run(void)
     void (*func_entry)(void) = NULL;
     printf("%s\n", __func__);
     memset(func_cb.tbl_sort, 0, sizeof(func_cb.tbl_sort));
-#if ELUNCHBOX_PANEL_EN
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.sort_cnt = 1;
     func_cb.flag_sort = false;
     func_cb.sta = FUNC_HOME;
-#else
-    func_cb.tbl_sort[0] = FUNC_HOME;
-    func_cb.tbl_sort[1] = FUNC_VIDEO_SHOWLIST;
-    func_cb.tbl_sort[2] = FUNC_ACTIVITY;
-    func_cb.tbl_sort[3] = FUNC_SLEEP;
-    func_cb.tbl_sort[4] = FUNC_BLOOD_OXYGEN;
-    func_cb.tbl_sort[5] = FUNC_BT;
-    func_cb.tbl_sort[6] = FUNC_COMPO_SELECT;
-    func_cb.sort_cnt = 7;
-    func_cb.sta = DEFAULE_START_FUNC;
-#endif
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
-    // func.c
+#if ELUNCHBOX_PANEL_EN && USER_PANEL_LED
+    func_led_set(FUNC_LED_ID_SWITCH, true);     /* 进 func_run 点亮 LED1，便于无屏时确认固件已跑 */
+#endif
 
     for (;;) {
-#if !ELUNCHBOX_PANEL_EN
-        printf("func_enter <<\n");
-#endif
         func_enter();
-#if !ELUNCHBOX_PANEL_EN
-        printf("pwrkey usage_id: %d\n", bsp_pwrkey_get_usage_id());
-#endif
         for (int i = 0; i < FUNC_ENTRY_CNT; i++) {
             if (tbl_func_entry[i].func_idx == func_cb.sta) {
                 task_stack_push(func_cb.sta);
@@ -1280,21 +732,9 @@ void func_run(void)
                 break;
             }
         }
-#if !ELUNCHBOX_PANEL_EN
-        printf("func_cb.sta:%d\n", func_cb.sta);
-        if (func_cb.sta == FUNC_PWROFF) {
-            printf("func_pwroff <<\n");
-            func_pwroff(1);
-            printf("func_pwroff >>\n");
-        }
-        printf("func_exit <<\n");
-#endif
         if (func_cb.sta == FUNC_PWROFF) {
             func_pwroff(1);
         }
         func_exit();
-#if !ELUNCHBOX_PANEL_EN
-        printf("func_exit >>\n");
-#endif
     }
 }

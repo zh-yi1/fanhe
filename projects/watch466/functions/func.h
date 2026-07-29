@@ -231,8 +231,10 @@ void func_message(size_msg_t msg);
 void evt_message(size_msg_t msg);
 
 void func_switch_to(u8 sta, u16 switch_mode);
-void func_switch_to_football_menu(void);
-void func_switching_to_menu(void);
+void func_switch_to_clock(void);                /* 饭盒：回 Home */
+void func_switch_to_menu(void);                 /* 饭盒：回 Home */
+void func_switch_to_football_menu(void);        /* 饭盒：回 Home */
+void func_switching_to_menu(void);              /* 饭盒：回 Home */
 void func_backing_to(void);                     //页面滑动回退功能
 void func_back_to(void);                        //页面按键回退功能
 u8 func_directly_back_to(void);                 //页面直接回退,无动画效果

@@ -2,8 +2,12 @@
 #include "func.h"
 #include "func_key.h"
 #include "func_key_lock.h"
+#include "home_ui_lock_overlay.h"
 #include "general_title_ui.h"
+//#include "func_lunchbox_uart.h"
+#include "new_time_res.h"
 #include "lang.h"
+#include "ui_layout_anchor.h"
 
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
@@ -59,16 +63,6 @@
 
 #define TIME_PAGE_COLOR_ON              COLOR_WHITE
 #define TIME_PAGE_COLOR_OFF             COLOR_BLACK
-
-/* ---- 布局参考尺寸（原 new_time_res.h / ui_layout_anchor.h） ---- */
-#define HEAT_LAYOUT_REF_W               240
-#define HEAT_LAYOUT_REF_H               284
-#define NEW_TIME_BTN_W                  110
-#define NEW_TIME_BTN_H                  44
-#define NEW_TIME_BOX_W                  60
-#define NEW_TIME_BOX_H                  64
-#define NEW_TIME_ARROW_W                20
-#define NEW_TIME_ARROW_H                16
 #define TIME_PAGE_COLOR_UNIT_SEL        COLOR_WHITE
 #define TIME_PAGE_COLOR_UNIT_NOR        COLOR_BLACK
 
@@ -445,9 +439,9 @@ static void func_time_page_process(void)
 
     if (func_key_lock_gui_dirty()) {
         if (func_key_lock_overlay_visible()) {
-            func_lock_page_show(func_key_lock_overlay_is_unlock());
+            home_ui_lock_overlay_show(func_key_lock_overlay_is_unlock());
         } else {
-            func_lock_page_hide();
+            home_ui_lock_overlay_hide();
         }
     }
 
