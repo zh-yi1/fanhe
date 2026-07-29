@@ -381,12 +381,15 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
         } else {
             // MCU→APP: product info struct (81 bytes)
             // 字段顺序: BLEname(16)+version(8)+modeltype(10)+MAC(6)+SN(32)+color(1)+masterMCU(4)+heatMCU(4)
-            if (len >= 16) printf("BLEname=%.16s\n", data);
-            if (len >= 24) printf("version=%.8s\n",  data + 16);
-            if (len >= 34) printf("modeltype=%.10s\n", data + 24);
+            // 平台 printf 不支持 %s 的精度限定(%.8s), 字段又是定长不补 0,
+            // 直接打印会越界读到下一个字段, 故拷进临时缓冲显式补结束符
+            char str[33];
+            if (len >= 16) { memcpy(str, data,      16); str[16] = 0; printf("BLEname=%s\n", str); }
+            if (len >= 24) { memcpy(str, data + 16,  8); str[8]  = 0; printf("version=%s\n", str); }
+            if (len >= 34) { memcpy(str, data + 24, 10); str[10] = 0; printf("modeltype=%s\n", str); }
             if (len >= 40) printf("MAC=%02X:%02X:%02X:%02X:%02X:%02X\n",
                                   data[34], data[35], data[36], data[37], data[38], data[39]);
-            if (len >= 72) printf("SN=%.32s\n", data + 40);
+            if (len >= 72) { memcpy(str, data + 40, 32); str[32] = 0; printf("SN=%s\n", str); }
             if (len >= 73) printf("color=%u\n", data[72]);
             if (len >= 77) {
                 u32 main_ver = ((u32)data[73] << 24) | ((u32)data[74] << 16)
@@ -427,8 +430,10 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             u8  time   = data[41];
             u8  status = data[42];
             u8  rep    = data[43];
-            printf("Schedule[%u/%u] ALL=%u now_id=%u mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
-                   now_id, ALL, ALL, now_id, mode, ID, data + 4, (unsigned long)TIME, temp, time, status, rep);
+            char nm[33];
+            memcpy(nm, data + 4, 32); nm[32] = 0;   // name 定长不补 0, 需显式截断
+            printf("Schedule[%u/%u] ALL=%u now_id=%u mode=%u ID=%u name=%s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
+                   now_id, ALL, ALL, now_id, mode, ID, nm, (unsigned long)TIME, temp, time, status, rep);
         }
         break;
 
@@ -444,8 +449,10 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             u8  time   = data[39];
             u8  status = data[40];
             u8  rep    = data[41];
-            printf("mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
-                   mode, ID, data + 2, (unsigned long)TIME, temp, time, status, rep);
+            char nm[33];
+            memcpy(nm, data + 2, 32); nm[32] = 0;
+            printf("mode=%u ID=%u name=%s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
+                   mode, ID, nm, (unsigned long)TIME, temp, time, status, rep);
         } else if (!is_rx && len >= 1) {
             // MCU→APP: assigned ID(1B)
             printf("AssignedID=%u\n", data[0]);
@@ -464,8 +471,10 @@ void lb_ble_dump_frame(u8 cmd, const u8 *data, u16 len, bool is_rx)
             u8  time   = data[39];
             u8  status = data[40];
             u8  rep    = data[41];
-            printf("mode=%u ID=%u name=%.32s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
-                   mode, ID, data + 2, (unsigned long)TIME, temp, time, status, rep);
+            char nm[33];
+            memcpy(nm, data + 2, 32); nm[32] = 0;
+            printf("mode=%u ID=%u name=%s TIME=%lu temp=%u time=%umin status=%u rep=0x%02X\n",
+                   mode, ID, nm, (unsigned long)TIME, temp, time, status, rep);
         }
         break;
 
