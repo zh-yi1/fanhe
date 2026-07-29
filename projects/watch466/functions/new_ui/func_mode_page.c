@@ -3,6 +3,7 @@
 #include "func_key.h"
 #include "func_key_lock.h"
 #include "general_ui.h"
+#include "ui.h"
 
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
@@ -52,7 +53,7 @@ compo_form_t *func_mode_page_form_create(void)
                              GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
 
     /* 顶部状态栏（左上角时间） */
-    general_status_bar_create(frm, &inf->sb, i18n[STR_MODE]);
+    general_status_bar_create(frm, &inf->sb, i18n[STR_MODE], &g_ui_sys);
 
     /* 模式主图（初始第 0 张） */
     inf->selection = 0;

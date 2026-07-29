@@ -6,7 +6,22 @@
 #include "ui.h"
 
 /* 系统状态实例 */
-ui_sys_t g_ui_sys;
+/* TODO-TEST: 写死测试初值，串口调通后删掉初始化器恢复 ui_sys_t g_ui_sys; */
+ui_sys_t g_ui_sys = {
+    .temp         = 140,
+    .time_min     = 60,
+    .keep_warm_min = 30,
+    .remain_sec   = 0,
+    .bat_level    = 3,        /* 电量 0 档 → DL1 空电图标 */
+    .bat_pct      = 0,
+    .charging     = false,     /* 充电中 → 轮播 CHARGING_1~4 动画 */
+    .lowbat       = false,
+    .full_charge  = false,
+    .bt_linked    = false,     /* 蓝牙已连 → 图标显示 */
+    .lid_open     = false,
+    .hour         = 12,       /* 时间 12:34 */
+    .min          = 34,
+};
 
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
@@ -67,7 +82,7 @@ compo_form_t *func_home_page_form_create(void)
                              GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
 
     /* 顶部状态栏 */
-    general_status_bar_create(frm, &inf->sb, NULL);
+    general_status_bar_create(frm, &inf->sb, NULL, &g_ui_sys);
 
     /* logo图标 */
     inf->logo = compo_picturebox_create(frm, UI_BUF_NEW_UI_NEW_LOGO_BIN);

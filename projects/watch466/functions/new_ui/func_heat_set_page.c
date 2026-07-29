@@ -5,8 +5,6 @@
 #include "general_ui.h"
 #include "ui.h"
 
-/* 页面间共享加热参数实例 */
-ui_heat_t g_ui_heat = { .temp = 140, .time_min = 60, .keep_warm_min = 30 };
 
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
@@ -162,8 +160,8 @@ static void func_heat_set_page_handle_keys(void)
                 heat_set_update_display();
             } else {
                 /* 时间选好 → 保存选择结果，跳到加热页 */
-                g_ui_heat.temp = TEMP_VALUES[inf->temp_index];
-                g_ui_heat.time_min = inf->time_min;
+                g_ui_sys.temp = TEMP_VALUES[inf->temp_index];
+                g_ui_sys.time_min = inf->time_min;
                 func_cb.sta = FUNC_NEW_HEAT_PAGE;
             }
             break;
@@ -249,7 +247,7 @@ compo_form_t *func_heat_set_page_form_create(void)
                              GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
 
     /* 顶部状态栏 */
-    general_status_bar_create(frm, &inf->sb, NULL);
+    general_status_bar_create(frm, &inf->sb, NULL, &g_ui_sys);
 
     /* ---- 温度行（默认选中） ---- */
     inf->txt_heat = compo_textbox_create(frm, 12);

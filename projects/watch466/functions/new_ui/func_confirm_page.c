@@ -4,6 +4,7 @@
 #include "func_key_lock.h"
 #include "general_ui.h"
 #include "lang.h"
+#include "ui.h"
 
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
@@ -245,7 +246,7 @@ compo_form_t *func_confirm_page_form_create(void)
 
     /* 底层首页 + 顶部状态栏 */
     confirm_home_backdrop_create(frm);
-    general_status_bar_create(frm, &inf->sb, NULL);
+    general_status_bar_create(frm, &inf->sb, NULL, &g_ui_sys);
 
     /* 半透明遮罩：周围透出首页，中间对话框区域不透明白底 */
     dim = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);

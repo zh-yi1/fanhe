@@ -101,8 +101,8 @@ static void func_heat_pasta_handle_keys(void)
             break;
 
         case FUNC_KEY_CONFIRM:
-            g_ui_heat.temp = 194;
-            g_ui_heat.time_min = inf->time_min;
+            g_ui_sys.temp = 194;
+            g_ui_sys.time_min = inf->time_min;
             func_cb.sta = FUNC_NEW_HEAT_PAGE;
             break;
 
@@ -178,7 +178,7 @@ compo_form_t *func_heat_pasta_form_create(void)
                              GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
 
     /* 顶部状态栏 */
-    general_status_bar_create(frm, &inf->sb, i18n[STR_PASTA_MODE]);
+    general_status_bar_create(frm, &inf->sb, i18n[STR_PASTA_MODE], &g_ui_sys);
 
     /* ---- 温度行（固定 194F，未选中态） ---- */
     inf->txt_heat = compo_textbox_create(frm, 12);

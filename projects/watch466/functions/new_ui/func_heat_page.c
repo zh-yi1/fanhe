@@ -59,7 +59,7 @@ compo_form_t *func_heat_page_form_create(void)
                              GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
 
     /* 顶部状态栏 */
-    general_status_bar_create(frm, &inf->sb, NULL);
+    general_status_bar_create(frm, &inf->sb, NULL, &g_ui_sys);
 
     /* ---- 加热圆环进度条 ---- */
     inf->schedule_pic = compo_picturebox_create(frm, ANNULUS_PICS[0]);
@@ -75,11 +75,11 @@ compo_form_t *func_heat_page_form_create(void)
     compo_textbox_set_forecolor(inf->residue_time_text, COLOR_BLUE);
     {
         char buf[8];
-        if (g_ui_heat.time_min % 60 == 0) {
-            snprintf(buf, sizeof(buf), "%uH", g_ui_heat.time_min / 60);
+        if (g_ui_sys.time_min % 60 == 0) {
+            snprintf(buf, sizeof(buf), "%uH", g_ui_sys.time_min / 60);
         } else {
             snprintf(buf, sizeof(buf), "%uH%02uMin",
-                     g_ui_heat.time_min / 60, g_ui_heat.time_min % 60);
+                     g_ui_sys.time_min / 60, g_ui_sys.time_min % 60);
         }
         compo_textbox_set(inf->residue_time_text, buf);
     }
@@ -108,7 +108,7 @@ compo_form_t *func_heat_page_form_create(void)
     compo_textbox_set_forecolor(inf->temp_text, COLOR_BLUE);
     {
         char buf[8];
-        snprintf(buf, sizeof(buf), "%uF", g_ui_heat.temp);
+        snprintf(buf, sizeof(buf), "%uF", g_ui_sys.temp);
         compo_textbox_set(inf->temp_text, buf);
     }
 
@@ -131,11 +131,11 @@ compo_form_t *func_heat_page_form_create(void)
     compo_textbox_set_forecolor(inf->time_text, COLOR_BLUE);
     {
         char buf[8];
-        if (g_ui_heat.time_min % 60 == 0) {
-            snprintf(buf, sizeof(buf), "%uH", g_ui_heat.time_min / 60);
+        if (g_ui_sys.time_min % 60 == 0) {
+            snprintf(buf, sizeof(buf), "%uH", g_ui_sys.time_min / 60);
         } else {
             snprintf(buf, sizeof(buf), "%uH%02uMin",
-                     g_ui_heat.time_min / 60, g_ui_heat.time_min % 60);
+                     g_ui_sys.time_min / 60, g_ui_sys.time_min % 60);
         }
         compo_textbox_set(inf->time_text, buf);
     }
@@ -261,7 +261,7 @@ void func_heat_page_enter(void)
     func_cb.frm_main = func_heat_page_form_create();
     inf = (f_heat_page_t *)func_cb.f_cb;
     inf->display_stage = 1;
-    inf->total_sec  = (u32)g_ui_heat.time_min * 60;
+    inf->total_sec  = (u32)g_ui_sys.time_min * 60;
     inf->start_tick = tick_get();
     inf->last_idx   = 0;
 

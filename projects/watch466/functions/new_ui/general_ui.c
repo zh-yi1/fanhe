@@ -2,6 +2,7 @@
 #include "func.h"
 #include "func_key_lock.h"
 #include "general_ui.h"
+#include "ui.h"
 
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
@@ -11,13 +12,26 @@
 
 /* ---- 内部 helpers ---- */
 
-static void general_sb_time_fmt(char *buf, u8 buf_size, tm_t *tm)
-{
-    snprintf(buf, buf_size, "%02d:%02d", tm->hour, tm->min);
-}
+/* 电量档位 0~4 映射到 DL1~DL4 图标 */
+static const u32 sb_bat_icons[5] = {
+    UI_BUF_NEW_UI_DL1_BIN,  /* 0: 空 */
+    UI_BUF_NEW_UI_DL1_BIN,  /* 1: 25% */
+    UI_BUF_NEW_UI_DL2_BIN,  /* 2: 50% */
+    UI_BUF_NEW_UI_DL3_BIN,  /* 3: 75% */
+    UI_BUF_NEW_UI_DL4_BIN,  /* 4: 100% */
+};
+
+/* 充电动画帧 */
+static const u32 sb_charge_icons[4] = {
+    UI_BUF_NEW_UI_CHARGING_1_BIN,
+    UI_BUF_NEW_UI_CHARGING_2_BIN,
+    UI_BUF_NEW_UI_CHARGING_3_BIN,
+    UI_BUF_NEW_UI_CHARGING_4_BIN,
+};
 
 /* ---- 公开 API ---- */
-void general_status_bar_create(compo_form_t *frm, general_status_bar_t *bar, const char *page_name)
+void general_status_bar_create(compo_form_t *frm, general_status_bar_t *bar,
+                               const char *page_name, ui_sys_t *sys_data)
 {
     compo_picturebox_t *pic;
     compo_textbox_t *txt;
@@ -60,11 +74,12 @@ void general_status_bar_create(compo_form_t *frm, general_status_bar_t *bar, con
         bar->txt_pagename = NULL;
     }
 
-    /* 蓝牙图标 */
+    /* 蓝牙图标 — 默认隐藏，tick 中根据 bar->sys_data->bt_linked 显隐 */
     pic = compo_picturebox_create(frm, UI_BUF_NEW_UI_BLUETOOTH_BIN);
     compo_setid(pic, GENERAL_SB_ID_PIC_BT);
     compo_picturebox_set_pos(pic, bt_x, GENERAL_SB_Y);
     compo_picturebox_set_size(pic, NEW_HOME_BT_W, NEW_HOME_BT_H);
+    compo_picturebox_set_visible(pic, false);
     bar->pic_bt = pic;
 
     /* 电量图标 */
@@ -74,7 +89,15 @@ void general_status_bar_create(compo_form_t *frm, general_status_bar_t *bar, con
     compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
     bar->pic_bat = pic;
 
-    bar->last_min = 0xff;
+    bar->sys_data         = sys_data;
+    bar->last_min         = 0xff;
+    bar->last_hour        = 0xff;
+    bar->last_bat_level   = 0xff;
+    bar->last_charging    = false;
+    bar->last_full_charge = false;
+    bar->last_bt_linked   = false;
+    bar->charge_tick_ms   = 0;
+    bar->charge_frame     = 0;
 }
 
 void general_status_bar_bind(general_status_bar_t *bar)
@@ -133,21 +156,50 @@ void general_status_bar_detach(void)
 
 void general_status_bar_tick(general_status_bar_t *bar)
 {
-    tm_t tm;
     char buf[16];
 
-    if (bar == NULL || bar->txt_time == NULL) {
+    if (bar == NULL || bar->txt_time == NULL || bar->sys_data == NULL) {
         return;
     }
 
-    tm = rtc_clock_get();
-
-    /* 仅分钟变化时更新 textbox */
-    if (tm.min == bar->last_min) {
-        return;
+    /* ---- 时间：从串口 g_ui_sys 读取 ---- */
+    if (bar->sys_data->hour != bar->last_hour || bar->sys_data->min != bar->last_min) {
+        bar->last_hour = bar->sys_data->hour;
+        bar->last_min  = bar->sys_data->min;
+        snprintf(buf, sizeof(buf), "%02d:%02d", bar->sys_data->hour, bar->sys_data->min);
+        compo_textbox_set(bar->txt_time, buf);
     }
-    bar->last_min = tm.min;
 
-    general_sb_time_fmt(buf, sizeof(buf), &tm);
-    compo_textbox_set(bar->txt_time, buf);
+    /* ---- 电量图标 ---- */
+    if (bar->pic_bat != NULL) {
+        /* 充电中：500ms 切一帧 */
+        if (bar->sys_data->charging) {
+            if (tick_check_expire(bar->charge_tick_ms, 500)) {
+                bar->charge_tick_ms = tick_get();
+                compo_picturebox_set(bar->pic_bat, sb_charge_icons[bar->charge_frame]);
+                bar->charge_frame = (bar->charge_frame + 1) & 0x03; /* 0→1→2→3→0 */
+            }
+            bar->last_bat_level   = 0xff; /* 强制退出充电后刷新 */
+            bar->last_full_charge = bar->sys_data->full_charge;
+        }
+        /* 充满或非充电态：显示静态电量档位 */
+        else if (bar->sys_data->bat_level != bar->last_bat_level
+                 || bar->sys_data->full_charge != bar->last_full_charge) {
+            bar->last_bat_level   = bar->sys_data->bat_level;
+            bar->last_full_charge = bar->sys_data->full_charge;
+            bar->charge_tick_ms   = 0;
+            bar->charge_frame     = 0;
+
+            if (bar->sys_data->bat_level < 5) {
+                compo_picturebox_set(bar->pic_bat,
+                                     sb_bat_icons[bar->sys_data->bat_level]);
+            }
+        }
+    }
+
+    /* ---- 蓝牙图标：连接时显示，断开时隐藏 ---- */
+    if (bar->pic_bt != NULL && bar->sys_data->bt_linked != bar->last_bt_linked) {
+        bar->last_bt_linked = bar->sys_data->bt_linked;
+        compo_picturebox_set_visible(bar->pic_bt, bar->sys_data->bt_linked);
+    }
 }
