@@ -48,6 +48,23 @@ enum {
     LB_DPID_RTC_TIME        = 14,       // rtc的unix时间: value(4B) unix时间 (加热模块→MCU上报设备时间, v1.0.7新增)
 };
 
+// 故障码 (DP9 取值, 见《MCU通信协议》§4.1.6)
+// 注: 文档把 DP9 描述为 0/1 两值, fault_code 标注为"MCU 内部, 通过日志区分",
+//     实际模块是否把 fault_code 原值放进 DP9 需实测确认。
+enum {
+    LB_FAULT_NONE           = 0x00,     // 无故障
+    LB_FAULT_DRY_BURN       = 0x01,     // 干烧超温 (NTC > 105°C)
+    LB_FAULT_TEMP_RISE_FAST = 0x02,     // 温升过快 (> 11°C/秒)
+    LB_FAULT_NTC_BROKEN     = 0x03,     // NTC 传感器故障 (短路/开路)
+    LB_FAULT_OVER_CURRENT   = 0x04,     // 加热丝过流 (> 10A)
+    LB_FAULT_COVER_5V_SHORT = 0x05,     // 上盖 5V 短路
+    LB_FAULT_NTC_NO_RESP    = 0x06,     // NTC 无响应 (5 分钟未达目标温度)
+    LB_FAULT_NTC_UNPLUG     = 0x07,     // NTC 未连接 (加热中温度恒 0 达 20 秒)
+    LB_FAULT_NTC_ABNORMAL   = 0x08,     // NTC 异常 (非加热态温度 >100°C 达 20 秒)
+    LB_FAULT_BT_HEARTBEAT   = 0x09,     // 蓝牙模组心跳超时
+    LB_FAULT_LOW_BATTERY    = 0x0a,     // 低电上报
+};
+
 // 加热模式 (DP2 取值)
 enum {
     LB_MODE_OFF     = 0,    // 关

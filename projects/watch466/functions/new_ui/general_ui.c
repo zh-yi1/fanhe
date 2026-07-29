@@ -203,3 +203,52 @@ void general_status_bar_tick(general_status_bar_t *bar)
         compo_picturebox_set_visible(bar->pic_bt, bar->sys_data->bt_linked);
     }
 }
+
+//-----------------------------------------------------------------------------
+// 串口状态镜像 → g_ui_sys (声明见 app_ui.h)
+//
+// 单向同步: lb_ui_state_get() / lb_ui_schedules_get() 是唯一数据源,
+// 页面只读 g_ui_sys。由 func_process() 每轮调用。
+//-----------------------------------------------------------------------------
+#if FUNC_LUNCHBOX_UART_EN
+void lb_ui_sync_pull(void)
+{
+    lb_ui_state_t *st = lb_ui_state_get();
+    tm_t tm;
+
+    /* 蓝牙图标与加热模块无关, 未收到上报也要刷 */
+    g_ui_sys.bt_linked = lb_ui_ble_is_connected();
+
+    /* 时钟: 已同步用权威时间, 否则退回本机 RTC */
+    tm = lb_get_display_tm();
+    g_ui_sys.hour = tm.hour;
+    g_ui_sys.min  = tm.min;
+
+    if (!st->valid) {
+        return;                     /* 模块还没上报过, 加热相关字段维持默认 */
+    }
+
+    /* 加热参数: 镜像存温度档位(0~6), 结构体存华氏度 */
+    g_ui_sys.temp       = lunchbox_temp_idx_to_f(st->heat_temp);
+    g_ui_sys.time_min   = st->heat_duration;
+    g_ui_sys.remain_min = st->remain_time;
+
+    /* 保温页要的是"已保温分钟数" = 设定时长 - 剩余 (保温固定下发 24 小时) */
+    g_ui_sys.keep_warm_min = (st->heat_duration > st->remain_time)
+                           ? (st->heat_duration - st->remain_time) : 0;
+
+    /* 电量档位: DP3 0=没电 1=低 2=中 3=高 4=满 (只用于电量图标) */
+    g_ui_sys.bat_level = st->battery;
+
+    /* 低电判据用 DP9 故障, 不用 DP3 —— 见协议 §4.1.6 fault_code 0x0a "低电上报"
+     * 注: 文档把 DP9 写成 0/1 两值, fault_code 标为"MCU 内部";
+     *     若实测模块只回 0/1, 这里要改成 (st->fault != 0) 并另想办法区分故障类型 */
+    g_ui_sys.lowbat = (st->fault == LB_FAULT_LOW_BATTERY);
+
+    /* 充电: DP4 0=未充电 1=充电中 2=已充满 */
+    g_ui_sys.charging    = (st->charge == 1);
+    g_ui_sys.full_charge = (st->charge == 2);
+
+    /* lid_open: 协议无上盖状态属性, 恒 false (见《通信移植遗留事项》) */
+}
+#endif // FUNC_LUNCHBOX_UART_EN

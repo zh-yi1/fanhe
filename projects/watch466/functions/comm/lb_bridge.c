@@ -315,6 +315,15 @@ u32 lb_get_unix_time(void)
     return RTCCNT + LB_RTC_UNIX_OFFSET;
 }
 
+tm_t lb_get_display_tm(void)
+{
+    // 已同步: 按权威时间推算; 未同步: 退回本机 RTC (开机到首次同步之间)
+    if (lb_time.synced) {
+        return time_to_tm(lb_get_unix_time() - LB_RTC_UNIX_OFFSET);
+    }
+    return rtc_clock_get();
+}
+
 //-----------------------------------------------------------------------------
 // CRC32 (原 func_lunchbox_ota.c, 随 OTA 透传迁入)
 //-----------------------------------------------------------------------------

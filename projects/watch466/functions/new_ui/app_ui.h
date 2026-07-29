@@ -7,8 +7,8 @@
 typedef struct {
     /* 加热参数（func_heat_set_page → func_heat_page） */
     u16 temp;           // 选中温度 (°F)
-    u8  time_min;       // 选中总时间 (分钟)
-    u8  keep_warm_min;  // 保温时长 (分钟)
+    u32 time_min;       // 选中总时间 (分钟) —— 保温 24H=1440, u8 放不下
+    u32 keep_warm_min;  // 已保温时长 (分钟) —— 满环 1440, u8 放不下
     u32 remain_min;     // 剩余倒计时 (分钟，串口下发)
     /* 系统状态 */
     u8  bat_level;      // 电量档位 0~4
@@ -22,5 +22,13 @@ typedef struct {
     u8  min;             // 系统时钟 分
 } ui_sys_t;
 extern ui_sys_t g_ui_sys;
+
+/**
+ * @brief 串口状态镜像 → g_ui_sys (func_process 每轮调用, 页面不用管)
+ *
+ * 单向: lb_ui_state_get() 是唯一数据源, 页面只读 g_ui_sys。
+ * 实现见 general_ui.c。
+ */
+void lb_ui_sync_pull(void);
 
 #endif /* __NEW_UI_H__ */

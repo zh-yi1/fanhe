@@ -190,10 +190,10 @@ static void func_warm_page_process(void)
             if (warm_min == 0) {
                 snprintf(buf, sizeof(buf), "0Min");
             } else if (warm_min % 60 == 0) {
-                snprintf(buf, sizeof(buf), "%uH", warm_min / 60);
+                snprintf(buf, sizeof(buf), "%uH", (unsigned)(warm_min / 60));
             } else {
                 snprintf(buf, sizeof(buf), "%uH%02uMin",
-                         warm_min / 60, warm_min % 60);
+                         (unsigned)(warm_min / 60), (unsigned)(warm_min % 60));
             }
             compo_textbox_set(inf->residue_time_text, buf);
         }

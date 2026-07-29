@@ -8,23 +8,9 @@ extern bool func_confirm_overlay_visible(void);
 extern void func_confirm_overlay_show(void);
 extern bool func_confirm_overlay_poll(void);
 
-/* 系统状态实例 */
-/* TODO-TEST: 写死测试初值，串口调通后删掉初始化器恢复 ui_sys_t g_ui_sys; */
-ui_sys_t g_ui_sys = {
-    .temp = 140,
-    .keep_warm_min = 30,
-    .time_min = 60,   /* TODO-TEST: 总时长 120 分钟 → 模拟 120 秒跑完 */
-    .remain_min = 60, /* TODO-TEST: 初始满倒计时 */
-    .bat_level = 0,    /* 电量 0 档 → DL1 空电图标 */
-    .bat_pct = 0,
-    .charging = false, /* 充电中 → 轮播 CHARGING_1~4 动画 */
-    .lowbat = false,      /* 低电状态 → 进入低电页 */
-    .full_charge = false,
-    .bt_linked = false, /* 蓝牙已连 → 图标显示 */
-    .lid_open = false, /* 上盖打开 → 进入上盖页 */
-    .hour = 12, /* 时间 12:34 */
-    .min = 34,
-};
+/* 系统状态实例 —— 全部字段由 lb_ui_sync_pull() 从串口状态镜像刷新,
+ * 见 general_ui.c 末尾; 页面只读, 不要在这里写初值 */
+ui_sys_t g_ui_sys;
 
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)

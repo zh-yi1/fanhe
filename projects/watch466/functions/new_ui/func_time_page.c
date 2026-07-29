@@ -240,6 +240,9 @@ static void time_page_save_rtc(f_time_page_t *inf)
     tm_set.min  = inf->min;
     rtc_clock_set(tm_set);
 #if FUNC_LUNCHBOX_UART_EN
+    /* 屏幕手动改时间视为权威: 既下发模块, 也更新本机基准
+     * (否则预约触发时间仍按 APP 上次同步的旧基准算) */
+    lb_time_set_synced(RTCCNT + LB_RTC_UNIX_OFFSET);
     lb_heat_cmd_time_sync(RTCCNT + LB_RTC_UNIX_OFFSET);
 #endif
 }

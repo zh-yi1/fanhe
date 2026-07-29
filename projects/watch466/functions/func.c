@@ -122,6 +122,10 @@ void func_process(void)
 
     tft_bglight_frist_set_check();
 
+#if FUNC_LUNCHBOX_UART_EN
+    lb_ui_sync_pull();                      /* 串口状态镜像 → g_ui_sys, 须在刷 UI 之前 */
+#endif
+
     // gui 没有休眠才更新
 	if (!sys_cb.gui_sleep_sta && !sys_cb.flag_halt) {
 #if ELUNCHBOX_PANEL_EN
