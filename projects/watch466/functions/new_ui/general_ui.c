@@ -9,10 +9,6 @@
 #define TRACE(...)
 #endif
 
-#if ELUNCHBOX_PANEL_EN
-extern volatile u8 elunchbox_te_block_flag;
-#endif
-
 /* ---- 内部 helpers ---- */
 
 static void general_sb_time_fmt(char *buf, u8 buf_size, tm_t *tm)
@@ -116,15 +112,8 @@ void general_status_bar_attach(general_status_bar_t *bar)
      * 避免与 func_process 内 gui_process 竞争 TE 窗口 → gui thread miss */
     home_ui_shared_status_init();
 
-#if ELUNCHBOX_PANEL_EN
-    {
-        u8 was_blocked = elunchbox_te_block_flag;
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 1;
-        }
-        home_gpu_wait_idle();
-        WDT_CLR();
-#endif
+    home_gpu_wait_idle();
+    WDT_CLR();
 
     if (bar->pic_bt != NULL && home_ui_shared_status_bt_ram != NULL
         && gui_set_ram_check(home_ui_shared_status_bt_ram, __func__)) {
@@ -133,15 +122,6 @@ void general_status_bar_attach(general_status_bar_t *bar)
 
     /* 静态绑定电量图标（当前电量/充电状态），不注册自动刷新 */
     home_ui_shared_status_bind_bat(bar->pic_bat);
-
-#if ELUNCHBOX_PANEL_EN
-        home_gpu_wait_idle();
-        WDT_CLR();
-        if (!was_blocked) {
-            elunchbox_te_block_flag = 0;
-        }
-    }
-#endif
 }
 
 void general_status_bar_detach(void)

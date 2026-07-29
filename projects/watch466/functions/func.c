@@ -31,7 +31,6 @@ compo_form_t *func_clock_form_create_by_screenshoot(void);
 func_cb_t func_cb AT(.buf.func_cb);
 #if ELUNCHBOX_PANEL_EN
 u8 func_res_allow_switch;
-volatile u8 elunchbox_te_block_flag;
 #endif
 
 #if BT_BACKSTAGE_EN
@@ -1214,9 +1213,7 @@ void func_exit(void)
 #endif
     //销毁窗体
     if (func_cb.frm_main != NULL) {
-#if ELUNCHBOX_PANEL_EN
         home_gpu_wait_idle();
-#endif
         compo_form_destroy(func_cb.frm_main);
     }
     //释放FUNC控制结构体
