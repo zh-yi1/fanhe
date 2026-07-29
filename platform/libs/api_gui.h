@@ -66,7 +66,7 @@ typedef void widget_bar_t;
 #define COLOR_BLACK             0
 #define COLOR_RED               0xF800
 #define COLOR_GREEN             0x07E0
-#define COLOR_BLUE              0x001F
+#define COLOR_BLUE              0x4456// 0x001F
 #define COLOR_YELLOW            0xFFE0
 #define COLOR_MAGENTA           0xF81F
 #define COLOR_CYAN              0x07FF
