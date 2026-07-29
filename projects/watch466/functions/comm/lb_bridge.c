@@ -16,6 +16,7 @@
 #include "include.h"
 #include "lb_proto.h"
 #include "lb_bridge.h"
+#include "lb_uart_app.h"    // lb_dev_info (dpid=13 版本号回填)
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -73,7 +74,14 @@ bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *out_len
     switch (rx->cmd) {
     // ─── 0x01 查询产品信息 → UART 0x01: 透传时间戳+使能信号+MCU版本号查询 ───
     case LB_CMD_PRODUCT_INFO: {
-        u32 ts = lb_get_unix_time();
+        // 优先用 APP 请求自带的 4B 时间戳 (本机时间在模块确认前不保存, 不可用)
+        u32 ts;
+        if (rx->data && rx->data_len >= 4) {
+            ts = ((u32)rx->data[0] << 24) | ((u32)rx->data[1] << 16)
+               | ((u32)rx->data[2] << 8)  | rx->data[3];
+        } else {
+            ts = lb_get_unix_time();
+        }
         u8 *p = out_data;
         p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, ts);
         p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
@@ -214,7 +222,19 @@ bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out_data, 
     // ─── UART 0x01 → BLE 0x02/0x03: DataPoints 透传 ───
     case LB_UART_CMD_DYNAMIC: {
         if (rx->data && rx->data_len > 0) {
-            // ZH TODO: 产品信息业务恢复后, 在此提取 dpid=13 加热模块版本号回填设备信息
+            // 从 DataPoints 中提取加热模块版本号 (dpid=13) 回填设备信息
+            u16 off = 0;
+            while (off + 4 <= rx->data_len) {
+                u8  dpid    = rx->data[off];
+                u16 val_len = ((u16)rx->data[off + 2] << 8) | rx->data[off + 3];
+                if (off + 4 + val_len > rx->data_len) break;
+                if (dpid == LB_DPID_MCU_VERSION && val_len >= 4) {
+                    u8 *v = rx->data + off + 4;
+                    lb_dev_info.heat_module_version = ((u32)v[0] << 24) | ((u32)v[1] << 16)
+                                                    | ((u32)v[2] << 8)  | v[3];
+                }
+                off += 4 + val_len;
+            }
             memcpy(out_data, rx->data, rx->data_len);
             *out_len = rx->data_len;
             return true;

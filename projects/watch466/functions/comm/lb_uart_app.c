@@ -11,9 +11,8 @@
  *                → 每解出一帧调 lb_uart_on_frame()
  *            发: lunchbox_uart_send_frame() 协议层组帧 → link 发出
  *
- *          帧的业务处理 (lb_uart_on_frame 内) 为骨架, 各命令 ZH TODO 待填充。
- *          仅心跳应答 (0x05) 保留实现 — 属链路保活, 不答会被模块记
- *          "蓝牙模组心跳超时" 故障 (MCU协议 §4.1.6 fault=0x09)。
+ *          帧处理 (lb_uart_on_frame): 桥应答配对回传 APP / 时间与产品信息配对 /
+ *          dpid=14 分钟时间同步 / 心跳应答; UI 状态镜像等本地业务为 ZH TODO。
  */
 #include "include.h"
 #include "lb_proto.h"
@@ -306,6 +305,27 @@ static void lb_uart_on_frame(lb_rx_frame_t *rx)
 
     switch (rx->cmd) {
     case LB_UART_CMD_DYNAMIC:       // 0x01 动态属性上报/查询应答 (DataPoints)
+        // 模块每分钟推送的权威时间 (dpid=14) → 本机跟随同步
+        {
+            u16 off = 0;
+            while (rx->data && off + 4 <= rx->data_len) {
+                u8  dpid    = rx->data[off];
+                u16 val_len = ((u16)rx->data[off + 2] << 8) | rx->data[off + 3];
+                if (off + 4 + val_len > rx->data_len) break;
+                if (dpid == LB_DPID_RTC_TIME && val_len >= 4) {
+                    const u8 *v = rx->data + off + 4;
+                    lb_time_set_synced(((u32)v[0] << 24) | ((u32)v[1] << 16)
+                                     | ((u32)v[2] << 8)  |  (u32)v[3]);
+                }
+                off += 4 + val_len;
+            }
+        }
+        if (lb_ble_timesync_on_heat_frame(rx)) {       // 时间同步应答 → 保存本机时间
+            consumed = true;
+        }
+        if (lb_ble_product_info_on_heat_frame(rx)) {   // 产品信息查询应答 → 回复 APP
+            consumed = true;
+        }
         // ZH TODO: 本地业务 (如更新 UI 状态镜像)
         // 谁的应答都不是 → 模块主动上报 (状态变化/故障), 翻译成 0x03 推送 APP
         if (!consumed) {
@@ -380,10 +400,33 @@ void lunchbox_uart_process(void)
 // 生命周期
 //-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
+// 设备信息 — 0x01 产品信息查询的应答内容
+// 加热模块版本号开机为 0, 由模块 0x01 应答里的 dpid=13 回填
+//-----------------------------------------------------------------------------
+
+lb_device_info_t lb_dev_info;
+
+/** @brief 填默认设备信息 (SN/颜色出厂默认 0) */
+static void lb_dev_info_init(void)
+{
+    u8 ble_addr[6];
+
+    memset(&lb_dev_info, 0, sizeof(lb_dev_info));
+    ble_get_local_bd_addr(ble_addr);
+    sprintf(lb_dev_info.bt_name, "AR0MA-NY_%02X%02X", ble_addr[4], ble_addr[5]);
+    memcpy(lb_dev_info.version, "01.00.00", 8);
+    memcpy(lb_dev_info.model, "SF101\0\0\0\0\0", 10);
+    memcpy(lb_dev_info.mac, ble_addr, 6);
+    lb_dev_info.main_mcu_version    = 0x76303031;   // "v001" 主MCU固件版本
+    lb_dev_info.heat_module_version = 0;
+}
+
 void lunchbox_uart_init(u32 baud)
 {
     memset(&lb_uart, 0, sizeof(lb_uart));
     lb_proto_parser_reset(&lb_uart.parser);
+    lb_dev_info_init();
     if (!lb_link_init(baud)) {
         return;
     }

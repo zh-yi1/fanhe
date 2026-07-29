@@ -7,7 +7,7 @@
  *        ↓ ble_app_lunchbox_rx_pop()
  *   lunchbox_ble_process()         主循环: 取包 → 字节流重组 → 逐帧分发
  *        ↓
- *   lb_ble_dispatch()              按命令字分发 — 业务处理待填充 (ZH TODO)
+ *   lb_ble_dispatch()              按命令字分发 (OTA 尚未实现, 为 ZH TODO)
  */
 #ifndef __LB_BLE_APP_H
 #define __LB_BLE_APP_H
@@ -58,5 +58,34 @@ void lunchbox_ble_rx_handle(u8 *data, u16 len);
 
 /** @brief 重组缓冲区是否有半帧待补齐 */
 bool lunchbox_ble_rx_pending(void);
+
+//-----------------------------------------------------------------------------
+// 串口应答配对钩子 (lb_uart_on_frame 收到 0x01 帧时调用)
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief 时间同步应答配对 — 模块确认后才保存本机时间
+ * @return true=已消化, 勿再当模块主动上报转发 APP
+ */
+bool lb_ble_timesync_on_heat_frame(lb_rx_frame_t *rx);
+
+/**
+ * @brief 产品信息查询应答配对 — 回填模块版本号并回复 APP 81B 设备信息
+ * @return true=已消化, 勿再当模块主动上报转发 APP
+ */
+bool lb_ble_product_info_on_heat_frame(lb_rx_frame_t *rx);
+
+//-----------------------------------------------------------------------------
+// 模式预设 (温度档位 + 时长; APP 经 0x0a 修改并同步模块, UI/模式页读取)
+//-----------------------------------------------------------------------------
+
+/** @brief 获取指定模式的预设温度档位 */
+u8 lunchbox_mode_get_temp(u8 mode);
+
+/** @brief 获取指定模式的预设加热时长(分钟) */
+u8 lunchbox_mode_get_duration(u8 mode);
+
+/** @brief 更新本机模式预设 (0x0a / UI 侧同步) */
+void lunchbox_mode_preset_local_set(u8 mode, u8 temp_idx, u8 duration_min);
 
 #endif // __LB_BLE_APP_H

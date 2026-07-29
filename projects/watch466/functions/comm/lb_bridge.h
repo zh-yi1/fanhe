@@ -61,7 +61,7 @@ bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out_data, 
 // 北京时间 2020-01-01 00:00:00 的 Unix 时间戳 = 1577836800 - 8*3600
 #define LB_RTC_UNIX_OFFSET      (1577836800u - 8*3600)   // = 1577808000
 
-/** @brief 记录 APP 下发的权威时间戳 (BLE 侧填 0x01/0x03 的 ZH TODO 时调用) */
+/** @brief 记录权威时间戳 (加热模块确认/推送后由通信层调用) */
 void lb_time_set_synced(u32 unix_ts);
 
 /** @brief 是否已收到过 APP 权威时间 */
