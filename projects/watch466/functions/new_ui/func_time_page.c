@@ -240,7 +240,7 @@ static void time_page_save_rtc(f_time_page_t *inf)
     tm_set.min  = inf->min;
     rtc_clock_set(tm_set);
 #if FUNC_LUNCHBOX_UART_EN
-    lunchbox_time_sync(RTCCNT + LB_RTC_UNIX_OFFSET);
+    lb_heat_cmd_time_sync(RTCCNT + LB_RTC_UNIX_OFFSET);
 #endif
 }
 

@@ -2,6 +2,7 @@
 #define _GENERAL_UI_H
 
 #include "ui.h"
+#include "app_ui.h"     /* ui_sys_t / g_ui_sys */
 
 /* 通用顶部状态栏：时间、页面名、蓝牙、电量（含充电动画）
  * 使用方式：

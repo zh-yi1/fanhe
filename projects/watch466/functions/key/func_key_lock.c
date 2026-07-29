@@ -195,7 +195,7 @@ void func_key_lock_on_blocked_key(u8 tch)
 #if FUNC_LUNCHBOX_UART_EN
     if (tch <= PT8028_KEY_TCH7) {
         u8 key_val = func_key_tch_to_lunchbox_val(tch);
-        if (key_val != 0) lunchbox_key_notify(key_val);
+        if (key_val != 0) lb_heat_cmd_key_notify(key_val);
     }
 #else
     (void)tch;
@@ -212,7 +212,7 @@ void func_key_lock_on_pwr_key_in_lock(void)
 #if FUNC_LUNCHBOX_UART_EN
         {
             u8 key_val = func_key_tch_to_lunchbox_val(PT8028_KEY_TCH5);
-            if (key_val != 0) lunchbox_key_notify(key_val);
+            if (key_val != 0) lb_heat_cmd_key_notify(key_val);
         }
 #endif
         blocked_hint();
@@ -270,7 +270,7 @@ void func_key_lock_notify_blocked_tch(u8 tch)
     if (tch > PT8028_KEY_TCH7) return;
     {
         u8 key_val = func_key_tch_to_lunchbox_val(tch);
-        if (key_val != 0) lunchbox_key_notify(key_val);
+        if (key_val != 0) lb_heat_cmd_key_notify(key_val);
     }
 #else
     (void)tch;
