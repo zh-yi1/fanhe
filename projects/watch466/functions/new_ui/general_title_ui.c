@@ -47,16 +47,16 @@ void general_title_bar_create(compo_form_t *frm, general_title_bar_t *bar, const
     }
 
     /* 蓝牙图标 */
-    pic = compo_picturebox_create(frm, UI_BUF_ICON_ACTIVITY_BIN);
-    compo_setid(pic, GENERAL_TB_ID_PIC_BT);
-    compo_picturebox_set_pos(pic, bt_x, GENERAL_TB_Y);
+    pic = compo_picturebox_create(frm, UI_BUF_NEW_UI_BLUETOOTH_BIN);
+    compo_setid(pic, GENERAL_SB_ID_PIC_BT);
+    compo_picturebox_set_pos(pic, bt_x, GENERAL_SB_Y);
     compo_picturebox_set_size(pic, NEW_HOME_BT_W, NEW_HOME_BT_H);
     bar->pic_bt = pic;
 
     /* 电量图标 */
-    pic = compo_picturebox_create(frm, UI_BUF_ICON_ACTIVITY_BIN);
-    compo_setid(pic, GENERAL_TB_ID_PIC_BAT);
-    compo_picturebox_set_pos(pic, bat_x, GENERAL_TB_Y);
+    pic = compo_picturebox_create(frm, UI_BUF_NEW_UI_DL1_BIN);
+    compo_setid(pic, GENERAL_SB_ID_PIC_BAT);
+    compo_picturebox_set_pos(pic, bat_x, GENERAL_SB_Y);
     compo_picturebox_set_size(pic, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
     bar->pic_bat = pic;
 }
