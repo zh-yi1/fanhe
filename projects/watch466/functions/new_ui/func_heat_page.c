@@ -283,10 +283,12 @@ void func_heat_page_enter(void)
     WDT_CLR();
 
     general_status_bar_attach(&inf->sb);
+    func_key_lock_on_heating_start(); /* 30s 后自动童锁 */
 }
 
 void func_heat_page_exit(void)
 {
+    func_key_lock_on_heating_stop();
     func_key_flush();
     general_status_bar_detach();
 }

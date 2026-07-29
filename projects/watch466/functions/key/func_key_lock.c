@@ -319,6 +319,7 @@ static bool heating_active(void)
 #endif
     if (heat_display_heating_active()) return true;
     if (func_cb.sta == FUNC_HEAT && func_heat_ui_is_heating()) return true;
+    if (func_cb.sta == FUNC_NEW_HEAT_PAGE) return true;
     return false;
 }
 
@@ -363,7 +364,11 @@ void func_key_lock_on_page_change(void)
 
 void func_key_lock_on_form_destroy(void)
 {
-    /* 页面销毁时不做额外操作，标志位由后续页面读取 */
+    /* 旧 form 即将销毁：丢弃 overlay 悬空指针，新页按 dirty 重建 */
+    func_lock_page_on_form_destroy();
+    if (key_lock_overlay_visible) {
+        key_lock_gui_dirty = true;
+    }
 }
 
 void func_key_lock_on_manual_shutdown(void)

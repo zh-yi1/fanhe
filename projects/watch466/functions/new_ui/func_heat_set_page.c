@@ -131,23 +131,23 @@ static void func_heat_set_page_handle_keys(void)
             if (inf->mode == MODE_TEMP) {
                 /* 温度挡位循环 */
                 if (key == FUNC_KEY_UP) {
-                    inf->temp_index++;
-                    if (inf->temp_index >= TEMP_CNT) inf->temp_index = 0;
-                } else {
                     if (inf->temp_index == 0) inf->temp_index = TEMP_CNT - 1;
                     else inf->temp_index--;
+                } else {
+                    inf->temp_index++;
+                    if (inf->temp_index >= TEMP_CNT) inf->temp_index = 0;
                 }
             } else {
                 /* 时间 5 分钟步进 */
                 if (key == FUNC_KEY_UP) {
-                    inf->time_min += TIME_STEP;
-                    if (inf->time_min > TIME_MAX_MINUTES)
-                        inf->time_min = TIME_MIN_MINUTES;
-                } else {
                     if (inf->time_min <= TIME_MIN_MINUTES)
                         inf->time_min = TIME_MAX_MINUTES;
                     else
                         inf->time_min -= TIME_STEP;
+                } else {
+                    inf->time_min += TIME_STEP;
+                    if (inf->time_min > TIME_MAX_MINUTES)
+                        inf->time_min = TIME_MIN_MINUTES;
                 }
             }
             heat_set_update_display();

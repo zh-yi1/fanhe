@@ -4,6 +4,7 @@
 #include "new_ui/ui.h"
 #if ELUNCHBOX_PANEL_EN
 #include "lowpower/elunchbox_lp.h"
+#include "func_key_lock.h"
 #endif
 extern void func_confirm_overlay_show(void);
 extern void func_confirm_overlay_hide(void);
@@ -753,7 +754,10 @@ void func_exit(void)
 {
     //销毁窗体
     if (func_cb.frm_main != NULL) {
+#if ELUNCHBOX_PANEL_EN
+        func_key_lock_on_form_destroy(); /* 先清锁 overlay，避免悬空 set_ram → C429 */
         home_gpu_wait_idle();
+#endif
         compo_form_destroy(func_cb.frm_main);
     }
     //释放FUNC控制结构体
