@@ -65,5 +65,22 @@ bool lunchbox_uart_send_frame(u8 cmd, u8 msg_flag, u8 err,
 void lb_uart_tx_block(bool block);
 bool lb_uart_tx_is_blocked(void);
 
+//-----------------------------------------------------------------------------
+// BLE→UART 异步转发 (队列实现在 lb_uart_app.c, 翻译在 lb_bridge.c)
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief BLE→UART 异步转发 (入队即返回)
+ *
+ * 一发一收: 队首在飞, 其余排队。应答超时重发 (共 3 次),
+ * 应答到达或重试耗尽后自动翻译回传 APP (lunchbox_ble_tx)。
+ * @param ble_cmd       来源 BLE 命令字
+ * @param ble_msg_flag  来源 BLE msg_flag (串口转发沿用, 应答按它配对)
+ * @param uart_cmd      转发的 UART 命令字
+ * @return false=数据过长或队列满 (请求被丢弃)
+ */
+bool lb_bridge_forward(u8 ble_cmd, u8 ble_msg_flag, u8 uart_cmd,
+                       const u8 *data, u16 len);
+
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __LB_UART_APP_H

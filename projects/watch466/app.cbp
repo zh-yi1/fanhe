@@ -1233,6 +1233,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/comm/lb_uart_app.h" />
+		<Unit filename="functions/comm/lb_bridge.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_bridge.h" />
 <Unit filename="functions/func.h" />
 <Unit filename="functions/func_alipay.h" />
 		<Unit filename="functions/func_bt.c">

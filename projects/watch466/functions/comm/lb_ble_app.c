@@ -23,6 +23,8 @@
 #include "app_blue_fit.h"
 #include "lb_proto.h"
 #include "lb_ble_app.h"
+#include "lb_bridge.h"      // BLE↔UART 翻译
+#include "lb_uart_app.h"    // lb_bridge_forward 转发队列
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -168,6 +170,25 @@ static void lb_ble_stream_timeout(void)
 //=============================================================================
 
 /**
+ * @brief 转发类命令 — 翻译后经转发队列发往加热模块
+ *
+ * 异步: 入队即返回。应答到达/重试耗尽后由桥 (lb_uart_app.c) 自动回传 APP。
+ */
+static void lb_ble_on_forward(lb_rx_frame_t *rx)
+{
+    u8  uart_data[LB_TXBUF_SIZE];
+    u16 uart_dlen = 0;
+    u8  uart_cmd = lb_ble_cmd_to_uart_cmd(rx->cmd);
+
+    if (!uart_cmd || !lb_translate_ble_data_to_uart(rx, uart_data, &uart_dlen)) {
+        printf("BLE: cmd=0x%02X not forwardable\n", rx->cmd);
+        return;
+    }
+
+    lb_bridge_forward(rx->cmd, rx->msg_flag, uart_cmd, uart_data, uart_dlen);
+}
+
+/**
  * @brief 命令分发 — 每个命令一个 case, 业务处理逐个填充
  *
  * rx->data 指向重组缓冲区内部, 仅在本次分发期间有效, 需要保留须自行拷贝。
@@ -177,35 +198,21 @@ static void lb_ble_dispatch(lb_rx_frame_t *rx)
 {
     switch (rx->cmd) {
     case LB_CMD_PRODUCT_INFO:       // 0x01 查询产品信息 (数据区带 4B 时间戳)
-        // ZH TODO: 应答 81B 设备信息
-        break;
-
-    case LB_CMD_DYNAMIC_ATTR:       // 0x02 查询设备动态属性
-        // ZH TODO
+        // ZH TODO: 应答 81B 设备信息 (v1.0.7: 同时透传加热模块等其版本号)
         break;
 
     case LB_CMD_STATUS_REPORT:      // 0x03 状态上报 (APP→MCU 方向: 回传权威时间戳 dpid=11)
-        // ZH TODO
+        // ZH TODO: 取 dpid=11 时间戳调 lb_time_set_synced(), 本地消化不转发
         break;
 
+    case LB_CMD_DYNAMIC_ATTR:       // 0x02 查询设备动态属性
     case LB_CMD_CONTROL:            // 0x04 控制指令 (DataPoints 修改属性)
-        // ZH TODO
-        break;
-
-    case LB_CMD_SCHEDULE_LIST:      // 0x05 查询预约列表
-        // ZH TODO
-        break;
-
+    case LB_CMD_SCHEDULE_LIST:      // 0x05 查询预约列表 (模块逐条应答, 桥按多帧回传)
     case LB_CMD_SCHEDULE_ADD:       // 0x06 新增预约
-        // ZH TODO
-        break;
-
     case LB_CMD_SCHEDULE_MODIFY:    // 0x07 修改预约
-        // ZH TODO
-        break;
-
     case LB_CMD_SCHEDULE_DELETE:    // 0x08 删除预约
-        // ZH TODO
+        // 纯转发: 翻译成 UART 帧发加热模块, 应答由桥自动回传 APP
+        lb_ble_on_forward(rx);
         break;
 
     case LB_CMD_MODE_QUERY:         // 0x09 获取指定模式信息

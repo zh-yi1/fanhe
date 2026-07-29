@@ -19,8 +19,26 @@
 #include "lb_proto.h"
 #include "lb_uart_link.h"
 #include "lb_uart_app.h"
+#include "lb_bridge.h"
+#include "lb_ble_app.h"
 
 #if FUNC_LUNCHBOX_UART_EN
+
+//-----------------------------------------------------------------------------
+// BLE→UART 转发 (异步一发一收 + 超时重试)
+//-----------------------------------------------------------------------------
+#define LB_BRIDGE_RSP_TIMEOUT_MS    100   // 单次等应答超时
+#define LB_BRIDGE_RETRY_MAX         2     // 超时重发次数 (最多共发 3 次)
+#define LB_BRIDGE_QUEUE_DEPTH       4     // 排队条数 (队首在飞, 其余等待)
+#define LB_BRIDGE_DATA_MAX          64    // 单条转发数据区上限 (最大业务帧 42B)
+
+typedef struct {
+    u8  ble_cmd;                   // 来源 BLE 命令字 (应答翻译回 APP 用)
+    u8  msg_flag;                  // BLE 请求 msg_flag, 串口转发沿用, 应答按它配对
+    u8  uart_cmd;                  // 转发的 UART 命令字
+    u16 data_len;
+    u8  data[LB_BRIDGE_DATA_MAX];  // 转发数据区 (重发需要)
+} lb_bridge_req_t;
 
 //-----------------------------------------------------------------------------
 // 应用层状态
@@ -29,6 +47,14 @@ static struct {
     lb_proto_parser_t parser;      // UART 帧解析器 (协议层实例)
     bool suspended;                // 手动关机时 UART1 已关闭
     bool tx_blocked;               // 阻止所有 UART TX (手动关机期间)
+
+    // BLE→UART 转发队列 (环形, 队首为在飞请求)
+    lb_bridge_req_t brq[LB_BRIDGE_QUEUE_DEPTH];
+    u8   br_head;                  // 队首下标
+    u8   br_count;                 // 队列条数
+    bool br_waiting;               // 队首已发出, 等加热模块应答
+    u8   br_retries;               // 队首已重发次数
+    u32  br_tick;                  // 队首发出时刻
 } lb_uart;
 
 //-----------------------------------------------------------------------------
@@ -76,8 +102,184 @@ bool lb_uart_tx_is_blocked(void)
 }
 
 //-----------------------------------------------------------------------------
+// BLE→UART 转发: 队列 + 超时重试 + 应答回传
+//-----------------------------------------------------------------------------
+
+/** @brief 发出队首请求, 开始等应答 */
+static void lb_bridge_send_head(void)
+{
+    lb_bridge_req_t *req = &lb_uart.brq[lb_uart.br_head];
+    lunchbox_uart_send_frame(req->uart_cmd, req->msg_flag, LB_ERR_SUCCESS,
+                             req->data_len ? req->data : NULL, req->data_len);
+    lb_uart.br_waiting = true;
+    lb_uart.br_tick = tick_get();
+}
+
+/** @brief 弹出队首, 有排队请求则接着发 */
+static void lb_bridge_pop_next(void)
+{
+    lb_uart.br_head = (lb_uart.br_head + 1) % LB_BRIDGE_QUEUE_DEPTH;
+    lb_uart.br_count--;
+    lb_uart.br_waiting = false;
+    lb_uart.br_retries = 0;
+    if (lb_uart.br_count) {
+        lb_bridge_send_head();
+    }
+}
+
+/**
+ * @brief 应答翻译成 BLE 帧回传 APP
+ * @param rx  加热模块应答帧; NULL=重试耗尽, 回执行失败
+ */
+static void lb_bridge_ble_reply(lb_bridge_req_t *req, lb_rx_frame_t *rx)
+{
+    u8  data[LB_TXBUF_SIZE];
+    u16 data_len = 0;
+    u8  err = LB_ERR_EXEC_FAIL;
+
+    if (rx) {
+        err = rx->err_flag;
+        if (!lb_translate_uart_data_to_ble(rx, req->ble_cmd, data, &data_len)) {
+            data_len = 0;
+        }
+    }
+
+    u8  frame[LB_TXBUF_SIZE];
+    u16 total = lb_proto_build_frame(frame, req->ble_cmd, req->msg_flag, err,
+                                     data_len ? data : NULL, data_len);
+    if (!total) {
+        return;
+    }
+    if (!lunchbox_ble_tx(frame, total)) {
+        printf("lb_bridge: BLE tx unavailable\n");
+        return;
+    }
+    printf("UART->BLE[%u]: ", total);
+    for (u16 i = 0; i < total; i++) printf("%02X ", frame[i]);
+    printf("\n");
+}
+
+/**
+ * @brief 转发一条 BLE 请求到串口 (异步: 入队即返回, 应答到达后自动回传 APP)
+ *
+ * 一发一收: 队首在飞, 其余排队。应答超时 LB_BRIDGE_RSP_TIMEOUT_MS 重发,
+ * 共尝试 1+LB_BRIDGE_RETRY_MAX 次, 仍无应答则回 APP 执行失败。
+ * @return false=数据过长或队列满 (请求被丢弃)
+ */
+bool lb_bridge_forward(u8 ble_cmd, u8 ble_msg_flag, u8 uart_cmd,
+                       const u8 *data, u16 len)
+{
+    if (len > LB_BRIDGE_DATA_MAX) {
+        printf("lb_bridge: data %u > %u, drop\n", len, LB_BRIDGE_DATA_MAX);
+        return false;
+    }
+    if (lb_uart.br_count >= LB_BRIDGE_QUEUE_DEPTH) {
+        printf("lb_bridge: queue full, drop ble_cmd=0x%02X\n", ble_cmd);
+        return false;
+    }
+    u8 slot = (lb_uart.br_head + lb_uart.br_count) % LB_BRIDGE_QUEUE_DEPTH;
+    lb_bridge_req_t *req = &lb_uart.brq[slot];
+    req->ble_cmd  = ble_cmd;
+    req->msg_flag = ble_msg_flag;
+    req->uart_cmd = uart_cmd;
+    req->data_len = len;
+    if (len) {
+        memcpy(req->data, data, len);
+    }
+    lb_uart.br_count++;
+
+    if (!lb_uart.br_waiting) {
+        lb_bridge_send_head();
+    }
+    return true;
+}
+
+/** @brief 预约列表应答是多帧: 收到最后一条(seq>=total)才算完成 */
+static bool lb_bridge_rsp_is_last(lb_bridge_req_t *req, lb_rx_frame_t *rx)
+{
+    if (req->ble_cmd == LB_CMD_SCHEDULE_LIST && rx->data && rx->data_len >= 44) {
+        u8 total = rx->data[0];
+        u8 seq   = rx->data[1];
+        if (total > 0 && seq < total) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief 串口帧到达时的应答配对 (cmd + msg_flag 与在飞请求一致才算应答)
+ * @return true=该帧是转发请求的应答, 已翻译回传 APP
+ */
+static bool lb_bridge_on_response(lb_rx_frame_t *rx)
+{
+    if (!lb_uart.br_waiting) {
+        return false;
+    }
+    lb_bridge_req_t *req = &lb_uart.brq[lb_uart.br_head];
+    if (rx->cmd != req->uart_cmd || rx->msg_flag != req->msg_flag) {
+        return false;
+    }
+
+    lb_bridge_ble_reply(req, rx);
+    if (lb_bridge_rsp_is_last(req, rx)) {
+        lb_bridge_pop_next();
+    } else {
+        lb_uart.br_tick = tick_get();    // 多帧应答: 刷新超时, 继续等后续帧
+    }
+    return true;
+}
+
+/** @brief 主循环轮询: 队首应答超时 → 重发, 重试耗尽 → 回 APP 失败 */
+static void lb_bridge_poll(void)
+{
+    if (!lb_uart.br_waiting) {
+        return;
+    }
+    if (!tick_check_expire(lb_uart.br_tick, LB_BRIDGE_RSP_TIMEOUT_MS)) {
+        return;
+    }
+
+    lb_bridge_req_t *req = &lb_uart.brq[lb_uart.br_head];
+    if (lb_uart.br_retries < LB_BRIDGE_RETRY_MAX) {
+        lb_uart.br_retries++;
+        printf("lb_bridge: rsp timeout, retry %u/%u uart_cmd=0x%02X\n",
+               lb_uart.br_retries, LB_BRIDGE_RETRY_MAX, req->uart_cmd);
+        lb_bridge_send_head();
+        return;
+    }
+    printf("lb_bridge: no rsp after %u tries, reply APP err (ble_cmd=0x%02X)\n",
+           LB_BRIDGE_RETRY_MAX + 1, req->ble_cmd);
+    lb_bridge_ble_reply(req, NULL);
+    lb_bridge_pop_next();
+}
+
+//-----------------------------------------------------------------------------
 // 接收: 帧处理入口 (骨架, 待填充)
 //-----------------------------------------------------------------------------
+
+/**
+ * @brief 模块主动上报的 0x01 → 翻译成 BLE 0x03 状态上报推送 APP
+ *
+ * 仅处理不属于任何在等应答的帧 (桥接没认领的)。
+ * 含本地指令(加热启停等)的应答 —— 屏幕侧操作后 APP 也能同步到最新状态。
+ */
+static void lb_report_forward_to_app(lb_rx_frame_t *rx)
+{
+    if (!ble_is_connected()) {
+        return;                         // 未连接不翻译不发送, 省功耗
+    }
+    if (lb_data_is_key_notify(rx->data, rx->data_len)) {
+        return;                         // 按键通知仅 MCU↔模块内部使用
+    }
+
+    u8  data[LB_TXBUF_SIZE];
+    u16 data_len = 0;
+    if (!lb_translate_uart_data_to_ble(rx, LB_CMD_STATUS_REPORT, data, &data_len)) {
+        return;
+    }
+    lb_ble_send_async(LB_CMD_STATUS_REPORT, data, data_len);
+}
 
 /**
  * @brief 收到一条完整帧 (校验已通过, 主循环上下文)
@@ -99,21 +301,28 @@ static void lb_uart_on_frame(lb_rx_frame_t *rx)
         }
     }
 
+    // BLE 桥: 若是转发请求的应答, 翻译回传 APP (与本地业务处理不互斥)
+    bool consumed = lb_bridge_on_response(rx);
+
     switch (rx->cmd) {
     case LB_UART_CMD_DYNAMIC:       // 0x01 动态属性上报/查询应答 (DataPoints)
-        // ZH TODO
+        // ZH TODO: 本地业务 (如更新 UI 状态镜像)
+        // 谁的应答都不是 → 模块主动上报 (状态变化/故障), 翻译成 0x03 推送 APP
+        if (!consumed) {
+            lb_report_forward_to_app(rx);
+        }
         break;
 
-    case LB_UART_CMD_SCHEDULE:      // 0x02 预约列表应答 (44B/条, 多帧)
-        // ZH TODO
+    case LB_UART_CMD_SCHEDULE:      // 0x02 预约列表应答 (44B/条, 多帧, 桥已回传 APP)
+        // ZH TODO: 本地业务 (如填充预约列表镜像)
         break;
 
-    case LB_UART_CMD_SCHEDULE_OP:   // 0x03 预约增/改/删应答
-        // ZH TODO
+    case LB_UART_CMD_SCHEDULE_OP:   // 0x03 预约增/改/删应答 (桥已回传 APP)
+        // ZH TODO: 本地业务 (如本地预约列表标记过期)
         break;
 
     case LB_UART_CMD_OTA:           // 0x04 加热模块 OTA 应答
-        // ZH TODO
+        // ZH TODO (加热模块 OTA 状态机移植后接入; 0x04 应答不转发 APP)
         break;
 
     case LB_UART_CMD_HEARTBEAT:     // 0x05 心跳: 收到请求(0x00)回应答(0x01)
@@ -157,6 +366,9 @@ void lunchbox_uart_process(void)
     // 残帧超时: 半截帧之后 300ms 没有后续字节, 丢弃重新找帧头
     lb_proto_parser_timeout(&lb_uart.parser, LB_FRAME_TIMEOUT_MS);
 
+    // BLE 转发请求的应答超时/重试
+    lb_bridge_poll();
+
     // 收发层溢出诊断 (读清零, 正常应恒为 0)
     u16 ovf = lb_link_rx_overflow();
     if (ovf) {
@@ -184,6 +396,9 @@ void lunchbox_uart_suspend(void)
     }
     lb_link_suspend();
     lb_proto_parser_reset(&lb_uart.parser);
+    lb_uart.br_count = 0;              // 清转发队列, 未答请求随关机作废
+    lb_uart.br_waiting = false;
+    lb_uart.br_retries = 0;
     lb_uart.suspended = true;
 }
 
