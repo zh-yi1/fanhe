@@ -98,29 +98,42 @@ static void func_key_handle_lock_long(u8 held_tch)
 
 static void func_key_handle_pwr_long(u8 held_tch)
 {
+    static bool pwr_lp_fired;
     u8 prev = pwr_lp_prev_held;
+
+    /* 已经关屏了就不处理长按 (等唤醒后再说) */
+    if (elunchbox_is_guioff()) {
+        pwr_lp_tch = PT8028_KEY_NONE;
+        pwr_lp_tick = 0;
+        pwr_lp_fired = false;
+        return;
+    }
 
     pwr_lp_prev_held = (held_tch == PT8028_KEY_TCH5) ? 1 : 0;
 
     if (held_tch == PT8028_KEY_TCH5) {
         if (pwr_lp_tch != PT8028_KEY_TCH5) {
+            if (pwr_lp_fired) return;  /* 上次触发后还没松手, 不重新计时 */
             /* TCH5 按下沿 */
             pwr_lp_tch = PT8028_KEY_TCH5;
             pwr_lp_tick = tick_get();
             if (func_key_lock_is_active()) {
                 func_key_lock_on_pwr_key_in_lock();
             }
-        } else {
-            /* TCH5 持续按住 — 长按关机由 bsp_pt8028_key 层检测 */
+        } else if (!pwr_lp_fired && tick_check_expire(pwr_lp_tick, 3000)) {
+            /* TCH5 长按 3s → 关屏进深睡 */
+            printf("func_key: TCH5 3s -> screen off + deep sleep\n");
+            elunchbox_screen_off();
+            pwr_lp_fired = true;
         }
     } else {
         /* TCH5 未按住 */
         if (prev) {
-            /* 松手沿 */
             func_key_lock_on_pwr_key_release();
         }
         pwr_lp_tch = PT8028_KEY_NONE;
         pwr_lp_tick = 0;
+        pwr_lp_fired = false;
     }
 }
 

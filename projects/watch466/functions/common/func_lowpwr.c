@@ -1,5 +1,8 @@
 #include "include.h"
 #include "func.h"
+#if ELUNCHBOX_PANEL_EN
+#include "lowpower/elunchbox_lp.h"
+#endif
 
 AT(.sleep_backup.gui)
 u8 sys_backup_buf[32 * 1024];
@@ -24,115 +27,32 @@ bool keep_ram_tbl_restore(void);
 //     return true;
 // }
 
-AT(.com_text.sleep)
-void lowpwr_tout_ticks(void)
-{
-    if(sys_cb.sleep_delay != -1L && sys_cb.sleep_delay > 0) {
-        sys_cb.sleep_delay--;
-    }
-    if(sys_cb.guioff_delay != -1L && sys_cb.guioff_delay > 0) {
-        sys_cb.guioff_delay--;
-    }
-    if(sys_cb.pwroff_delay != -1L && sys_cb.pwroff_delay > 0) {
-        sys_cb.pwroff_delay--;
-    }
-}
-
+/* sys_sleep_check — BSP btstack 调用, 固定签名, 无法传 ctx。
+ * sleep_wakeup_time 由 lowpwr_tick() 同步到 sys_cb */
 AT(.com_text.sleep)
 bool sys_sleep_check(u32 *sleep_time)
 {
-	u32 co_min = co_timer_get_min_time(true)*2;
+    u32 co_min = co_timer_get_min_time(true) * 2;
 
-    if(*sleep_time > co_min) {
+    if (*sleep_time > co_min) {
         *sleep_time = co_min;
     }
-
-	if(*sleep_time < 4){
-		*sleep_time = 4;
-	}
-
-    if(*sleep_time > sys_cb.sleep_wakeup_time) {
+    if (*sleep_time < 4) {
+        *sleep_time = 4;
+    }
+    if (*sleep_time > sys_cb.sleep_wakeup_time) {
         *sleep_time = sys_cb.sleep_wakeup_time;
         return true;
     }
     return false;
 }
 
-//休眠中ble断开/连接/传输是否需要退出休眠
-AT(.com_text.sleep)
-bool ble_is_allow_wkup(void)
-{
-    return LE_ALLOW_WKUP_EN;
-}
-
-//sleep前补充备份到retention ram
-AT(.sleep_text.sleep.backup)
-void sys_sleep_backup_cb(void)
-{
-
-}
-
-//wakeup后补充恢复
-AT(.sleep_text.sleep.restore)
-void sys_sleep_restore_cb(void)
-{
-
-}
-
-// 非0的时候休眠不灭屏   vddio电压不能太低   VDDIO电压，step=0.1V 0:2.4V
-u8 vddio_sleep_level = 0;
-AT(.sleep_text.sleep)
-u8 sys_enter_sleep_vddio_level(void)
-{
-
-    return vddio_sleep_level;
-
-}
-
-
-AT(.sleep_text.sleep)
-void sys_sleep_cb(u8 lpclk_type)
-{
-    //注意！！！！！！！！！！！！！！！！！
-    //此函数只能调用sleep_text或com_text函数
-
-    //此处关掉影响功耗的模块
-    u32 gpiogde = GPIOGDE;
-    if (gpiogde & BIT(6)) {
-        GPIOGDE = BIT(2) | BIT(4) | BIT(6);         //SPICS, SPICLK
-    } else {
-        GPIOGDE = BIT(2) | BIT(4);                  //SPICS, SPICLK
-    }
-
-    sys_enter_sleep(lpclk_type);                //enter sleep
-
-    //唤醒后，恢复模块功能
-    GPIOGDE = gpiogde;
-}
-
-void sleep_set_sysclk(uint8_t sys_clk)
-{
-    uint8_t cur_sys_clk = sys_clk_get();
-
-    if (sys_clk < SYS_24M || cur_sys_clk == sys_clk) {
-        return;
-    }
-
-    if (sys_clk > SYS_24M) {
-        if (cur_sys_clk <= SYS_24M) {
-            CLKCON0 = (CLKCON0 & ~(0x03 << 2)) | (0x01 << 2); //sysclk select xosc26m_clk
-            RSTCON0 &= ~BIT(4);                         //pllsdm disable
-            adpll_init(DAC_OUT_SPR);                    //enable adpll
-            adda_clk_source_sel(0);                     //adda_clk48_a select pll0
-        }
-        sys_clk_set(sys_clk);
-    } else {
-        sys_clk_set(SYS_24M);
-        DACDIGCON0 &= ~BIT(0);                      //disable digital dac
-        adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
-        PLL0CON0 &= ~(BIT(18) | BIT(6));             //pll0 sdm & analog disable
-    }
-}
+/* === 以下 BSP 回调已迁移到 lowpower/lowpwr.c ===
+ * lowpwr_tout_ticks → lowpwr_tick
+ * ble_is_allow_wkup / sys_sleep_backup_cb / sys_sleep_restore_cb
+ * vddio_sleep_level / sys_enter_sleep_vddio_level
+ * sys_sleep_cb / sleep_set_sysclk
+ * =========================================================== */
 
 //用于未连接ble休眠后,当ble连接上后更新连接参数用
 AT(.sleep_text.sleep)
@@ -256,7 +176,11 @@ bool sfunc_sleep_proc(void)
     sys_cb.sleep_counter = 0;
 
     sys_cb.sleep_wakeup_time = -1L;
-    while(bt_is_sleep()) {
+    while(bt_is_sleep()
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+          || elunchbox_pwr_gui_off_is_on()   /* 息屏态: BT未准备好也继续等, 防直接退出→gpu_init崩 */
+#endif
+          ) {
         WDT_CLR();
         bt_thread_check_trigger();
         status = bt_sleep_proc();
@@ -315,7 +239,7 @@ bool sfunc_sleep_proc(void)
     return gui_need_wkp;
 }
 
-static void sfunc_sleep(void)
+void elunchbox_enter_sleep(void)
 {
     uint32_t usbcon0, usbcon1;
     u16 pa_de, pb_de, pe_de, pf_de, pg_de;
@@ -418,7 +342,10 @@ static void sfunc_sleep(void)
     SD0_LDO_DIS();
 #endif
 
-    gui_sleep(true);
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (!elunchbox_pwr_gui_off_is_on())             /* 饭盒息屏路径已关物理屏, 跳过 gui_sleep */
+#endif
+        gui_sleep(true);
 
 #if MODEM_CAT1_EN
     bsp_modem_sleep_enter();
@@ -642,7 +569,7 @@ bool sleep_process(is_sleep_func is_sleep)
         }
         if (sys_cb.sleep_delay == 0) {
             gui_sleep_psram_check();
-            sfunc_sleep();              //熄屏且进入休眠
+            elunchbox_enter_sleep();              //熄屏且进入休眠
             reset_sleep_delay_all();
             reset_pwroff_delay();
             return true;

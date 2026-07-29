@@ -1,6 +1,8 @@
 #include "include.h"
 #include "func.h"
 #include "func_bt.h"
+#include "lowpower/lowpwr.h"
+extern lowpwr_t g_lowpwr;
 
 #define TRACE_EN    0
 
@@ -77,7 +79,7 @@ void func_bt_init(void)
 {
     if (!bt_cb.bt_is_inited) {
         msg_queue_clear();
-        dis_auto_pwroff();
+        LPWR_PWROFF_DELAY_KILL(&g_lowpwr);
         bsp_bt_init();
         bt_redial_init();
         bt_cb.bt_is_inited = 1;
@@ -516,7 +518,7 @@ void func_bt_process(void)
     func_process();
     func_bt_sub_process();
 
-    if(sys_cb.pwroff_delay == 0) {
+    if(g_lowpwr.state->pwroff_delay == 0) {
         func_cb.sta = FUNC_PWROFF;
         return;
     }

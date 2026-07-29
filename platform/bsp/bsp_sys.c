@@ -1,4 +1,6 @@
 #include "include.h"
+#include "lowpower/lowpwr.h"
+extern lowpwr_t g_lowpwr;
 
 #define TRACE_EN                0
 
@@ -334,7 +336,11 @@ void usr_tmr5ms_isr(void)
             ude_tmr_isr();
         }
 #endif // UDE_HID_EN
-        lowpwr_tout_ticks();
+        lowpwr_tick(&g_lowpwr);
+#if ELUNCHBOX_PANEL_EN
+        elunchbox_guioff_idle_tick();           /* 无操作自动息屏倒计时 */
+        elunchbox_guioff_sleep_delay_tick();    /* 息屏后进深睡倒计时 */
+#endif
         if (sys_cb.lpwr_cnt > 0) {
             sys_cb.lpwr_cnt++;
         }
@@ -775,7 +781,7 @@ void rtc_pwd_calibration(void)
             cm_sync();
             rtc_printf();
         }
-        sfunc_pwrdown(1);
+        lowpwr_pwrdown(&g_lowpwr, 1);
         return;
     }
     //RTCCON9 = 0xfff;                                                    //Clr pending

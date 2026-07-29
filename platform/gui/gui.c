@@ -1,4 +1,6 @@
 #include "include.h"
+#include "lowpower/lowpwr.h"
+extern lowpwr_t g_lowpwr;
 
 #define TRACE_EN                1
 
