@@ -1,7 +1,7 @@
 #include "include.h"
 #include "func_tbl.h"
 #include "func.h"
-#include "new_ui/ui.h"
+#include "new_ui/app_ui.h"
 #if ELUNCHBOX_PANEL_EN
 #include "func_key_lock.h"
 #endif

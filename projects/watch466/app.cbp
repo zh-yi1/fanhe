@@ -94,6 +94,7 @@
 			<Add directory="../../platform/libs/alipay_secure_sdk/share/common/inc" />
 			<Add directory="../../platform/libs/alipay_secure_sdk/softse" />
 			<Add directory="../../platform/gui/ctp/axs5106" />
+			<Add directory="functions/comm" />
 			<Add directory="functions/common" />
 			<Add directory="functions/key" />
 			<Add directory="functions/new_ui" />
@@ -1211,6 +1212,42 @@
 		<Unit filename="functions/home_ui_lock_overlay.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/comm/lb_proto.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_proto.h" />
+		<Unit filename="functions/comm/lb_ble_app.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_ble_app.h" />
+		<Unit filename="functions/comm/lb_uart_link.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_uart_link.h" />
+		<Unit filename="functions/comm/lb_uart_app.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_uart_app.h" />
+		<Unit filename="functions/comm/lb_bridge.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_bridge.h" />
+		<Unit filename="functions/comm/lb_heat_cmd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_heat_cmd.h" />
+		<Unit filename="functions/comm/lb_ui_state.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_ui_state.h" />
+		<Unit filename="functions/comm/lb_ota.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_ota.h" />
+		<Unit filename="functions/comm/lb_uart_heat.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/comm/lb_uart_heat.h" />
 <Unit filename="functions/func.h" />
 <Unit filename="functions/func_alipay.h" />
 		<Unit filename="functions/func_bt.c">
@@ -1300,7 +1337,6 @@
 		<Unit filename="functions/new_ui/func_appointment_time.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_reservation.h" />
 <Unit filename="functions/func_menu.h" />
 <Unit filename="functions/func_music.h" />
 <Unit filename="functions/func_recorder.h" />
