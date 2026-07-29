@@ -11,37 +11,33 @@
 #define TRACE(...)
 #endif
 
-/* 圆环进度图 13 张（和加热页共用） */
+/* 圆环进度图 13 张：ANNULUS_12(空)→ANNULUS_0(满)，按 keep_warm_min 均分 */
 static const u32 ANNULUS_PICS[13] = {
-    UI_BUF_NEW_UI_ANNULUS_12_BIN,
-    UI_BUF_NEW_UI_ANNULUS_11_BIN,
-    UI_BUF_NEW_UI_ANNULUS_10_BIN,
-    UI_BUF_NEW_UI_ANNULUS_9_BIN,
-    UI_BUF_NEW_UI_ANNULUS_8_BIN,
-    UI_BUF_NEW_UI_ANNULUS_7_BIN,
-    UI_BUF_NEW_UI_ANNULUS_6_BIN,
-    UI_BUF_NEW_UI_ANNULUS_5_BIN,
-    UI_BUF_NEW_UI_ANNULUS_4_BIN,
-    UI_BUF_NEW_UI_ANNULUS_3_BIN,
-    UI_BUF_NEW_UI_ANNULUS_2_BIN,
-    UI_BUF_NEW_UI_ANNULUS_1_BIN,
-    UI_BUF_NEW_UI_ANNULUS_0_BIN,
+    UI_BUF_NEW_UI_ANNULUS_12_BIN,  /*  0: 空环 (0%) */
+    UI_BUF_NEW_UI_ANNULUS_11_BIN,  /*  1:       (~8%) */
+    UI_BUF_NEW_UI_ANNULUS_10_BIN,  /*  2:       (~17%) */
+    UI_BUF_NEW_UI_ANNULUS_9_BIN,   /*  3:       (25%) */
+    UI_BUF_NEW_UI_ANNULUS_8_BIN,   /*  4:       (~33%) */
+    UI_BUF_NEW_UI_ANNULUS_7_BIN,   /*  5:       (~42%) */
+    UI_BUF_NEW_UI_ANNULUS_6_BIN,   /*  6:       (50%) */
+    UI_BUF_NEW_UI_ANNULUS_5_BIN,   /*  7:       (~58%) */
+    UI_BUF_NEW_UI_ANNULUS_4_BIN,   /*  8:       (~67%) */
+    UI_BUF_NEW_UI_ANNULUS_3_BIN,   /*  9:       (75%) */
+    UI_BUF_NEW_UI_ANNULUS_2_BIN,   /* 10:       (~83%) */
+    UI_BUF_NEW_UI_ANNULUS_1_BIN,   /* 11:       (~92%) */
+    UI_BUF_NEW_UI_ANNULUS_0_BIN,   /* 12: 满环 (100%) */
 };
 
 /* 加热页私有状态 */
 typedef struct
 {
     u8 display_stage; // 0 = 正常运行, 1 = 首帧跳过 func_process
-    u32 total_sec;      // 总保温时长（秒）
-    u32 start_tick;     // 进入时的 tick
     u8  last_idx;       // 上次圆环索引
     general_status_bar_t sb;
     compo_picturebox_t *state_pic;
     compo_picturebox_t *schedule_pic;
     compo_textbox_t *temp_text;
     compo_textbox_t *temp_text1;
-    compo_textbox_t *time_text;
-    compo_textbox_t *time_text1;
     compo_textbox_t *residue_time_text;
     compo_textbox_t *residue_time_text1;
 } f_warm_page_t;
@@ -169,27 +165,37 @@ static void func_warm_page_process(void)
             func_lock_page_hide();
     }
 
-    /* 保温计时：从 0 往上数，圆环从空到满 */
+    /* 保温计时：从串口 g_ui_sys.keep_warm_min 读取已保温分钟数
+     *  圆环从空到满 (ANNULUS_12→ANNULUS_0)，按 keep_warm_min 均分 */
     {
-        u32 elapsed = (tick_get() - inf->start_tick) / 1000;
-        u32 remain = (elapsed >= inf->total_sec) ? inf->total_sec : elapsed;
-        u8 idx = (u8)(remain * 12 / inf->total_sec);
+        u32 warm_min = g_ui_sys.keep_warm_min;
+        u8  idx;
 
-        if (idx > 12) idx = 12;
+        if (warm_min == 0) {
+            idx = 0; /* 空环 */
+        } else {
+            idx = (u8)(warm_min * 12 / 1440); /* 0~12, 24H 为满环 */
+            if (idx > 12) idx = 12;
+        }
+
+        /* 圆环：索引变化时切换图片 */
         if (idx != inf->last_idx) {
             inf->last_idx = idx;
             compo_picturebox_set(inf->schedule_pic, ANNULUS_PICS[idx]);
+        }
 
-            {
-                char buf[16];
-                u16 m = (u16)(remain / 60);
-                if (remain % 60 == 0) {
-                    snprintf(buf, sizeof(buf), "%uH", m / 60);
-                } else {
-                    snprintf(buf, sizeof(buf), "%uH%02uMin", m / 60, m % 60);
-                }
-                compo_textbox_set(inf->residue_time_text, buf);
+        /* 已保温时间文本：每帧刷新 */
+        {
+            char buf[16];
+            if (warm_min == 0) {
+                snprintf(buf, sizeof(buf), "0Min");
+            } else if (warm_min % 60 == 0) {
+                snprintf(buf, sizeof(buf), "%uH", warm_min / 60);
+            } else {
+                snprintf(buf, sizeof(buf), "%uH%02uMin",
+                         warm_min / 60, warm_min % 60);
             }
+            compo_textbox_set(inf->residue_time_text, buf);
         }
     }
 
@@ -211,9 +217,13 @@ void func_warm_page_enter(void)
     func_cb.frm_main = func_warm_page_form_create();
     inf = (f_warm_page_t *)func_cb.f_cb;
     inf->display_stage = 1;
-    inf->total_sec  = (u32)g_ui_sys.keep_warm_min * 60;
-    inf->start_tick = tick_get();
-    inf->last_idx   = 0;
+    inf->last_idx   = 0xff; /* 强制首帧刷新 */
+
+    /* 初始圆环图：空环 (ANNULUS_12) */
+    compo_picturebox_set(inf->schedule_pic, ANNULUS_PICS[0]);
+
+    /* 初始残留时间文本 */
+    compo_textbox_set(inf->residue_time_text, "0Min");
 
     home_gpu_wait_idle();
     WDT_CLR();
