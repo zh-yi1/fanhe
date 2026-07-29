@@ -162,12 +162,15 @@ bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *out_len
         return true;
     }
 
-    // ─── 0x08 删除预约 → UART 0x03: action=0 ───
+    // ─── 0x08 删除预约 → UART 0x03: 预约mode=0 表示删除 ───
     case LB_CMD_SCHEDULE_DELETE: {
         if (!rx->data || rx->data_len < 1) return false;
-        out_data[0] = 0x00;  // action=0 → 删除
-        out_data[1] = rx->data[0];
-        *out_len = 2;
+        // MCU 协议 §3.6 要求完整 42 字节结构体, 只发 [mode,id] 模块回 err=01。
+        // 除 mode/ID 外全部填 0, 模块按 mode=0 删除对应 ID。
+        memset(out_data, 0, 42);
+        out_data[0] = 0x00;         // 预约mode: 0=删除该预约
+        out_data[1] = rx->data[0];  // 要删除的预约 ID
+        *out_len = 42;
         return true;
     }
 
