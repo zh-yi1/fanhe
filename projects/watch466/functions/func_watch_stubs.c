@@ -371,10 +371,9 @@ u8 func_setting_get_bit(u32 n)
 }
 
 /* stubs for lowpower-branch pages not present in this build */
-compo_form_t *func_black_screen_page_form_create(void) { return NULL; }
-void func_black_screen_page(void) {}
+/* func_black_screen_page 系列桩已删: 真实现 new_ui/func_black_screen_page.c
+ * 已加入 app.cbp。之前真文件不在工程里、链接到这里的空桩, 切到
+ * FUNC_BLACK_SCREEN 后 func_run 空转喂不了狗 → WDT 复位("进不了跑马灯")。 */
 void func_bt_update(void) {}
 void func_bt_update_enter(void) {}
-void func_black_screen_page_enter(void) {}
-void func_black_screen_page_exit(void) {}
 void func_bt_update_exit(void) {}

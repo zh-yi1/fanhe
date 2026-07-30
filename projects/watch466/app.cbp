@@ -1303,6 +1303,9 @@
 		<Unit filename="functions/new_ui/func_appointment_time.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_ui/func_black_screen_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/new_ui/func_confirm_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
