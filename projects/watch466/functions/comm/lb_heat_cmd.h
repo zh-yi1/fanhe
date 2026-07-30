@@ -46,6 +46,15 @@ bool lb_heat_cmd_key_notify(u8 key);
 /** @brief 时间同步 (0x01: dpid=11 unix时间戳 + 开机位) */
 bool lb_heat_cmd_time_sync(u32 unix_ts);
 
+/**
+ * @brief 状态查询 (0x01: 只带时间戳, 不带 DP1)
+ *
+ * 深睡被串口唤醒后主动读模块状态用 —— 唤醒那一帧常因 UART 起得慢收残,
+ * 不能靠它判"充电中/加热中"。不带 DP1: 带 1 会把关着的模块拍开机,
+ * 带 0 可能把正在跑的加热(预约到点)停掉。应答走 lb_uart_on_frame 刷状态镜像。
+ */
+bool lb_heat_cmd_status_query(void);
+
 /** @brief 模式预设同步 (0x01: DP2模式+DP7温度+DP5时长), APP 经 0x0a 修改后下发 */
 bool lb_heat_cmd_mode_preset(u8 mode, u8 temp_idx, u32 duration_min);
 
