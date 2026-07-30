@@ -46,6 +46,20 @@ bool lb_heat_cmd_start(u8 mode, u8 temp_idx, u32 duration_min)
     return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data));
 }
 
+bool lb_heat_cmd_resume(u8 mode, u8 temp_idx, u32 duration_min, u32 remain_min)
+{
+    u8 data[48];
+    u8 *p = data;
+
+    p += lb_dp_encode_enum(p, LB_DPID_HEAT_MODE, mode);
+    p += lb_dp_encode_value(p, LB_DPID_HEAT_DURATION, duration_min);
+    p += lb_dp_encode_value(p, LB_DPID_REMAIN_TIME, remain_min);
+    p += lb_dp_encode_enum(p, LB_DPID_HEAT_TEMP, temp_idx);
+    p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 1);
+    p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
+    return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data));
+}
+
 bool lb_heat_cmd_stop(void)
 {
     u8 data[16];

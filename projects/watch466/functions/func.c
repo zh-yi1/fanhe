@@ -184,9 +184,10 @@ static void lb_wake_apply(void)
  * 深睡醒来不会再弹 (深睡唤醒不是盖盖)。
  */
 static bool lb_boot_gate;               /* 首帧已判定, 允许主页开背光 */
-static u8   lb_lid_mode;                /* 弹窗暂存: 开盖前的模式/温度/时长 */
+static u8   lb_lid_mode;                /* 弹窗暂存: 开盖前的模式/温度 */
 static u8   lb_lid_temp;
-static u32  lb_lid_min;
+static u32  lb_lid_duration;            /* 弹窗暂存: 加热总时长(分钟) */
+static u32  lb_lid_remain;              /* 弹窗暂存: 剩余时长(分钟) */
 
 bool lb_boot_display_gate_open(void)
 {
@@ -200,7 +201,8 @@ void lb_lid_confirm_yes(void)
         /* 保温页 enter 见模块没在保温, 会自动重发 194F/24h */
         func_cb.sta = FUNC_NEW_WARM_PAGE;
     } else if (lb_lid_mode != LB_MODE_OFF) {
-        lb_heat_cmd_start(lb_lid_mode, lb_lid_temp, lb_lid_min);
+        /* 总时长/剩余时长分开带, 模块接着开盖前的进度跑 */
+        lb_heat_cmd_resume(lb_lid_mode, lb_lid_temp, lb_lid_duration, lb_lid_remain);
         func_cb.sta = FUNC_NEW_HEAT_PAGE;
     }
 }
@@ -236,11 +238,12 @@ static void lb_boot_lid_check(void)
     if (lunchbox_heating_task_active()
         && (func_cb.sta == FUNC_HOME || func_cb.sta == FUNC_HOME_PAGE)
         && !sys_cb.flag_swithing && !g_ui_sys.lowbat) {
-        lb_lid_mode = st->heat_mode;
-        lb_lid_temp = st->heat_temp;
-        lb_lid_min  = st->remain_time ? st->remain_time : st->heat_duration;
-        printf("boot: module heat/warm (mode=%u) -> stop + lid confirm popup\n",
-               lb_lid_mode);
+        lb_lid_mode     = st->heat_mode;
+        lb_lid_temp     = st->heat_temp;
+        lb_lid_duration = st->heat_duration;
+        lb_lid_remain   = st->remain_time ? st->remain_time : st->heat_duration;
+        printf("boot: module heat/warm (mode=%u dur=%u remain=%u) -> stop + lid popup\n",
+               lb_lid_mode, (unsigned)lb_lid_duration, (unsigned)lb_lid_remain);
         lb_heat_cmd_stop();             /* 开过盖: 先停, YES 再续跑 */
         g_ui_sys.lid_open = true;       /* 主页 process 见此标志弹窗 */
     }
@@ -409,7 +412,12 @@ void func_process(void)
         sd_soft_cmd_detect(120);
 #endif
 
-        tft_bglight_frist_set_check();
+        /* 盖盖上电: TE 中断数帧后会把 first_set 拉起, 这里每轮套用 ——
+         * 首帧判定前拦住, 否则主页先亮出来、弹窗后到 (闪切) */
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+        if (lb_boot_display_gate_open())
+#endif
+            tft_bglight_frist_set_check();
     }
 
 #if FUNC_LUNCHBOX_UART_EN
@@ -1054,6 +1062,12 @@ void func_run(void)
     sys_cb.pwroff_delay = -1L;
 #if ELUNCHBOX_PANEL_EN
     elunchbox_user_activity_reset();
+#endif
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+    /* 盖盖上电: gui 初始化早已把背光 PWM 打开, 这里先物理关掉 ——
+     * 等 lb_boot_lid_check() 拿到模块首帧、判定落页后再 force_on 亮屏,
+     * 保证第一眼要么纯主页、要么主页+弹窗, 不出现"主页闪现再弹窗" */
+    LCD_BL_DIS();
 #endif
 
     memset(func_cb.tbl_sort, 0, sizeof(func_cb.tbl_sort));
