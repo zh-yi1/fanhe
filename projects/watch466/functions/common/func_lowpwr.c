@@ -61,10 +61,10 @@ bool keep_ram_tbl_restore(void);
 AT(.com_text.sleep)
 void lowpwr_tout_ticks(void)
 {
-    static u8 div;  /* 5ms * 20 = 100ms 分频 */
+    // static u8 div;  /* 5ms * 20 = 100ms 分频 */
 
-    if (++div < 20) return;
-    div = 0;
+    // if (++div < 20) return;
+    // div = 0;
 
     if(sys_cb.sleep_delay != -1L && sys_cb.sleep_delay > 0) {
         sys_cb.sleep_delay--;
