@@ -239,7 +239,7 @@ compo_form_t *func_heat_pasta_form_create(void)
     compo_textbox_set_forecolor(inf->txt_heat_value, COLOR_BLUE);
     {
         char tbuf[8];
-        snprintf(tbuf, sizeof(tbuf), "%%uF",
+        snprintf(tbuf, sizeof(tbuf), "%uF",
                  (unsigned)lunchbox_temp_idx_to_f(lunchbox_mode_get_temp(LB_MODE_PASTA)));
         compo_textbox_set(inf->txt_heat_value, tbuf);
     }
