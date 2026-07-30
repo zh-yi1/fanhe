@@ -741,6 +741,10 @@ static void sfunc_sleep(void)
 
 #if VBAT_DETECT_EN
     if (bsp_vbat_get_lpwr_status()) {           //低电不进sniff mode
+#if ELUNCHBOX_PANEL_EN
+        /* 睡不了就释放 manual_off, 否则 sleep_process 下轮又调进来死循环 */
+        elunchbox_pwr_manual_off_clr();
+#endif
         return;
     }
 #endif
