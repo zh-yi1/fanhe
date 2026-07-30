@@ -85,4 +85,36 @@ void general_status_bar_detach(void);
  */
 void general_status_bar_tick(general_status_bar_t *bar);
 
+/*===========================================================================
+ * 以下是通信移植层给新 UI 的接口。
+ * 放这里而不放 app_ui.h —— 后者由 UI 端整份重发覆盖, 加进去会被冲掉。
+ *=========================================================================*/
+
+/**
+ * @brief 串口状态镜像 → g_ui_sys (func_process 每轮调用, 页面不用管)
+ *
+ * 单向: lb_ui_state_get() 是唯一数据源, 页面只读 g_ui_sys。
+ * 实现见 general_ui.c 末尾。
+ */
+void lb_ui_sync_pull(void);
+
+/*---------------------------------------------------------------------------
+ * 预约暂存 —— 预约时间页选好触发时刻后交给加热设置页, 由后者确认时一并下发
+ *
+ * 流程: 预约键 → 预约时间页(选时分秒) → set() → 加热设置页(选温度/时长)
+ *       → 确认时 take() 命中 → 下发 0x03 新增预约, 回首页
+ *       → 未命中(直接进的加热设置页) → 下发 0x01 立即加热, 进加热页
+ *
+ * 实现在 func_appointment_time.c。
+ *-------------------------------------------------------------------------*/
+
+/** @brief 暂存预约触发时刻 (unix 秒) */
+void new_ui_appointment_set(u32 unix_time);
+
+/** @brief 取出暂存的触发时刻; 无待下发预约返回 false (取出即清) */
+bool new_ui_appointment_take(u32 *out_unix_time);
+
+/** @brief 丢弃暂存 (用户中途退出) */
+void new_ui_appointment_clear(void);
+
 #endif

@@ -2,7 +2,7 @@
 #include "func.h"
 #include "func_key.h"
 #include "func_key_lock.h"
-#include "app_ui.h"     /* 预约暂存接口声明 */
+#include "general_ui.h" /* 预约暂存接口声明 */
 #include "ui.h"
 
 #if TRACE_EN

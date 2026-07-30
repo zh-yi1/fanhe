@@ -1,7 +1,7 @@
 #include "include.h"
 #include "func_tbl.h"
 #include "func.h"
-#include "new_ui/app_ui.h"
+#include "new_ui/general_ui.h"      /* g_ui_sys(转include app_ui.h) + lb_ui_sync_pull */
 #if ELUNCHBOX_PANEL_EN
 #include "lowpower/elunchbox_lp.h"
 #include "func_key_lock.h"

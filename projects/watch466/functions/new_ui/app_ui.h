@@ -1,5 +1,9 @@
-#ifndef __NEW_UI_H__
-#define __NEW_UI_H__
+#ifndef __APP_UI_H__
+#define __APP_UI_H__
+
+/* 本文件由 UI 端提供(原名 ui.h, 与资源头文件同名且被 .gitignore 吞掉, 故改名),
+ * UI 那边改版时会整个重发覆盖 —— 所以这里只放 UI 自己的数据结构,
+ * 通信移植层的接口声明一律写在 general_ui.h, 别再往这个文件里加。 */
 
 #include "include.h"
 
@@ -23,31 +27,6 @@ typedef struct {
 } ui_sys_t;
 extern ui_sys_t g_ui_sys;
 
-/**
- * @brief 串口状态镜像 → g_ui_sys (func_process 每轮调用, 页面不用管)
- *
- * 单向: lb_ui_state_get() 是唯一数据源, 页面只读 g_ui_sys。
- * 实现见 general_ui.c。
- */
-void lb_ui_sync_pull(void);
+/* lb_ui_sync_pull() / new_ui_appointment_*() 见 general_ui.h */
 
-/*---------------------------------------------------------------------------
- * 预约暂存 —— 预约时间页选好触发时刻后交给加热设置页, 由后者确认时一并下发
- *
- * 流程: 预约键 → 预约时间页(选时分秒) → set() → 加热设置页(选温度/时长)
- *       → 确认时 take() 命中 → 下发 0x03 新增预约, 回首页
- *       → 未命中(直接进的加热设置页) → 下发 0x01 立即加热, 进加热页
- *
- * 实现在 func_appointment_time.c。
- *-------------------------------------------------------------------------*/
-
-/** @brief 暂存预约触发时刻 (unix 秒) */
-void new_ui_appointment_set(u32 unix_time);
-
-/** @brief 取出暂存的触发时刻; 无待下发预约返回 false (取出即清) */
-bool new_ui_appointment_take(u32 *out_unix_time);
-
-/** @brief 丢弃暂存 (用户中途退出) */
-void new_ui_appointment_clear(void);
-
-#endif /* __NEW_UI_H__ */
+#endif /* __APP_UI_H__ */
