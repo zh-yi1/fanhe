@@ -1161,9 +1161,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="demo/flash_fatfs_demo.h" />
-		<Unit filename="functions/common/func_bt_update.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/common/func_idle.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1302,6 +1299,7 @@
 		<Unit filename="functions/lowpower/elunchbox_lp.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_ui/app_ui.h" />
 		<Unit filename="functions/new_ui/func_appointment_time.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1350,6 +1348,7 @@
 		<Unit filename="functions/new_ui/general_title_ui.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_ui/general_title_ui.h" />
 		<Unit filename="functions/new_ui/general_ui.c">
 			<Option compilerVar="CC" />
 		</Unit>

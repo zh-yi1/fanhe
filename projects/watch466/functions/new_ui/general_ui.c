@@ -172,23 +172,36 @@ void general_status_bar_tick(general_status_bar_t *bar)
 
     /* ---- 电量图标 ---- */
     if (bar->pic_bat != NULL) {
-        /* 充电中：500ms 切一帧 */
-        if (bar->sys_data->charging) {
+        /* 充电中（未满）：500ms 切一帧 */
+        if (bar->sys_data->charging && !bar->sys_data->full_charge) {
             if (tick_check_expire(bar->charge_tick_ms, 500)) {
                 bar->charge_tick_ms = tick_get();
                 compo_picturebox_set(bar->pic_bat, sb_charge_icons[bar->charge_frame]);
                 bar->charge_frame = (bar->charge_frame + 1) & 0x03; /* 0→1→2→3→0 */
             }
-            bar->last_bat_level   = 0xff; /* 强制退出充电后刷新 */
-            bar->last_full_charge = bar->sys_data->full_charge;
+            bar->last_bat_level    = 0xff; /* 强制退出充电后刷新 */
+            bar->last_full_charge  = false;
         }
-        /* 充满或非充电态：显示静态电量档位 */
+        /* 充满电（充电中充满）：静态显示 CHARGING_4 */
+        else if (bar->sys_data->charging && bar->sys_data->full_charge) {
+            if (bar->last_full_charge != true || bar->last_charging != true) {
+                bar->last_charging    = true;
+                bar->last_full_charge = true;
+                bar->last_bat_level   = 0xff;
+                bar->charge_tick_ms   = 0;
+                bar->charge_frame     = 0;
+                compo_picturebox_set(bar->pic_bat, sb_charge_icons[3]);
+            }
+        }
+        /* 充满/非充电态：显示静态电量档位 */
         else if (bar->sys_data->bat_level != bar->last_bat_level
-                 || bar->sys_data->full_charge != bar->last_full_charge) {
-            bar->last_bat_level   = bar->sys_data->bat_level;
-            bar->last_full_charge = bar->sys_data->full_charge;
-            bar->charge_tick_ms   = 0;
-            bar->charge_frame     = 0;
+                 || bar->sys_data->full_charge != bar->last_full_charge
+                 || bar->sys_data->charging != bar->last_charging) {
+            bar->last_bat_level    = bar->sys_data->bat_level;
+            bar->last_full_charge  = bar->sys_data->full_charge;
+            bar->last_charging     = bar->sys_data->charging;
+            bar->charge_tick_ms    = 0;
+            bar->charge_frame      = 0;
 
             if (bar->sys_data->bat_level < 5) {
                 compo_picturebox_set(bar->pic_bat,
