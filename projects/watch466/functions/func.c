@@ -101,6 +101,44 @@ void func_elunchbox_res_key_poll(void)
  * 时序期间用户插上了充电线的情况: 这里再查一次 blocked, 命中就放弃断电。
  * 加热模块那边已经关了, 本机留着不关 —— 插线状态下本来就不该断电。
  */
+/**
+ * manual_off 深睡唤醒后的落页 (唤醒不重启, 老页面原地复活, 这里纠正去向)
+ *
+ * 闩锁在深睡循环里置入 (func_lowpwr.c):
+ *   KEY    = TCH5 长按 2s   → 补跑开机时序(模块还关着), 进主界面
+ *   CHARGE = 模块报充电中    → 黑屏充电页
+ *   HEAT   = 模块报立即加热  → 模块已在加热, 路由边沿自会带去加热页
+ */
+static void lb_wake_apply(void)
+{
+    if (sys_cb.flag_swithing) {
+        return;                         /* 切页动画中不消费, 下一轮再取 */
+    }
+    switch (lunchbox_wake_reason_take()) {
+    case LB_WAKE_KEY:
+        printf("wake: key -> home\n");
+        lunchbox_boot_seq_kick();       /* power_on + 查预约列表 */
+        if (func_cb.sta != FUNC_HOME) {
+            func_cb.sta = FUNC_HOME;
+        }
+        break;
+
+    case LB_WAKE_CHARGE:
+        printf("wake: charging -> black screen\n");
+        if (func_cb.sta != FUNC_BLACK_SCREEN) {
+            func_cb.sta = FUNC_BLACK_SCREEN;
+        }
+        break;
+
+    case LB_WAKE_HEAT:
+        printf("wake: module heating, route will follow\n");
+        break;
+
+    default:
+        break;
+    }
+}
+
 static void lb_shutdown_seq_apply(void)
 {
     if (!lunchbox_shutdown_done_take()) {       /* 边沿只取一次, 取走即回 IDLE */
@@ -259,6 +297,7 @@ void func_process(void)
     lunchbox_uart_process();
 
     lb_ui_sync_pull();                  /* 串口状态镜像 → g_ui_sys, 须在刷 UI 之前 */
+    lb_wake_apply();                    /* 深睡唤醒原因 → 落页 (按键/充电/加热) */
     lb_shutdown_seq_apply();            /* 关机时序走完 → 主板断电 */
     lb_ui_route_apply();                /* 模块状态变化 → 强制切页 */
 #endif
@@ -900,9 +939,10 @@ void func_run(void)
     func_cb.flag_sort = false;
     func_cb.sta = FUNC_HOME;
 #if ELUNCHBOX_PANEL_EN && CHARGE_EN
-    /* 开机就插着充电线 → 进黑屏充电页, 不进主界面 (按开机键才进)。
-     * 覆盖"关机(深睡)中插线": 模块上电发串口 → PB9 唤醒 → WKUP 全量重启到这。
-     * 同时撤销上电自动 power_on —— 黑屏页语义是"关机+充电", 模块保持关,
+    /* 冷启动(装电池/复位)时就插着充电线 → 进黑屏充电页, 不进主界面。
+     * 注: 深睡中插线不走这里 —— manual_off 唤醒不重启, 由深睡循环的
+     * lunchbox_wake_probe() 判醒因, func.c 的 lb_wake_apply() 落页。
+     * 撤销上电自动 power_on: 黑屏页语义是"关机+充电", 模块保持关,
      * 按开机键时再 lunchbox_boot_seq_kick() 补跑。 */
     if (CHARGE_DC_IN()) {
         printf("func_run: DC in at boot -> black screen charge page\n");

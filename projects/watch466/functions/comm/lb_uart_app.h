@@ -119,6 +119,39 @@ bool lunchbox_charging_now(void);
  */
 bool lunchbox_shutdown_blocked(void);
 
+//-----------------------------------------------------------------------------
+// manual_off 深睡唤醒过滤
+//
+// 深睡时唤醒源只有 PE1(TCH5) 和 PB9(UART RX)。PB9 是"模块发来任何字节"都会
+// 触发, 但需求是只有 充电中/立即加热 才算数, 心跳等无关帧要回去继续睡:
+//   PB9 唤醒 → 睡眠循环里调 lunchbox_wake_probe() 偷听一小段 →
+//   NONE: 继续睡 | CHARGE/HEAT: 记入唤醒原因闩锁, 真唤醒
+//   TCH5 ≥2s → lunchbox_wake_reason_set_key()
+// 醒来后 func.c 的 lb_wake_apply() 取走闩锁决定落页:
+//   KEY → 补跑开机时序进主界面 | CHARGE → 黑屏充电页 | HEAT → 路由带去加热页
+//-----------------------------------------------------------------------------
+
+typedef enum {
+    LB_WAKE_NONE = 0,
+    LB_WAKE_KEY,            // TCH5 长按唤醒 (按键开机)
+    LB_WAKE_CHARGE,         // 模块报充电中 / 主板检测到 DC
+    LB_WAKE_HEAT,           // 模块报立即加热 (DP10=1)
+} lb_wake_reason_t;
+
+/**
+ * @brief PB9 假唤醒过滤: 泵串口偷听 ≤1.5s, 判断醒因 (深睡循环里调, 勿在主循环用)
+ *
+ * 睡眠循环里 msec tick 可能冻结, 内部用 delay_5ms 计数。
+ * @return NONE=无关帧(调用方应回去继续睡); CHARGE/HEAT=已记入闩锁
+ */
+lb_wake_reason_t lunchbox_wake_probe(void);
+
+/** @brief TCH5 长按唤醒时置 KEY 闩锁 (func_lowpwr 深睡循环调) */
+void lunchbox_wake_reason_set_key(void);
+
+/** @brief 取走唤醒原因 (仅 func.c 的 lb_wake_apply 调, 取走即清) */
+lb_wake_reason_t lunchbox_wake_reason_take(void);
+
 /** @brief 撤销上电自动开机时序 (开机即进黑屏充电页时用, 模块保持关) */
 void lunchbox_boot_seq_cancel(void);
 

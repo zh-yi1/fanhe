@@ -523,6 +523,66 @@ bool lunchbox_shutdown_is_done(void)
     return lb_seq.state == LB_SEQ_OFF_DONE;
 }
 
+//-----------------------------------------------------------------------------
+// manual_off 深睡唤醒过滤 (见 lb_uart_app.h 注释)
+//-----------------------------------------------------------------------------
+
+#define LB_WAKE_PROBE_5MS       300     // 偷听窗口 300*5ms = 1.5s
+
+static lb_wake_reason_t lb_wake_reason;
+
+lb_wake_reason_t lunchbox_wake_probe(void)
+{
+    lb_wake_reason_t r = LB_WAKE_NONE;
+    int i;
+
+    // 唤醒帧的头几个字节可能在睡眠中丢了, 指望模块的周期性重报:
+    // 充电状态/加热状态都是持续上报的, 1.5s 窗口内该来第二帧。
+    for (i = 0; i < LB_WAKE_PROBE_5MS; i++) {
+        delay_5ms(1);
+        WDT_CLR();
+        lunchbox_uart_process();        // 拼帧 → 状态镜像照常更新
+
+#if CHARGE_EN
+        if (CHARGE_DC_IN()) {           // 主板自己的 DC 检测, 即刻判
+            r = LB_WAKE_CHARGE;
+            break;
+        }
+#endif
+        {
+            lb_ui_state_t *st = lb_ui_state_get();
+            // 睡前镜像必为 heat=0/charge=0 (关机时序应答刷过), 非零即新帧
+            if (st->valid && st->heat_enable) {
+                r = LB_WAKE_HEAT;
+                break;
+            }
+            if (st->valid && (st->charge == 1 || st->charge == 2)) {
+                r = LB_WAKE_CHARGE;
+                break;
+            }
+        }
+    }
+
+    if (r != LB_WAKE_NONE) {
+        lb_wake_reason = r;
+    }
+    printf("seq: wake probe -> %s (%d x5ms)\n",
+           r == LB_WAKE_HEAT ? "HEAT" : (r == LB_WAKE_CHARGE ? "CHARGE" : "none"), i);
+    return r;
+}
+
+void lunchbox_wake_reason_set_key(void)
+{
+    lb_wake_reason = LB_WAKE_KEY;
+}
+
+lb_wake_reason_t lunchbox_wake_reason_take(void)
+{
+    lb_wake_reason_t r = lb_wake_reason;
+    lb_wake_reason = LB_WAKE_NONE;
+    return r;
+}
+
 void lunchbox_boot_seq_cancel(void)
 {
     if (lb_seq.state == LB_SEQ_BOOT_WAIT) {

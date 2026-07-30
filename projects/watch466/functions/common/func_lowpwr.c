@@ -13,6 +13,17 @@
 #define LP_SLEEP_VERBOSE 0
 #endif
 
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+/* manual_off 中 PB9(串口)唤醒过滤: 只有模块报 充电中/立即加热 才真唤醒,
+ * 心跳等无关帧回去继续睡。true=真唤醒(醒因已记入闩锁, func.c 取走落页) */
+static bool manual_off_uart_wake_check(void)
+{
+    return lunchbox_wake_probe() != LB_WAKE_NONE;
+}
+#else
+#define manual_off_uart_wake_check()    true    /* 无串口功能: 任何 PB9 都唤醒 */
+#endif
+
 AT(.sleep_backup.gui)
 u8 sys_backup_buf[32 * 1024 - 8];
 
@@ -468,9 +479,12 @@ bool sfunc_sleep_proc(void)
                 u8 pe1 = ((GPIOE >> 1) & 1);
 
                 if (pb9_lo) {
-                    printf("lp: -> PB9 wake during wait-release\n");
-                    gui_need_wkp = true;
-                    break;
+                    if (manual_off_uart_wake_check()) {
+                        printf("lp: -> PB9 wake during wait-release\n");
+                        gui_need_wkp = true;
+                        break;
+                    }
+                    /* 无关帧: 不唤醒, 落到下面继续等松手/重睡 */
                 }
 
                 if (pe1 != 0) {
@@ -499,9 +513,15 @@ bool sfunc_sleep_proc(void)
 #endif
 
                 if (pb9_lo) {
-                    printf("lp: -> UART/PB9 wake\n");
-                    gui_need_wkp = true;
-                    break;
+                    if (manual_off_uart_wake_check()) {
+                        printf("lp: -> UART/PB9 wake\n");
+                        gui_need_wkp = true;
+                        break;
+                    }
+                    /* 无关帧(心跳等): 清 pending 回去继续睡 */
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                    elunchbox_manual_wake_pending_take();
+                    continue;
                 }
                 if (pe1_lo && bcd == 5) {
                     /* TCH5: 要求持续 LOW≥2s 才当有效唤醒 */
@@ -516,6 +536,9 @@ bool sfunc_sleep_proc(void)
                     }
                     if (tch5_cnt >= 400) {
                         printf("lp: -> TCH5 wake (held 2s)\n");
+#if FUNC_LUNCHBOX_UART_EN
+                        lunchbox_wake_reason_set_key();
+#endif
                         gui_need_wkp = true;
                         break;
                     }
@@ -561,8 +584,13 @@ bool sfunc_sleep_proc(void)
                 u8 bcd;
                 bool pe1_lo = sleep_read_bcd_pe1(&bcd);
                 if (pb9_lo) {
-                    gui_need_wkp = true;
-                    break;
+                    if (manual_off_uart_wake_check()) {
+                        gui_need_wkp = true;
+                        break;
+                    }
+                    /* 无关帧: 清 pending 回去继续睡 */
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                    continue;
                 }
                 if (pe1_lo && bcd == 5) {
                     int tch5_cnt = 0;
@@ -573,6 +601,9 @@ bool sfunc_sleep_proc(void)
                         tch5_cnt++;
                     }
                     if (tch5_cnt >= 400) {
+#if FUNC_LUNCHBOX_UART_EN
+                        lunchbox_wake_reason_set_key();
+#endif
                         gui_need_wkp = true;
                         break;
                     }
