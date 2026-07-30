@@ -105,37 +105,57 @@ void func_elunchbox_res_key_poll(void)
  * manual_off 深睡唤醒后的落页 (唤醒不重启, 老页面原地复活, 这里纠正去向)
  *
  * 闩锁在深睡循环里置入 (func_lowpwr.c):
- *   KEY    = TCH5 长按 2s   → 补跑开机时序(模块还关着), 进主界面
- *   CHARGE = 模块报充电中    → 黑屏充电页
- *   HEAT   = 模块报立即加热  → 模块已在加热, 路由边沿自会带去加热页
+ *   KEY  = TCH5 长按 2s → 补跑开机时序(模块还关着), 进主界面
+ *   UART = 任何串口指令 → 开 3s 观察窗, 主循环里正常收帧后判醒因:
+ *          充电 → 黑屏充电页; 加热 → 路由边沿自然带去加热页;
+ *          都不是 → 留在原页, 5min 无操作自动关机兜底
+ * (曾在睡眠循环里偷听判帧, 实测收帧不完整, 改为醒来后在主循环里判)
  */
 static void lb_wake_apply(void)
 {
+    static u32 wake_watch_tick;         /* UART 唤醒观察窗起点, 0=没开 */
+
     if (sys_cb.flag_swithing) {
         return;                         /* 切页动画中不消费, 下一轮再取 */
     }
     switch (lunchbox_wake_reason_take()) {
     case LB_WAKE_KEY:
         printf("wake: key -> home\n");
+        wake_watch_tick = 0;
         lunchbox_boot_seq_kick();       /* power_on + 查预约列表 */
         if (func_cb.sta != FUNC_HOME) {
             func_cb.sta = FUNC_HOME;
         }
         break;
 
-    case LB_WAKE_CHARGE:
-        printf("wake: charging -> black screen\n");
-        if (func_cb.sta != FUNC_BLACK_SCREEN) {
-            func_cb.sta = FUNC_BLACK_SCREEN;
-        }
-        break;
-
-    case LB_WAKE_HEAT:
-        printf("wake: module heating, route will follow\n");
+    case LB_WAKE_UART:
+        printf("wake: uart, watch for charge/heat\n");
+        wake_watch_tick = tick_get();
         break;
 
     default:
         break;
+    }
+
+    if (wake_watch_tick == 0) {
+        return;
+    }
+    if (tick_check_expire(wake_watch_tick, 3000)) {
+        wake_watch_tick = 0;            /* 窗口过了还没等到充电/加热帧, 不动 */
+        printf("wake: uart watch timeout, stay\n");
+        return;
+    }
+    if (lunchbox_charging_now()) {
+        wake_watch_tick = 0;
+        printf("wake: charging -> black screen\n");
+        if (func_cb.sta != FUNC_BLACK_SCREEN) {
+            func_cb.sta = FUNC_BLACK_SCREEN;
+        }
+        return;
+    }
+    if (lunchbox_heating_task_active()) {
+        wake_watch_tick = 0;            /* 加热帧已刷进镜像, 路由边沿会带去加热页 */
+        printf("wake: module heating, route will follow\n");
     }
 }
 
@@ -940,10 +960,10 @@ void func_run(void)
     func_cb.sta = FUNC_HOME;
 #if ELUNCHBOX_PANEL_EN && CHARGE_EN
     /* 冷启动(装电池/复位)时就插着充电线 → 进黑屏充电页, 不进主界面。
-     * 注: 深睡中插线不走这里 —— manual_off 唤醒不重启, 由深睡循环的
-     * lunchbox_wake_probe() 判醒因, func.c 的 lb_wake_apply() 落页。
+     * 注: 深睡中插线不走这里 —— manual_off 唤醒不重启, 深睡循环置 UART
+     * 闩锁, 醒后 lb_wake_apply() 观察窗判充电 → 黑屏页。
      * 撤销上电自动 power_on: 黑屏页语义是"关机+充电", 模块保持关,
-     * 按开机键时再 lunchbox_boot_seq_kick() 补跑。 */
+     * 长按开机键时再 lunchbox_boot_seq_kick() 补跑。 */
     if (CHARGE_DC_IN()) {
         printf("func_run: DC in at boot -> black screen charge page\n");
 #if FUNC_LUNCHBOX_UART_EN

@@ -14,11 +14,13 @@
 #endif
 
 #if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
-/* manual_off 中 PB9(串口)唤醒过滤: 只有模块报 充电中/立即加热 才真唤醒,
- * 心跳等无关帧回去继续睡。true=真唤醒(醒因已记入闩锁, func.c 取走落页) */
+/* manual_off 中 PB9(串口)唤醒: 任何指令都唤醒, 置 UART 闩锁,
+ * 醒因由主循环收帧后判 (lb_wake_apply: 充电→黑屏页, 加热→路由去加热页)。
+ * 曾在这里偷听判帧再决定睡不睡, 实测睡眠上下文收帧不完整, 已回退。 */
 static bool manual_off_uart_wake_check(void)
 {
-    return lunchbox_wake_probe() != LB_WAKE_NONE;
+    lunchbox_wake_reason_set_uart();
+    return true;
 }
 #else
 #define manual_off_uart_wake_check()    true    /* 无串口功能: 任何 PB9 都唤醒 */
