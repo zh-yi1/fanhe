@@ -7,6 +7,7 @@
 extern bool func_confirm_overlay_visible(void);
 extern void func_confirm_overlay_show(void);
 extern bool func_confirm_overlay_poll(void);
+extern bool func_confirm_overlay_get_result(void);
 
 /* 系统状态实例 —— 全部字段由 lb_ui_sync_pull() 从串口状态镜像刷新,
  * 见 general_ui.c 末尾; 页面只读, 不要在这里写初值 */
@@ -205,6 +206,16 @@ static void func_home_page_process(void)
         func_confirm_overlay_poll();
         if (!func_confirm_overlay_visible()) {
             g_ui_sys.lid_open = false; /* 用户已处理 */
+#if FUNC_LUNCHBOX_UART_EN
+            /* 盖盖上电时模块在加热 → 弹窗结果:
+             * YES=继续加热去加热页; NO=停加热留主页 (stop 自带"主动停止"标记,
+             * 模块停了的路由边沿回首页而不是进保温) */
+            if (func_confirm_overlay_get_result()) {
+                func_cb.sta = FUNC_NEW_HEAT_PAGE;
+            } else {
+                lb_heat_cmd_stop();
+            }
+#endif
         }
     }
 

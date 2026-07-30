@@ -171,6 +171,41 @@ static void lb_wake_apply(void)
     }
 }
 
+/**
+ * 盖盖上电确认 (开盖=整机断电, 盖盖=来电冷启动):
+ * 开机后模块回的第一帧状态就带着加热 = 加热中开过盖又盖上 →
+ * 主页弹"继续加热?"(func_confirm_page.c overlay): YES→加热页, NO→停加热留主页。
+ * 这里只负责"发现加热 → 拉起 g_ui_sys.lid_open", 弹窗显示与结果处理在
+ * func_home_page.c; 弹窗决策期间路由边沿由 lb_ui_route_apply() 取走丢弃。
+ * 深睡唤醒不重启、statics 不清零, 所以本检查每次冷启动只跑一轮,
+ * 深睡醒来不会再弹 (深睡唤醒不是盖盖)。
+ */
+static void lb_boot_lid_check(void)
+{
+    static bool boot_checked;
+
+    if (boot_checked) {
+        return;
+    }
+    /* 锚定"模块第一帧状态到达": 镜像冷启动全零, 首个 0x01 帧必有字段变化
+     * (至少 DP1=1), seq 从 0 起跳。不用时间窗 —— 开机几秒后预约到点新起的
+     * 加热不该弹窗(该直接路由去加热页), 只有首帧就带着加热才是"加热中开过盖" */
+    if (lb_ui_state_get()->seq == 0) {
+        return;                         /* 模块还没回过状态 */
+    }
+    boot_checked = true;
+    if (!lunchbox_heating_task_active()) {
+        return;                         /* 首帧没在加热 → 正常开机 */
+    }
+    /* 黑屏充电页不弹(form 不在主页); 低电不弹(与主页 lid_open 弹窗规则一致),
+     * 跳过时边沿不丢, 路由自然带去加热页 */
+    if ((func_cb.sta == FUNC_HOME || func_cb.sta == FUNC_HOME_PAGE)
+        && !sys_cb.flag_swithing && !g_ui_sys.lowbat) {
+        printf("boot: module heating -> lid confirm popup\n");
+        g_ui_sys.lid_open = true;       /* 主页 process 见此标志弹窗 */
+    }
+}
+
 static void lb_shutdown_seq_apply(void)
 {
     if (!lunchbox_shutdown_done_take()) {       /* 边沿只取一次, 取走即回 IDLE */
@@ -224,6 +259,13 @@ static void lb_ui_route_apply(void)
         return;
     }
 #endif
+
+    /* 盖盖开机"继续加热?"弹窗决策期间: 边沿取走丢弃 ——
+     * 去加热页还是停加热由弹窗结果定 (func_home_page.c), 不能让边沿抢先跳页 */
+    if (g_ui_sys.lid_open || func_confirm_overlay_visible()) {
+        (void)lb_ui_route_poll();
+        return;
+    }
 
     /* 切换动画进行中 / OTA 进行中: 不抢页, 也不消费边沿, 下一轮再来 */
     if (sys_cb.flag_swithing || lb_ota_is_active()) {
@@ -337,6 +379,7 @@ void func_process(void)
     lb_ui_sync_pull();                  /* 串口状态镜像 → g_ui_sys, 须在刷 UI 之前 */
     lb_wake_apply();                    /* 深睡唤醒原因 → 落页 (按键/充电/加热) */
     lb_shutdown_seq_apply();            /* 关机时序走完 → 主板断电 */
+    lb_boot_lid_check();                /* 盖盖上电+模块在加热 → 主页弹"继续加热?" (须在 route 前) */
     lb_ui_route_apply();                /* 模块状态变化 → 强制切页 */
 #endif
 
