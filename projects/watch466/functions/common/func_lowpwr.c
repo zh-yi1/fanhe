@@ -884,10 +884,10 @@ static void sfunc_sleep(void)
      * BT 控制器可能在关 PLL0 瞬间仍有 pending 中断 → ISR 访问 BT 寄存器
      * (依赖 PLL0 时钟) → AHB 挂死 → RTC_WDT 复位。
      * 关中断窗口仅两条寄存器写, 不会丢 SysTick/co_timer 事件。*/
-    __disable_irq();
+    asm volatile("cpsid i");                    //关全局中断, 防 BT ISR 在 PLL0 关断时挂死 AHB
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     PLL1CON0 &= ~0x03;                          //disable pll1
-    __enable_irq();
+    asm volatile("cpsie i");                    //重开中断, 后续 bt_sleep_proc 需要 co_timer
     printf("slp: E3 (pll0 off)\n");
 #if FUNC_LUNCHBOX_UART_EN
     /* 关 UART1, 释放 PB8/PB9 回 GPIO, 以便下面 rtc_sleep_enter 后

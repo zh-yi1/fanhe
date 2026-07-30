@@ -8,6 +8,10 @@ extern bool func_confirm_overlay_visible(void);
 extern void func_confirm_overlay_show(void);
 extern bool func_confirm_overlay_poll(void);
 extern bool func_confirm_overlay_get_result(void);
+#if FUNC_LUNCHBOX_UART_EN
+extern bool lb_boot_display_gate_open(void);    /* 盖盖上电: 首帧判定前不亮屏 */
+extern void lb_lid_confirm_yes(void);           /* 弹窗 YES: 按数据续跑跳页 */
+#endif
 
 /* 系统状态实例 —— 全部字段由 lb_ui_sync_pull() 从串口状态镜像刷新,
  * 见 general_ui.c 末尾; 页面只读, 不要在这里写初值 */
@@ -116,7 +120,12 @@ compo_form_t *func_home_page_form_create(void)
     compo_textbox_set_forecolor(inf->txt_mode, COLOR_BLUE);
     compo_textbox_set_forecolor(inf->txt_set, COLOR_BLUE);
 
-    tft_bglight_force_on();
+#if FUNC_LUNCHBOX_UART_EN
+    /* 盖盖上电: 首帧未判定时压着背光, 由 lb_boot_lid_check() 判定后亮 ——
+     * 亮出来的第一眼要么纯主页、要么主页+弹窗, 不闪切 */
+    if (lb_boot_display_gate_open())
+#endif
+        tft_bglight_force_on();
     return frm;
 }
 
@@ -207,13 +216,11 @@ static void func_home_page_process(void)
         if (!func_confirm_overlay_visible()) {
             g_ui_sys.lid_open = false; /* 用户已处理 */
 #if FUNC_LUNCHBOX_UART_EN
-            /* 盖盖上电时模块在加热 → 弹窗结果:
-             * YES=继续加热去加热页; NO=停加热留主页 (stop 自带"主动停止"标记,
-             * 模块停了的路由边沿回首页而不是进保温) */
+            /* 盖盖上电弹窗结果 (弹窗入口已下发停止加热):
+             * YES → 按开盖前暂存的数据续跑并跳页(保温→保温页, 加热→加热页);
+             * NO  → 已经停了, 留在主界面 */
             if (func_confirm_overlay_get_result()) {
-                func_cb.sta = FUNC_NEW_HEAT_PAGE;
-            } else {
-                lb_heat_cmd_stop();
+                lb_lid_confirm_yes();
             }
 #endif
         }
