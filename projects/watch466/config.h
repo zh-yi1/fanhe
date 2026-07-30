@@ -95,7 +95,7 @@
 #define FLASH_UI_BASE                   0x200000                                            //UI资源起始地址(最小值为FLASH_CODE_SIZE)
 #define FLASH_UI_SIZE                   0x100000                                            //UI资源大小(ui.bin的大小)
 #define FLASH_PKG_START                 0x300000                                            //升级压缩包存放起始地址
-#define FLASH_PKG_SIZE                  0x050000                                            //升级压缩包大小
+#define FLASH_PKG_SIZE                  0x096000                                            //升级压缩包大小600K: 0x300000~0x396000
 #define FLASH_DISK_START                FLASH_PKG_START                                     //FLASH DISK 功能与OTA升级复用
 #define FLASH_DISK_LEN                  FLASH_PKG_SIZE                                      //FLASH DISK 功能与OTA升级复用, 0为关闭此功能
 #define FLASH_CM_SIZE                   0x5000
@@ -406,8 +406,10 @@
 #define LE_WIN10_POPUP                  0   //是否打开win10 swift pair快速配对
 
 //FOTA功能配置
-#define LE_AB_FOT_EN                    0   //是否打开BLE FOTA服务,需同时打开LE_AB_LINK_APP_EN
-#define AB_FOT_TYPE_PACK                0   //FOTA压缩升级（代码做压缩处理，升级完成需做解压才可正常运行）
+#define LE_AB_FOT_EN                    0   //是否打开BLE FOTA服务,需同时打开LE_AB_LINK_APP_EN (原厂BLE通道, 饭盒走自己的lb_ota, 保持0)
+#define AB_FOT_TYPE_PACK                1   //FOTA压缩升级（代码做压缩处理，升级完成需做解压才可正常运行）
+                                            //置1后 app.xm 把 setunpack+setpkgarea 编进 dcf, Downloader 才会按暂存区出 POT 压缩包;
+                                            //为0时无暂存区信息, 固件>~1.3M 会退化出 FOT 格式, 设备端 ota_pack 报 FILE_FORMAT
 #define SW_VERSION		                "V0.0.1"   //只能使用数字0-9,ota需要转码
 #define HW_VERSION		                "V0.0.1"   //只能使用数字0-9,ota需要转码
 #define FOTA_UI_EN                      0          //是否支持UI升级，需要用一个批处理打包UI+FOT
