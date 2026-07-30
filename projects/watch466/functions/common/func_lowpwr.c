@@ -877,9 +877,22 @@ static void sfunc_sleep(void)
     printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     printf("slp: E2 (adda clk sel)\n");
-    /* 等 ADDA 时钟切换稳定 + 让 BLE 可能的 TX 事件完成,
-     * 否则紧接关 PLL0 时 BLE 射频还在用它 → 总线挂死 → RTC_WDT 复位 */
-    delay_us(200);
+    /* 等 BT 栈真正进入休眠再关 PLL0。
+     * bt_enter_sleep() 只是发信号, 硬件进睡需要时间 (原 lowpower 分支 sfunc_sleep 内
+     * UART 握手耗 ~2s 自然等了; 现在 UART 握手外移到状态机, 这里不显式等 → BT 硬件
+     * 还在用 PLL0 → 关 PLL0 时总线挂死 → RTC_WDT 复位)。最多等 500ms。 */
+    {
+        int bt_wait = 500;
+        while (!bt_is_sleep() && bt_wait > 0) {
+            delay_us(1000);
+            bt_wait--;
+        }
+        if (bt_wait <= 0) {
+            printf("slp: E2.5 (bt sleep wait timeout, force)\n");
+        } else {
+            printf("slp: E2.5 (bt sleep ok, waited %dms)\n", 500 - bt_wait);
+        }
+    }
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     printf("slp: E3 (pll0 off)\n");
     PLL1CON0 &= ~0x03;                          //disable pll1
