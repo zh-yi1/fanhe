@@ -94,6 +94,7 @@
 			<Add directory="../../platform/libs/alipay_secure_sdk/share/common/inc" />
 			<Add directory="../../platform/libs/alipay_secure_sdk/softse" />
 			<Add directory="../../platform/gui/ctp/axs5106" />
+			<Add directory="functions/comm" />
 			<Add directory="functions/common" />
 			<Add directory="functions/key" />
 			<Add directory="functions/new_ui" />
@@ -438,13 +439,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_modem/modem_custom.h" />
-		<Unit filename="../../platform/bsp/bsp_music/bsp_fs.h" />
-		<Unit filename="../../platform/bsp/bsp_music/bsp_func_music.h" />
 		<Unit filename="../../platform/bsp/bsp_music/bsp_music.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_music/bsp_music.h" />
-		<Unit filename="../../platform/bsp/bsp_music/bsp_record.h" />
 		<Unit filename="../../platform/bsp/bsp_music/music_id3_tag.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -457,7 +455,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_music/music_res.h" />
-		<Unit filename="../../platform/bsp/bsp_music/record_file.h" />
 		<Unit filename="../../platform/bsp/bsp_net/bsp_lwip.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -801,7 +798,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/gui/gui.h" />
-		<Unit filename="../../platform/gui/lcd/lcd.h" />
 		<Unit filename="../../platform/gui/rotate_disp/rotate_disp.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1016,16 +1012,10 @@
 		<Unit filename="../../platform/libs/api_usb.h" />
 		<Unit filename="../../platform/libs/api_video.h" />
 		<Unit filename="../../platform/libs/cpu.h" />
-		<Unit filename="../../platform/libs/libfixmath/fix16.h" />
-		<Unit filename="../../platform/libs/libfixmath/fix16.hpp" />
-		<Unit filename="../../platform/libs/libfixmath/fix16_trig_sin_lut.h" />
 		<Unit filename="../../platform/libs/libfixmath/fixmath.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/libs/libfixmath/fixmath.h" />
-		<Unit filename="../../platform/libs/libfixmath/fract32.h" />
-		<Unit filename="../../platform/libs/libfixmath/int64.h" />
-		<Unit filename="../../platform/libs/libfixmath/uint32.h" />
 		<Unit filename="../../platform/libs/strong_ble.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1171,9 +1161,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="demo/flash_fatfs_demo.h" />
-		<Unit filename="functions/common/func_bt_update.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/common/func_idle.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1225,7 +1212,6 @@
 		<Unit filename="functions/func_ble_gatts.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_ble_gatts.h" />
 		<Unit filename="functions/func_bt.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1272,6 +1258,7 @@
 		<Unit filename="functions/lowpower/elunchbox_lp.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_ui/app_ui.h" />
 		<Unit filename="functions/new_ui/func_appointment_time.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1314,18 +1301,18 @@
 		<Unit filename="functions/new_ui/func_verInfo_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/new_ui/func_black_screen_page.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="functions/new_ui/func_warm_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/new_ui/general_title_ui.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_ui/general_title_ui.h" />
 		<Unit filename="functions/new_ui/general_ui.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_ui/general_ui.h" />
+		<Unit filename="functions/new_ui/ui.h" />
 		<Unit filename="i18n/lang.c">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -369,3 +369,12 @@ u8 func_setting_get_bit(u32 n)
     (void)n;
     return 0;
 }
+
+/* stubs for lowpower-branch pages not present in this build */
+compo_form_t *func_black_screen_page_form_create(void) { return NULL; }
+void func_black_screen_page(void) {}
+void func_bt_update(void) {}
+void func_bt_update_enter(void) {}
+void func_black_screen_page_enter(void) {}
+void func_black_screen_page_exit(void) {}
+void func_bt_update_exit(void) {}
