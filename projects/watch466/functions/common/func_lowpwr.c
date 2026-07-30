@@ -878,14 +878,14 @@ static void sfunc_sleep(void)
     printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     printf("slp: E2 (adda clk sel)\n");
-    PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
-    printf("slp: E3 (pll0 off)\n");
-    PLL1CON0 &= ~0x03;                          //disable pll1
+    /* PLL0/PLL1 不在此处手动关断。实测 bt_enter_sleep 后立即关 PLL0
+     * 会导致 AHB 总线挂死 → RTC_WDT 复位。让 rtc_sleep_enter →
+     * sys_enter_sleep 硬件序列去关 PLL, 省掉这段手动关断。
+     * 唤醒端 adpll_init() 会重新使能 PLL0, 不受影响。 */
+    printf("slp: E3 (pll0 off skipped)\n");
 #if FUNC_LUNCHBOX_UART_EN
-    /* UART1 移到 PLL0 关闭之后。
-     * lowpower 分支已验证: UART1 开着过 PLL0 disable 不挂总线;
-     * 先关 UART1 再关 PLL0 反会挂死 (UART1CON=0 后 UART IP 总线接口
-     * 残留在半关态, PLL0 掉钟时触发 AHB hang → RTC_WDT 复位)。 */
+    /* 关 UART1, 释放 PB8/PB9 回 GPIO, 以便下面 rtc_sleep_enter 后
+     * GPIO 配置段自由设置引脚状态 (digital + pull)。*/
     lunchbox_uart_suspend();
     printf("slp: D0 (uart1 off)\n");
 #endif
