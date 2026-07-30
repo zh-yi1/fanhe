@@ -840,6 +840,12 @@ static void sfunc_sleep(void)
 #endif
 
     printf("slp: D (dac/adc/charge done, dac_was=%u)\n", dac_status);
+#if FUNC_LUNCHBOX_UART_EN
+    /* 关 UART1 (TX=PB8 RX=PB9): 关机时序刚用它发过指令,
+     * 留着 RX 还会收中断、可能依赖 PLL0 时钟 → 后面关 PLL0 时挂死。 */
+    lunchbox_uart_suspend();
+    printf("slp: D0 (uart1 off)\n");
+#endif
     usbcon0 = USBCON0;                          //需要先关中断再保存
     usbcon1 = USBCON1;
     USBCON0 = BIT(5);
@@ -871,6 +877,9 @@ static void sfunc_sleep(void)
     printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     printf("slp: E2 (adda clk sel)\n");
+    /* 等 ADDA 时钟切换稳定 + 让 BLE 可能的 TX 事件完成,
+     * 否则紧接关 PLL0 时 BLE 射频还在用它 → 总线挂死 → RTC_WDT 复位 */
+    delay_us(200);
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     printf("slp: E3 (pll0 off)\n");
     PLL1CON0 &= ~0x03;                          //disable pll1
@@ -1092,6 +1101,11 @@ static void sfunc_sleep(void)
     DACDIGCON0 |= BIT(0);                      //enable digital dac
 #if FPGA_EN
     fpga_uart_reinit();
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+    /* UART1 在睡下前 suspend 过，这里恢复。须在系统时钟恢复后 (adpll_init) 再做，
+     * 因为 lb_link_init → uart_init 用 sys_clk 算波特率。 */
+    lunchbox_uart_resume();
 #endif
     dac_aubuf_init();
     /* 【低功耗优化】恢复 BUCK 模式 */
