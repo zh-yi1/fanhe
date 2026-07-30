@@ -34,6 +34,35 @@ static const u32 TIME_SCHEDULE_PICS[13] = {
     UI_BUF_NEW_UI_TIME_SCHEDULE_12_BIN,
 };
 
+/* 温度进度条图片（5 挡位，对应 140/158/176/194/212F = 协议档位 2~6） */
+static const u32 TMP_SCHEDULE_PICS[5] = {
+    UI_BUF_NEW_UI_TMP_SCHEDULE_0_BIN,
+    UI_BUF_NEW_UI_TMP_SCHEDULE_1_BIN,
+    UI_BUF_NEW_UI_TMP_SCHEDULE_2_BIN,
+    UI_BUF_NEW_UI_TMP_SCHEDULE_3_BIN,
+    UI_BUF_NEW_UI_TMP_SCHEDULE_4_BIN,
+};
+
+/* 协议温度档位(0~6) → 温度进度条图片索引(0~4)，档位 2 = 140F 为第一格 */
+static u8 chicken_temp_pic_idx(u8 temp_idx)
+{
+    if (temp_idx < 2) return 0;
+    if (temp_idx > 6) return 4;
+    return (u8)(temp_idx - 2);
+}
+
+/* 本模式的预设时长 → 页面可选范围内的初值（UI 只有 60~120min / 5min 步进，
+ * 预设表若给了范围外的值必须夹紧，否则进度条图片索引会越界） */
+static u8 chicken_preset_time_min(void)
+{
+    u32 d = lunchbox_mode_get_duration(LB_MODE_CHICKEN);
+
+    if (d < TIME_MIN_MINUTES) return TIME_MIN_MINUTES;
+    if (d > TIME_MAX_MINUTES) return TIME_MAX_MINUTES;
+    d -= (d - TIME_MIN_MINUTES) % TIME_STEP;      /* 对齐 5 分钟步进 */
+    return (u8)d;
+}
+
 /* 加热鸡肉页私有状态 */
 typedef struct
 {
@@ -101,6 +130,15 @@ static void func_heat_chicken_handle_keys(void)
             break;
 
         case FUNC_KEY_CONFIRM:
+            /* 下发鸡腿模式加热: 温度取预设表(不可改), 时长用页面选的 */
+#if FUNC_LUNCHBOX_UART_EN
+            {
+                u8 t_idx = lunchbox_mode_get_temp(LB_MODE_CHICKEN);
+                lb_heat_cmd_start(LB_MODE_CHICKEN, t_idx, inf->time_min);
+                printf("chicken: start %uF %umin\n",
+                       (unsigned)lunchbox_temp_idx_to_f(t_idx), (unsigned)inf->time_min);
+            }
+#endif
             func_cb.sta = FUNC_NEW_HEAT_PAGE;
             break;
 
@@ -178,7 +216,7 @@ compo_form_t *func_heat_chicken_form_create(void)
     /* 顶部状态栏 */
     general_status_bar_create(frm, &inf->sb, i18n[STR_CHICKEN_MODE], &g_ui_sys);
 
-    /* ---- 温度行（固定 194F，未选中态） ---- */
+    /* ---- 温度行（值取自预设表，不可调，未选中态） ---- */
     inf->txt_heat = compo_textbox_create(frm, 12);
     compo_textbox_set_location(inf->txt_heat, GUI_SCREEN_CENTER_X - 80,
                                GUI_SCREEN_CENTER_Y - 50, 0, 0);
@@ -199,10 +237,16 @@ compo_form_t *func_heat_chicken_form_create(void)
     compo_textbox_set_align_center(inf->txt_heat_value, true);
     compo_textbox_set_font(inf->txt_heat_value, UI_BUF_0FONT_FONT_TEST_14_BIN);
     compo_textbox_set_forecolor(inf->txt_heat_value, COLOR_BLUE);
-    compo_textbox_set(inf->txt_heat_value, "194F");
+    {
+        char tbuf[8];
+        snprintf(tbuf, sizeof(tbuf), "%%uF",
+                 (unsigned)lunchbox_temp_idx_to_f(lunchbox_mode_get_temp(LB_MODE_CHICKEN)));
+        compo_textbox_set(inf->txt_heat_value, tbuf);
+    }
 
-    /* 温度进度条图片（固定 194F = index 3） */
-    inf->tmp_pic = compo_picturebox_create(frm, UI_BUF_NEW_UI_TMP_SCHEDULE_3_BIN);
+    /* 温度进度条图片: 按预设表的温度档位取图, 温度不可调 */
+    inf->tmp_pic = compo_picturebox_create(frm,
+            TMP_SCHEDULE_PICS[chicken_temp_pic_idx(lunchbox_mode_get_temp(LB_MODE_CHICKEN))]);
     compo_picturebox_set_pos(inf->tmp_pic, GUI_SCREEN_CENTER_X,
                              GUI_SCREEN_CENTER_Y - 15);
 
@@ -321,7 +365,8 @@ void func_heat_chicken_enter(void)
     func_cb.frm_main = func_heat_chicken_form_create();
     inf = (f_heat_chicken_t *)func_cb.f_cb;
     inf->display_stage = 1;
-    inf->time_min = TIME_DEFAULT;
+    inf->time_min = chicken_preset_time_min();   /* 预设时长, APP 可经 0x0a 修改 */
+    heat_chicken_update_display();
 
     home_gpu_wait_idle();
     WDT_CLR();

@@ -81,6 +81,84 @@ void func_elunchbox_res_key_poll(void)
 }
 #endif
 
+#if FUNC_LUNCHBOX_UART_EN
+/**
+ * @brief 关机前跑完关机时序 —— 先停加热, 模块应答后再发关机指令
+ *
+ * 同步阻塞等待, 由时序内部的每步 500ms 超时保证有界 (最坏 1 秒)。
+ * APP 下发关机时时序早已在跑, 这里通常一进来就是 done, 直接返回。
+ */
+static void lb_shutdown_seq_wait(void)
+{
+    lunchbox_shutdown_start(false, 0);      // 已在跑则无副作用
+    while (!lunchbox_shutdown_is_done()) {
+        WDT_CLR();
+        lunchbox_uart_process();            // 收应答 + 驱动时序超时
+    }
+    /* 时序结束就停串口: 后面 func_pwroff 里 bt_off/gui_sleep 要跑一阵,
+     * 期间模块的心跳/上报没人处理, 不如直接关掉并把 PB8/PB9 还回 GPIO */
+    lunchbox_uart_suspend();
+}
+
+/**
+ * @brief 加热模块状态变化 → 强制切页 (唯一调用点)
+ *
+ * lb_ui_route_poll() 是边沿触发且内部状态只能被消费一次, 全工程只准这里调。
+ * 覆盖的场景: APP 远程启停加热、预约到点模块自己开始加热、加热结束。
+ * 其余字段(电量/温度/剩余时间)变化不在这里管, 由各页面按 seq 自行刷新。
+ */
+static void lb_ui_route_apply(void)
+{
+    /* APP 下发的关机走完两步时序 → 本机跟着关 (长按关机走 func_run 那条路)。
+     * 时序跑到一半插上充电线 / 起了 OTA 的话在这里放弃, 不进关机页 */
+    if (lunchbox_shutdown_is_done() && func_cb.sta != FUNC_PWROFF) {
+        if (lunchbox_shutdown_blocked()) {
+            lunchbox_shutdown_abort();
+        } else {
+            printf("route: shutdown sequence done -> power off\n");
+            func_cb.sta = FUNC_PWROFF;
+        }
+        return;
+    }
+    /* 关机时序进行中: 不再抢页 */
+    if (lunchbox_shutdown_is_active()) {
+        return;
+    }
+
+    /* 切换动画进行中 / OTA 进行中: 不抢页, 也不消费边沿, 下一轮再来 */
+    if (sys_cb.flag_swithing || lb_ota_is_active()) {
+        return;
+    }
+
+    switch (lb_ui_route_poll()) {
+    case LB_UI_ROUTE_HEAT:
+        if (func_cb.sta != FUNC_NEW_HEAT_PAGE) {
+            printf("route: module heating -> heat page\n");
+            func_cb.sta = FUNC_NEW_HEAT_PAGE;
+        }
+        break;
+
+    case LB_UI_ROUTE_WARM:
+        if (func_cb.sta != FUNC_NEW_WARM_PAGE) {
+            printf("route: module keep-warm -> warm page\n");
+            func_cb.sta = FUNC_NEW_WARM_PAGE;
+        }
+        break;
+
+    case LB_UI_ROUTE_HOME:
+        /* 只把加热/保温页拉回首页, 用户正在别的页面时不打扰 */
+        if (func_cb.sta == FUNC_NEW_HEAT_PAGE || func_cb.sta == FUNC_NEW_WARM_PAGE) {
+            printf("route: module stopped -> home\n");
+            func_cb.sta = FUNC_HOME_PAGE;
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+#endif // FUNC_LUNCHBOX_UART_EN
+
 AT(.text.func.process)
 void func_process(void)
 {
@@ -124,6 +202,7 @@ void func_process(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     lb_ui_sync_pull();                      /* 串口状态镜像 → g_ui_sys, 须在刷 UI 之前 */
+    lb_ui_route_apply();                    /* 模块状态变化 → 强制切页 */
 #endif
 
     // gui 没有休眠才更新
@@ -750,7 +829,19 @@ void func_run(void)
             }
         }
         if (func_cb.sta == FUNC_PWROFF) {
+#if FUNC_LUNCHBOX_UART_EN
+            /* 充电中 / OTA 中不关机。必须在这里拦: func_pwroff() 充电时会 return
+             * 不断电, 若放它进去就会"进关机→返回→再进关机"反复空转 */
+            if (lunchbox_shutdown_blocked()) {
+                lunchbox_shutdown_abort();
+                func_cb.sta = FUNC_HOME_PAGE;
+            } else {
+                lb_shutdown_seq_wait(); /* 先停加热、再关加热模块, 走完才断电 */
+                func_pwroff(1);
+            }
+#else
             func_pwroff(1);
+#endif
         }
         func_exit();
     }

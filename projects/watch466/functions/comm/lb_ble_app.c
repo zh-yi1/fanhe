@@ -184,7 +184,58 @@ static struct {
     u8   sync_flag;        // time_sync 的 msg_flag (配对应答用)
     u32  pending_ts;       // 待保存的 APP 权威时间戳 (模块应答后生效)
     u8   report_flag;      // 上报 APP 的异步流水号
+    bool presets_sent;     // 本次连接已下发过三餐预设
 } lb_timesync;
+
+//-----------------------------------------------------------------------------
+// 三餐固定预设 — 时间同步完成后下发, 每次 BLE 连接只发一次
+//
+// 三条固定占用预约 ID 1/2/3, 屏幕新建预约由 lb_ui_schedule_alloc_id() 从 4 起。
+// enabled=0 建好但不启用 (等 APP 或用户开), repeat=0xff 每天。
+//-----------------------------------------------------------------------------
+
+#define LB_MEAL_TEMP_F      149         // 65°C → 档位 2
+
+typedef struct {
+    u8   hour;
+    u8   min;
+    u8   duration_min;
+    const char *name;
+} lb_meal_preset_t;
+
+static const lb_meal_preset_t lb_meal_presets[3] = {
+    { 8,  0,  60, "\xe6\x97\xa9\xe9\xa4\x90" },      // 早餐 08:00
+    { 10, 50, 70, "\xe5\x8d\x88\xe9\xa4\x90" },      // 午餐 10:50
+    { 16, 30, 90, "\xe6\x99\x9a\xe9\xa4\x90" },      // 晚餐 16:30
+};
+
+/** @brief 下一个 hh:mm 的 unix 时刻 (今天已过则顺延到明天) */
+static u32 lb_next_time_of_day(u8 hour, u8 min)
+{
+    u32 now_unix       = lb_get_unix_time();
+    u32 today_midnight = now_unix - (now_unix % 86400);
+    u32 target_unix    = today_midnight + (u32)hour * 3600 + (u32)min * 60;
+
+    if (target_unix <= now_unix) {
+        target_unix += 86400;
+    }
+    return target_unix;
+}
+
+/** @brief 时间同步成功 → 下发早/午/晚三条预约预设 */
+static void lb_ble_send_meal_presets(void)
+{
+    u8 temp_idx = lunchbox_temp_f_to_idx(LB_MEAL_TEMP_F);
+    u8 i;
+
+    for (i = 0; i < 3; i++) {
+        const lb_meal_preset_t *m = &lb_meal_presets[i];
+        lb_heat_cmd_schedule_set(LB_MODE_CUSTOM, (u8)(i + 1), m->name,
+                                 lb_next_time_of_day(m->hour, m->min),
+                                 temp_idx, m->duration_min, 0, 0xff);
+    }
+    printf("timesync: 3 meal presets sent to heat module\n");
+}
 
 /** @brief APP 权威时间到达 (0x03 dpid=11) — 发模块等应答, 不立即保存 */
 static void lb_ble_accept_app_time(u32 unix_ts)
@@ -215,6 +266,12 @@ bool lb_ble_timesync_on_heat_frame(lb_rx_frame_t *rx)
     lb_timesync.wait_heat_ack = false;
     lb_time_set_synced(lb_timesync.pending_ts);      // 模块已确认, 本机才保存
     printf("timesync: heat module acked, local time saved\n");
+
+    // 时间已对齐, 才能算出三餐的 unix 触发时刻 —— 本次连接只发一次
+    if (!lb_timesync.presets_sent) {
+        lb_timesync.presets_sent = true;
+        lb_ble_send_meal_presets();
+    }
     return true;
 }
 
@@ -411,12 +468,12 @@ typedef struct {
 } lb_mode_preset_t;
 
 static lb_mode_preset_t lb_mode_preset[LB_MODE_MAX + 1] = {
-    [LB_MODE_OFF]     = { 0, 0  },
-    [LB_MODE_CUSTOM]  = { 3, 30 },      // 70°C / 30min
-    [LB_MODE_CHICKEN] = { 4, 45 },      // 80°C / 45min
-    [LB_MODE_PASTA]   = { 5, 20 },      // 90°C / 20min
-    [LB_MODE_RESERVE] = { 3, 30 },      // 70°C / 30min
-    [LB_MODE_WARM]    = { 5, 0  },      // 90°C / 不限时
+    [LB_MODE_OFF]     = { 0, 0    },
+    [LB_MODE_CUSTOM]  = { 2, 60   },    // 60°C / 60min
+    [LB_MODE_CHICKEN] = { 6, 60   },    // 80°C / 60min
+    [LB_MODE_PASTA]   = { 5, 60   },    // 90°C / 60min
+    [LB_MODE_RESERVE] = { 2, 60   },    // 60°C / 60min
+    [LB_MODE_WARM]    = { 5, 1440 },    // 90°C / 24 小时 (与 LB_WARM_DURATION_MIN 一致)
 };
 
 u8 lunchbox_mode_get_temp(u8 mode)
@@ -472,6 +529,9 @@ static void lb_ble_on_mode_query(lb_rx_frame_t *rx)
  *
  * 协议 §3.10: APP 可改的模式仅 1~3, 越界回执行失败
  * APP 发送: 3 字节 (模式标志 + 温度档位 + 加热时长)
+ *
+ * 产品定义: 各模式温度固定, APP 只能改时长 —— 数据区里的温度档位一律忽略,
+ * 沿用本机预设表的值 (屏幕上鸡腿/意面页也是读预设表显示, 两边必须一致)。
  */
 static void lb_ble_on_mode_modify(lb_rx_frame_t *rx)
 {
@@ -484,8 +544,13 @@ static void lb_ble_on_mode_modify(lb_rx_frame_t *rx)
         lb_ble_send_response(LB_CMD_MODE_MODIFY, rx->msg_flag, LB_ERR_EXEC_FAIL, NULL, 0);
         return;
     }
-    lunchbox_mode_preset_local_set(mode, rx->data[1], rx->data[2]);
-    lb_heat_cmd_mode_preset(mode, rx->data[1], rx->data[2]);   // 同步给加热模块
+    u8 temp_idx = lunchbox_mode_get_temp(mode);      // 忽略 APP 给的温度
+    u8 duration = rx->data[2];
+    if (rx->data[1] != temp_idx) {
+        printf("mode modify: temp %u ignored (fixed at %u)\n", rx->data[1], temp_idx);
+    }
+    lunchbox_mode_preset_local_set(mode, temp_idx, duration);
+    lb_heat_cmd_mode_preset(mode, temp_idx, duration);          // 同步给加热模块
     lb_ble_send_response(LB_CMD_MODE_MODIFY, rx->msg_flag, LB_ERR_SUCCESS, NULL, 0);
 }
 
@@ -560,6 +625,31 @@ static void lb_ble_on_forward(lb_rx_frame_t *rx)
 }
 
 /**
+ * @brief 0x04 数据区里是否含"总开关=0"(APP 下发关机)
+ *
+ * 关机不能当普通属性直接透传 —— 要走"先停加热、再关机"两步时序,
+ * 每步模块应答后各回 APP 一条 (见 lunchbox_shutdown_start)。
+ */
+static bool lb_ble_control_is_power_off(lb_rx_frame_t *rx)
+{
+    u16 off = 0;
+
+    while (rx->data && off + 4 <= rx->data_len) {
+        u8  dpid    = rx->data[off];
+        u16 val_len = ((u16)rx->data[off + 2] << 8) | rx->data[off + 3];
+
+        if (off + 4 + val_len > rx->data_len) {
+            break;
+        }
+        if (dpid == LB_DPID_POWER_SWITCH && val_len >= 1 && rx->data[off + 4] == 0) {
+            return true;
+        }
+        off += 4 + val_len;
+    }
+    return false;
+}
+
+/**
  * @brief 命令分发 — 每个命令一个 case, 业务处理逐个填充
  *
  * rx->data 指向重组缓冲区内部, 仅在本次分发期间有效, 需要保留须自行拷贝。
@@ -576,8 +666,17 @@ static void lb_ble_dispatch(lb_rx_frame_t *rx)
         lb_ble_on_status_report(rx);
         break;
 
-    case LB_CMD_DYNAMIC_ATTR:       // 0x02 查询设备动态属性
     case LB_CMD_CONTROL:            // 0x04 控制指令 (DataPoints 修改属性)
+        if (lb_ble_control_is_power_off(rx)) {
+            // APP 下发关机 → 两步时序, 每步应答各回 APP 一条, 不走普通转发
+            printf("BLE: power off from APP\n");
+            lunchbox_shutdown_start(true, rx->msg_flag);
+            break;
+        }
+        lb_ble_on_forward(rx);
+        break;
+
+    case LB_CMD_DYNAMIC_ATTR:       // 0x02 查询设备动态属性
     case LB_CMD_SCHEDULE_LIST:      // 0x05 查询预约列表 (模块逐条应答, 桥按多帧回传)
     case LB_CMD_SCHEDULE_ADD:       // 0x06 新增预约
     case LB_CMD_SCHEDULE_MODIFY:    // 0x07 修改预约
@@ -648,6 +747,7 @@ bool lunchbox_ble_rx_pending(void)
 void lunchbox_ble_on_connected(void)
 {
     lb_timesync.wait_heat_ack = false;
+    lb_timesync.presets_sent = false;      // 本次连接允许再发一次三餐预设
     lb_product_info_pending = false;       // 上次连接的挂起查询作废
     lb_product_info_has_ts = false;
 

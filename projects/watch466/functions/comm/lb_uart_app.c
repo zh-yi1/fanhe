@@ -22,7 +22,11 @@
 #include "lb_bridge.h"
 #include "lb_ble_app.h"
 #include "lb_ui_state.h"
+#include "lb_heat_cmd.h"    // 开机/关机时序: power/stop/last_flag
 #include "lb_uart_heat.h"   // 加热模块 OTA 状态机
+
+/* 开机/关机时序 (实现在本文件靠后, lb_uart_on_frame 先用到) */
+static bool lb_seq_on_frame(lb_rx_frame_t *rx);
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -323,6 +327,9 @@ static void lb_uart_on_frame(lb_rx_frame_t *rx)
                 off += 4 + val_len;
             }
         }
+        if (lb_seq_on_frame(rx)) {                     // 开机/关机时序应答 → 推进下一步
+            consumed = true;
+        }
         if (lb_ble_timesync_on_heat_frame(rx)) {       // 时间同步应答 → 保存本机时间
             consumed = true;
         }
@@ -372,10 +379,203 @@ static void lb_uart_on_frame(lb_rx_frame_t *rx)
 // 主循环调度
 //-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
+// 开机 / 关机时序 — 一发一等 (声明见 lb_uart_app.h)
+//
+// 两条时序共用一个状态机, 同一时刻只可能跑一条 (关机优先: 关机期间不再起开机)。
+// 每一步发出后记下 msg_flag, 靠 lb_seq_on_frame() 配对模块应答推进;
+// 超时也推进 —— 关机必须能走完, 不能因为模块不回话卡死。
+//-----------------------------------------------------------------------------
+
+#define LB_SEQ_ACK_TIMEOUT_MS   500     // 每步等应答上限
+#define LB_BOOT_SEQ_DELAY_MS    500     // 上电后起开机时序的延时 (等模块自己就绪)
+
+typedef enum {
+    LB_SEQ_IDLE = 0,
+    LB_SEQ_BOOT_WAIT,       // 上电延时中, 还没发第一条
+    LB_SEQ_BOOT_POWER,      // 已发 power_on, 等应答
+    LB_SEQ_OFF_STOP,        // 已发 stop, 等应答
+    LB_SEQ_OFF_POWER,       // 已发 power_off, 等应答
+    LB_SEQ_OFF_DONE,        // 关机时序结束 (终态, 不再变)
+} lb_seq_state_t;
+
+static struct {
+    lb_seq_state_t state;
+    u8   flag;              // 在飞命令的 msg_flag
+    u32  tick;              // 该步发出时刻 (BOOT_WAIT 时为上电时刻)
+    bool from_app;          // 关机是 APP 下发的
+    u8   app_flag;          // APP 请求的 msg_flag
+} lb_seq;
+
+/** @brief APP 下发的关机: 每步模块应答后回一条 BLE 应答 (0x04 控制) */
+static void lb_seq_reply_app(u8 err)
+{
+    if (!lb_seq.from_app) {
+        return;
+    }
+    lb_ble_send_response(LB_CMD_CONTROL, lb_seq.app_flag, err, NULL, 0);
+}
+
+/** @brief 第二步: 发关机指令 */
+static void lb_seq_send_power_off(void)
+{
+    lb_heat_cmd_power(false);
+    lb_seq.flag  = lb_heat_cmd_last_flag();
+    lb_seq.tick  = tick_get();
+    lb_seq.state = LB_SEQ_OFF_POWER;
+    printf("seq: power_off sent\n");
+}
+
+/** @brief 关机时序收场 */
+static void lb_seq_shutdown_finish(void)
+{
+    lb_seq.state = LB_SEQ_OFF_DONE;
+    printf("seq: shutdown sequence done\n");
+}
+
+bool lunchbox_shutdown_blocked(void)
+{
+    if (lb_ota_is_active()) {
+        printf("seq: shutdown blocked (OTA in progress)\n");
+        return true;
+    }
+#if CHARGE_EN
+    if (CHARGE_DC_IN()) {               // 主 MCU 侧检测到 DC 插入
+        printf("seq: shutdown blocked (charging, DC in)\n");
+        return true;
+    }
+#endif
+    // 饭盒的充电状态由加热模块经 DP4 上报: 1=充电中 2=已充满(线还插着)
+    {
+        lb_ui_state_t *st = lb_ui_state_get();
+        if (st->valid && (st->charge == 1 || st->charge == 2)) {
+            printf("seq: shutdown blocked (charging, DP4=%u)\n", st->charge);
+            return true;
+        }
+    }
+    return false;
+}
+
+void lunchbox_shutdown_abort(void)
+{
+    if (lb_seq.state == LB_SEQ_OFF_STOP || lb_seq.state == LB_SEQ_OFF_POWER
+        || lb_seq.state == LB_SEQ_OFF_DONE) {
+        lb_seq.state = LB_SEQ_IDLE;
+        printf("seq: shutdown aborted\n");
+    }
+}
+
+void lunchbox_shutdown_start(bool from_app, u8 app_flag)
+{
+    if (lb_seq.state == LB_SEQ_OFF_STOP || lb_seq.state == LB_SEQ_OFF_POWER
+        || lb_seq.state == LB_SEQ_OFF_DONE) {
+        return;                         // 已在关机流程里
+    }
+    if (lunchbox_shutdown_blocked()) {
+        if (from_app) {
+            lb_ble_send_response(LB_CMD_CONTROL, app_flag, LB_ERR_EXEC_FAIL, NULL, 0);
+        }
+        return;
+    }
+    lb_seq.from_app = from_app;
+    lb_seq.app_flag = app_flag;
+
+    lb_heat_cmd_stop();                 // 第一步: 停止加热
+    lb_seq.flag  = lb_heat_cmd_last_flag();
+    lb_seq.tick  = tick_get();
+    lb_seq.state = LB_SEQ_OFF_STOP;
+    printf("seq: shutdown start (from_app=%u), stop sent\n", from_app);
+}
+
+bool lunchbox_shutdown_is_active(void)
+{
+    return lb_seq.state == LB_SEQ_OFF_STOP || lb_seq.state == LB_SEQ_OFF_POWER;
+}
+
+bool lunchbox_shutdown_is_done(void)
+{
+    return lb_seq.state == LB_SEQ_OFF_DONE;
+}
+
+/**
+ * @brief 串口 0x01 帧到达 → 推进时序 (lb_uart_on_frame 调用)
+ * @return true=该帧是时序在等的应答, 已消化
+ */
+static bool lb_seq_on_frame(lb_rx_frame_t *rx)
+{
+    if (rx->cmd != LB_UART_CMD_DYNAMIC || rx->msg_flag != lb_seq.flag) {
+        return false;
+    }
+
+    switch (lb_seq.state) {
+    case LB_SEQ_BOOT_POWER:
+        printf("seq: power_on acked, query schedules\n");
+        lb_ui_schedules_refresh();      // 0x02 由列表同步机负责发送/重试/收齐
+        lb_seq.state = LB_SEQ_IDLE;
+        return true;
+
+    case LB_SEQ_OFF_STOP:
+        printf("seq: stop acked\n");
+        lb_seq_reply_app(rx->err_flag);
+        lb_seq_send_power_off();
+        return true;
+
+    case LB_SEQ_OFF_POWER:
+        printf("seq: power_off acked\n");
+        lb_seq_reply_app(rx->err_flag);
+        lb_seq_shutdown_finish();
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+/** @brief 时序轮询: 上电起开机时序 + 各步超时推进 */
+static void lb_seq_poll(void)
+{
+    switch (lb_seq.state) {
+    case LB_SEQ_BOOT_WAIT:
+        if (tick_check_expire(lb_seq.tick, LB_BOOT_SEQ_DELAY_MS)) {
+            lb_heat_cmd_power(true);    // 第一步: 开机
+            lb_seq.flag  = lb_heat_cmd_last_flag();
+            lb_seq.tick  = tick_get();
+            lb_seq.state = LB_SEQ_BOOT_POWER;
+            printf("seq: boot power_on sent\n");
+        }
+        break;
+
+    case LB_SEQ_BOOT_POWER:
+        if (tick_check_expire(lb_seq.tick, LB_SEQ_ACK_TIMEOUT_MS)) {
+            printf("seq: power_on no ack, query schedules anyway\n");
+            lb_ui_schedules_refresh();
+            lb_seq.state = LB_SEQ_IDLE;
+        }
+        break;
+
+    case LB_SEQ_OFF_STOP:
+        if (tick_check_expire(lb_seq.tick, LB_SEQ_ACK_TIMEOUT_MS)) {
+            printf("seq: stop no ack, continue to power_off\n");
+            lb_seq_send_power_off();    // 不回 APP: 模块没应答
+        }
+        break;
+
+    case LB_SEQ_OFF_POWER:
+        if (tick_check_expire(lb_seq.tick, LB_SEQ_ACK_TIMEOUT_MS)) {
+            printf("seq: power_off no ack, shutdown anyway\n");
+            lb_seq_shutdown_finish();
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+
 /**
  * @brief 主循环处理 (func_process 每轮调用)
  *
- * 边读边解: 每个字节喂进解析器状态机, 帧凑齐立即处理。
+ * 边读边解: 每个字节凑齐一帧立即处理。
  */
 void lunchbox_uart_process(void)
 {
@@ -399,6 +599,9 @@ void lunchbox_uart_process(void)
 
     // 预约列表同步: 标脏后自动重查 + 超时重发
     lb_ui_schedules_sync_process();
+
+    // 开机/关机时序: 上电自动起开机流程 + 每步应答超时推进
+    lb_seq_poll();
 
     // 加热模块 OTA 状态机轮询 (超时检测/重试/继续发送)
     heat_ota_process();
@@ -444,6 +647,9 @@ void lunchbox_uart_init(u32 baud)
     if (!lb_link_init(baud)) {
         return;
     }
+    // 开机时序: 延时后自动发 power_on → 应答 → 查预约列表 (见 lb_seq_poll)
+    lb_seq.state = LB_SEQ_BOOT_WAIT;
+    lb_seq.tick  = tick_get();
 }
 
 void lunchbox_uart_suspend(void)

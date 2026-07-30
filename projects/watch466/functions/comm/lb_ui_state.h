@@ -144,6 +144,18 @@ bool lb_ui_schedules_feed_entry(const u8 *data, u16 len);
 /** @brief 预约增/改/删生效后调用: 本地列表标记过期 (complete=false) */
 void lb_ui_schedules_mark_dirty(void);
 
+/** 预约 ID 上限 (协议 §3.6: 默认从 1 递增, 不得超过 12) */
+#define LB_SCHEDULE_ID_MAX      12
+
+/**
+ * @brief 分配一个未被占用的预约 ID (屏幕新建预约用)
+ *
+ * 按本地列表镜像挑 1~12 里最小的空闲值。列表未收齐时只能按已知条目尽力分配,
+ * 所以进预约页时应先调 lb_ui_schedules_refresh()。
+ * @return 1~12; 0 = 已满或列表为空且无从判断
+ */
+u8 lb_ui_schedule_alloc_id(void);
+
 //-----------------------------------------------------------------------------
 // 自动跳页路由 (模块状态变化 → 应该去哪个页面)
 //

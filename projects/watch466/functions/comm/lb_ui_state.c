@@ -230,6 +230,26 @@ void lb_ui_schedules_mark_dirty(void)
     lb_sch_sync_request();               // 增/删/改生效 → 自动重查
 }
 
+u8 lb_ui_schedule_alloc_id(void)
+{
+    u16 used = 0;                        // bit1~bit12 对应 ID 1~12
+    u8  i;
+
+    for (i = 0; i < lb_ui_schedules.count && i < LB_SCHEDULE_MAX; i++) {
+        u8 id = lb_ui_schedules.list[i].id;
+        if (id >= 1 && id <= LB_SCHEDULE_ID_MAX) {
+            used |= (u16)1 << id;
+        }
+    }
+    for (i = 1; i <= LB_SCHEDULE_ID_MAX; i++) {
+        if (!(used & ((u16)1 << i))) {
+            return i;
+        }
+    }
+    printf("schedules: no free id (all %u used)\n", LB_SCHEDULE_ID_MAX);
+    return 0;
+}
+
 bool lb_ui_schedules_feed_entry(const u8 *data, u16 len)
 {
     // 条目格式(44B): total(1)+seq(1)+mode(1)+id(1)+name(32)+time(4,BE)

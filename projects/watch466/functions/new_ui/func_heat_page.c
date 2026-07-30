@@ -278,6 +278,23 @@ void func_heat_page_enter(void)
 
 void func_heat_page_exit(void)
 {
+#if FUNC_LUNCHBOX_UART_EN
+    /* 退出加热界面即停止加热 (返回键/加热键/模式键/预约键, 任何离开方式)。
+     *
+     * 两种不该发 stop 的情况, 靠"模块是否还在干本页负责的事"一并排除:
+     *   - 加热自然结束 / APP 远程停止 → heat_enable=0
+     *   - 模块转去保温(APP 改的), lb_ui_route_poll 把屏幕带去保温页
+     *     → heat_enable 仍是 1, 但 heat_mode 已是 WARM, 这时 stop 会把
+     *       刚开始的保温掐掉 */
+    {
+        lb_ui_state_t *st = lb_ui_state_get();
+        if (st->valid && st->heat_enable && st->heat_mode != LB_MODE_WARM
+            && !lunchbox_shutdown_is_active() && !lunchbox_shutdown_is_done()) {
+            lb_heat_cmd_stop();
+            printf("heat_page: exit -> stop heating\n");
+        }
+    }
+#endif
     func_key_lock_on_heating_stop();
     func_key_flush();
     general_status_bar_detach();

@@ -19,7 +19,7 @@
  *   3. TCH5 长按 3s → 关机流程
  *   4. 锁定态 TCH5 按下/松开 → func_key_lock_on_pwr_key_*()
  *   5. 锁定态吞键 → func_key_lock_on_blocked_key()
- *   6. 未锁定键 → activity_reset + 入事件队列
+ *   6. 未锁定键 → activity_reset + 通知加热模块(DP12) + 入事件队列
  *
  * func_key_lock 模块不访问任何按键驱动，仅提供状态查询 + UI 回调。
  */
@@ -196,13 +196,23 @@ void func_key_poll(void)
         elunchbox_user_activity_reset();
     }
 
-    /* 9. 入队 */
+    /* 9. 通知加热模块 (DP12) —— 模块靠这个出按键音, 童锁挡掉的键在第 7 步已单独通知 */
+#if FUNC_LUNCHBOX_UART_EN
+    {
+        u8 key_val = func_key_tch_to_lunchbox_val(press_tch);
+        if (key_val != 0) {
+            lb_heat_cmd_key_notify(key_val);
+        }
+    }
+#endif
+
+    /* 10. 入队 */
     func_key_event_t evt;
     evt.type = FUNC_KEY_EVENT_PRESS;
     evt.tch = press_tch;
     key_queue_push(evt);
 
-    /* 10. 清除 pt8028_key_scan 同时发到系统消息队列的 KU_* 消息，
+    /* 11. 清除 pt8028_key_scan 同时发到系统消息队列的 KU_* 消息，
      *     避免一次物理按键被 func_key handler 和 func_message 双重处理 */
     msg_queue_detach(KU_NEXT, 0);
     msg_queue_detach(KU_MODE, 0);

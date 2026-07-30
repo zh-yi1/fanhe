@@ -2,12 +2,57 @@
 #include "func.h"
 #include "func_key.h"
 #include "func_key_lock.h"
+#include "app_ui.h"     /* 预约暂存接口声明 */
 #include "ui.h"
 
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
 #else
 #define TRACE(...)
+#endif
+
+/*---------------------------------------------------------------------------
+ * 预约暂存 (声明见 app_ui.h)
+ *-------------------------------------------------------------------------*/
+static u32  s_appointment_unix;
+static bool s_appointment_pending;
+
+void new_ui_appointment_set(u32 unix_time)
+{
+    s_appointment_unix    = unix_time;
+    s_appointment_pending = true;
+}
+
+bool new_ui_appointment_take(u32 *out_unix_time)
+{
+    if (!s_appointment_pending) {
+        return false;
+    }
+    s_appointment_pending = false;
+    if (out_unix_time) {
+        *out_unix_time = s_appointment_unix;
+    }
+    return true;
+}
+
+void new_ui_appointment_clear(void)
+{
+    s_appointment_pending = false;
+}
+
+#if FUNC_LUNCHBOX_UART_EN
+/** @brief 今天的 hh:mm:ss 对应的 unix 秒; 已过则顺延到明天 */
+static u32 appointment_target_unix(u8 hour, u8 min, u8 sec)
+{
+    u32 now_unix       = lb_get_unix_time();
+    u32 today_midnight = now_unix - (now_unix % 86400);
+    u32 target_unix    = today_midnight + (u32)hour * 3600 + (u32)min * 60 + sec;
+
+    if (target_unix <= now_unix) {
+        target_unix += 86400;
+    }
+    return target_unix;
+}
 #endif
 
 /* ---- 滚轮布局 ---- */
@@ -232,6 +277,13 @@ static void func_appointment_time_handle_keys(void)
                 inf->focus_col = FOCUS_SEC;
                 appointment_update_display();
             } else {
+                /* 秒也确认完 → 暂存触发时刻, 去加热设置页选温度和时长,
+                 * 那边确认时会 take() 到这个时间, 下发成预约而不是立即加热 */
+#if FUNC_LUNCHBOX_UART_EN
+                new_ui_appointment_set(appointment_target_unix(inf->hour, inf->min, inf->sec));
+                printf("appointment: %02u:%02u:%02u pending\n",
+                       inf->hour, inf->min, inf->sec);
+#endif
                 func_cb.sta = FUNC_NEW_HEAT_SET;
             }
             break;
@@ -244,6 +296,10 @@ static void func_appointment_time_handle_keys(void)
                 inf->focus_col = FOCUS_HOUR;
                 appointment_update_display();
             } else {
+                /* 放弃预约 */
+#if FUNC_LUNCHBOX_UART_EN
+                new_ui_appointment_clear();
+#endif
                 /* 从模式页进入 → 回模式页；其他情况 → 回主页 */
                 func_cb.sta = (inf->prev_sta == FUNC_NEW_MODE)
                               ? FUNC_NEW_MODE : FUNC_HOME;
@@ -325,9 +381,18 @@ void func_appointment_time_enter(void)
     /* 记录进入前的页面状态，退出时根据它决定返回 */
     inf->prev_sta = func_cb.last;
 
+#if FUNC_LUNCHBOX_UART_EN
+    /* 拉一次预约列表: 新建预约要按已占用的 ID 分配空闲号 (lb_ui_schedule_alloc_id) */
+    lb_ui_schedules_refresh();
+#endif
+
     /* 先同步系统时间，再创建 form，滚轮初始值即为当前时间 */
     {
+#if FUNC_LUNCHBOX_UART_EN
+        tm_t tm = lb_get_display_tm();      /* 已同步则用权威时间, 否则退回 RTC */
+#else
         tm_t tm = rtc_clock_get();
+#endif
         inf->hour = tm.hour;
         inf->min  = tm.min;
     }

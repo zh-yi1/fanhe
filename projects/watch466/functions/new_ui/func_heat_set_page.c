@@ -159,7 +159,35 @@ static void func_heat_set_page_handle_keys(void)
                 inf->mode = MODE_TIME;
                 heat_set_update_display();
             } else {
-                /* 时间选好 → 跳到加热页 */
+                /* 时间也选好了。页面选的是华氏度, 协议要档位, 用
+                 * lunchbox_temp_f_to_idx 换算。两条路:
+                 *   从预约时间页过来 → 下发预约(0x03), 回首页
+                 *   直接进来的       → 立即加热(0x01), 进加热页
+                 * 都是发完就跳(不等应答), 模块真没启动会由 lb_ui_route_poll 拉回首页 */
+#if FUNC_LUNCHBOX_UART_EN
+                u8  temp_idx = lunchbox_temp_f_to_idx(TEMP_VALUES[inf->temp_index]);
+                u32 appoint_ts;
+
+                if (new_ui_appointment_take(&appoint_ts)) {
+                    u8 id = lb_ui_schedule_alloc_id();
+                    if (id == 0) {
+                        printf("heat_set: schedule full, appointment dropped\n");
+                    } else {
+                        /* enabled=1 开启, repeat=0 单次不重复; 名称页面没有输入项 */
+                        lb_heat_cmd_schedule_set(LB_MODE_CUSTOM, id, NULL, appoint_ts,
+                                                 temp_idx, inf->time_min, 1, 0);
+                        printf("heat_set: schedule id=%u %uF %umin at %lu\n",
+                               id, (unsigned)TEMP_VALUES[inf->temp_index],
+                               (unsigned)inf->time_min, (unsigned long)appoint_ts);
+                    }
+                    func_cb.sta = FUNC_HOME_PAGE;
+                    break;
+                }
+
+                lb_heat_cmd_start(LB_MODE_CUSTOM, temp_idx, inf->time_min);
+                printf("heat_set: start custom %uF %umin\n",
+                       (unsigned)TEMP_VALUES[inf->temp_index], (unsigned)inf->time_min);
+#endif
                 func_cb.sta = FUNC_NEW_HEAT_PAGE;
             }
             break;
@@ -401,6 +429,11 @@ void func_heat_set_page_enter(void)
 void func_heat_set_page_exit(void)
 {
     printf("%s\n", __func__);
+#if FUNC_LUNCHBOX_UART_EN
+    /* 离开本页时丢弃未使用的预约暂存 —— 确认路径已经 take() 掉了, 这里清的是
+     * "选了预约时间但没确认就退出/被抢页"的残留, 免得下次进来误当预约下发 */
+    new_ui_appointment_clear();
+#endif
     func_key_flush();
     general_status_bar_detach();
 }

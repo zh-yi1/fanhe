@@ -98,5 +98,41 @@ bool lb_uart_tx_is_blocked(void);
 bool lb_bridge_forward(u8 ble_cmd, u8 ble_msg_flag, u8 uart_cmd,
                        const u8 *data, u16 len);
 
+//-----------------------------------------------------------------------------
+// 开机 / 关机时序 (一发一等: 发一条 → 等模块应答 → 发下一条; 超时也推进)
+//
+// 开机: power_on(0x01 DP1=1) → 应答 → 查预约列表(0x02) → 结束
+//       上电后由 lunchbox_uart_process() 自动起, 无需外部调用。
+//
+// 关机: stop(0x01 DP10=0) → 应答 → power_off(0x01 DP1=0) → 应答 → 结束
+//       来源两种: 本机长按关机 / APP 下发关机。APP 来的每步应答都回 APP。
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief 当前是否禁止关机 —— 充电中 或 OTA 进行中
+ *
+ * 充电中禁止是硬要求: func_pwroff() 在 CHARGE_DC_IN() 时会 return 不断电,
+ * 若还让关机时序跑完并置 FUNC_PWROFF, 会陷入"反复进关机页又回来"的死循环。
+ */
+bool lunchbox_shutdown_blocked(void);
+
+/**
+ * @brief 启动关机时序 (重复调用无副作用)
+ *
+ * 被 lunchbox_shutdown_blocked() 拦下时不启动; from_app 会回一条执行失败应答。
+ * @param from_app  true=APP 下发的关机, 每步模块应答后回一条 BLE 应答
+ * @param app_flag  APP 请求的 msg_flag (from_app=false 时忽略)
+ */
+void lunchbox_shutdown_start(bool from_app, u8 app_flag);
+
+/** @brief 放弃关机, 状态机回 IDLE (时序跑完后才发现不能关机时用) */
+void lunchbox_shutdown_abort(void);
+
+/** @brief 关机时序进行中 */
+bool lunchbox_shutdown_is_active(void);
+
+/** @brief 关机时序已走完 (含超时收场), 可以真正断电 */
+bool lunchbox_shutdown_is_done(void);
+
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __LB_UART_APP_H
