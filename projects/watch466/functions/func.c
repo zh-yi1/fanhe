@@ -173,37 +173,79 @@ static void lb_wake_apply(void)
 
 /**
  * 盖盖上电确认 (开盖=整机断电, 盖盖=来电冷启动):
- * 开机后模块回的第一帧状态就带着加热 = 加热中开过盖又盖上 →
- * 主页弹"继续加热?"(func_confirm_page.c overlay): YES→加热页, NO→停加热留主页。
- * 这里只负责"发现加热 → 拉起 g_ui_sys.lid_open", 弹窗显示与结果处理在
- * func_home_page.c; 弹窗决策期间路由边沿由 lb_ui_route_apply() 取走丢弃。
+ * 上电先不亮屏(主页 form 建好但背光压着), 等模块回的第一帧状态判定后再亮 ——
+ * 首帧带着加热/保温 = 加热中开过盖又盖上 → **先停加热**, 亮出来就是
+ * 主页+"继续加热?"弹窗 (func_confirm_page.c overlay);
+ * 首帧没在加热 → 亮出来就是纯主页。不会出现"先见主页、后弹窗"的闪切。
+ * 弹窗结果 (func_home_page.c): YES → lb_lid_confirm_yes() 按暂存数据续跑跳页
+ * (保温→保温页, 加热→重发 start+加热页); NO → 已经停了, 留在主界面。
+ * 弹窗决策期间路由边沿由 lb_ui_route_apply() 取走丢弃。
  * 深睡唤醒不重启、statics 不清零, 所以本检查每次冷启动只跑一轮,
  * 深睡醒来不会再弹 (深睡唤醒不是盖盖)。
  */
+static bool lb_boot_gate;               /* 首帧已判定, 允许主页开背光 */
+static u8   lb_lid_mode;                /* 弹窗暂存: 开盖前的模式/温度/时长 */
+static u8   lb_lid_temp;
+static u32  lb_lid_min;
+
+bool lb_boot_display_gate_open(void)
+{
+    return lb_boot_gate;
+}
+
+/** 盖盖弹窗选 YES: 按开盖前暂存的数据续跑并跳页 (弹窗入口已把模块停了) */
+void lb_lid_confirm_yes(void)
+{
+    if (lb_lid_mode == LB_MODE_WARM) {
+        /* 保温页 enter 见模块没在保温, 会自动重发 194F/24h */
+        func_cb.sta = FUNC_NEW_WARM_PAGE;
+    } else if (lb_lid_mode != LB_MODE_OFF) {
+        lb_heat_cmd_start(lb_lid_mode, lb_lid_temp, lb_lid_min);
+        func_cb.sta = FUNC_NEW_HEAT_PAGE;
+    }
+}
+
 static void lb_boot_lid_check(void)
 {
+    static u32  boot_tick;
     static bool boot_checked;
 
     if (boot_checked) {
         return;
     }
+    if (boot_tick == 0) {
+        boot_tick = tick_get() | 1;     /* 首轮记起点 (0 是"未起"哨兵) */
+        return;
+    }
     /* 锚定"模块第一帧状态到达": 镜像冷启动全零, 首个 0x01 帧必有字段变化
-     * (至少 DP1=1), seq 从 0 起跳。不用时间窗 —— 开机几秒后预约到点新起的
-     * 加热不该弹窗(该直接路由去加热页), 只有首帧就带着加热才是"加热中开过盖" */
-    if (lb_ui_state_get()->seq == 0) {
-        return;                         /* 模块还没回过状态 */
+     * (至少 DP1=1), seq 从 0 起跳。不用时间窗判加热 —— 开机几秒后预约到点
+     * 新起的加热不该弹窗(直接路由去加热页), 首帧就带着才是"加热中开过盖" */
+    lb_ui_state_t *st = lb_ui_state_get();
+    if (st->seq == 0) {
+        /* 模块还没回状态: 最多黑屏等 3s, 模块不在/不答时也得亮屏 */
+        if (tick_check_expire(boot_tick, 3000)) {
+            boot_checked = true;
+            lb_boot_gate  = true;
+            tft_bglight_force_on();
+        }
+        return;
     }
     boot_checked = true;
-    if (!lunchbox_heating_task_active()) {
-        return;                         /* 首帧没在加热 → 正常开机 */
-    }
     /* 黑屏充电页不弹(form 不在主页); 低电不弹(与主页 lid_open 弹窗规则一致),
      * 跳过时边沿不丢, 路由自然带去加热页 */
-    if ((func_cb.sta == FUNC_HOME || func_cb.sta == FUNC_HOME_PAGE)
+    if (lunchbox_heating_task_active()
+        && (func_cb.sta == FUNC_HOME || func_cb.sta == FUNC_HOME_PAGE)
         && !sys_cb.flag_swithing && !g_ui_sys.lowbat) {
-        printf("boot: module heating -> lid confirm popup\n");
+        lb_lid_mode = st->heat_mode;
+        lb_lid_temp = st->heat_temp;
+        lb_lid_min  = st->remain_time ? st->remain_time : st->heat_duration;
+        printf("boot: module heat/warm (mode=%u) -> stop + lid confirm popup\n",
+               lb_lid_mode);
+        lb_heat_cmd_stop();             /* 开过盖: 先停, YES 再续跑 */
         g_ui_sys.lid_open = true;       /* 主页 process 见此标志弹窗 */
     }
+    lb_boot_gate = true;
+    tft_bglight_force_on();             /* 判定完亮屏: 纯主页 或 主页+弹窗 */
 }
 
 static void lb_shutdown_seq_apply(void)
