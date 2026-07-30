@@ -40,6 +40,7 @@ typedef struct
     u32 charge_tick_ms;
     u8  charge_frame;
     bool last_charging;
+    bool last_full_charge;
     u8  last_bat_level;
 } f_black_screen_t;
 
@@ -60,10 +61,11 @@ compo_form_t *func_black_screen_page_form_create(void)
     compo_picturebox_set_pos(inf->pic_bat, BLACK_SCREEN_BAT_X, BLACK_SCREEN_BAT_Y);
     compo_picturebox_set_size(inf->pic_bat, NEW_HOME_BAT_W, NEW_HOME_BAT_H);
 
-    inf->charge_tick_ms = 0;
-    inf->charge_frame   = 0;
-    inf->last_charging  = false;
-    inf->last_bat_level = 0xff; /* 强制首次刷新 */
+    inf->charge_tick_ms  = 0;
+    inf->charge_frame    = 0;
+    inf->last_charging   = false;
+    inf->last_full_charge= false;
+    inf->last_bat_level  = 0xff; /* 强制首次刷新 */
 
     tft_bglight_force_on();
     return frm;
@@ -122,34 +124,46 @@ static void func_black_screen_page_process(void)
     /* 4. 电池图标更新 */
     if (inf->pic_bat != NULL)
     {
-        if (g_ui_sys.charging)
+        if (g_ui_sys.charging && !g_ui_sys.full_charge)
         {
-            /* 充电中 → 跑马灯动画 */
+            /* 充电中（未满） → 跑马灯动画 */
             if (tick_check_expire(inf->charge_tick_ms, 500))
             {
                 inf->charge_tick_ms = tick_get();
                 compo_picturebox_set(inf->pic_bat, g_bs_charge_icons[inf->charge_frame]);
                 inf->charge_frame = (inf->charge_frame + 1) & 0x03;
             }
-
-            if (inf->last_charging != true)
+            inf->last_bat_level    = 0xff; /* 强制退出充电后刷新 */
+            inf->last_full_charge  = false;
+        }
+        /* 充满电（充电中充满）→ 静态显示 CHARGING_4 */
+        else if (g_ui_sys.charging && g_ui_sys.full_charge)
+        {
+            if (inf->last_full_charge != true || inf->last_charging != true)
             {
-                inf->last_charging = true;
-                inf->charge_tick_ms = tick_get();
-                inf->charge_frame   = 0;
+                inf->last_charging    = true;
+                inf->last_full_charge = true;
+                inf->last_bat_level   = 0xff;
+                inf->charge_tick_ms   = 0;
+                inf->charge_frame     = 0;
+                compo_picturebox_set(inf->pic_bat, g_bs_charge_icons[3]);
             }
         }
-        else
+        /* 充满/非充电态：显示静态电量档位 */
+        else if (g_ui_sys.bat_level != inf->last_bat_level
+                 || g_ui_sys.full_charge != inf->last_full_charge
+                 || g_ui_sys.charging != inf->last_charging)
         {
-            /* 未充电 → 静态电量图标 */
-            u8 level = g_ui_sys.bat_level;
-            if (level > 4) level = 4;
+            inf->last_bat_level    = g_ui_sys.bat_level;
+            inf->last_full_charge  = g_ui_sys.full_charge;
+            inf->last_charging     = g_ui_sys.charging;
+            inf->charge_tick_ms    = 0;
+            inf->charge_frame      = 0;
 
-            if (inf->last_charging != false || inf->last_bat_level != level)
+            if (g_ui_sys.bat_level < 5)
             {
-                inf->last_charging  = false;
-                inf->last_bat_level = level;
-                compo_picturebox_set(inf->pic_bat, g_bs_bat_icons[level]);
+                compo_picturebox_set(inf->pic_bat,
+                                     g_bs_bat_icons[g_ui_sys.bat_level]);
             }
         }
     }
