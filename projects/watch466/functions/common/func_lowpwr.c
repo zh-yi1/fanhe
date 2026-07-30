@@ -1299,9 +1299,23 @@ bool sleep_process(is_sleep_func is_sleep)
     }
 #endif
 #if ELUNCHBOX_PANEL_EN
-    /* 饭盒：独立 idle 计时到 0 即息屏 */
+    /* 饭盒：5min 无操作 = 自动关机 (config.h: ELUNCHBOX_GUIOFF_TIME_SEC)。
+     * 与长按 TCH5 完全同一条路: 停加热 → 关模块 → 未充电深睡 / 充电中黑屏页。
+     * 不走"息屏→30s→bt_is_allow_sleep→深睡"的旧机制 —— 那条路会被模块心跳
+     * 反复吵醒、还被 BT 状态卡住, 实测睡不下去; 长按关机这条已验证。
+     * 加热/OTA 中 idle_expired 恒 false (elunchbox_lp.c 挡掉并喂满计时);
+     * 黑屏充电页本身就是"关机+充电"态, 不重复触发。 */
     if (elunchbox_guioff_idle_expired()) {
+#if FUNC_LUNCHBOX_UART_EN
+        if (!lunchbox_shutdown_is_active() && !lunchbox_shutdown_is_done()
+            && func_cb.sta != FUNC_BLACK_SCREEN) {
+            printf("elunchbox: idle %us -> auto shutdown\n",
+                   (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
+            lunchbox_shutdown_start(false, 0);
+        }
+#else
         elunchbox_screen_off();
+#endif
         return false;
     }
     /* 已息屏但加热进行中：自动亮回 */

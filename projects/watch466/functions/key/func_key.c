@@ -221,16 +221,18 @@ void func_key_poll(void)
         if (press_tch == PT8028_KEY_TCH0 || press_tch == PT8028_KEY_TCH5) {
             return;
         }
-        /* 其他键：吞掉 + 提示 */
-        if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
+        /* 其他键：吞掉 + 提示。任何键都算用户活动 ——
+         * 原条件排除了 TCH4(确认) 和 TCH7(预约, 被 <=TCH6 漏掉), 导致
+         * 用这两个键操作时 5 分钟自动关机照样倒数, 表现为"定时不准" */
+        if (press_tch <= PT8028_KEY_TCH7) {
             elunchbox_user_activity_reset();
         }
         func_key_lock_on_blocked_key(press_tch);
         return;
     }
 
-    /* 8. 非确认键重置用户活动计时器 */
-    if (press_tch <= PT8028_KEY_TCH6 && press_tch != PT8028_KEY_TCH4) {
+    /* 8. 任何键重置用户活动计时器 (原来排除确认/预约键, 见第 7 步注释) */
+    if (press_tch <= PT8028_KEY_TCH7) {
         elunchbox_user_activity_reset();
     }
 
