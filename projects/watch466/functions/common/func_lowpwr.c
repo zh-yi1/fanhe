@@ -804,11 +804,14 @@ static void sfunc_sleep(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    /* 关 BT scan。
-     * - manual_off: 第二次进时 scan 已被恢复 → bt_sleep_proc 不睡 → 强睡绕过 → 10mA。
-     * - auto guioff: BT 硬件仍靠 PLL0 → 不关则后面关 PLL0 时总线挂死 → RTC_WDT 复位。
-     *   两个路径都必须关。*/
-    bt_scan_disable();
+    /* manual_off: 强制关 BT scan。
+     * 第一次上电时 scan 未开启所以 bt_scan_disable 生效 → bt_sleep_proc 可睡。
+     * 唤醒亮屏后 scan 被 bt_update_bt_scan_param_default 恢复 → 第二次进
+     * manual_off 时 bt_get_scan()=true → 上面只调参不关 scan → bt_sleep_proc
+     * 不睡 → 10mA。此处强制关掉。 */
+    if (elunchbox_manual_off_slp) {
+        bt_scan_disable();
+    }
 #endif
     printf("slp: C (bt param/scan done)\n");
 
@@ -844,12 +847,6 @@ static void sfunc_sleep(void)
 #endif
 
     printf("slp: D (dac/adc/charge done, dac_was=%u)\n", dac_status);
-#if FUNC_LUNCHBOX_UART_EN
-    /* 关 UART1 (TX=PB8 RX=PB9): 关机时序刚用它发过指令,
-     * 留着 RX 还会收中断、可能依赖 PLL0 时钟 → 后面关 PLL0 时挂死。 */
-    lunchbox_uart_suspend();
-    printf("slp: D0 (uart1 off)\n");
-#endif
     usbcon0 = USBCON0;                          //需要先关中断再保存
     usbcon1 = USBCON1;
     USBCON0 = BIT(5);
@@ -881,15 +878,17 @@ static void sfunc_sleep(void)
     printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     printf("slp: E2 (adda clk sel)\n");
-    /* 等 BLE 射频事件完成再关 PLL0。
-     * bt_is_sleep() 只查软件状态, 硬件可能还在 TX → 关 PLL0 时
-     * 射频失时钟 → 总线挂死 → RTC_WDT 复位。最小等 50ms,
-     * 足够一个 BLE advertising event (interval 500ms) 完成。
-     * 测试: 0ms 第一次上电 OK, WDT 复位后再来就挂, 说明纯竞态。 */
-    delay_5ms(10);  /* 50ms — 足够 BLE TX 完成, 又远小于 lowpower 分支的 2s */
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     printf("slp: E3 (pll0 off)\n");
     PLL1CON0 &= ~0x03;                          //disable pll1
+#if FUNC_LUNCHBOX_UART_EN
+    /* UART1 移到 PLL0 关闭之后。
+     * lowpower 分支已验证: UART1 开着过 PLL0 disable 不挂总线;
+     * 先关 UART1 再关 PLL0 反会挂死 (UART1CON=0 后 UART IP 总线接口
+     * 残留在半关态, PLL0 掉钟时触发 AHB hang → RTC_WDT 复位)。 */
+    lunchbox_uart_suspend();
+    printf("slp: D0 (uart1 off)\n");
+#endif
     printf("slp: E (before rtc_sleep_enter)\n");
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_manual_off_slp) {
