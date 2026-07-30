@@ -31,6 +31,7 @@
  *    - 未锁：按下哪个键亮哪个灯，松开全灭
  *    - 童锁中：锁键灯(LED5)常亮；其它键按下时仍可亮对应灯，且锁灯不灭
  *    - 有待执行预约：预约灯(LED4)常亮；预约到点开始执行 → 灭
+ *    - 加热中(模式1~4)：加热灯(LED6)常亮；任务结束 → 灭。保温不算
  * ============================================================================
  */
 
@@ -68,6 +69,21 @@ static bool led_last_res;   /* 预约灯常亮态跟踪 */
  *   - 加热使能 0→1 时通信层会自动重查列表 (lb_ui_state_feed_dp), 单次预约被
  *     模块消费后从列表消失 → pending 变假, 灯也会灭
  */
+static bool led_last_heat;  /* 加热灯常亮态跟踪 */
+
+/* 加热灯该不该常亮：模块在加热 (模式1~4, 含预约到点执行)。保温(5)不算 */
+static bool led_heat_active(void)
+{
+#if FUNC_LUNCHBOX_UART_EN
+    lb_ui_state_t *st = lb_ui_state_get();
+
+    return st->valid && st->heat_enable
+        && st->heat_mode >= LB_MODE_CUSTOM && st->heat_mode <= LB_MODE_RESERVE;
+#else
+    return false;
+#endif
+}
+
 static bool led_res_pending(void)
 {
 #if FUNC_LUNCHBOX_UART_EN
@@ -149,7 +165,8 @@ static void func_led_show_tch(u8 tch)
 
 /*
  * 每帧调用 — 读取 PT8028 当前按下的 TCH，点亮对应 LED。
- * 童锁激活时 LED5 常亮；有待执行预约时 LED4 常亮；松开其它键时常亮灯不灭。
+ * 童锁激活时 LED5 常亮；有待执行预约时 LED4 常亮；加热中 LED6 常亮；
+ * 松开其它键时常亮灯不灭。
  * 主线程调用，勿放中断（GPIO 操作可能干扰 LCD 刷新）。
  */
 void func_led_scan(void)
@@ -157,13 +174,16 @@ void func_led_scan(void)
     u8 tch = pt8028_get_led_tch();
     bool locked = func_key_lock_is_active();
     bool res = led_res_pending();
+    bool heat = led_heat_active();
 
-    if (tch == led_last_tch && locked == led_last_locked && res == led_last_res) {
+    if (tch == led_last_tch && locked == led_last_locked
+        && res == led_last_res && heat == led_last_heat) {
         return;                         /* 同态，跳过 */
     }
     led_last_tch = tch;
     led_last_locked = locked;
     led_last_res = res;
+    led_last_heat = heat;
 
     if (tch <= PT8028_KEY_TCH7) {
         func_led_show_tch(tch);         /* 按下 → 亮对应灯 */
@@ -179,6 +199,9 @@ void func_led_scan(void)
 
     if (res) {
         func_led_set(FUNC_LED_ID_RES, true);      /* 预约灯常亮, 盖在最后 */
+    }
+    if (heat) {
+        func_led_set(FUNC_LED_ID_HEAT, true);     /* 加热灯常亮, 同上 */
     }
 }
 
