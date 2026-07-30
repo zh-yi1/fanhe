@@ -845,6 +845,7 @@ static void sfunc_sleep(void)
     usbcon1 = USBCON1;
     USBCON0 = BIT(5);
     USBCON1 = 0;
+    printf("slp: D1 (usb off)\n");
 #if SD_SUPPORT_EN
     SD0_LDO_DIS();
 #endif
@@ -853,6 +854,7 @@ static void sfunc_sleep(void)
     if (!elunchbox_guioff_slp) {
         gui_sleep(true);
     }
+    printf("slp: D2 (gui_sleep/sd done)\n");
 
 #if MODEM_CAT1_EN
     bsp_modem_sleep_enter();
@@ -863,7 +865,9 @@ static void sfunc_sleep(void)
 #endif
 
     sysclk = sys_clk_get();
+    printf("slp: D3 (sysclk=%u -> 24M)\n", (unsigned)sysclk);
     sys_clk_set(SYS_24M);
+    printf("slp: D4 (clk switched)\n");
     DACDIGCON0 &= ~BIT(0);                      //disable digital dac
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
