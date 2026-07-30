@@ -280,13 +280,19 @@ void func_process(void)
     func_led_scan();
 #endif
 
-    /* ======== 空闲到期 → 关屏 ======== */
-#if ELUNCHBOX_PANEL_EN
+    /* ======== 空闲到期 ======== */
+#if ELUNCHBOX_PANEL_EN && !FUNC_LUNCHBOX_UART_EN
+    /* 无串口功能: 维持旧行为, 空闲只息屏 */
     if (!guioff && elunchbox_guioff_idle_expired()) {
         elunchbox_screen_off();
         guioff = true;
     }
 #endif
+    /* FUNC_LUNCHBOX_UART_EN=1 时空闲处理只在 sleep_process (func_lowpwr.c):
+     * 5min 无操作 = 自动关机走关机时序 → manual_off 深睡。
+     * 这里原来有一份"到期即息屏"(合并带入), 每轮跑在 sleep_process 之前,
+     * 把机器抢进 auto-guioff 深睡 —— 那条路不关 RTC WDT, 睡下即被 RTC_WDT
+     * 硬复位重启, 表现为"定时进低功耗后自己起来跑、功耗不对"。已删。 */
 
     /* ======== 息屏路径 ======== */
 #if ELUNCHBOX_PANEL_EN
