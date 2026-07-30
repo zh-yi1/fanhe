@@ -30,6 +30,7 @@
 #include "lb_heat_cmd.h"    // 时间同步/模式预设 下发加热模块
 #include "lb_ota.h"         // 主MCU OTA (target=0x01)
 #include "lb_uart_heat.h"   // 加热模块 OTA (target=0x02)
+#include "lb_ui_state.h"    // lb_ui_heat_stop_expected(): APP 主动停止不进保温
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -649,6 +650,26 @@ static bool lb_ble_control_is_power_off(lb_rx_frame_t *rx)
     return false;
 }
 
+/** @brief 0x04 控制帧里是否带 DP10=0 (APP 主动停止加热) */
+static bool lb_ble_control_has_heat_stop(lb_rx_frame_t *rx)
+{
+    u16 off = 0;
+
+    while (rx->data && off + 4 <= rx->data_len) {
+        u8  dpid    = rx->data[off];
+        u16 val_len = ((u16)rx->data[off + 2] << 8) | rx->data[off + 3];
+
+        if (off + 4 + val_len > rx->data_len) {
+            break;
+        }
+        if (dpid == LB_DPID_HEAT_ENABLE && val_len >= 1 && rx->data[off + 4] == 0) {
+            return true;
+        }
+        off += 4 + val_len;
+    }
+    return false;
+}
+
 /**
  * @brief 命令分发 — 每个命令一个 case, 业务处理逐个填充
  *
@@ -672,6 +693,9 @@ static void lb_ble_dispatch(lb_rx_frame_t *rx)
             printf("BLE: power off from APP\n");
             lunchbox_shutdown_start(true, rx->msg_flag);
             break;
+        }
+        if (lb_ble_control_has_heat_stop(rx)) {
+            lb_ui_heat_stop_expected();     // APP 主动停止: 回首页, 不进保温
         }
         lb_ble_on_forward(rx);
         break;

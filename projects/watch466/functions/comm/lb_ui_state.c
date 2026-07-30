@@ -322,6 +322,15 @@ bool lb_ui_schedules_feed_entry(const u8 *data, u16 len)
 // 自动跳页路由
 //-----------------------------------------------------------------------------
 
+// 本机/APP 主动发过停止命令 → 接下来的"加热中→停止"是人停的, 不进保温。
+// 不能用 DP6 剩余时间区分: 实测模块被动停止时也会把 Remain 清 0。
+static bool lb_heat_stop_expected;
+
+void lb_ui_heat_stop_expected(void)
+{
+    lb_heat_stop_expected = true;
+}
+
 lb_ui_route_t lb_ui_route_poll(void)
 {
     static bool inited;
@@ -339,11 +348,13 @@ lb_ui_route_t lb_ui_route_poll(void)
     }
     bool first = !inited;
     u8 prev_enable = last_enable;
+    u8 prev_mode   = last_mode;
     inited = true;
     last_mode = st->heat_mode;
     last_enable = st->heat_enable;
 
     if (st->heat_enable) {
+        lb_heat_stop_expected = false;       // 新任务开始, 旧的停止标志作废
         if (st->heat_mode == LB_MODE_WARM) {
             return LB_UI_ROUTE_WARM;         // 保温进行中
         }
@@ -354,7 +365,14 @@ lb_ui_route_t lb_ui_route_poll(void)
     }
 
     if (!first && prev_enable) {
-        return LB_UI_ROUTE_HOME;             // 加热/保温 → 停止, 回首页
+        bool expected = lb_heat_stop_expected;
+        lb_heat_stop_expected = false;
+        // 加热(1~4)自然结束(没人发过停止) → 进保温;
+        // 保温页 enter 看到模块没在保温, 会自动下发保温命令
+        if (!expected && prev_mode >= LB_MODE_CUSTOM && prev_mode <= LB_MODE_RESERVE) {
+            return LB_UI_ROUTE_WARM;
+        }
+        return LB_UI_ROUTE_HOME;             // 主动停止 / 保温结束, 回首页
     }
     return LB_UI_ROUTE_NONE;                 // 一直是停止态 (含首次上报即空闲)
 }

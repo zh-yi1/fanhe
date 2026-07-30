@@ -6,6 +6,7 @@
 #include "lb_proto.h"
 #include "lb_uart_app.h"
 #include "lb_heat_cmd.h"
+#include "lb_ui_state.h"    // lb_ui_heat_stop_expected(): 主动停止不进保温
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -49,6 +50,8 @@ bool lb_heat_cmd_stop(void)
     u8 data[16];
     u8 *p = data;
 
+    lb_ui_heat_stop_expected();         // 主动停止: 路由回首页, 不进保温
+
     p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 0);
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
     return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data));
@@ -57,7 +60,11 @@ bool lb_heat_cmd_stop(void)
 bool lb_heat_cmd_heat_off(void)
 {
     u8 data[8];
-    u16 len = lb_dp_encode_bool(data, LB_DPID_HEAT_ENABLE, 0);
+    u16 len;
+
+    lb_ui_heat_stop_expected();         // 关机时序的停止同样是主动停止
+
+    len = lb_dp_encode_bool(data, LB_DPID_HEAT_ENABLE, 0);
     return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, len);
 }
 
