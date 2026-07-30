@@ -90,10 +90,37 @@ void func_elunchbox_res_key_poll(void)
  * lb_ui_route_poll() 是边沿触发且内部状态只能被消费一次, 全工程只准这里调。
  * 覆盖的场景: APP 远程启停加热、预约到点模块自己开始加热、加热结束。
  * 其余字段(电量/温度/剩余时间)变化不在这里管, 由各页面按 seq 自行刷新。
- *
- * TODO: 关机时序(lunchbox_shutdown_*)的对接暂缺 —— 低功耗模块还在改,
- *       APP 下发关机目前只会把命令发给加热模块, 本机不会跟着关。
  */
+/**
+ * 关机时序走完 → 主板真断电
+ *
+ * 落地方式与长按 TCH5 3s 完全一致 (func_key.c: manual_off 超低功耗深睡,
+ * 仅 PE1+PB9 唤醒), 不走 FUNC_PWROFF —— 那条路在充电时 func_pwroff() 会
+ * return 不断电, 会陷入反复进关机页。
+ *
+ * 时序期间用户插上了充电线的情况: 这里再查一次 blocked, 命中就放弃断电。
+ * 加热模块那边已经关了, 本机留着不关 —— 插线状态下本来就不该断电。
+ */
+static void lb_shutdown_seq_apply(void)
+{
+    if (!lunchbox_shutdown_done_take()) {       /* 边沿只取一次, 取走即回 IDLE */
+        return;
+    }
+    if (lunchbox_shutdown_blocked()) {
+        printf("seq: power down skipped (blocked at the last moment)\n");
+        return;
+    }
+#if ELUNCHBOX_PANEL_EN
+    printf("seq: power down -> manual_off deep sleep\n");
+    elunchbox_pwr_manual_off_set();
+    elunchbox_screen_off();
+    elunchbox_guioff_sleep_arm_immediate();     /* 不等 30s 空闲倒计时, 立刻允许深睡 */
+#else
+    printf("seq: power down -> FUNC_PWROFF (no elunchbox panel)\n");
+    func_cb.sta = FUNC_PWROFF;
+#endif
+}
+
 static void lb_ui_route_apply(void)
 {
     /* 关机时序进行中: 不抢页 */
@@ -205,6 +232,7 @@ void func_process(void)
     lunchbox_uart_process();
 
     lb_ui_sync_pull();                  /* 串口状态镜像 → g_ui_sys, 须在刷 UI 之前 */
+    lb_shutdown_seq_apply();            /* 关机时序走完 → 主板断电 */
     lb_ui_route_apply();                /* 模块状态变化 → 强制切页 */
 #endif
 

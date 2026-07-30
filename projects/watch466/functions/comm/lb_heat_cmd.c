@@ -54,6 +54,13 @@ bool lb_heat_cmd_stop(void)
     return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data));
 }
 
+bool lb_heat_cmd_heat_off(void)
+{
+    u8 data[8];
+    u16 len = lb_dp_encode_bool(data, LB_DPID_HEAT_ENABLE, 0);
+    return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, len);
+}
+
 bool lb_heat_cmd_power(bool on)
 {
     u8 data[8];

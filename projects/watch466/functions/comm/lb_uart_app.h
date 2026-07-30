@@ -131,8 +131,16 @@ void lunchbox_shutdown_abort(void);
 /** @brief 关机时序进行中 */
 bool lunchbox_shutdown_is_active(void);
 
-/** @brief 关机时序已走完 (含超时收场), 可以真正断电 */
+/** @brief 关机时序已走完 (含超时收场), 可以真正断电; 只读, 不消费边沿 */
 bool lunchbox_shutdown_is_done(void);
+
+/**
+ * @brief 取走"可以断电"边沿 —— 返回 true 后立刻回 IDLE, 只能取一次
+ *
+ * 唯一调用点是 func.c 的 lb_shutdown_seq_apply(), 别在别处调:
+ * 取走了别人就看不到了, 会漏掉断电。
+ */
+bool lunchbox_shutdown_done_take(void);
 
 #endif // FUNC_LUNCHBOX_UART_EN
 #endif // __LB_UART_APP_H

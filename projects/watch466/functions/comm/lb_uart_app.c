@@ -396,7 +396,7 @@ typedef enum {
     LB_SEQ_BOOT_POWER,      // 已发 power_on, 等应答
     LB_SEQ_OFF_STOP,        // 已发 stop, 等应答
     LB_SEQ_OFF_POWER,       // 已发 power_off, 等应答
-    LB_SEQ_OFF_DONE,        // 关机时序结束 (终态, 不再变)
+    LB_SEQ_OFF_DONE,        // 关机时序结束, 等 func.c 取走边沿去真断电 (取走后回 IDLE)
 } lb_seq_state_t;
 
 static struct {
@@ -406,6 +406,20 @@ static struct {
     bool from_app;          // 关机是 APP 下发的
     u8   app_flag;          // APP 请求的 msg_flag
 } lb_seq;
+
+/** @brief 状态名, 只给日志用 */
+static const char *lb_seq_state_str(void)
+{
+    switch (lb_seq.state) {
+    case LB_SEQ_IDLE:       return "IDLE";
+    case LB_SEQ_BOOT_WAIT:  return "BOOT_WAIT";
+    case LB_SEQ_BOOT_POWER: return "BOOT_POWER";
+    case LB_SEQ_OFF_STOP:   return "OFF_STOP";
+    case LB_SEQ_OFF_POWER:  return "OFF_POWER";
+    case LB_SEQ_OFF_DONE:   return "OFF_DONE";
+    }
+    return "?";
+}
 
 /** @brief APP 下发的关机: 每步模块应答后回一条 BLE 应答 (0x04 控制) */
 static void lb_seq_reply_app(u8 err)
@@ -423,14 +437,14 @@ static void lb_seq_send_power_off(void)
     lb_seq.flag  = lb_heat_cmd_last_flag();
     lb_seq.tick  = tick_get();
     lb_seq.state = LB_SEQ_OFF_POWER;
-    printf("seq: power_off sent\n");
+    printf("seq: power_off sent (DP1=0, flag=%02X), wait ack\n", lb_seq.flag);
 }
 
 /** @brief 关机时序收场 */
 static void lb_seq_shutdown_finish(void)
 {
     lb_seq.state = LB_SEQ_OFF_DONE;
-    printf("seq: shutdown sequence done\n");
+    printf("seq: shutdown sequence done -> OFF_DONE, wait func.c to power down\n");
 }
 
 bool lunchbox_shutdown_blocked(void)
@@ -467,9 +481,14 @@ void lunchbox_shutdown_abort(void)
 
 void lunchbox_shutdown_start(bool from_app, u8 app_flag)
 {
+    printf("seq: shutdown request (from_app=%u), state=%s\n",
+           from_app, lb_seq_state_str());
+
     if (lb_seq.state == LB_SEQ_OFF_STOP || lb_seq.state == LB_SEQ_OFF_POWER
         || lb_seq.state == LB_SEQ_OFF_DONE) {
-        return;                         // 已在关机流程里
+        // 已在关机流程里 / 已收场。OFF_DONE 卡住时这里会吃掉所有后续关机请求。
+        printf("seq: shutdown ignored (already in %s)\n", lb_seq_state_str());
+        return;
     }
     if (lunchbox_shutdown_blocked()) {
         if (from_app) {
@@ -480,11 +499,13 @@ void lunchbox_shutdown_start(bool from_app, u8 app_flag)
     lb_seq.from_app = from_app;
     lb_seq.app_flag = app_flag;
 
-    lb_heat_cmd_stop();                 // 第一步: 停止加热
+    // 第一步: 只关加热使能。不能用 lb_heat_cmd_stop() —— 它带 DP1=1,
+    // 会在下一帧断电前把总开关又打开一下。
+    lb_heat_cmd_heat_off();
     lb_seq.flag  = lb_heat_cmd_last_flag();
     lb_seq.tick  = tick_get();
     lb_seq.state = LB_SEQ_OFF_STOP;
-    printf("seq: shutdown start (from_app=%u), stop sent\n", from_app);
+    printf("seq: stop sent (DP10=0, flag=%02X), wait ack\n", lb_seq.flag);
 }
 
 bool lunchbox_shutdown_is_active(void)
@@ -497,6 +518,18 @@ bool lunchbox_shutdown_is_done(void)
     return lb_seq.state == LB_SEQ_OFF_DONE;
 }
 
+bool lunchbox_shutdown_done_take(void)
+{
+    if (lb_seq.state != LB_SEQ_OFF_DONE) {
+        return false;
+    }
+    // 边沿只能取一次: 立刻回 IDLE。不回 IDLE 的话 OFF_DONE 会卡死,
+    // 后续所有关机请求都被 lunchbox_shutdown_start() 的早退分支吃掉。
+    lb_seq.state = LB_SEQ_IDLE;
+    printf("seq: shutdown done taken -> IDLE\n");
+    return true;
+}
+
 /**
  * @brief 串口 0x01 帧到达 → 推进时序 (lb_uart_on_frame 调用)
  * @return true=该帧是时序在等的应答, 已消化
@@ -504,6 +537,12 @@ bool lunchbox_shutdown_is_done(void)
 static bool lb_seq_on_frame(lb_rx_frame_t *rx)
 {
     if (rx->cmd != LB_UART_CMD_DYNAMIC || rx->msg_flag != lb_seq.flag) {
+        // 正在等某一步的应答, 却来了对不上号的帧。等待窗口只有 500ms, 不会刷屏
+        if (lb_seq.state == LB_SEQ_BOOT_POWER || lb_seq.state == LB_SEQ_OFF_STOP
+            || lb_seq.state == LB_SEQ_OFF_POWER) {
+            printf("seq: [%s] not the ack (got cmd=%02X flag=%02X, want cmd=01 flag=%02X)\n",
+                   lb_seq_state_str(), rx->cmd, rx->msg_flag, lb_seq.flag);
+        }
         return false;
     }
 
@@ -541,7 +580,7 @@ static void lb_seq_poll(void)
             lb_seq.flag  = lb_heat_cmd_last_flag();
             lb_seq.tick  = tick_get();
             lb_seq.state = LB_SEQ_BOOT_POWER;
-            printf("seq: boot power_on sent\n");
+            printf("seq: boot power_on sent (DP1=1, flag=%02X), wait ack\n", lb_seq.flag);
         }
         break;
 

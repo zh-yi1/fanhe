@@ -26,8 +26,16 @@
  */
 bool lb_heat_cmd_start(u8 mode, u8 temp_idx, u32 duration_min);
 
-/** @brief 停止加热/保温 (0x01: 加热使能=0) */
+/**
+ * @brief 停止加热/保温, 机器保持开机 (0x01: DP10=0 + DP1=1)
+ *
+ * 带 DP1=1 是为了"停加热但不关机"的场景(退出加热页)。
+ * 关机时序第一步不能用这个 —— 会在断电前把总开关又打开一下, 用 lb_heat_cmd_heat_off()。
+ */
 bool lb_heat_cmd_stop(void);
+
+/** @brief 只关加热使能 (0x01: DP10=0), 不碰总开关; 关机时序第一步用 */
+bool lb_heat_cmd_heat_off(void);
 
 /** @brief 总开关 (0x01: PowerSwitch); 只发命令, 屏幕电源时序由调用方处理 */
 bool lb_heat_cmd_power(bool on);
