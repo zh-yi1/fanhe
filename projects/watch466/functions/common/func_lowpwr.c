@@ -840,7 +840,7 @@ static void sfunc_sleep(void)
 #endif
 #endif
 
-    printf("slp: D (dac/adc/charge done)\n");
+    printf("slp: D (dac/adc/charge done, dac_was=%u)\n", dac_status);
     usbcon0 = USBCON0;                          //需要先关中断再保存
     usbcon1 = USBCON1;
     USBCON0 = BIT(5);
@@ -869,8 +869,11 @@ static void sfunc_sleep(void)
     sys_clk_set(SYS_24M);
     printf("slp: D4 (clk switched)\n");
     DACDIGCON0 &= ~BIT(0);                      //disable digital dac
+    printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
+    printf("slp: E2 (adda clk sel)\n");
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
+    printf("slp: E3 (pll0 off)\n");
     PLL1CON0 &= ~0x03;                          //disable pll1
     printf("slp: E (before rtc_sleep_enter)\n");
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
