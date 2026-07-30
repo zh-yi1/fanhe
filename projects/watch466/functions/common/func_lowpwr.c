@@ -878,20 +878,19 @@ static void sfunc_sleep(void)
     printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     printf("slp: E2 (adda clk sel)\n");
-    /* 关 PLL0 前推进 BT 睡眠状态机。lowpower 分支的 ~2s UART 握手
-     * (bt_enter_sleep 之前) 确保 BT 控制器处于活跃→空闲的干净过渡,
-     * bt_sleep_proc 可快速收敛到 status=1。debug 分支握手外置,
-     * bt_enter_sleep 时 BT 可能停在中间态, 直接关 PLL0 会挂死 AHB。
-     * 这里调用 bt_sleep_proc 提前推进, 等 BT 栈准备好再关 PLL0。 */
+    /* lowpower 兼容: 外部关机后模块已关, 这里不发 UART 命令,
+     * 但保持 lunchbox_uart_process + delay_5ms(5) 的轮询节奏
+     * 共 2000ms, 匹配 lowpower 分支 sfunc_sleep 内 UART 握手的
+     * 隐式延时(HeatEnable=0 ACK ~1s + PowerSwitch=OFF ACK ~1s)。
+     * 没有这段活跃轮询则 PLL0 关断会挂死 AHB。 */
     {
-        int bt_ready = 0;
-        for (int i = 0; i < 40; i++) {          /* max 40*5ms=200ms */
-            if (bt_sleep_proc() == 1) { bt_ready = 1; break; }
-            delay_5ms(1);
+        int warmup;
+        for (warmup = 0; warmup < 400; warmup++) {  /* 400*5ms=2000ms */
+            lunchbox_uart_process();
+            delay_5ms(5);
+            WDT_CLR();
         }
-        if (!bt_ready) {
-            printf("slp: E2.5 bt_sleep_proc timeout\n");
-        }
+        printf("slp: E2.5 (warmup done %d ms)\n", warmup * 5);
     }
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     PLL1CON0 &= ~0x03;                          //disable pll1
