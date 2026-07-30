@@ -1,7 +1,7 @@
 #include "include.h"
 #include "func_tbl.h"
 #include "func.h"
-#include "new_ui/ui.h"
+#include "new_ui/app_ui.h"
 #if ELUNCHBOX_PANEL_EN
 #include "lowpower/elunchbox_lp.h"
 #include "func_key_lock.h"
@@ -83,6 +83,58 @@ void func_elunchbox_res_key_poll(void)
 }
 #endif
 
+#if FUNC_LUNCHBOX_UART_EN
+/**
+ * @brief 加热模块状态变化 → 强制切页 (唯一调用点)
+ *
+ * lb_ui_route_poll() 是边沿触发且内部状态只能被消费一次, 全工程只准这里调。
+ * 覆盖的场景: APP 远程启停加热、预约到点模块自己开始加热、加热结束。
+ * 其余字段(电量/温度/剩余时间)变化不在这里管, 由各页面按 seq 自行刷新。
+ *
+ * TODO: 关机时序(lunchbox_shutdown_*)的对接暂缺 —— 低功耗模块还在改,
+ *       APP 下发关机目前只会把命令发给加热模块, 本机不会跟着关。
+ */
+static void lb_ui_route_apply(void)
+{
+    /* 关机时序进行中: 不抢页 */
+    if (lunchbox_shutdown_is_active()) {
+        return;
+    }
+
+    /* 切换动画进行中 / OTA 进行中: 不抢页, 也不消费边沿, 下一轮再来 */
+    if (sys_cb.flag_swithing || lb_ota_is_active()) {
+        return;
+    }
+
+    switch (lb_ui_route_poll()) {
+    case LB_UI_ROUTE_HEAT:
+        if (func_cb.sta != FUNC_NEW_HEAT_PAGE) {
+            printf("route: module heating -> heat page\n");
+            func_cb.sta = FUNC_NEW_HEAT_PAGE;
+        }
+        break;
+
+    case LB_UI_ROUTE_WARM:
+        if (func_cb.sta != FUNC_NEW_WARM_PAGE) {
+            printf("route: module keep-warm -> warm page\n");
+            func_cb.sta = FUNC_NEW_WARM_PAGE;
+        }
+        break;
+
+    case LB_UI_ROUTE_HOME:
+        /* 只把加热/保温页拉回首页, 用户正在别的页面时不打扰 */
+        if (func_cb.sta == FUNC_NEW_HEAT_PAGE || func_cb.sta == FUNC_NEW_WARM_PAGE) {
+            printf("route: module stopped -> home\n");
+            func_cb.sta = FUNC_HOME_PAGE;
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+#endif // FUNC_LUNCHBOX_UART_EN
+
 AT(.text.func.process)
 void func_process(void)
 {
@@ -146,6 +198,16 @@ void func_process(void)
         tft_bglight_frist_set_check();
     }
 
+#if FUNC_LUNCHBOX_UART_EN
+    /* 加热模块串口: 取字节 → 拼帧 → lb_uart_on_frame 分发。
+     * 内部还驱动: 桥接应答超时重试 / 预约列表同步 / 开机关机时序 / 加热模块 OTA。
+     * 息屏(guioff)时照常跑 —— 模块的心跳要回、预约到点要收。 */
+    lunchbox_uart_process();
+
+    lb_ui_sync_pull();                  /* 串口状态镜像 → g_ui_sys, 须在刷 UI 之前 */
+    lb_ui_route_apply();                /* 模块状态变化 → 强制切页 */
+#endif
+
     /* GUI 更新 (不休眠时才更新) */
     if (!guioff && !sys_cb.flag_halt) {
 #if ELUNCHBOX_PANEL_EN
@@ -204,7 +266,16 @@ void func_process(void)
     if (bt_cb.bt_is_inited) {
         bt_thread_check_trigger();
 #if LE_EN
+#if FUNC_LUNCHBOX_UART_EN
+        /* 饭盒协议接收/分发在 functions/comm/lb_ble_app.c,
+         * 不走 ble_app_process() → ble_app_watch_process() 那条老链路 */
+        lunchbox_ble_process();
+#else
         ble_app_process();
+#endif
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+        lb_ota_process();               /* 主MCU OTA 状态机 */
 #endif
     }
 
