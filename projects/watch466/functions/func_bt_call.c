@@ -1,8 +1,6 @@
 #include "include.h"
 #include "func.h"
 #include "func_bt.h"
-#include "lowpower/lowpwr.h"
-extern lowpwr_t g_lowpwr;
 
 enum {
     COMPO_ID_TXT_NUMBER = 0xff,     //避免id被覆盖
@@ -257,7 +255,7 @@ static void func_bt_call_message(size_msg_t msg)
         break;
 
     case MSG_SYS_500MS:
-        LPWR_DELAY_INIT_ALL(&g_lowpwr);                    //来电不休眠
+        reset_sleep_delay_all();                    //来电不休眠
         break;
 
     case MSG_CTP_SHORT_LEFT:

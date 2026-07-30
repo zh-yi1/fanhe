@@ -252,8 +252,4 @@ void func_elunchbox_res_key_poll(void);
 #include "lowpower/elunchbox_lp.h"
 #endif
 
-/* 低功耗模块全局实例 */
-#include "lowpower/lowpwr.h"
-extern lowpwr_t g_lowpwr;
-
 #endif // _FUNC_H

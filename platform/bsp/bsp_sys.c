@@ -1,6 +1,4 @@
 #include "include.h"
-#include "lowpower/lowpwr.h"
-extern lowpwr_t g_lowpwr;
 
 #define TRACE_EN                0
 
@@ -336,7 +334,7 @@ void usr_tmr5ms_isr(void)
             ude_tmr_isr();
         }
 #endif // UDE_HID_EN
-        lowpwr_tick(&g_lowpwr);
+        lowpwr_tout_ticks();
         if (sys_cb.lpwr_cnt > 0) {
             sys_cb.lpwr_cnt++;
         }
@@ -651,8 +649,11 @@ static void bsp_var_init(void)
 #if ELUNCHBOX_KEEP_AWAKE
     sys_cb.sleep_en = 0;
     sys_cb.sleep_delay = -1L;
-    sys_cb.guioff_delay = -1L;
     sys_cb.pwroff_delay = -1L;
+#if ELUNCHBOX_PANEL_EN
+    sys_cb.sleep_time = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
+    sys_cb.guioff_delay = sys_cb.sleep_time;
+#endif
 #endif
 }
 
@@ -777,7 +778,7 @@ void rtc_pwd_calibration(void)
             cm_sync();
             rtc_printf();
         }
-        lowpwr_pwrdown(&g_lowpwr, 1);
+        sfunc_pwrdown(1);
         return;
     }
     //RTCCON9 = 0xfff;                                                    //Clr pending
@@ -865,11 +866,13 @@ void bsp_sys_init(void)
     sys_set_tmr_enable(1, 1);
 
 #if ELUNCHBOX_PANEL_EN
-    /* 饭盒：跳过 BT/DAC/mic 等可能阻塞项，尽快点亮 LCD */
+    /* 饭盒：跳过 DAC/mic 等可能阻塞项，尽快点亮 LCD */
     lang_select(sys_cb.lang_id);
     bsp_sys_mute();
     gui_init();
     customer_heap_init();
+    bt_init();
+    func_bt_init();  //饭盒：启动 BLE 广播（bt_init 仅初始化变量，func_bt_init→bsp_bt_init→bt_setup 才真正启动模块）
     return;
 #endif
 

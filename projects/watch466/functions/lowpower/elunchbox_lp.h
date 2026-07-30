@@ -11,6 +11,10 @@
  *   → sleep_delay 30s → guioff_sleep_ready → 深睡
  *
  * 唤醒: PE1/PF1/PF2 port_wakeup / 充电 / 预约加热
+ *
+ * manual_off 模式:
+ *   用户长按电源键 → 仅保留 PE1+PB9 唤醒源 → 超低功耗深度休眠
+ *   Buck→LDO / VDDTK 关闭进一步省电
  * ============================================================ */
 
 /* --- 状态查询 --- */
@@ -34,4 +38,41 @@ void elunchbox_pwr_gui_wake(void);          /* 亮屏唤醒 */
 void lunchbox_display_off(void);
 void lunchbox_display_on(void);
 
-#endif /* __ELUNCHBOX_LP_H */
+/* ============================================================
+ * manual_off 深度休眠管理
+ * ============================================================ */
+
+/* --- manual_off 状态 --- */
+bool elunchbox_pwr_is_manual_off(void);
+void elunchbox_pwr_manual_off_set(void);
+void elunchbox_pwr_manual_off_clr(void);
+
+/* --- 唤醒控制 --- */
+void elunchbox_pwr_intentional_wake_set(bool v);
+bool elunchbox_pwr_manual_off_gui_wake_ok(void);
+
+/* --- 唤醒 pending (PE1 software edge detect) --- */
+void elunchbox_manual_off_sleep_poll(void);
+bool elunchbox_manual_wake_pending_peek(void);
+void elunchbox_manual_wake_pending_take(void);
+
+/* --- guioff 深睡服务 --- */
+bool elunchbox_guioff_in_sleep_mode(void);
+void elunchbox_guioff_sleep_mode_enter(void);
+void elunchbox_guioff_sleep_service(void);
+void elunchbox_guioff_sleep_post_wake(bool wkp);
+
+/* --- 亮屏 --- */
+void elunchbox_pwr_gui_wake_reason(const char *reason);
+
+/* --- 加热/空闲判断 --- */
+bool elunchbox_heating_blocks_idle(void);
+bool elunchbox_pwr_manual_off_should_stay_awake(void);
+
+/* --- UART TX block --- */
+void lb_uart_tx_block(bool block);
+
+/* --- pwroff_sent 重置 --- */
+void elunchbox_pwroff_sent_reset(void);
+
+#endif /* __ELUNCHBOX_LP_H__ */
