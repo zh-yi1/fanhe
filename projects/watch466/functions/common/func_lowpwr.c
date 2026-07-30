@@ -800,12 +800,11 @@ static void sfunc_sleep(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    /* manual_off: 强制关 BT scan。
-     * 第二次进 manual_off 时 scan 已被 bt_update_bt_scan_param_default 恢复
-     * → bt_sleep_proc 不睡 → 强睡绕过 → 10mA。此处强制关掉。 */
-    if (elunchbox_manual_off_slp) {
-        bt_scan_disable();
-    }
+    /* 关 BT scan。
+     * - manual_off: 第二次进时 scan 已被恢复 → bt_sleep_proc 不睡 → 强睡绕过 → 10mA。
+     * - auto guioff: BT 硬件仍靠 PLL0 → 不关则后面关 PLL0 时总线挂死 → RTC_WDT 复位。
+     *   两个路径都必须关。*/
+    bt_scan_disable();
 #endif
     printf("slp: C (bt param/scan done)\n");
 
