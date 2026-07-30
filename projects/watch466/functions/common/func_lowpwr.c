@@ -878,11 +878,17 @@ static void sfunc_sleep(void)
     printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     printf("slp: E2 (adda clk sel)\n");
-    /* PLL0/PLL1 不在此处手动关断。实测 bt_enter_sleep 后立即关 PLL0
-     * 会导致 AHB 总线挂死 → RTC_WDT 复位。让 rtc_sleep_enter →
-     * sys_enter_sleep 硬件序列去关 PLL, 省掉这段手动关断。
-     * 唤醒端 adpll_init() 会重新使能 PLL0, 不受影响。 */
-    printf("slp: E3 (pll0 off skipped)\n");
+    /* 关全局中断后关 PLL0/PLL1。
+     * lowpower 分支的 ~2s UART 握手在 bt_enter_sleep 前确保了 BT 控制器
+     * 处于干净空闲态, 其时钟树内没有待处理操作。debug 分支握手外置,
+     * BT 控制器可能在关 PLL0 瞬间仍有 pending 中断 → ISR 访问 BT 寄存器
+     * (依赖 PLL0 时钟) → AHB 挂死 → RTC_WDT 复位。
+     * 关中断窗口仅两条寄存器写, 不会丢 SysTick/co_timer 事件。*/
+    __disable_irq();
+    PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
+    PLL1CON0 &= ~0x03;                          //disable pll1
+    __enable_irq();
+    printf("slp: E3 (pll0 off)\n");
 #if FUNC_LUNCHBOX_UART_EN
     /* 关 UART1, 释放 PB8/PB9 回 GPIO, 以便下面 rtc_sleep_enter 后
      * GPIO 配置段自由设置引脚状态 (digital + pull)。*/
