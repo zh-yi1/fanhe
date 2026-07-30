@@ -123,10 +123,24 @@ static void lb_shutdown_seq_apply(void)
 
 static void lb_ui_route_apply(void)
 {
-    /* 关机时序进行中: 不抢页 */
+    /* 关机时序进行中: 不抢页, 也不消费边沿 —— 万一最后一刻被 blocked 拦下没关机,
+     * "模块停了→回首页"这个跳页还是该生效的。 */
     if (lunchbox_shutdown_is_active()) {
         return;
     }
+
+#if ELUNCHBOX_PANEL_EN
+    /* 已进 manual_off (关机落地了): 不切页, 边沿取走丢弃。
+     *
+     * 必须丢弃: 关机时序第一步发的停止加热会让模块上报 HeatEn=OFF, 产生一个
+     * "模块停了→回首页"边沿。这个边沿在 is_active() 期间被挂着, 断电那一刻
+     * 状态回 IDLE, 下一句就把它放出来 —— 于是在关屏/存 keep_ram/gpu_exit 的
+     * 同时重建首页 form 和锁屏浮层, 醒来渲染失效控件 → resource halt C245。 */
+    if (elunchbox_pwr_is_manual_off()) {
+        (void)lb_ui_route_poll();
+        return;
+    }
+#endif
 
     /* 切换动画进行中 / OTA 进行中: 不抢页, 也不消费边沿, 下一轮再来 */
     if (sys_cb.flag_swithing || lb_ota_is_active()) {
