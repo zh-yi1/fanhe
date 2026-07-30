@@ -174,6 +174,7 @@ enum {
     FUNC_HOME_PAGE,                     //新UI主页
     FUNC_APPOINTMENT_TIME,              //预约时间页
     FUNC_LOWBAT,                        //低电量页
+    FUNC_BLACK_SCREEN,                  //黑屏充电页
     FUNC_MAX_NUM,           //用于计数
 
 };

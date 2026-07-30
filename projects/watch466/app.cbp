@@ -1317,6 +1317,9 @@
 		<Unit filename="functions/new_ui/func_verInfo_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_ui/func_black_screen_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/new_ui/func_warm_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
