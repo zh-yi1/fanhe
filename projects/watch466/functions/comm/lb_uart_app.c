@@ -447,15 +447,10 @@ static void lb_seq_shutdown_finish(void)
     printf("seq: shutdown sequence done -> OFF_DONE, wait func.c to power down\n");
 }
 
-bool lunchbox_shutdown_blocked(void)
+bool lunchbox_charging_now(void)
 {
-    if (lb_ota_is_active()) {
-        printf("seq: shutdown blocked (OTA in progress)\n");
-        return true;
-    }
 #if CHARGE_EN
     if (CHARGE_DC_IN()) {               // 主 MCU 侧检测到 DC 插入
-        printf("seq: shutdown blocked (charging, DC in)\n");
         return true;
     }
 #endif
@@ -463,9 +458,19 @@ bool lunchbox_shutdown_blocked(void)
     {
         lb_ui_state_t *st = lb_ui_state_get();
         if (st->valid && (st->charge == 1 || st->charge == 2)) {
-            printf("seq: shutdown blocked (charging, DP4=%u)\n", st->charge);
             return true;
         }
+    }
+    return false;
+}
+
+bool lunchbox_shutdown_blocked(void)
+{
+    // 只拦 OTA。充电不再拦: 时序照跑(停加热+关模块), 只是落地点变成
+    // 黑屏充电页而不是深睡 —— 见 func.c lb_shutdown_seq_apply()。
+    if (lb_ota_is_active()) {
+        printf("seq: shutdown blocked (OTA in progress)\n");
+        return true;
     }
     return false;
 }
@@ -516,6 +521,23 @@ bool lunchbox_shutdown_is_active(void)
 bool lunchbox_shutdown_is_done(void)
 {
     return lb_seq.state == LB_SEQ_OFF_DONE;
+}
+
+void lunchbox_boot_seq_cancel(void)
+{
+    if (lb_seq.state == LB_SEQ_BOOT_WAIT) {
+        lb_seq.state = LB_SEQ_IDLE;
+        printf("seq: boot power_on canceled\n");
+    }
+}
+
+void lunchbox_boot_seq_kick(void)
+{
+    if (lb_seq.state == LB_SEQ_IDLE) {
+        lb_seq.state = LB_SEQ_BOOT_WAIT;
+        lb_seq.tick  = tick_get();
+        printf("seq: boot power_on kicked\n");
+    }
 }
 
 bool lunchbox_shutdown_done_take(void)

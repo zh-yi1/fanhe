@@ -42,6 +42,7 @@ typedef struct
     bool last_charging;
     bool last_full_charge;
     u8  last_bat_level;
+    u32 unplug_tick;        /* 拔线去抖计时 (0=在充电) */
 } f_black_screen_t;
 
 compo_form_t *func_black_screen_page_form_create(void)
@@ -84,8 +85,10 @@ static void func_black_screen_page_handle_keys(void)
 
         switch (key)
         {
-        case FUNC_KEY_BACK:
-        case FUNC_KEY_CONFIRM:
+        case FUNC_KEY_BACK:     /* 开关键(TCH5)短按 = 开机 → 主界面; 其他键一律无效 */
+#if FUNC_LUNCHBOX_UART_EN
+            lunchbox_boot_seq_kick();   /* 模块是关着的: 补跑 power_on + 查预约 */
+#endif
             func_cb.sta = FUNC_HOME;
             break;
 
@@ -120,6 +123,21 @@ static void func_black_screen_page_process(void)
     }
 
     func_process();
+
+#if FUNC_LUNCHBOX_UART_EN
+    /* 本页语义是"关机+充电", 模块已经关了, 与真关机唯一区别是还收串口状态。
+     * 拔线(去抖 2s)即真关机: 重走一遍关机时序 (对已关的模块重发 stop/power_off
+     * 无害, 不应答则各 500ms 超时推进), 时序完成后 func.c 落深睡。 */
+    if (lunchbox_charging_now()) {
+        inf->unplug_tick = 0;
+    } else if (inf->unplug_tick == 0) {
+        inf->unplug_tick = tick_get();
+    } else if (tick_check_expire(inf->unplug_tick, 2000)) {
+        inf->unplug_tick = 0;
+        printf("black_screen: unplugged -> shutdown\n");
+        lunchbox_shutdown_start(false, 0);  /* 重复调用无副作用 */
+    }
+#endif
 
     /* 4. 电池图标更新 */
     if (inf->pic_bat != NULL)

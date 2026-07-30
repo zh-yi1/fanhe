@@ -140,8 +140,8 @@ static void func_key_handle_pwr_long(u8 held_tch)
             pwr_lp_fired = true;
 #if FUNC_LUNCHBOX_UART_EN
             /* 先跑关机时序: 停加热 → 等应答 → 关模块 → 等应答, 走完由
-             * func.c 的 lb_shutdown_seq_apply() 进 manual_off 深睡 (约 1s 内)。
-             * 充电中/OTA 中会被 lunchbox_shutdown_blocked() 拦下, 不关机。 */
+             * func.c 的 lb_shutdown_seq_apply() 落地: 未充电 → manual_off 深睡;
+             * 充电中 → 黑屏充电页 (不深睡, 只收串口状态)。OTA 中拦下不关机。 */
             printf("func_key: TCH5 3s -> shutdown sequence\n");
             lunchbox_shutdown_start(false, 0);
 #else

@@ -106,8 +106,15 @@ static void lb_shutdown_seq_apply(void)
     if (!lunchbox_shutdown_done_take()) {       /* 边沿只取一次, 取走即回 IDLE */
         return;
     }
-    if (lunchbox_shutdown_blocked()) {
-        printf("seq: power down skipped (blocked at the last moment)\n");
+    /* 时序已跑完: 加热停了、模块关了。落地按充电状态分流 ——
+     * 充电中 → 黑屏充电页: 与真关机唯一的区别是主板不深睡, 还收串口状态
+     *           (模块充电时仍上报 DP4), 屏上跑充电动画。拔线后页内自会真关机。
+     * 未充电 → manual_off 深睡 (真关机)。 */
+    if (lunchbox_charging_now()) {
+        if (func_cb.sta != FUNC_BLACK_SCREEN && !sys_cb.flag_swithing) {
+            printf("seq: shutdown done, charging -> black screen charge page\n");
+            func_cb.sta = FUNC_BLACK_SCREEN;
+        }
         return;
     }
 #if ELUNCHBOX_PANEL_EN
@@ -126,6 +133,12 @@ static void lb_ui_route_apply(void)
     /* 关机时序进行中: 不抢页, 也不消费边沿 —— 万一最后一刻被 blocked 拦下没关机,
      * "模块停了→回首页"这个跳页还是该生效的。 */
     if (lunchbox_shutdown_is_active()) {
+        return;
+    }
+
+    /* 黑屏充电页: 只处理串口数据和开机键, 不被跳页拽走。
+     * 边沿不消费 —— APP 这时远程开了加热, 用户按开机键回主界面后立刻路由到加热页 */
+    if (func_cb.sta == FUNC_BLACK_SCREEN) {
         return;
     }
 
@@ -886,6 +899,19 @@ void func_run(void)
     func_cb.sort_cnt = 1;
     func_cb.flag_sort = false;
     func_cb.sta = FUNC_HOME;
+#if ELUNCHBOX_PANEL_EN && CHARGE_EN
+    /* 开机就插着充电线 → 进黑屏充电页, 不进主界面 (按开机键才进)。
+     * 覆盖"关机(深睡)中插线": 模块上电发串口 → PB9 唤醒 → WKUP 全量重启到这。
+     * 同时撤销上电自动 power_on —— 黑屏页语义是"关机+充电", 模块保持关,
+     * 按开机键时再 lunchbox_boot_seq_kick() 补跑。 */
+    if (CHARGE_DC_IN()) {
+        printf("func_run: DC in at boot -> black screen charge page\n");
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_boot_seq_cancel();
+#endif
+        func_cb.sta = FUNC_BLACK_SCREEN;
+    }
+#endif
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
 

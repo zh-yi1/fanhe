@@ -108,13 +108,22 @@ bool lb_bridge_forward(u8 ble_cmd, u8 ble_msg_flag, u8 uart_cmd,
 //       来源两种: 本机长按关机 / APP 下发关机。APP 来的每步应答都回 APP。
 //-----------------------------------------------------------------------------
 
+/** @brief 当前是否在充电 —— 主 MCU 检测到 DC 插入 或 模块 DP4 报充电/充满 */
+bool lunchbox_charging_now(void);
+
 /**
- * @brief 当前是否禁止关机 —— 充电中 或 OTA 进行中
+ * @brief 当前是否禁止关机 —— 仅 OTA 进行中
  *
- * 充电中禁止是硬要求: func_pwroff() 在 CHARGE_DC_IN() 时会 return 不断电,
- * 若还让关机时序跑完并置 FUNC_PWROFF, 会陷入"反复进关机页又回来"的死循环。
+ * 充电不拦: 关机时序照跑(停加热+关模块), 落地点由 func.c 按充电状态分流,
+ * 充电中 → 黑屏充电页(本机不深睡, 只收串口状态), 未充电 → manual_off 深睡。
  */
 bool lunchbox_shutdown_blocked(void);
+
+/** @brief 撤销上电自动开机时序 (开机即进黑屏充电页时用, 模块保持关) */
+void lunchbox_boot_seq_cancel(void);
+
+/** @brief 补跑开机时序: power_on → 查预约列表 (黑屏充电页按开机键时用) */
+void lunchbox_boot_seq_kick(void);
 
 /**
  * @brief 启动关机时序 (重复调用无副作用)
