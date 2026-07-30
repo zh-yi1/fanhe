@@ -7,6 +7,7 @@
 #include "lb_uart_app.h"
 #include "lb_heat_cmd.h"
 #include "lb_ui_state.h"    // lb_ui_heat_stop_expected(): 主动停止不进保温
+#include "lb_bridge.h"      // lb_get_unix_time(): 状态查询帧带时间戳
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -90,6 +91,13 @@ bool lb_heat_cmd_time_sync(u32 unix_ts)
     p += lb_dp_encode_value(p, LB_DPID_TIME_SYNC, unix_ts);
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
     return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data));
+}
+
+bool lb_heat_cmd_status_query(void)
+{
+    u8 data[8];
+    u16 len = lb_dp_encode_value(data, LB_DPID_TIME_SYNC, lb_get_unix_time());
+    return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, len);
 }
 
 bool lb_heat_cmd_mode_preset(u8 mode, u8 temp_idx, u32 duration_min)

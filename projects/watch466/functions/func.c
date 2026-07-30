@@ -106,14 +106,16 @@ void func_elunchbox_res_key_poll(void)
  *
  * 闩锁在深睡循环里置入 (func_lowpwr.c):
  *   KEY  = TCH5 长按 2s → 补跑开机时序(模块还关着), 进主界面
- *   UART = 任何串口指令 → 开 3s 观察窗, 主循环里正常收帧后判醒因:
- *          充电 → 黑屏充电页; 加热 → 路由边沿自然带去加热页;
+ *   UART = 任何串口指令 → 主动发状态查询读模块数据, 开 3s 观察窗等应答:
+ *          充电 → 黑屏充电页; 加热 → 加热页;
  *          都不是 → 留在原页, 5min 无操作自动关机兜底
- * (曾在睡眠循环里偷听判帧, 实测收帧不完整, 改为醒来后在主循环里判)
+ * (唤醒那一帧常因 UART 起得慢收残, 不能靠它判醒因, 所以醒来后主动查;
+ *  曾在睡眠循环里偷听判帧, 实测收帧不完整, 已废弃)
  */
 static void lb_wake_apply(void)
 {
     static u32 wake_watch_tick;         /* UART 唤醒观察窗起点, 0=没开 */
+    static u32 wake_query_tick;         /* 上次发状态查询的时刻 (窗内重发用) */
 
     if (sys_cb.flag_swithing) {
         return;                         /* 切页动画中不消费, 下一轮再取 */
@@ -129,8 +131,10 @@ static void lb_wake_apply(void)
         break;
 
     case LB_WAKE_UART:
-        printf("wake: uart, watch for charge/heat\n");
+        printf("wake: uart, query module status\n");
+        lb_heat_cmd_status_query();
         wake_watch_tick = tick_get();
+        wake_query_tick = wake_watch_tick;
         break;
 
     default:
@@ -141,7 +145,7 @@ static void lb_wake_apply(void)
         return;
     }
     if (tick_check_expire(wake_watch_tick, 3000)) {
-        wake_watch_tick = 0;            /* 窗口过了还没等到充电/加热帧, 不动 */
+        wake_watch_tick = 0;            /* 窗口过了还没等到充电/加热应答, 不动 */
         printf("wake: uart watch timeout, stay\n");
         return;
     }
@@ -154,8 +158,16 @@ static void lb_wake_apply(void)
         return;
     }
     if (lunchbox_heating_task_active()) {
-        wake_watch_tick = 0;            /* 加热帧已刷进镜像, 路由边沿会带去加热页 */
-        printf("wake: module heating, route will follow\n");
+        wake_watch_tick = 0;
+        printf("wake: module heating -> heat page\n");
+        if (func_cb.sta != FUNC_NEW_HEAT_PAGE) {
+            func_cb.sta = FUNC_NEW_HEAT_PAGE;
+        }
+        return;
+    }
+    if (tick_check_expire(wake_query_tick, 1000)) {
+        wake_query_tick = tick_get();   /* 1s 没等到判据: 查询可能丢了, 再查一把 */
+        lb_heat_cmd_status_query();
     }
 }
 
