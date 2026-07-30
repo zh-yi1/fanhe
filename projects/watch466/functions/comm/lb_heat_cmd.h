@@ -27,6 +27,14 @@
 bool lb_heat_cmd_start(u8 mode, u8 temp_idx, u32 duration_min);
 
 /**
+ * @brief 续跑加热 (0x01: 模式+总时长+剩余时长+温度+加热使能+开机)
+ *
+ * 盖盖弹窗选 YES 用: 与 start 的区别是总时长(DP5)/剩余时长(DP6)分开带,
+ * 让模块接着开盖前的进度跑, 而不是按总时长从头计时。
+ */
+bool lb_heat_cmd_resume(u8 mode, u8 temp_idx, u32 duration_min, u32 remain_min);
+
+/**
  * @brief 停止加热/保温, 机器保持开机 (0x01: DP10=0 + DP1=1)
  *
  * 带 DP1=1 是为了"停加热但不关机"的场景(退出加热页)。
