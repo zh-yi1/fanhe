@@ -189,6 +189,8 @@ static void func_warm_page_process(void)
             char buf[16];
             if (warm_min == 0) {
                 snprintf(buf, sizeof(buf), "0Min");
+            } else if (warm_min < 60) {
+                snprintf(buf, sizeof(buf), "%uMin", (unsigned)warm_min);
             } else if (warm_min % 60 == 0) {
                 snprintf(buf, sizeof(buf), "%uH", (unsigned)(warm_min / 60));
             } else {
