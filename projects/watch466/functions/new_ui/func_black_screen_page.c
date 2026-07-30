@@ -79,22 +79,11 @@ static void func_black_screen_page_handle_keys(void)
 {
     func_key_event_t evt;
 
+    /* 开机 = 开关键(TCH5)长按 3s, 在 func_key_handle_pwr_long 里统一处理
+     * (func_key_poll 内部)。短按/其他键一律无效, 这里只排空事件队列。 */
     while (func_key_get_event(&evt))
     {
-        func_key_logical_t key = func_key_map_logical(evt.tch);
-
-        switch (key)
-        {
-        case FUNC_KEY_BACK:     /* 开关键(TCH5)短按 = 开机 → 主界面; 其他键一律无效 */
-#if FUNC_LUNCHBOX_UART_EN
-            lunchbox_boot_seq_kick();   /* 模块是关着的: 补跑 power_on + 查预约 */
-#endif
-            func_cb.sta = FUNC_HOME;
-            break;
-
-        default:
-            break;
-        }
+        (void)evt;
     }
 }
 

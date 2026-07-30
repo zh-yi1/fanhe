@@ -136,9 +136,17 @@ static void func_key_handle_pwr_long(u8 held_tch)
                 func_key_lock_on_pwr_key_in_lock();
             }
         } else if (!pwr_lp_fired && tick_check_expire(pwr_lp_tick, 3000)) {
-            /* TCH5 长按 3s → 关机 */
+            /* TCH5 长按 3s → 关机 (黑屏充电页上则是开机) */
             pwr_lp_fired = true;
 #if FUNC_LUNCHBOX_UART_EN
+            if (func_cb.sta == FUNC_BLACK_SCREEN) {
+                /* 黑屏充电页 = "关机+充电"态: 长按 3s = 开机进主界面。
+                 * 模块还关着, 补跑开机时序 (power_on + 查预约)。 */
+                printf("func_key: TCH5 3s on black screen -> power on\n");
+                lunchbox_boot_seq_kick();
+                func_cb.sta = FUNC_HOME;
+                return;
+            }
             /* 先跑关机时序: 停加热 → 等应答 → 关模块 → 等应答, 走完由
              * func.c 的 lb_shutdown_seq_apply() 落地: 未充电 → manual_off 深睡;
              * 充电中 → 黑屏充电页 (不深睡, 只收串口状态)。OTA 中拦下不关机。 */
