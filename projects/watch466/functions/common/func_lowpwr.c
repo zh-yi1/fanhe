@@ -881,12 +881,10 @@ static void sfunc_sleep(void)
     printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     printf("slp: E2 (adda clk sel)\n");
-    /* 等 BLE 射频事件完成再关 PLL0。
-     * bt_is_sleep() 只查软件状态, 硬件可能还在 TX → 关 PLL0 时
-     * 射频失时钟 → 总线挂死 → RTC_WDT 复位。最小等 50ms,
-     * 足够一个 BLE advertising event (interval 500ms) 完成。
-     * 测试: 0ms 第一次上电 OK, WDT 复位后再来就挂, 说明纯竞态。 */
-    delay_5ms(10);  /* 50ms — 足够 BLE TX 完成, 又远小于 lowpower 分支的 2s */
+    /* 关 PLL0 前等 BT/BLE 硬件完全停摆。
+     * 50ms 不够 — 竞态关键窗口比预期长。匹配 lowpower 分支的隐式延时:
+     * 其 sfunc_sleep 内 UART 握手耗 ~2s, 这里用 1/4 即 500ms。 */
+    delay_5ms(100);  /* 500ms */
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     printf("slp: E3 (pll0 off)\n");
     PLL1CON0 &= ~0x03;                          //disable pll1
