@@ -245,6 +245,7 @@ void func_warm_page_enter(void)
     WDT_CLR();
 
     general_status_bar_attach(&inf->sb);
+    func_key_lock_on_heating_start(); /* 保温 30s 后自动童锁 (与加热页一致) */
 }
 
 void func_warm_page_exit(void)
@@ -263,6 +264,7 @@ void func_warm_page_exit(void)
         }
     }
 #endif
+    func_key_lock_on_heating_stop();
     func_key_flush();
     general_status_bar_detach();
 }

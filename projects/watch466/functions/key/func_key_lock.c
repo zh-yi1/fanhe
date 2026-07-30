@@ -320,6 +320,7 @@ static bool heating_active(void)
     if (heat_display_heating_active()) return true;
     if (func_cb.sta == FUNC_HEAT && func_heat_ui_is_heating()) return true;
     if (func_cb.sta == FUNC_NEW_HEAT_PAGE) return true;
+    if (func_cb.sta == FUNC_NEW_WARM_PAGE) return true;   /* 保温同样 30s 自动锁 */
     return false;
 }
 
