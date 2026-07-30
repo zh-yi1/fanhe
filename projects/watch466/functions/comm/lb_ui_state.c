@@ -67,6 +67,7 @@ bool lb_ui_state_feed_dp(const u8 *data, u16 len)
 
     bool changed = false;
     u16  off = 0;
+    u8   prev_enable = lb_ui_state.heat_enable;
 
     while (off + 4 <= len) {
         u8  dpid    = data[off];
@@ -118,6 +119,13 @@ bool lb_ui_state_feed_dp(const u8 *data, u16 len)
         }
 
         off += 4 + val_len;
+    }
+
+    // 加热使能 0→1: 若是预约到点, 模块侧已消费该条预约, 本地列表过期 → 自动重查。
+    // 不区分模式 (执行预约时 DP2 回 4 还是回预约里存的模式未实测), 手动加热也顺带
+    // 重查一次, 代价只是一条 0x02。预约灯的"到点熄灭"就靠这次重查兜底。
+    if (!prev_enable && lb_ui_state.heat_enable) {
+        lb_ui_schedules_mark_dirty();
     }
 
     lb_ui_state.tick = tick_get();
@@ -354,6 +362,22 @@ lb_ui_route_t lb_ui_route_poll(void)
 //-----------------------------------------------------------------------------
 // 状态查询快捷接口
 //-----------------------------------------------------------------------------
+
+bool lunchbox_reservation_pending(void)
+{
+    u8 i;
+
+    if (!lb_ui_schedules.valid) {
+        return false;
+    }
+    // 不要求 complete: 传输中按已收到的条目尽力判断, 收齐后自然修正
+    for (i = 0; i < lb_ui_schedules.count && i < LB_SCHEDULE_MAX; i++) {
+        if (lb_ui_schedules.list[i].enabled) {
+            return true;
+        }
+    }
+    return false;
+}
 
 bool lunchbox_heating_task_active(void)
 {

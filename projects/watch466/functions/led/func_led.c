@@ -9,6 +9,9 @@
 
 #include "bsp_pt8028_key.h"
 #include "func_key_lock.h"
+#if FUNC_LUNCHBOX_UART_EN
+#include "lb_ui_state.h"    /* 预约灯: lunchbox_reservation_pending() */
+#endif
 
 /*
  * ============================================================================
@@ -27,6 +30,7 @@
  *  行为：
  *    - 未锁：按下哪个键亮哪个灯，松开全灭
  *    - 童锁中：锁键灯(LED5)常亮；其它键按下时仍可亮对应灯，且锁灯不灭
+ *    - 有待执行预约：预约灯(LED4)常亮；预约到点开始执行 → 灭
  * ============================================================================
  */
 
@@ -54,6 +58,29 @@ static const u8 tbl_led_gpio[FUNC_LED_ID_CNT] = {
 
 static u8 led_last_tch;     /* 上次点亮的 TCH，去抖用。初始化为哨兵值避免与 PT8028_KEY_NONE(0xFF) 碰撞导致首帧跳过 */
 static bool led_last_locked;
+static bool led_last_res;   /* 预约灯常亮态跟踪 */
+
+/*
+ * 预约灯该不该常亮：列表镜像里有启用的预约, 且预约没在执行中。
+ *
+ * "执行中"两层判据互为兜底 (模块执行预约时 DP2 回 4 还是回预约存的模式未实测):
+ *   - DP2==预约(4) 且加热使能 → 直接判执行中, 灯灭
+ *   - 加热使能 0→1 时通信层会自动重查列表 (lb_ui_state_feed_dp), 单次预约被
+ *     模块消费后从列表消失 → pending 变假, 灯也会灭
+ */
+static bool led_res_pending(void)
+{
+#if FUNC_LUNCHBOX_UART_EN
+    lb_ui_state_t *st = lb_ui_state_get();
+
+    if (st->valid && st->heat_enable && st->heat_mode == LB_MODE_RESERVE) {
+        return false;                   /* 预约执行中 → 灯灭 */
+    }
+    return lunchbox_reservation_pending();
+#else
+    return false;
+#endif
+}
 
 /* ---- 底层 GPIO 操作 ---- */
 static void led_gpio_set(u8 gpio, bool on)
@@ -122,19 +149,21 @@ static void func_led_show_tch(u8 tch)
 
 /*
  * 每帧调用 — 读取 PT8028 当前按下的 TCH，点亮对应 LED。
- * 童锁激活时 LED5 常亮；松开其它键时也不灭锁灯。
+ * 童锁激活时 LED5 常亮；有待执行预约时 LED4 常亮；松开其它键时常亮灯不灭。
  * 主线程调用，勿放中断（GPIO 操作可能干扰 LCD 刷新）。
  */
 void func_led_scan(void)
 {
     u8 tch = pt8028_get_led_tch();
     bool locked = func_key_lock_is_active();
+    bool res = led_res_pending();
 
-    if (tch == led_last_tch && locked == led_last_locked) {
+    if (tch == led_last_tch && locked == led_last_locked && res == led_last_res) {
         return;                         /* 同态，跳过 */
     }
     led_last_tch = tch;
     led_last_locked = locked;
+    led_last_res = res;
 
     if (tch <= PT8028_KEY_TCH7) {
         func_led_show_tch(tch);         /* 按下 → 亮对应灯 */
@@ -146,6 +175,10 @@ void func_led_scan(void)
         func_led_set(FUNC_LED_ID_LOCK, true);
     } else {
         func_led_all_off();             /* 松开且未锁 → 全灭 */
+    }
+
+    if (res) {
+        func_led_set(FUNC_LED_ID_RES, true);      /* 预约灯常亮, 盖在最后 */
     }
 }
 

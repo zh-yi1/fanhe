@@ -187,6 +187,14 @@ lb_ui_route_t lb_ui_route_poll(void);
 /** @brief 是否有进行中的加热/保温任务 (禁止自动息屏用) */
 bool lunchbox_heating_task_active(void);
 
+/**
+ * @brief 是否有待执行的预约 (面板预约灯常亮用)
+ *
+ * 按列表镜像判断: 存在 enabled=1 的条目即为真。
+ * 预约到点执行/增删改后镜像会自动重查, 单次预约被模块消费掉后自然变假。
+ */
+bool lunchbox_reservation_pending(void);
+
 /** @brief 当前加热模式 (未同步时返回 0) */
 u8 lunchbox_get_heat_mode(void);
 
