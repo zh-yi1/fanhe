@@ -1,8 +1,6 @@
 #include "include.h"
 #include "func.h"
 #include "func_bt.h"
-#include "lowpower/lowpwr.h"
-extern lowpwr_t g_lowpwr;
 
 #define TRACE_EN    0
 
@@ -79,7 +77,7 @@ void func_bt_init(void)
 {
     if (!bt_cb.bt_is_inited) {
         msg_queue_clear();
-        LPWR_PWROFF_DELAY_KILL(&g_lowpwr);
+        reset_pwroff_delay();
         bsp_bt_init();
         bt_redial_init();
         bt_cb.bt_is_inited = 1;
@@ -518,7 +516,7 @@ void func_bt_process(void)
     func_process();
     func_bt_sub_process();
 
-    if(g_lowpwr.state->pwroff_delay == 0) {
+    if(sys_cb.pwroff_delay == 0) {
         func_cb.sta = FUNC_PWROFF;
         return;
     }
@@ -547,6 +545,7 @@ static void func_bt_message_do(size_msg_t msg)
         }
         break;
 
+#if (BT_ID3_TAG_EN || LE_AMS_CLIENT_EN)
     case EVT_ID3_TITLE_UPDATE:
         func_bt_music_title_refresh(f_bt->title_buf);
         break;
@@ -554,6 +553,7 @@ static void func_bt_message_do(size_msg_t msg)
     case EVT_ID3_ARTIST_UPDATE:
         func_bt_music_artist_refresh(f_bt->artist_buf);
         break;
+#endif
 
     default:
         func_message(msg);

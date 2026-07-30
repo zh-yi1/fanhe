@@ -477,11 +477,6 @@ bool func_heat_ui_is_heating(void)
     return false;
 }
 
-bool elunchbox_pwr_is_manual_off(void)
-{
-    return false;
-}
-
 void home_ui_shared_ble_status_poll(void)
 {
 }

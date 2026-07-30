@@ -32,33 +32,6 @@ void home_gpu_wait_idle(void)
 
 func_cb_t func_cb AT(.buf.func_cb);
 
-/* ============================================================
- * 低功耗模块全局实例
- * ============================================================ */
-#include "lowpower/lowpwr.h"
-extern void lock_code_pwrsave(void);
-extern void gui_sleep_psram_check(void);
-extern bool power_off_check(void);
-
-static lowpwr_state_t g_lowpwr_state;
-lowpwr_t g_lowpwr;
-
-static uint8_t _lpwr_get_ui_sta(void)     { return func_cb.sta; }
-static void    _lpwr_set_ui_sta(uint8_t s){ func_cb.sta = s; }
-static void    _lpwr_psram_check(void)    { gui_sleep_psram_check(); }
-
-static const lowpwr_app_t g_lowpwr_app = {
-    .is_allow_sleep       = bt_is_allow_sleep,
-    .get_ui_sta           = _lpwr_get_ui_sta,
-    .set_ui_sta           = _lpwr_set_ui_sta,
-    .on_pwroff_lock       = lock_code_pwrsave,
-    .power_off_check      = power_off_check,
-    .gui_sleep_psram_check = _lpwr_psram_check,
-    .on_wakeup_config     = sleep_wakeup_config,
-    .on_wakeup_exit       = sleep_wakeup_exit,
-    /* on_pwrdown_wake_prep: stub for ELUNCHBOX (not needed on manual_off path) */
-};
-
 #if ELUNCHBOX_PANEL_EN
 u8 func_res_allow_switch;
 #endif
@@ -154,8 +127,8 @@ void func_process(void)
     /* ======== 息屏路径 ======== */
 #if ELUNCHBOX_PANEL_EN
     if (guioff) {
-        /* 空闲处理: 深睡由 lowpwr_sleep_process 统一入口,
-         * 不在此阻塞, 唤醒后 lowpwr_sleep_process 返回 true */
+        /* 空闲处理: 深睡由 sleep_process 统一入口,
+         * 不在此阻塞, 唤醒后 sleep_process 返回 true */
         co_timer_pro(false);
         WDT_CLR();
     }
@@ -197,15 +170,21 @@ void func_process(void)
         mp3_res_process();
     }
 
-    if (lowpwr_sleep_process(&g_lowpwr)) {
+    if (sleep_process(bt_is_allow_sleep)) {
         bt_cb.disp_status = 0xff;
 #if ELUNCHBOX_PANEL_EN
-        /* 深睡唤醒后恢复 elunchbox 状态: CLKGAT0 / guioff flag / sleep delay */
         if (elunchbox_pwr_gui_off_is_on()) {
             elunchbox_pwr_gui_wake();
         }
 #endif
     }
+#if ELUNCHBOX_PANEL_EN
+    /* guioff 唤醒: gui_wakeup → lunchbox_display_on 顺序保证不花屏 */
+    if (sys_cb.gui_sleep_sta && !elunchbox_pwr_gui_off_is_on()) {
+        gui_wakeup();
+        lunchbox_display_on();
+    }
+#endif
 
 #if VBAT_DETECT_EN
     bsp_vbat_lpwr_process();
@@ -778,12 +757,13 @@ void func_run(void)
     void (*func_entry)(void) = NULL;
     printf("%s\n", __func__);
 
-    /* 低功耗模块初始化 */
-    lowpwr_init(&g_lowpwr, &g_lowpwr_state, &g_lowpwr_app,
-                xcfg_cb.sys_sleep_time);
-    g_lowpwr.charge_enabled     = (xcfg_cb.charge_en != 0);
-    g_lowpwr.soft_power_on_off  = SOFT_POWER_ON_OFF;
-    g_lowpwr.pwrkey_2_hw_pwron  = PWRKEY_2_HW_PWRON;
+    /* 低功耗初始化 */
+    sys_cb.sleep_en     = 1;
+    sys_cb.sleep_time   = -1L;
+    sys_cb.sleep_delay  = -1L;
+    sys_cb.guioff_delay = -1L;
+    sys_cb.pwroff_time  = -1L;
+    sys_cb.pwroff_delay = -1L;
 #if ELUNCHBOX_PANEL_EN
     elunchbox_user_activity_reset();
 #endif
@@ -808,8 +788,8 @@ void func_run(void)
             }
         }
         if (func_cb.sta == FUNC_PWROFF) {
-            printf("func_run: -> lowpwr_pwroff\n");
-            lowpwr_pwroff(&g_lowpwr, 1);
+            printf("func_run: -> func_pwroff\n");
+            func_pwroff(1);
         }
         func_exit();
     }

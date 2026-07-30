@@ -136,8 +136,9 @@ static void func_key_handle_pwr_long(u8 held_tch)
                 func_key_lock_on_pwr_key_in_lock();
             }
         } else if (!pwr_lp_fired && tick_check_expire(pwr_lp_tick, 3000)) {
-            /* TCH5 长按 3s → 关屏进深睡 */
-            printf("func_key: TCH5 3s -> screen off + deep sleep\n");
+            /* TCH5 长按 3s → manual_off 超低功耗深度休眠 */
+            printf("func_key: TCH5 3s -> manual_off deep sleep\n");
+            elunchbox_pwr_manual_off_set();         /* 进入 manual_off 模式 */
             elunchbox_screen_off();
             elunchbox_guioff_sleep_arm_immediate(); /* 立刻允许深睡, 不走 30s 空闲倒计时 */
             pwr_lp_fired = true;

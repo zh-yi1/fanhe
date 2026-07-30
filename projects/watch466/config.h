@@ -26,7 +26,7 @@
 #define FUNC_CAMERA_TRANS_EN            0   //是否打开相机传输功能,需要一张图片的RGB数据缓存
 #define FUNC_IDLE_EN                    0   //是否打开IDLE功能
 #define FUNC_GAME_TETRIS_EN             0   //是否打开俄罗斯方块游戏
-#define FUNC_BLE_GATTS_EN               1   //是否打开BLE GATTS Demo功能
+#define FUNC_BLE_GATTS_EN               0   //是否打开BLE GATTS Demo功能
 
 /******************************************************************************
 *Module      :BT EMIT FUNCTION
@@ -195,10 +195,14 @@
 #define ELUNCHBOX_PANEL_EN              1
 
 #if ELUNCHBOX_PANEL_EN
+#undef  SOFT_POWER_VDDIO_EN
+#define SOFT_POWER_VDDIO_EN             1           /* 硬关机保持 VDDIO，PT8028/PE1 可唤醒开机 */
 #define ELUNCHBOX_KEEP_AWAKE            0           /* 允许深度休眠 */
 #define ELUNCHBOX_GUIOFF_TIME_SEC       300         /* 无操作自动关机(秒)，默认 5 分钟 */
 #define ELUNCHBOX_GUIOFF_SLEEP_EN       1           /* 息屏后再进 BT 浅睡降功耗 */
 #define ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC 30         /* 息屏后延迟多少秒进浅睡 */
+#define LPWR_BUCK_TO_LDO_EN             0           /* manual_off 休眠 BUCK→LDO, 省 50-200μA (暂时关闭排查) */
+#define LPWR_VDDTK_OFF_EN               1           /* manual_off 休眠关闭 VDDTK LDO, 省 10-50μA */
 #define PT8028_PWR_LONG_MS              3000        /* 开关键(TCH5)长按(ms)手动关机 */
 #define PT8028_PWR_WAKE_MS              2000        /* 息屏/休眠后长按开关键亮屏(ms) */
 #define FUNC_RESERVATION_UI_EN          1           /* 1=预约键(TCH7)可进预约页 */
@@ -337,7 +341,11 @@
 #define BT_HFP_RECORD_DEVICE_VOL_EN     0   //是否支持分别记录不同连接设备的通话音量
 #define BT_HFP_RING_NUMBER_EN           0   //是否支持来电报号
 #define BT_HFP_INBAND_RING_EN           0   //是否支持手机来电铃声（部分android不支持，默认用本地RING提示音）
+#if !ELUNCHBOX_PANEL_EN
 #define BT_HFP_BAT_REPORT_EN            1   //是否支持电量显示
+#else
+#define BT_HFP_BAT_REPORT_EN            0   //饭盒无 HFP，无需电量上报
+#endif
 #define BT_HFP_MSBC_EN                  0   //是否打开宽带语音功能
 #define BT_A2DP_AAC_AUDIO_EN            0   //是否支持蓝牙AAC音频格式
 #define BT_HFP_3WAY_CTRL_EN             0   //是否使能三方通话管理
@@ -379,10 +387,19 @@
 #define USE_APP_TYPE                    APP_BLUE_FIT //选择手表应用app类型
 
 //ANCS
+#if !ELUNCHBOX_PANEL_EN
 #define LE_ANCS_CLIENT_EN               1   //是否打开ANCS Clients
 #define LE_ANCS_MANUAL_EN               1   //是否需要手动打开ancs, 需要调用发起ancs连接的相关接口
+#else
+#define LE_ANCS_CLIENT_EN               0   //饭盒无 Apple 通知
+#define LE_ANCS_MANUAL_EN               0
+#endif
 //AMS
+#if !ELUNCHBOX_PANEL_EN
 #define LE_AMS_CLIENT_EN                1   //是否打开AMS Clients
+#else
+#define LE_AMS_CLIENT_EN                0   //饭盒无 Apple 音乐
+#endif
 
 #define LE_ADV0_EN                      0   //是否打开无连接广播功能
 #define LE_WIN10_POPUP                  0   //是否打开win10 swift pair快速配对
@@ -412,7 +429,7 @@
 #define BT_SCO_FAR_DUMP_EN              0                           //是否打开通话下行数据dump功能，dump:算法前 + 算法后
 #define BT_SCO_EQ_DUMP_EN               0                           //是否打开上行EQ的数据dump功能（单MIC优先用），dump:算法前主麦 + 算法后 + EQ后
 
-#define BT_SCO_EQ_DRC_EN                1                           //DRC参数调试在 bt_mic_8k.drc //(msbc)bt_mic_16k.drc
+#define BT_SCO_EQ_DRC_EN                0                           //DRC参数调试在 bt_mic_8k.drc //(msbc)bt_mic_16k.drc
 
 #define BT_SCO_MAV_EN                   0                           //是否打开蓝牙通话变声功能
 
@@ -420,17 +437,17 @@
 #define BT_SCO_AGC_TARGET_DB            3                           //AGC均衡后目标值(-DB)
 #define BT_SCO_AGC_COMPRESSION_DB       12                          //AGC最大抬升增益能力(DB)
 
-#define BT_PLC_EN                       1
+#define BT_PLC_EN                       0
 #define BT_ANL_GAIN                     3                           //MIC模拟增益(0~12DB)
 #define BT_CALL_MAX_GAIN                xcfg_cb.bt_call_max_gain    //配置通话时DAC最大模拟增益
 
-#define BT_AEC_EN                       1
+#define BT_AEC_EN                       0
 #define BT_AEC_FF_MIC_REF_EN            0                           //如果aec的ff_mic回声比talk_mic回声大，可使能这功能，用于双mic降噪
 #define BT_AEC_NLP_BYPASS_EN            0                           //是否打开nlp bypass
 #define BT_ECHO_LEVEL                   xcfg_cb.bt_echo_level       //回声消除级别（级别越高，回声衰减越明显，但通话效果越差）(0~15)
 #define BT_FAR_OFFSET                   xcfg_cb.bt_far_offset       //远端补偿值(0~255)
 
-#define BT_ALC_EN                       1                           //是否使能ALC
+#define BT_ALC_EN                       0                           //是否使能ALC
 #define BT_ALC_FADE_IN_DELAY            26                          //近端淡入延时(n*15ms)
 #define BT_ALC_FADE_IN_STEP             1                           //近端淡入速度(64ms)
 #define BT_ALC_FADE_OUT_DELAY           2                           //远端淡入延时(n*15ms)
@@ -438,7 +455,7 @@
 #define BT_ALC_VOICE_THR                0x30000
 
 //通话近端降噪算法(耳机MIC采集数据降噪, AINS4/DNN/DMDNN/AIAEC只能四选一)
-#define BT_SCO_AINS4_EN					1	                        //是否打开MIC的AINS4降噪
+#define BT_SCO_AINS4_EN					0	                        //是否打开MIC的AINS4降噪
 #define BT_SCO_AINS4_LEVEL				xcfg_cb.bt_sco_nr_level	    //0-30级
 
 #define BT_SCO_DNN_EN                   0                           //是否打开自研单麦DNN降噪算法
@@ -459,7 +476,7 @@
 #define BT_SCO_DMIC_AIAEC_NLP_REF       0                           //0代表主mic，1代表副mic
 
 //通话远端降噪算法(接收远端手机的通话数据降噪)
-#define BT_SCO_FAR_NR_EN                1                           //是否打开远端降噪算法(Code: 2KB, Ram: 2.1KB)
+#define BT_SCO_FAR_NR_EN                0                           //是否打开远端降噪算法(Code: 2KB, Ram: 2.1KB)
 #define BT_SCO_FAR_NR_LEVEL             5                           //强度: 0~5
 #define BT_SCO_FAR_NOISE_THR            1                           //范围: 0~20
 #define BT_SCO_FAR_VALUE_NS             3                           //范围: 0~50
@@ -579,7 +596,11 @@
 /*****************************************************************************
  * Module    : User按键配置 (可以同时选择多组按键)
  *****************************************************************************/
+#if ELUNCHBOX_PANEL_EN
+#define USER_PWRKEY                     0           /* 饭盒用 PT8028 TCH5，勿扫 PWRKEY 以免误重置息屏计时 */
+#else
 #define USER_PWRKEY                     1           //PWRKEY的使用，0为不使用
+#endif
 #define USER_ADKEY                      0           //ADKEY的使用， 0为不使用
 #define USER_IOKEY                      0           //IOKEY的使用， 0为不使用
 #define USER_PT8028_KEY                 1           //PT8028S 触摸键 BCD 接口
@@ -628,7 +649,7 @@
 #define USER_MULTI_PRESS_EN             1           //按键多击检测使能
 #define USER_MULTI_KEY_TIME             4           //按键多击响应时间（单位100ms）
 #define USER_PWRON_KEY_SEL              0           //定义为开关机的PWRKEY按键编号, 范围: 0 ~ 2
-#define PWRON_PRESS_TIME                1500        //长按PWRKEY多长时间开机？
+#define PWRON_PRESS_TIME                2000        //饭盒：长按开关键 2s 开机
 #define PWROFF_PRESS_TIME               18          //长按PWRKEY多长时间关机 3: 1.5秒, 6: 2秒, 9: 2.5秒, 12: 3秒, 15: 3.5秒, 18: 4秒, 24: 5秒
 #define ADKEY_CH                        ADCCH_PE7   //ADKEY的ADC通路选择
 #define IS_PWRKEY_PRESS()			    (0 == (RTCCON & BIT(19)))
@@ -727,7 +748,11 @@
 /*****************************************************************************
  * Module    : Loudspeaker mute检测配置
  *****************************************************************************/
+#if !ELUNCHBOX_PANEL_EN
 #define LOUDSPEAKER_MUTE_EN             1           //是否使能功放MUTE
+#else
+#define LOUDSPEAKER_MUTE_EN             0           //饭盒无喇叭
+#endif
 #define LOUDSPEAKER_MUTE_INIT()         loudspeaker_mute_init()
 #define LOUDSPEAKER_MUTE_DIS()          loudspeaker_disable()
 #define LOUDSPEAKER_MUTE()              loudspeaker_mute()
@@ -801,7 +826,11 @@
 /*****************************************************************************
  * Module    : 提示音 功能选择
  *****************************************************************************/
+#if !ELUNCHBOX_PANEL_EN
 #define WARNING_TONE_EN                 1            //是否打开提示音功能, 总开关
+#else
+#define WARNING_TONE_EN                 0            //饭盒无需提示音
+#endif
 #define WARING_MAXVOL_MP3               0            //最大音量提示音WAV或MP3选择， 播放WAV可以与MUSIC叠加播放。
 #define WARNING_WAVRES_PLAY             0            //是否支持WAV提示音播放
 #define WARNING_VOLUME                  xcfg_cb.warning_volume   //播放提示音的音量级数

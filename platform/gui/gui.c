@@ -1,6 +1,4 @@
 #include "include.h"
-#include "lowpower/lowpwr.h"
-extern lowpwr_t g_lowpwr;
 
 #define TRACE_EN                1
 
@@ -250,17 +248,14 @@ void gui_init(void)
     GPIOECLR = BIT(9);
 #endif
 
-    LCD_POWER_EN();
     gpu_init();
 #if CTP_SELECT != CTP_NO
     ctp_init();
 #endif // CTP_SELECT
+    LCD_POWER_EN();                     /* GPU就绪后再给LCD上电，避免花屏 */
     tft_init();
-    tft_bglight_open();
-
-#if ELUNCHBOX_PANEL_EN
-    tft_bglight_force_on();
-#endif
+    tft_bglight_open();                     /* PWM 配置，但暂不开背光 */
+    /* 饭盒: 背光由 lunchbox_display_on() 或首帧渲染时开，避免上电花屏 */
 
     sys_cb.sleep_en = 1;            //允许进休眠
 #if ELUNCHBOX_KEEP_AWAKE
