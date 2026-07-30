@@ -689,8 +689,11 @@ static void bsp_var_init(void)
 #if ELUNCHBOX_KEEP_AWAKE
     sys_cb.sleep_en = 0;
     sys_cb.sleep_delay = -1L;
-    sys_cb.guioff_delay = -1L;
     sys_cb.pwroff_delay = -1L;
+#if ELUNCHBOX_PANEL_EN
+    sys_cb.sleep_time = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
+    sys_cb.guioff_delay = sys_cb.sleep_time;
+#endif
 #endif
 }
 
@@ -912,11 +915,8 @@ void bsp_sys_init(void)
     bsp_sys_mute();
     gui_init();
     customer_heap_init();
-    /* 启动 BLE 广播: bt_init 仅初始化变量, func_bt_init→bsp_bt_init→bt_setup
-     * 才真正启动模块, 并置 bt_cb.bt_is_inited=1 (func.c 主循环靠它跑
-     * lunchbox_ble_process) —— 缺这两行则蓝牙完全不工作 */
     bt_init();
-    func_bt_init();
+    func_bt_init();  //饭盒：启动 BLE 广播（bt_init 仅初始化变量，func_bt_init→bsp_bt_init→bt_setup 才真正启动模块）
     return;
 #endif
 

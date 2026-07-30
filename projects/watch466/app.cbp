@@ -409,10 +409,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_key.h" />
-		<Unit filename="../../platform/bsp/bsp_pt8028_key.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../../platform/bsp/bsp_pt8028_key.h" />
 		<Unit filename="../../platform/bsp/bsp_map.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -484,6 +480,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../platform/bsp/bsp_port_int.h" />
+		<Unit filename="../../platform/bsp/bsp_pt8028_key.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../platform/bsp/bsp_pt8028_key.h" />
 		<Unit filename="../../platform/bsp/bsp_pwm.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1157,6 +1157,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="config.h" />
+		<Unit filename="demo/flash_fatfs_demo.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="demo/flash_fatfs_demo.h" />
 		<Unit filename="functions/common/func_bt_update.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1206,7 +1210,9 @@
 		<Unit filename="functions/func.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_watch_stubs.c">
+		<Unit filename="functions/func.h" />
+		<Unit filename="functions/func_alipay.h" />
+		<Unit filename="functions/func_ble_gatts.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/home_ui_lock_overlay.c">
@@ -1264,16 +1270,23 @@
 		<Unit filename="functions/func_bt_ring.c">
 			<Option compilerVar="CC" />
 		</Unit>
-
 		<Unit filename="functions/func_charge.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/func_clock.h" />
-		<Unit filename="functions/func_ble_gatts.c">
+		<Unit filename="functions/func_fmrx.h" />
+		<Unit filename="functions/func_menu.h" />
+		<Unit filename="functions/func_music.h" />
+		<Unit filename="functions/func_recorder.h" />
+		<Unit filename="functions/func_reservation.h" />
+		<Unit filename="functions/func_tbl.h" />
+		<Unit filename="functions/func_usbdev.h" />
+		<Unit filename="functions/func_watch_stubs.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/func_ble_gatts.h" />
-<Unit filename="functions/func_fmrx.h" />
+		<Unit filename="functions/home_ui_lock_overlay.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/key/func_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1286,37 +1299,31 @@
 		<Unit filename="functions/led/func_led.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/new_ui/general_ui.c">
+		<Unit filename="functions/lowpower/elunchbox_lp.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/new_ui/general_title_ui.c">
+		<Unit filename="functions/new_ui/func_appointment_time.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/new_ui/func_home_page.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/new_ui/func_heat_set_page.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/new_ui/func_heat_page.c">
+		<Unit filename="functions/new_ui/func_confirm_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/new_ui/func_heat_chicken.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="functions/new_ui/func_heat_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="functions/new_ui/func_heat_pasta.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/new_ui/func_mode_page.c">
+		<Unit filename="functions/new_ui/func_heat_set_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/new_ui/func_setup_page.c">
+		<Unit filename="functions/new_ui/func_home_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/new_ui/func_language_page.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="functions/new_ui/func_verInfo_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/new_ui/func_lock_page.c">
@@ -1325,16 +1332,25 @@
 		<Unit filename="functions/new_ui/func_lowbat_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/new_ui/func_warm_page.c">
+		<Unit filename="functions/new_ui/func_mode_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/new_ui/func_setup_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="functions/new_ui/func_time_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/new_ui/func_confirm_page.c">
+		<Unit filename="functions/new_ui/func_verInfo_page.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="functions/new_ui/func_appointment_time.c">
+		<Unit filename="functions/new_ui/func_warm_page.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/new_ui/general_title_ui.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="functions/new_ui/general_ui.c">
 			<Option compilerVar="CC" />
 		</Unit>
 <Unit filename="functions/func_menu.h" />
@@ -1375,10 +1391,10 @@
 		<Unit filename="port/port_key.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="port/port_pt8028_key.h" />
 		<Unit filename="port/port_mute.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="port/port_pt8028_key.h" />
 		<Unit filename="port/port_sd.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -1396,10 +1412,6 @@
 		<Unit filename="ui.h" />
 		<Unit filename="ui_external.h" />
 		<Unit filename="xcfg.h" />
-		<Unit filename="demo/flash_fatfs_demo.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="demo/flash_fatfs_demo.h" />
 		<Extensions />
 	</Project>
 </CodeBlocks_project_file>

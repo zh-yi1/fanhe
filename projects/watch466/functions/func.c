@@ -1,8 +1,9 @@
 #include "include.h"
 #include "func_tbl.h"
 #include "func.h"
-#include "new_ui/app_ui.h"
+#include "new_ui/ui.h"
 #if ELUNCHBOX_PANEL_EN
+#include "lowpower/elunchbox_lp.h"
 #include "func_key_lock.h"
 #endif
 extern void func_confirm_overlay_show(void);
@@ -30,6 +31,7 @@ void home_gpu_wait_idle(void)
 }
 
 func_cb_t func_cb AT(.buf.func_cb);
+
 #if ELUNCHBOX_PANEL_EN
 u8 func_res_allow_switch;
 #endif
@@ -81,100 +83,24 @@ void func_elunchbox_res_key_poll(void)
 }
 #endif
 
-#if FUNC_LUNCHBOX_UART_EN
-/**
- * @brief 关机前跑完关机时序 —— 先停加热, 模块应答后再发关机指令
- *
- * 同步阻塞等待, 由时序内部的每步 500ms 超时保证有界 (最坏 1 秒)。
- * APP 下发关机时时序早已在跑, 这里通常一进来就是 done, 直接返回。
- */
-static void lb_shutdown_seq_wait(void)
-{
-    lunchbox_shutdown_start(false, 0);      // 已在跑则无副作用
-    while (!lunchbox_shutdown_is_done()) {
-        WDT_CLR();
-        lunchbox_uart_process();            // 收应答 + 驱动时序超时
-    }
-    /* 时序结束就停串口: 后面 func_pwroff 里 bt_off/gui_sleep 要跑一阵,
-     * 期间模块的心跳/上报没人处理, 不如直接关掉并把 PB8/PB9 还回 GPIO */
-    lunchbox_uart_suspend();
-}
-
-/**
- * @brief 加热模块状态变化 → 强制切页 (唯一调用点)
- *
- * lb_ui_route_poll() 是边沿触发且内部状态只能被消费一次, 全工程只准这里调。
- * 覆盖的场景: APP 远程启停加热、预约到点模块自己开始加热、加热结束。
- * 其余字段(电量/温度/剩余时间)变化不在这里管, 由各页面按 seq 自行刷新。
- */
-static void lb_ui_route_apply(void)
-{
-    /* APP 下发的关机走完两步时序 → 本机跟着关 (长按关机走 func_run 那条路)。
-     * 时序跑到一半插上充电线 / 起了 OTA 的话在这里放弃, 不进关机页 */
-    if (lunchbox_shutdown_is_done() && func_cb.sta != FUNC_PWROFF) {
-        if (lunchbox_shutdown_blocked()) {
-            lunchbox_shutdown_abort();
-        } else {
-            printf("route: shutdown sequence done -> power off\n");
-            func_cb.sta = FUNC_PWROFF;
-        }
-        return;
-    }
-    /* 关机时序进行中: 不再抢页 */
-    if (lunchbox_shutdown_is_active()) {
-        return;
-    }
-
-    /* 切换动画进行中 / OTA 进行中: 不抢页, 也不消费边沿, 下一轮再来 */
-    if (sys_cb.flag_swithing || lb_ota_is_active()) {
-        return;
-    }
-
-    switch (lb_ui_route_poll()) {
-    case LB_UI_ROUTE_HEAT:
-        if (func_cb.sta != FUNC_NEW_HEAT_PAGE) {
-            printf("route: module heating -> heat page\n");
-            func_cb.sta = FUNC_NEW_HEAT_PAGE;
-        }
-        break;
-
-    case LB_UI_ROUTE_WARM:
-        if (func_cb.sta != FUNC_NEW_WARM_PAGE) {
-            printf("route: module keep-warm -> warm page\n");
-            func_cb.sta = FUNC_NEW_WARM_PAGE;
-        }
-        break;
-
-    case LB_UI_ROUTE_HOME:
-        /* 只把加热/保温页拉回首页, 用户正在别的页面时不打扰 */
-        if (func_cb.sta == FUNC_NEW_HEAT_PAGE || func_cb.sta == FUNC_NEW_WARM_PAGE) {
-            printf("route: module stopped -> home\n");
-            func_cb.sta = FUNC_HOME_PAGE;
-        }
-        break;
-
-    default:
-        break;
-    }
-}
-#endif // FUNC_LUNCHBOX_UART_EN
-
 AT(.text.func.process)
 void func_process(void)
 {
+#if ELUNCHBOX_PANEL_EN
+    bool guioff = elunchbox_is_guioff();
+#else
+    bool guioff = sys_cb.gui_sleep_sta;
+#endif
 
-   if (gui_get_auto_power_en()) {
+    if (gui_get_auto_power_en() && !guioff) {
         sys_clk_req(INDEX_GUI, SYS_192M);
-   }
+    }
 
     WDT_CLR();
 
 #if USER_PT8028_KEY
     pt8028_gpio_ensure_periodic();
-#if ELUNCHBOX_PANEL_EN
     pt8028_key_scan();
-
-#endif
     pt8028_log_flush();
     pt8028_poll_reinit();
 #if PT8028_GPIO_MONITOR_EN
@@ -187,32 +113,43 @@ void func_process(void)
 #endif
 
 #if USER_PANEL_LED
-    func_led_scan();                        /* 主线程刷新 LED，勿放 5ms 中断(易花屏) */
+    func_led_scan();
 #endif
 
+    /* ======== 空闲到期 → 关屏 ======== */
+#if ELUNCHBOX_PANEL_EN
+    if (!guioff && elunchbox_guioff_idle_expired()) {
+        elunchbox_screen_off();
+        guioff = true;
+    }
+#endif
+
+    /* ======== 息屏路径 ======== */
+#if ELUNCHBOX_PANEL_EN
+    if (guioff) {
+        /* 空闲处理: 深睡由 sleep_process 统一入口,
+         * 不在此阻塞, 唤醒后 sleep_process 返回 true */
+        co_timer_pro(false);
+        WDT_CLR();
+    }
+    else
+#endif
+    {
 #if CPU_USAGE_MONITOT_EN
-    cpu_trace_monitor();
+        cpu_trace_monitor();
 #endif
 
 #if (SD_SUPPORT_EN) && SD_SOFT_DETECT_EN
-    sd_soft_cmd_detect(120);
+        sd_soft_cmd_detect(120);
 #endif
 
-    tft_bglight_frist_set_check();
+        tft_bglight_frist_set_check();
+    }
 
-#if FUNC_LUNCHBOX_UART_EN
-    lb_ui_sync_pull();                      /* 串口状态镜像 → g_ui_sys, 须在刷 UI 之前 */
-    lb_ui_route_apply();                    /* 模块状态变化 → 强制切页 */
-#endif
-
-    // gui 没有休眠才更新
-	if (!sys_cb.gui_sleep_sta && !sys_cb.flag_halt) {
+    /* GUI 更新 (不休眠时才更新) */
+    if (!guioff && !sys_cb.flag_halt) {
 #if ELUNCHBOX_PANEL_EN
-        bool gui_do_refresh = true;
-
-        if (sys_cb.flag_swithing) {
-            gui_do_refresh = false;
-        }
+        bool gui_do_refresh = !sys_cb.flag_swithing;
         compo_update();
         if (gui_do_refresh) {
             gui_process();
@@ -221,8 +158,8 @@ void func_process(void)
         func_elunchbox_res_key_poll();
 #endif
 #else
-        compo_update();                                     //更新组件
-        gui_process();                                      //刷新UI
+        compo_update();
+        gui_process();
 #endif
     }
 
@@ -230,18 +167,29 @@ void func_process(void)
     bsp_sensor_step_pro_isr();
 
     if (sys_cb.mp3_res_playing) {
-        mp3_res_process();                                 //提示音后台处理
+        mp3_res_process();
     }
 
     if (sleep_process(bt_is_allow_sleep)) {
         bt_cb.disp_status = 0xff;
+#if ELUNCHBOX_PANEL_EN
+        if (elunchbox_pwr_gui_off_is_on()) {
+            elunchbox_pwr_gui_wake();
+        }
+#endif
     }
+#if ELUNCHBOX_PANEL_EN
+    /* guioff 唤醒: gui_wakeup → lunchbox_display_on 顺序保证不花屏 */
+    if (sys_cb.gui_sleep_sta && !elunchbox_pwr_gui_off_is_on()) {
+        gui_wakeup();
+        lunchbox_display_on();
+    }
+#endif
 
 #if VBAT_DETECT_EN
     bsp_vbat_lpwr_process();
 #endif
 
-    //PWRKEY模拟硬开关关机处理
     if ((PWRKEY_2_HW_PWRON) && (sys_cb.pwrdwn_hw_flag)) {
         func_cb.sta = FUNC_PWROFF;
         sys_cb.pwrdwn_hw_flag = 0;
@@ -251,24 +199,22 @@ void func_process(void)
     if (xcfg_cb.charge_en) {
         charge_detect(1);
     }
-#endif // CHARGE_EN
+#endif
 
-    if(bt_cb.bt_is_inited) {
+    if (bt_cb.bt_is_inited) {
         bt_thread_check_trigger();
 #if LE_EN
         ble_app_process();
 #endif
     }
 
-    /* 串口上报低电 → 切换到低电页面 */
     if (g_ui_sys.lowbat && func_cb.sta != FUNC_LOWBAT && !sys_cb.flag_swithing) {
         func_cb.sta = FUNC_LOWBAT;
     }
 
-   if (gui_get_auto_power_en()) {
+    if (gui_get_auto_power_en() && !guioff) {
         sys_clk_free(INDEX_GUI);
-   }
-
+    }
 }
 
 //根据任务名创建窗体。此处调用的创建窗体函数不要调用子任务的控制结构体
@@ -718,6 +664,7 @@ void func_message(size_msg_t msg)
         case KLH_BACK:
         case KLH_LEFT:
         case KLH_RIGHT:
+            printf("KLH: shutdown -> FUNC_PWROFF\n");
             func_cb.sta = FUNC_PWROFF;
             break;
 #endif
@@ -809,6 +756,18 @@ void func_run(void)
 
     void (*func_entry)(void) = NULL;
     printf("%s\n", __func__);
+
+    /* 低功耗初始化 */
+    sys_cb.sleep_en     = 1;
+    sys_cb.sleep_time   = -1L;
+    sys_cb.sleep_delay  = -1L;
+    sys_cb.guioff_delay = -1L;
+    sys_cb.pwroff_time  = -1L;
+    sys_cb.pwroff_delay = -1L;
+#if ELUNCHBOX_PANEL_EN
+    elunchbox_user_activity_reset();
+#endif
+
     memset(func_cb.tbl_sort, 0, sizeof(func_cb.tbl_sort));
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.sort_cnt = 1;
@@ -829,19 +788,8 @@ void func_run(void)
             }
         }
         if (func_cb.sta == FUNC_PWROFF) {
-#if FUNC_LUNCHBOX_UART_EN
-            /* 充电中 / OTA 中不关机。必须在这里拦: func_pwroff() 充电时会 return
-             * 不断电, 若放它进去就会"进关机→返回→再进关机"反复空转 */
-            if (lunchbox_shutdown_blocked()) {
-                lunchbox_shutdown_abort();
-                func_cb.sta = FUNC_HOME_PAGE;
-            } else {
-                lb_shutdown_seq_wait(); /* 先停加热、再关加热模块, 走完才断电 */
-                func_pwroff(1);
-            }
-#else
+            printf("func_run: -> func_pwroff\n");
             func_pwroff(1);
-#endif
         }
         func_exit();
     }

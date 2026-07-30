@@ -52,9 +52,9 @@ void func_bt_dut(void)
         bt_cb.bt_is_inited = 0;
     }
     u32 pwroff_time = sys_cb.pwroff_time;
-    u32 sleep_time = sys_cb.sleep_time;
-    sys_cb.pwroff_delay = sys_cb.pwroff_time = -1;                          //关闭未连接自动关机
-    sys_cb.sleep_time = -1;                                                 //不进siff mode
+    u32 sleep_time   = sys_cb.sleep_time;
+    sys_cb.pwroff_delay = sys_cb.pwroff_time = -1;        //关闭未连接自动关机
+    sys_cb.sleep_time = -1;                                        //不进sniff mode
     sys_cb.sleep_en = 0;
     memcpy(&xcfg_cb.led_btinit, led_bt_cbt_tbl, sizeof(led_bt_cbt_tbl));    //红灯常亮
 //    memset(xcfg_cb.bt_addr, 0x68, 6);                                     //固定蓝牙地址

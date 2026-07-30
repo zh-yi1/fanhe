@@ -456,8 +456,10 @@ void pt8028_try_commit_pwr_long(void)
 {
 }
 
+extern void elunchbox_lp_user_activity_reset(void);
 void elunchbox_user_activity_reset(void)
 {
+    elunchbox_lp_user_activity_reset();
 }
 
 void pt8028_defer_key_sound_tch(u8 tch)
@@ -471,11 +473,6 @@ bool heat_display_heating_active(void)
 }
 
 bool func_heat_ui_is_heating(void)
-{
-    return false;
-}
-
-bool elunchbox_pwr_is_manual_off(void)
 {
     return false;
 }

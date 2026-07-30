@@ -259,6 +259,8 @@ void home_gpu_wait_idle(void);
 extern u8 func_res_allow_switch;
 void func_elunchbox_switch_to_reservation(void);
 void func_elunchbox_res_key_poll(void);
+
+#include "lowpower/elunchbox_lp.h"
 #endif
 
 #endif // _FUNC_H

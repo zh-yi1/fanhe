@@ -252,7 +252,7 @@ static void func_bt_call_message(size_msg_t msg)
         break;
 
     case MSG_SYS_500MS:
-        reset_sleep_delay_all();                           //来电不休眠
+        reset_sleep_delay_all();                    //来电不休眠
         break;
 
     case MSG_CTP_SHORT_LEFT:

@@ -76,6 +76,10 @@ void sleep_wakeup_config(void)
     port_wakeup_init(IO_PF2, 1, 1);
 #endif // USER_IOKEY
 
+#if ELUNCHBOX_PANEL_EN
+    port_wakeup_init(IO_PE1, 1, 1);                     //PE1(PT8028 OUT_FLAG) 下降沿唤醒
+#endif
+
     port_int_disable_to_sleep();
 }
 
@@ -92,6 +96,10 @@ void sleep_wakeup_exit(void)
     port_wakeup_exit(IO_PF2);
     io_key_init();
 #endif // USER_IOKEY
+
+#if ELUNCHBOX_PANEL_EN
+    port_wakeup_exit(IO_PE1);
+#endif
 
     port_int_enable_exit_sleep();
 

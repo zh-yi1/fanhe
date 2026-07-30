@@ -3,7 +3,7 @@
 
 typedef bool (*is_sleep_func)(void);
 
-#define GUI_OFF_DELAY_TIME      sys_cb.sleep_time        //和配置的休眠时间一样
+#define GUI_OFF_DELAY_TIME      sys_cb.sleep_time
 #define en_auto_pwroff()        sys_cb.pwroff_delay = sys_cb.pwroff_time;
 #define dis_auto_pwroff()       sys_cb.pwroff_delay = -1L;
 #define reset_pwroff_delay()    if(sys_cb.pwroff_delay != -1L) {sys_cb.pwroff_delay = sys_cb.pwroff_time;}
@@ -18,10 +18,10 @@ typedef bool (*is_sleep_func)(void);
 extern u8 vddio_sleep_level;
 bool sleep_process(is_sleep_func is_sleep);
 void lowpwr_tout_ticks(void);
-void sfunc_pwrdown(u8 vusb_wakeup_en);          //软开关方案，POWER键/低电时，进入关机状态
-void func_pwroff(int pwroff_tone_en);           //进入低电或者关机状态
+void sfunc_pwrdown(u8 vusb_wakeup_en);
+void func_pwroff(int pwroff_tone_en);
 void sys_enter_sleep(u8 lpclk_type);
-void sleep_set_sysclk(uint8_t sys_clk);         //休眠状态下设置系统时钟, 用于抬高主频跑算法，使用完需要设置为24M
+void sleep_set_sysclk(uint8_t sys_clk);
 u8 sys_enter_sleep_vddio_level(void);
 
 #endif // __FUNC_LOWPWR_H
