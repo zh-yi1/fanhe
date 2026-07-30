@@ -766,9 +766,11 @@ static void sfunc_sleep(void)
 #endif
     sleep_cb.sys_is_sleep = true;
     sys_cb.gui_need_wakeup = 0;
+    printf("slp: A (bt_enter_sleep)\n");
     bt_enter_sleep();
     bt_audio_bypass();
     while(btstack_audio_is_busy());
+    printf("slp: B (audio idle)\n");
 #if LE_EN
     adv_interval = ble_get_adv_interval();
     /* manual_off: 不能关广播！ble_adv_dis() 会让 BT 栈进入等完成状态
@@ -805,6 +807,7 @@ static void sfunc_sleep(void)
         bt_scan_disable();
     }
 #endif
+    printf("slp: C (bt param/scan done)\n");
 
 #if DAC_DNR_EN
     u8 sta = dac_dnr_get_sta();
@@ -837,6 +840,7 @@ static void sfunc_sleep(void)
 #endif
 #endif
 
+    printf("slp: D (dac/adc/charge done)\n");
     usbcon0 = USBCON0;                          //需要先关中断再保存
     usbcon1 = USBCON1;
     USBCON0 = BIT(5);
@@ -864,6 +868,7 @@ static void sfunc_sleep(void)
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     PLL1CON0 &= ~0x03;                          //disable pll1
+    printf("slp: E (before rtc_sleep_enter)\n");
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_manual_off_slp) {
         RTC_WDT_DIS();
