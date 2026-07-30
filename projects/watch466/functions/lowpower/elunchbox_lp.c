@@ -196,8 +196,11 @@ bool elunchbox_pwr_manual_off_should_stay_awake(void)
     return false;
 }
 
-/* UART TX block stub (FUNC_LUNCHBOX_UART_EN=0 时为空) */
+/* UART TX block stub —— 真实实现在 comm/lb_uart_app.c, 这里只补串口关掉时的空壳。
+ * 少了这个 #if 会和 lb_uart_app.c 撞出 multiple definition。 */
+#if !FUNC_LUNCHBOX_UART_EN
 void lb_uart_tx_block(bool block)
 {
     (void)block;
 }
+#endif

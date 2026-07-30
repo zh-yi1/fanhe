@@ -69,7 +69,9 @@ void elunchbox_pwr_gui_wake_reason(const char *reason);
 bool elunchbox_heating_blocks_idle(void);
 bool elunchbox_pwr_manual_off_should_stay_awake(void);
 
-/* --- UART TX block --- */
+/* --- UART TX block ---
+ * FUNC_LUNCHBOX_UART_EN=1 时实体在 comm/lb_uart_app.c (原型与 lb_uart_app.h 一致),
+ * =0 时 elunchbox_lp.c 里有空壳。声明不加条件, 免得 func_lowpwr.c 报隐式声明。 */
 void lb_uart_tx_block(bool block);
 
 /* --- pwroff_sent 重置 --- */
