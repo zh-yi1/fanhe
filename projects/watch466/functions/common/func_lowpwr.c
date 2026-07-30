@@ -741,6 +741,10 @@ static void sfunc_sleep(void)
 
 #if VBAT_DETECT_EN
     if (bsp_vbat_get_lpwr_status()) {           //低电不进sniff mode
+#if ELUNCHBOX_PANEL_EN
+        /* 睡不了就释放 manual_off, 否则 sleep_process 下轮又调进来死循环 */
+        elunchbox_pwr_manual_off_clr();
+#endif
         return;
     }
 #endif
@@ -800,12 +804,11 @@ static void sfunc_sleep(void)
 #endif
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    /* manual_off: 强制关 BT scan。
-     * 第二次进 manual_off 时 scan 已被 bt_update_bt_scan_param_default 恢复
-     * → bt_sleep_proc 不睡 → 强睡绕过 → 10mA。此处强制关掉。 */
-    if (elunchbox_manual_off_slp) {
-        bt_scan_disable();
-    }
+    /* 关 BT scan。
+     * - manual_off: 第二次进时 scan 已被恢复 → bt_sleep_proc 不睡 → 强睡绕过 → 10mA。
+     * - auto guioff: BT 硬件仍靠 PLL0 → 不关则后面关 PLL0 时总线挂死 → RTC_WDT 复位。
+     *   两个路径都必须关。*/
+    bt_scan_disable();
 #endif
     printf("slp: C (bt param/scan done)\n");
 
@@ -841,6 +844,12 @@ static void sfunc_sleep(void)
 #endif
 
     printf("slp: D (dac/adc/charge done, dac_was=%u)\n", dac_status);
+#if FUNC_LUNCHBOX_UART_EN
+    /* 关 UART1 (TX=PB8 RX=PB9): 关机时序刚用它发过指令,
+     * 留着 RX 还会收中断、可能依赖 PLL0 时钟 → 后面关 PLL0 时挂死。 */
+    lunchbox_uart_suspend();
+    printf("slp: D0 (uart1 off)\n");
+#endif
     usbcon0 = USBCON0;                          //需要先关中断再保存
     usbcon1 = USBCON1;
     USBCON0 = BIT(5);
@@ -872,6 +881,12 @@ static void sfunc_sleep(void)
     printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     printf("slp: E2 (adda clk sel)\n");
+    /* 等 BLE 射频事件完成再关 PLL0。
+     * bt_is_sleep() 只查软件状态, 硬件可能还在 TX → 关 PLL0 时
+     * 射频失时钟 → 总线挂死 → RTC_WDT 复位。最小等 50ms,
+     * 足够一个 BLE advertising event (interval 500ms) 完成。
+     * 测试: 0ms 第一次上电 OK, WDT 复位后再来就挂, 说明纯竞态。 */
+    delay_5ms(10);  /* 50ms — 足够 BLE TX 完成, 又远小于 lowpower 分支的 2s */
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     printf("slp: E3 (pll0 off)\n");
     PLL1CON0 &= ~0x03;                          //disable pll1
@@ -1093,6 +1108,11 @@ static void sfunc_sleep(void)
     DACDIGCON0 |= BIT(0);                      //enable digital dac
 #if FPGA_EN
     fpga_uart_reinit();
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+    /* UART1 在睡下前 suspend 过，这里恢复。须在系统时钟恢复后 (adpll_init) 再做，
+     * 因为 lb_link_init → uart_init 用 sys_clk 算波特率。 */
+    lunchbox_uart_resume();
 #endif
     dac_aubuf_init();
     /* 【低功耗优化】恢复 BUCK 模式 */
