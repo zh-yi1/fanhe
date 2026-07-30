@@ -180,6 +180,11 @@ void elunchbox_guioff_sleep_post_wake(bool wkp)
         elunchbox_manual_off = false;
         elunchbox_pwr_gui_off = false;
         elunchbox_pwroff_sent_reset();
+        /* 深睡唤醒后重置空闲计时器。不走 elunchbox_lp_user_activity_reset()
+         * 因为此时 gui_sleep_sta 通常还是 true (gui_wakeup 在后面才调),
+         * elunchbox_is_guioff()=true → 重置被跳过。
+         * 不重置则下轮 sleep_process → idle_expired → 立即再次关机 → 唤不醒。 */
+        elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
         /* 唤醒后强制回主界面 */
         extern func_cb_t func_cb;
         if (func_cb.sta != FUNC_HOME) {
