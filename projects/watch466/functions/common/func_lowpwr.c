@@ -784,17 +784,9 @@ static void sfunc_sleep(void)
     printf("slp: D0 (uart1 off)\n");
 #endif
     printf("slp: E (before rtc_sleep_enter)\n");
-#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    if (elunchbox_manual_off_slp) {
-        /* PE1(FLAG) 上拉必须在 rtc_sleep_enter 之前配好。
-         * rtc_sleep_enter 之后 GPIO 寄存器写可能被电源管理忽略。*/
-        GPIOEPU |= BIT(1);
-        GPIOEPD &= ~BIT(1);
-    }
-#endif
-    rtc_sleep_enter();
 
-    //io analog input — 完整保存所有 GPIO 配置
+    //io analog input — 完整保存所有 GPIO 配置（必须在 rtc_sleep_enter 之前!
+    //rtc_sleep_enter 后 GPIO 读可能挂死 AHB, 只做纯写）
     pa_de = GPIOADE;
     pb_de = GPIOBDE;
     pe_de = GPIOEDE;
@@ -818,6 +810,15 @@ static void sfunc_sleep(void)
     pe_pd200k = GPIOEPD200K;
     pe_pu300  = GPIOEPU300;
     pe_pd300  = GPIOEPD300;
+
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_manual_off_slp) {
+        /* PE1(FLAG) 上拉: 用刚保存的值计算, 配好再进 rtc_sleep_enter */
+        GPIOEPU = pe_pu | BIT(1);
+        GPIOEPD = pe_pd & ~BIT(1);
+    }
+#endif
+    rtc_sleep_enter();
     if(vddio_sleep_level) {
         GPIOADE = BIT(7);
     } else {
