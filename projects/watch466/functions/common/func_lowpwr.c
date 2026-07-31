@@ -1394,11 +1394,8 @@ bool sleep_process(is_sleep_func is_sleep)
             elunchbox_lp_user_activity_reset();
         }
 #else
-        printf("elunchbox: idle %us -> manual_off deep sleep\n",
+        printf("elunchbox: idle %us -> skip (FUNC_LUNCHBOX_UART_EN=0, shutdown unavailable)\n",
                (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
-        elunchbox_pwr_manual_off_set();
-        elunchbox_screen_off();
-        elunchbox_guioff_sleep_arm_immediate();
 #endif
         return false;
     }
