@@ -254,8 +254,16 @@ void gui_init(void)
 #endif // CTP_SELECT
     LCD_POWER_EN();                     /* GPU就绪后再给LCD上电，避免花屏 */
     tft_init();
+#if ELUNCHBOX_PANEL_EN
+    /* 饭盒: 只上背光电源, 亮度保持 0 —— tft_init 已置 bglight_kick,
+     * 首帧推完(tft_frame_end)+3TE 后由主循环 frist_set_check 开背光,
+     * 避免 GRAM 未刷时点亮花屏 (tft_bglight_open 会立即点亮, 不能用) */
+    extern void lcd_drv_set_brightness(u8 brightness);
+    LCD_BL_EN();
+    lcd_drv_set_brightness(0);
+#else
     tft_bglight_open();                     /* PWM 配置，但暂不开背光 */
-    /* 饭盒: 背光由 lunchbox_display_on() 或首帧渲染时开，避免上电花屏 */
+#endif
 
     sys_cb.sleep_en = 1;            //允许进休眠
 #if ELUNCHBOX_KEEP_AWAKE

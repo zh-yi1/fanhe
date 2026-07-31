@@ -122,7 +122,9 @@ compo_form_t *func_home_page_form_create(void)
     compo_textbox_set_forecolor(inf->txt_mode, COLOR_BLUE);
     compo_textbox_set_forecolor(inf->txt_set, COLOR_BLUE);
 
-    tft_bglight_force_on();
+    /* 不 force_on: 开机首页背光走 tft 的 kick 机制 —— 首帧推完+3TE 才开,
+     * 避免 form 刚建、帧还没推就点亮 (花屏/闪切)。
+     * 从其他页面切回来时背光本来就开着, 无需补 */
     return frm;
 }
 
