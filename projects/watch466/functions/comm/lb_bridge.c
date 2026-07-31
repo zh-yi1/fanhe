@@ -25,6 +25,39 @@ static u32  lb_ota_uart_crc32 = 0;
 static bool lb_ota_uart_crc_active = false;
 
 /**
+ * @brief APP 预约时间违例补丁 (2026-07-31, APP 暂无法改版)
+ *
+ * 协议 §3.6 预约时间应为 unix 时间戳, 现 APP 发的是"本地天内秒"
+ * (如 16:03 → 57780); 模块用 UTC 天内秒比较, 差 8 小时永远不触发。
+ * 透传前把 <86400 的值换算成"下一次到点"的 unix 时间戳 (今天该时刻,
+ * 已过则明天); >=86400 视为正常 unix 原样放行, APP 改好后补丁自动失效。
+ *
+ * @param entry42  UART 0x03 的 42B 预约结构体 (time 在偏移 34..37, BE)
+ */
+static void lb_schedule_time_fixup(u8 *entry42)
+{
+    u8 *t = entry42 + 34;
+    u32 val = ((u32)t[0] << 24) | ((u32)t[1] << 16) | ((u32)t[2] << 8) | t[3];
+    if (val >= 86400) {
+        return;
+    }
+
+    u32 local  = lb_get_unix_time() + 8 * 3600;
+    u32 target = local - (local % 86400) + val;   // 今天该时刻(本地)
+    if (target <= local) {
+        target += 86400;                          // 已过 → 明天
+    }
+    target -= 8 * 3600;                           // 回到 unix(UTC)
+
+    t[0] = (u8)(target >> 24);
+    t[1] = (u8)(target >> 16);
+    t[2] = (u8)(target >> 8);
+    t[3] = (u8)(target);
+    printf("lb_bridge: sched time fixup %u day-sec -> unix %u\n",
+           (unsigned)val, (unsigned)target);
+}
+
+/**
  * @brief BLE 命令字 → UART 命令字映射
  */
 u8 lb_ble_cmd_to_uart_cmd(u8 ble_cmd)
@@ -149,6 +182,7 @@ bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *out_len
         if (!rx->data || rx->data_len < 41) return false;
         out_data[0] = 0x01;  // 默认: 自定义加热
         memcpy(out_data + 1, rx->data, 41);
+        lb_schedule_time_fixup(out_data);
         *out_len = 42;
         return true;
     }
@@ -158,6 +192,7 @@ bool lb_translate_ble_data_to_uart(lb_rx_frame_t *rx, u8 *out_data, u16 *out_len
         if (!rx->data || rx->data_len < 41) return false;
         out_data[0] = 0x01;
         memcpy(out_data + 1, rx->data, 41);
+        lb_schedule_time_fixup(out_data);
         *out_len = 42;
         return true;
     }
