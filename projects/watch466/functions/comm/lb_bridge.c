@@ -34,6 +34,22 @@ static bool lb_ota_uart_crc_active = false;
  *
  * @param entry42  UART 0x03 的 42B 预约结构体 (time 在偏移 34..37, BE)
  */
+u32 lb_local_daysec_to_next_unix(u32 day_sec)
+{
+    u32 local  = lb_get_unix_time() + 8 * 3600;
+    u32 target = local - (local % 86400) + (day_sec % 86400);
+    if (target <= local) {
+        target += 86400;
+    }
+    return target - 8 * 3600;
+}
+
+u32 lb_local_hms_to_next_unix(u8 hour, u8 min, u8 sec)
+{
+    return lb_local_daysec_to_next_unix(
+        (u32)hour * 3600u + (u32)min * 60u + (u32)sec);
+}
+
 static void lb_schedule_time_fixup(u8 *entry42)
 {
     u8 *t = entry42 + 34;
@@ -42,12 +58,7 @@ static void lb_schedule_time_fixup(u8 *entry42)
         return;
     }
 
-    u32 local  = lb_get_unix_time() + 8 * 3600;
-    u32 target = local - (local % 86400) + val;   // 今天该时刻(本地)
-    if (target <= local) {
-        target += 86400;                          // 已过 → 明天
-    }
-    target -= 8 * 3600;                           // 回到 unix(UTC)
+    u32 target = lb_local_daysec_to_next_unix(val);
 
     t[0] = (u8)(target >> 24);
     t[1] = (u8)(target >> 16);

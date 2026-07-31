@@ -621,6 +621,13 @@ bool sfunc_sleep_proc(void)
 #if LP_SLEEP_VERBOSE
                     printf("lp: -> TCH5 brief (<2s), back to sleep\n");
 #endif
+                    /* 误触: 不走共享cleanup, 自己清理+统一上升沿+强睡标定, 同lowpower风格 */
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                    elunchbox_manual_wake_pending_take();
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
+                    force_spin_cnt = 4;
+                    continue;
                 } else if (pe1_lo) {
 #if LP_SLEEP_VERBOSE
                     printf("lp: -> non-TCH5 (bcd=%d), back to sleep\n", bcd);
@@ -631,16 +638,25 @@ bool sfunc_sleep_proc(void)
 #endif
                 }
 
-                /* 无效唤醒: 清 pending → 切上升沿等松手 → continue
-                 * PE1仍LOW(按键按住)：下降沿会立刻再唤醒 → 切上升沿等松手
-                 * PE1已HIGH(轻触弹跳)：切上升沿无影响 → 下次按键下降沿正常唤醒 */
+                /* 无效唤醒: PE1仍LOW(按键还按着)→切上升沿等松手;
+                 * PE1已HIGH(键已松开, 上升沿已错过)→恢复下降沿直接继续睡.
+                 * 不能在 PE1=HIGH 时切上升沿: 没边沿了 → sys_enter_sleep 再唤不醒. */
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
                 elunchbox_manual_wake_pending_take();
-                port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);  /* 切上升沿 */
-                elunchbox_waiting_key_release = true;
+                if (((GPIOE >> 1) & 1) == 0) {
+                    /* PE1 仍 LOW: 按键按住中, 切上升沿等松手 */
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
 #if LP_SLEEP_VERBOSE
-                printf("lp: -> sw to rising edge, wait release\n");
+                    printf("lp: -> sw to rising edge, wait release\n");
 #endif
+                } else {
+                    /* PE1 已 HIGH: 键已松开, 保持下降沿, 下次按键正常唤醒 */
+                    elunchbox_waiting_key_release = false;
+#if LP_SLEEP_VERBOSE
+                    printf("lp: -> key already released, stay falling edge\n");
+#endif
+                }
                 continue;
             }
         }
@@ -684,11 +700,21 @@ bool sfunc_sleep_proc(void)
                         gui_need_wkp = true;
                         break;
                     }
+                    /* 误触: 不走共享cleanup, 自己清理+统一上升沿+强睡标定 */
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
+                    force_spin_cnt = 4;
+                    continue;
                 }
-                /* 非TCH5/无效: 切上升沿等松手, 防PE1=LOW死循环唤醒 */
+                /* 非TCH5/无效: PE1仍LOW→切上升沿等松手; PE1已HIGH→保持下降沿 */
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
-                port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
-                elunchbox_waiting_key_release = true;
+                if (((GPIOE >> 1) & 1) == 0) {
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
+                } else {
+                    elunchbox_waiting_key_release = false;
+                }
                 continue;
             } else
 #endif
@@ -1502,20 +1528,33 @@ bool sleep_process(is_sleep_func is_sleep)
     }
 #endif
 #if ELUNCHBOX_PANEL_EN
-    /* 饭盒：5min 无操作 = 自动关机 (config.h: ELUNCHBOX_GUIOFF_TIME_SEC)。
-     * 与长按 TCH5 完全同一条路: 停加热 → 关模块 → 未充电深睡 / 充电中黑屏页。
-     * 不走"息屏→30s→bt_is_allow_sleep→深睡"的旧机制 —— 那条路会被模块心跳
-     * 反复吵醒、还被 BT 状态卡住, 实测睡不下去; 长按关机这条已验证。
-     * 加热/OTA 中 idle_expired 恒 false (elunchbox_lp.c 挡掉并喂满计时);
-     * 黑屏充电页本身就是"关机+充电"态, 不重复触发。 */
-    if (elunchbox_guioff_idle_expired())
-    {
-        /* 自动空闲关机: 与 TCH5 长按走完全相同的 manual_off 流程 */
+    /* 饭盒：5min 无操作 = 自动关机, 与长按 TCH5 一样立 manual_off 标志,
+     * 进 sfunc_sleep 的代码完全一致 (PE1+PB9 port wakeup / RTC_WDT_DIS).
+     * 多一句 lb_heat_cmd_heat_off() 通知模块停加热, 一发即走不等应答.
+     * 不可走 lunchbox_shutdown_start: 异步等 ack 期间 bt_is_allow_sleep 可能
+     * 先跑进正常深睡(未配 PE1/PB9 wakeup) → 唤不醒. */
+    if (elunchbox_guioff_idle_expired()) {
+#if FUNC_LUNCHBOX_UART_EN
+        if (func_cb.sta == FUNC_BLACK_SCREEN) {
+            elunchbox_lp_user_activity_reset();
+            return false;
+        }
+        if (!elunchbox_pwr_is_manual_off()) {
+            printf("elunchbox: idle %us -> manual_off deep sleep\n",
+                   (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
+            lb_heat_cmd_heat_off();               /* 停加热, 不等应答 */
+            lb_heat_cmd_power(false);             /* 关模块, 不等应答 */
+            elunchbox_pwr_manual_off_set();       /* 立手动关机标志 → sfunc_sleep 配 PE1+PB9 唤醒 */
+            elunchbox_screen_off();
+            elunchbox_guioff_sleep_arm_immediate();
+        }
+#else
         printf("elunchbox: idle %us -> manual_off deep sleep\n",
                (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
         elunchbox_pwr_manual_off_set();
         elunchbox_screen_off();
         elunchbox_guioff_sleep_arm_immediate();
+#endif
         return false;
     }
     /* 已息屏但加热进行中：自动亮回 */

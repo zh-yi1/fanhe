@@ -121,7 +121,7 @@ void lb_link_suspend(void)
     if (lb_link_suspended) {
         return;
     }
-    UART1CON = 0;                       
+    UART1CON = 0;
     /* 关 UART1 外设与中断; resume 时由 uart_init 重建 */
     /* 释放 PB8(TX)/PB9(RX) 从 UART1 功能回到 GPIO 模式。
      * FUNCMCON0: UT1TXMAP=bit24(27:24), UT1RXMAP=bit28(31:28) → CLEAR(0xf)
