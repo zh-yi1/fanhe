@@ -41,17 +41,10 @@ void new_ui_appointment_clear(void)
 }
 
 #if FUNC_LUNCHBOX_UART_EN
-/** @brief 今天的 hh:mm:ss 对应的 unix 秒; 已过则顺延到明天 */
+/** @brief 本地 hh:mm:ss → 下一次到点 unix(UTC); 与 APP 预约 fixup 同一时区规则 */
 static u32 appointment_target_unix(u8 hour, u8 min, u8 sec)
 {
-    u32 now_unix       = lb_get_unix_time();
-    u32 today_midnight = now_unix - (now_unix % 86400);
-    u32 target_unix    = today_midnight + (u32)hour * 3600 + (u32)min * 60 + sec;
-
-    if (target_unix <= now_unix) {
-        target_unix += 86400;
-    }
-    return target_unix;
+    return lb_local_hms_to_next_unix(hour, min, sec);
 }
 #endif
 
@@ -280,9 +273,12 @@ static void func_appointment_time_handle_keys(void)
                 /* 秒也确认完 → 暂存触发时刻, 去加热设置页选温度和时长,
                  * 那边确认时会 take() 到这个时间, 下发成预约而不是立即加热 */
 #if FUNC_LUNCHBOX_UART_EN
-                new_ui_appointment_set(appointment_target_unix(inf->hour, inf->min, inf->sec));
-                printf("appointment: %02u:%02u:%02u pending\n",
-                       inf->hour, inf->min, inf->sec);
+                {
+                    u32 ts = appointment_target_unix(inf->hour, inf->min, inf->sec);
+                    new_ui_appointment_set(ts);
+                    printf("appointment: %02u:%02u:%02u pending unix=%u\n",
+                           inf->hour, inf->min, inf->sec, (unsigned)ts);
+                }
 #endif
                 func_cb.sta = FUNC_NEW_HEAT_SET;
             }

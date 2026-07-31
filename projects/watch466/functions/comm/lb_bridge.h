@@ -73,6 +73,16 @@ u32 lb_get_unix_time(void);
 /** @brief 屏幕显示用的年月日时分 (未同步时退回本机 RTC) */
 tm_t lb_get_display_tm(void);
 
+/**
+ * @brief 本地(UTC+8) 天内秒 → 下一次到点的 unix(UTC)
+ *
+ * 与 APP 预约 fixup、本机预约页共用同一套时区规则, 避免把本地时分当 UTC 拼戳。
+ */
+u32 lb_local_daysec_to_next_unix(u32 day_sec);
+
+/** @brief 本地 hh:mm:ss → 下一次到点的 unix(UTC) */
+u32 lb_local_hms_to_next_unix(u8 hour, u8 min, u8 sec);
+
 //-----------------------------------------------------------------------------
 // CRC32 (加热模块 OTA 透传时累积校验用; 主MCU OTA 模块移植时可复用)
 //-----------------------------------------------------------------------------
