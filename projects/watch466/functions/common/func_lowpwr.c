@@ -628,7 +628,7 @@ static void sfunc_sleep(void)
     u8 buck_saved = 0;
 #endif
 
-#if VBAT_DETECT_EN
+#if 0 // VBAT_DETECT_EN — 临时关掉测试低功耗唤醒
     if (bsp_vbat_get_lpwr_status()) {           //低电不进sniff mode
         printf("elunchbox: VBAT low power, abort sleep & wake screen\n");
 #if ELUNCHBOX_PANEL_EN
