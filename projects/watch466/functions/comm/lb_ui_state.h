@@ -220,6 +220,9 @@ void lb_ui_heat_stop_expected(void);
 /** @brief 是否有进行中的加热/保温任务 (禁止自动息屏用) */
 bool lunchbox_heating_task_active(void);
 
+/* 充电状态查询用 lunchbox_charging_now() (lb_uart_app.h): 本机 DC_IN 或 DP4。
+ * 本文件内的路由只按 DP4 判拔线边沿, 见 lb_ui_route_poll。 */
+
 /**
  * @brief 是否有待执行的预约 (面板预约灯常亮用)
  *

@@ -219,6 +219,13 @@ bool elunchbox_heating_blocks_idle(void)
     if (elunchbox_pwr_is_manual_off()) {
         return false;
     }
+    /* 充电中停在保温页: 保温本身结束了(heat_enable=0)也不自动关机, 拔线才走 ——
+     * 与 lb_ui_route_poll "充电中保温结束留在保温页" 配套, 否则页面留住了,
+     * 5 分钟空闲照样把机器带进关机时序(充电中落黑屏充电页)。
+     * 拔线后路由回主界面, 这里不再挡, 空闲计时从头走 5 分钟。 */
+    if (func_cb.sta == FUNC_NEW_WARM_PAGE && lunchbox_charging_now()) {
+        return true;
+    }
     return lunchbox_heating_task_active() || lb_ota_is_active();
 #else
     return false;
