@@ -17,6 +17,14 @@ static tft_cb_t tft_cb;
 #define TFT_BGLIGHT_KICK_TIMEOUT_MS     300
 static u32 bglight_kick_tick;           /* kick 置 te_bglight_cnt 的时刻 */
 
+/* ---- TE 帧同步门控 (撕裂消除) ----
+ * TE 中断只标帧边界, 不再调 os_gui_draw —— ISR 推屏与主循环 gui_process
+ * 双推 SPI 总线冲突是上次 6b99f86 使能 TE 后切图卡死的根因。
+ * 推屏统一由主循环经 tft_te_frame_gate() 在 TE 时隙后执行。 */
+#define TFT_TE_GATE_TIMEOUT_MS          80      /* TE 同步下最长等帧边界, 超时放行防卡帧 */
+static volatile bool te_frame_ready;            /* TE 帧边界就绪 (ISR 置位/主循环消费) */
+static volatile u32  te_pulse_cnt;              /* TE 脉冲计数 (证真+背光 kick 递减用) */
+
 tft_cb_t* tft_get_tft_cb(void)
 {
     return &tft_cb;
@@ -33,7 +41,7 @@ static void tft_te_refresh(void)
     if (!gui_get_screenshot())
 #endif
 	{
-        os_gui_draw();
+        te_frame_ready = true;      /* 帧边界就绪, 主循环门控消费 */
     }
 }
 
@@ -49,6 +57,7 @@ void tft_te_isr(void)
 #if (PORT_TFT_INT != IO_NONE)
     if (WKUPEDG & BIT(16+PORT_TFT_INT_VECTOR)) {
         WKUPCPND = BIT(16+PORT_TFT_INT_VECTOR);
+        te_pulse_cnt++;
 
         bool flag_mode_nochange = true;
         if (tft_cb.te_mode != tft_cb.te_mode_next) {
@@ -79,6 +88,37 @@ void tft_te_isr(void)
             }
         }
     }
+#endif
+}
+
+//推屏帧门控: TE未证实前自由推屏, TE证实后对齐帧边界推屏消除撕裂
+bool tft_te_frame_gate(void)
+{
+#if (PORT_TFT_INT == IO_NONE)
+    return true;                            //无TE脚, 永远自由推
+#else
+    static u32 last_push_tick;              //上次放行时刻
+
+    /* TE 未证实: 自由推屏, 不卡首帧 */
+    if (te_pulse_cnt == 0) {
+        last_push_tick = tick_get();
+        return true;
+    }
+
+    /* TE 帧边界已到: 对齐推屏 */
+    if (te_frame_ready) {
+        te_frame_ready = false;
+        last_push_tick = tick_get();
+        return true;
+    }
+
+    /* TE 未到但超时: 防卡帧, 回落推屏 (TE 一时不来也不冻屏) */
+    if (tick_check_expire(last_push_tick, TFT_TE_GATE_TIMEOUT_MS)) {
+        last_push_tick = tick_get();
+        return true;
+    }
+
+    return false;                           //等待 TE 边界, 跳过本次推屏
 #endif
 }
 
@@ -222,6 +262,10 @@ void tft_init(void)
     tft_cb.te_mode = 0;                                 //初始化
     tft_cb.te_mode_next = 0;
     tft_set_temode(DEFAULT_TE_MODE);
+
+    /* 帧门控初始态: TE 未证实前自由推屏 */
+    te_pulse_cnt = 0;
+    te_frame_ready = false;
 #else
     CLKGAT0 |= BIT(31);                                 //TICK1
     TICK1CON = BIT(7) | BIT(6) | BIT(5) | BIT(2);       //TIE, div64[6:4], xosc26m[3:1]
