@@ -1372,26 +1372,25 @@ bool sleep_process(is_sleep_func is_sleep)
     }
 #endif
 #if ELUNCHBOX_PANEL_EN
-    /* 饭盒：5min 无操作 = 自动关机, 与长按 TCH5 完全同一条路:
-     * lunchbox_shutdown_start → 停加热 → 关模块 →
-     *   充电中 → 黑屏跑马灯页 (不深睡, 收串口状态)
-     *   未充电 → manual_off 深睡
-     * 不可直接 screen_off/manual_off: 充电时会跳过黑屏页直接深睡。
-     * 加热/OTA 中 idle_expired 恒 false (elunchbox_lp.c 挡掉并喂满计时);
-     * 黑屏充电页本身就是"关机+充电"态, 喂满计时不重复触发。 */
+    /* 饭盒：5min 无操作 = 自动关机, 与长按 TCH5 一样立 manual_off 标志,
+     * 进 sfunc_sleep 的代码完全一致 (PE1+PB9 port wakeup / RTC_WDT_DIS).
+     * 多一句 lb_heat_cmd_heat_off() 通知模块停加热, 一发即走不等应答.
+     * 不可走 lunchbox_shutdown_start: 异步等 ack 期间 bt_is_allow_sleep 可能
+     * 先跑进正常深睡(未配 PE1/PB9 wakeup) → 唤不醒. */
     if (elunchbox_guioff_idle_expired()) {
 #if FUNC_LUNCHBOX_UART_EN
         if (func_cb.sta == FUNC_BLACK_SCREEN) {
             elunchbox_lp_user_activity_reset();
             return false;
         }
-        if (!lunchbox_shutdown_is_active() && !lunchbox_shutdown_is_done()
-            && !elunchbox_pwr_is_manual_off()) {
-            printf("elunchbox: idle %us -> auto shutdown\n",
+        if (!elunchbox_pwr_is_manual_off()) {
+            printf("elunchbox: idle %us -> manual_off deep sleep\n",
                    (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
-            lunchbox_shutdown_start(false, 0);
-            /* 喂满计时: 关机时序进行中防反复 start; 落地黑屏页后再计 5min 无害 */
-            elunchbox_lp_user_activity_reset();
+            lb_heat_cmd_heat_off();               /* 停加热, 不等应答 */
+            lb_heat_cmd_power(false);             /* 关模块, 不等应答 */
+            elunchbox_pwr_manual_off_set();       /* 立手动关机标志 → sfunc_sleep 配 PE1+PB9 唤醒 */
+            elunchbox_screen_off();
+            elunchbox_guioff_sleep_arm_immediate();
         }
 #else
         printf("elunchbox: idle %us -> manual_off deep sleep\n",
