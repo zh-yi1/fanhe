@@ -11,6 +11,12 @@
 
 static tft_cb_t tft_cb;
 
+/* 背光 kick 超时兜底: ELUNCHBOX 冷启动靠 "首帧推完+3TE" 点背光,
+ * 但 0x35=0x00 时屏不输出 TE 脉冲, te_bglight_cnt 永不递减, 背光死锁。
+ * 首帧推完(kick)后超时未点亮则强制完成。 */
+#define TFT_BGLIGHT_KICK_TIMEOUT_MS     300
+static u32 bglight_kick_tick;           /* kick 置 te_bglight_cnt 的时刻 */
+
 tft_cb_t* tft_get_tft_cb(void)
 {
     return &tft_cb;
@@ -138,6 +144,7 @@ void tft_frame_end(void)
     if (tft_cb.tft_bglight_kick) {
         tft_cb.tft_bglight_kick = false;
         tft_cb.te_bglight_cnt = 3; //3TE后打开背光
+        bglight_kick_tick = tick_get();
     }
     if (tft_cb.tft_set_baud_kick) {
         tft_cb.tft_set_baud_kick = false;
@@ -148,6 +155,12 @@ void tft_frame_end(void)
 //背光亮度初始设置检测
 void tft_bglight_frist_set_check(void)
 {
+    /* kick 后 TE 一直没来(0x35=0x00 无TE脉冲), 超时强制点亮 */
+    if (tft_cb.te_bglight_cnt > 0
+        && tick_check_expire(bglight_kick_tick, TFT_BGLIGHT_KICK_TIMEOUT_MS)) {
+        tft_cb.te_bglight_cnt = 0;
+        tft_cb.tft_bglight_first_set = true;
+    }
     if(!tft_cb.tft_bglight_first_set) {
         return ;
     }
