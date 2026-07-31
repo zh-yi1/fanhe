@@ -29,7 +29,7 @@ static bool manual_off_uart_wake_check(void)
 AT(.sleep_backup.gui)
 u8 sys_backup_buf[32 * 1024 - 8];
 
-/* manual_off 深度休眠标志：sys_sleep_cb 在 sys_enter_sleep 前关 BT wakeup */
+/* manual_off 深度休眠标志：sys_sleep_cb 在 sys_enter_sleep 前关 BT+RTC wakeup */
 static bool elunchbox_manual_off_in_sleep;
 /* 非TCH5按键按住期间：PE1 wakeup已切为上升沿，等松手后恢复下降沿 */
 static bool elunchbox_waiting_key_release;
@@ -147,7 +147,7 @@ void sys_sleep_cb(u8 lpclk_type)
         GPIOGDE = BIT(2) | BIT(4);                  //SPICS, SPICLK
     }
 
-    /* manual_off: 最后一刻关所有非 GPIO 唤醒源 */
+    /* manual_off: 最后一刻关 BT+RTC 唤醒，仅保留 PE1+PB9 port wakeup */
     if (elunchbox_manual_off_in_sleep) {
         RTCCON3 &= ~BIT(13);        /* disable bt wakeup */
         BTCON2 &= ~(3 << 10);       /* disable bt sleep wakeup */
@@ -769,10 +769,6 @@ static void sfunc_sleep(void)
 
 #if VBAT_DETECT_EN
     if (bsp_vbat_get_lpwr_status()) {           //低电不进sniff mode
-#if ELUNCHBOX_PANEL_EN
-        /* 睡不了就释放 manual_off, 否则 sleep_process 下轮又调进来死循环 */
-        elunchbox_pwr_manual_off_clr();
-#endif
         return;
     }
 #endif
@@ -1376,16 +1372,12 @@ bool sleep_process(is_sleep_func is_sleep)
      * 加热/OTA 中 idle_expired 恒 false (elunchbox_lp.c 挡掉并喂满计时);
      * 黑屏充电页本身就是"关机+充电"态, 不重复触发。 */
     if (elunchbox_guioff_idle_expired()) {
-#if FUNC_LUNCHBOX_UART_EN
-        if (!lunchbox_shutdown_is_active() && !lunchbox_shutdown_is_done()
-            && func_cb.sta != FUNC_BLACK_SCREEN) {
-            printf("elunchbox: idle %us -> auto shutdown\n",
-                   (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
-            lunchbox_shutdown_start(false, 0);
-        }
-#else
+        /* 自动空闲关机: 与 TCH5 长按走完全相同的 manual_off 流程 */
+        printf("elunchbox: idle %us -> manual_off deep sleep\n",
+               (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
+        elunchbox_pwr_manual_off_set();
         elunchbox_screen_off();
-#endif
+        elunchbox_guioff_sleep_arm_immediate();
         return false;
     }
     /* 已息屏但加热进行中：自动亮回 */
