@@ -56,6 +56,24 @@ bool lb_ui_state_feed_dp(const u8 *data, u16 len);
 /** @brief 复位为未同步状态 (关机/模块失联时可调); 不影响蓝牙连接标志 */
 void lb_ui_state_reset(void);
 
+//-----------------------------------------------------------------------------
+// 镜像预写 (预测-校正): 本机命令发出成功时把期望结果先写进镜像, 页面切过去
+// 首屏就是新数据; 模块应答回来只做校正 (不一致打 ERROR)。调用点收口在
+// lb_heat_cmd.c 各发送函数, 页面不要直接调。预写不产生路由边沿。
+//-----------------------------------------------------------------------------
+
+/** @brief 预写"开始加热/保温/续跑" (start/resume 发送成功后调) */
+void lb_ui_state_predict_start(u8 mode, u8 temp_idx, u32 duration_min, u32 remain_min);
+
+/** @brief 预写"停止加热"; with_mode_off=true 连模式一起清 (stop), false 只清使能 (heat_off) */
+void lb_ui_state_predict_stop(bool with_mode_off);
+
+/** @brief 预写"总开关" (power 发送成功后调) */
+void lb_ui_state_predict_power(bool on);
+
+/** @brief 预写自愈轮询: 超时(500ms)没等到模块 0x01 → 补发状态查询 (主循环每轮调) */
+void lb_ui_state_predict_poll(void);
+
 /**
  * @brief BLE 连接/断开通知 (平台 app_blue_fit.c 的连接/断开回调调用)
  *
