@@ -124,8 +124,10 @@ static void func_black_screen_page_process(void)
         inf->unplug_sent = false;
     } else if (!inf->unplug_sent) {
         inf->unplug_sent = true;
-        printf("black_screen: unplugged -> shutdown\n");
-        lunchbox_shutdown_start(false, 0);  /* 重复调用无副作用 */
+        printf("black_screen: unplugged -> manual_off deep sleep\n");
+        elunchbox_pwr_manual_off_set();
+        elunchbox_screen_off();
+        elunchbox_guioff_sleep_arm_immediate();
     }
 #endif
 

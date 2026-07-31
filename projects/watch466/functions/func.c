@@ -438,7 +438,7 @@ void func_process(void)
     }
 #endif
     /* FUNC_LUNCHBOX_UART_EN=1 时空闲处理只在 sleep_process (func_lowpwr.c):
-     * 5min 无操作 = 自动关机走关机时序 → manual_off 深睡。
+     * 5min 无操作 = 自动关机走关机时序 → 充电中黑屏跑马灯 / 未充电 manual_off 深睡。
      * 这里原来有一份"到期即息屏"(合并带入), 每轮跑在 sleep_process 之前,
      * 把机器抢进 auto-guioff 深睡 —— 那条路不关 RTC WDT, 睡下即被 RTC_WDT
      * 硬复位重启, 表现为"定时进低功耗后自己起来跑、功耗不对"。已删。 */
