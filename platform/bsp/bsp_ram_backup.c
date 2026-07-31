@@ -1,6 +1,9 @@
 #include "include.h"
 
-#define GUI_BACKUP_SIZE     (30*1024)
+#define GUI_BACKUP_SIZE     (32*1024)  /* increased to cover ~31k disp restore for elunchbox
+                                        * 必须 >= keep_ram_tbl_load_size(实测31308):
+                                        * 否则备份走 ab_malloc 动态池, 唤醒引导阶段池被
+                                        * 重建 → restore 拷回垃圾 → 醒后即挂死(唤不醒) */
 
 typedef struct {
     u32 start;
