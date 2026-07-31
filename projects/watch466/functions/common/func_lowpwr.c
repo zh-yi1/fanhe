@@ -664,6 +664,14 @@ static void sfunc_sleep(void)
 #endif
     sleep_cb.sys_is_sleep = true;
     sys_cb.gui_need_wakeup = 0;
+    /* PLL0 关断前的短预热: lunchbox_uart_process 每 5ms 调一次,
+     * 保持 CPU/UART/BT 活跃, 让 BT 控制器收敛到干净态。
+     * 40*5ms=200ms, 比 lowpower 的 2s UART 握手短 10 倍。*/
+    for (int i = 0; i < 40; i++) {
+        lunchbox_uart_process();
+        delay_5ms(5);
+        WDT_CLR();
+    }
     printf("slp: A (bt_enter_sleep)\n");
     bt_enter_sleep();
     bt_audio_bypass();
