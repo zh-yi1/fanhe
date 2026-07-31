@@ -846,13 +846,15 @@ static void sfunc_sleep(void)
             GPIOBPD200K = 0;
             GPIOBPU300  = 0;
             GPIOBPD300  = 0;
-            /* PE1~4: 200K 弱上拉, 清强上下拉 */
-            GPIOEPU &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
-            GPIOEPD &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
-            GPIOEPU200K |= (BIT(1) | BIT(2) | BIT(3) | BIT(4));
-            GPIOEPD200K &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
-            GPIOEPU300  &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
-            GPIOEPD300  &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            /* PE1~4: 200K 弱上拉, 清强上下拉。
+             * 用预存值计算后直接=写, 不用 &= ~ / |= (读-改-写):
+             * rtc_sleep_enter 后 GPIO 读可能挂死 AHB。*/
+            GPIOEPU = pe_pu & ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPD = pe_pd & ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPU200K = pe_pu200k | (BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPD200K = pe_pd200k & ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPU300  = pe_pu300 & ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPD300  = pe_pd300 & ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
             GPIOFPU = 0;
             GPIOFPD = 0;
             GPIOHPU = 0;
