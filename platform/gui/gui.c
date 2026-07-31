@@ -234,6 +234,14 @@ u8 is_gpu_init(void)
 void gui_init(void)
 {
 //    led_pg_on();
+#if ELUNCHBOX_PANEL_EN
+    /* 背光走 PG_BL_TMR4 PWM: led_pg_on/off(LCD_BL_EN/DIS) 对它无效
+     * (api_pwr.h 注明"使用PWM后失效"), 上电默认输出就是亮的 ——
+     * 必须最早把占空比压成 0, 否则 GRAM 随机数直接可见(开机花屏)。
+     * 直接调 bsp_pwm_duty_set: lcd_drv_set_brightness(0) 会被驱动里
+     * last_duty==duty 的守卫挡掉, 写不进寄存器 */
+    bsp_pwm_duty_set(PORT_TFT_BL, 0, false);
+#endif
 #if (GUI_SELECT == GUI_VGS_640)
 // PE9拉低，否则供电 1.8V纹波较大
 
@@ -255,12 +263,9 @@ void gui_init(void)
     LCD_POWER_EN();                     /* GPU就绪后再给LCD上电，避免花屏 */
     tft_init();
 #if ELUNCHBOX_PANEL_EN
-    /* 饭盒: 只上背光电源, 亮度保持 0 —— tft_init 已置 bglight_kick,
-     * 首帧推完(tft_frame_end)+3TE 后由主循环 frist_set_check 开背光,
-     * 避免 GRAM 未刷时点亮花屏 (tft_bglight_open 会立即点亮, 不能用) */
-    extern void lcd_drv_set_brightness(u8 brightness);
-    LCD_BL_EN();
-    lcd_drv_set_brightness(0);
+    /* 饭盒: 初始化不点背光 (占空比已在本函数开头压 0) —— tft_init 已置
+     * bglight_kick, 首帧推完(tft_frame_end)+3TE 后由主循环 frist_set_check
+     * 写回正常亮度。"显示完成才开背光", 避免 GRAM 未刷时花屏 */
 #else
     tft_bglight_open();                     /* PWM 配置，但暂不开背光 */
 #endif
