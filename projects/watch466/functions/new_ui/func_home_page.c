@@ -9,8 +9,10 @@ extern void func_confirm_overlay_show(void);
 extern bool func_confirm_overlay_poll(void);
 extern bool func_confirm_overlay_get_result(void);
 #if FUNC_LUNCHBOX_UART_EN
-extern bool lb_boot_display_gate_open(void);    /* 盖盖上电: 首帧判定前不亮屏 */
-extern void lb_lid_confirm_yes(void);           /* 弹窗 YES: 按数据续跑跳页 */
+extern bool lb_lid_popup_pending_take(void);    /* 盖盖上电: enter 取弹窗标记 */
+extern void lb_lid_popup_poll(void);            /* 弹窗挂 1min 没表态 → 停加热 */
+extern void lb_lid_confirm_yes(void);           /* 弹窗 YES: 继续加热并跳页 */
+extern void lb_lid_confirm_no(void);            /* 弹窗 NO: 立即停加热 */
 #endif
 
 /* 系统状态实例 —— 全部字段由 lb_ui_sync_pull() 从串口状态镜像刷新,
@@ -120,12 +122,7 @@ compo_form_t *func_home_page_form_create(void)
     compo_textbox_set_forecolor(inf->txt_mode, COLOR_BLUE);
     compo_textbox_set_forecolor(inf->txt_set, COLOR_BLUE);
 
-#if FUNC_LUNCHBOX_UART_EN
-    /* 盖盖上电: 首帧未判定时压着背光, 由 lb_boot_lid_check() 判定后亮 ——
-     * 亮出来的第一眼要么纯主页、要么主页+弹窗, 不闪切 */
-    if (lb_boot_display_gate_open())
-#endif
-        tft_bglight_force_on();
+    tft_bglight_force_on();
     return frm;
 }
 
@@ -212,15 +209,21 @@ static void func_home_page_process(void)
         func_confirm_overlay_show();
     }
     if (func_confirm_overlay_visible()) {
+#if FUNC_LUNCHBOX_UART_EN
+        lb_lid_popup_poll();           /* 挂满 1min 没表态才停加热 (容错重盖) */
+#endif
         func_confirm_overlay_poll();
         if (!func_confirm_overlay_visible()) {
             g_ui_sys.lid_open = false; /* 用户已处理 */
 #if FUNC_LUNCHBOX_UART_EN
-            /* 盖盖上电弹窗结果 (弹窗入口已下发停止加热):
-             * YES → 按开盖前暂存的数据续跑并跳页(保温→保温页, 加热→加热页);
-             * NO  → 已经停了, 留在主界面 */
+            /* 盖盖上电弹窗结果 (弹窗期间加热未停, 除非挂满 1min 超时停过):
+             * YES → 继续加热, 按暂存模式跳页(保温→保温页, 加热→加热页,
+             *        超时停过则先 resume 续跑);
+             * NO  → 立即停加热, 留在主界面 */
             if (func_confirm_overlay_get_result()) {
                 lb_lid_confirm_yes();
+            } else {
+                lb_lid_confirm_no();
             }
 #endif
         }
@@ -244,6 +247,15 @@ void func_home_page_enter(void)
     func_cb.f_cb = func_zalloc(sizeof(f_home_t));
     func_key_reset();
     func_cb.frm_main = func_home_page_form_create();
+
+#if FUNC_LUNCHBOX_UART_EN
+    /* 盖盖上电时模块在加热 (func_run 启动段判定): 弹窗直接合成进第一帧,
+     * 亮屏即主页+弹窗, 不会先见纯主页 */
+    if (lb_lid_popup_pending_take()) {
+        g_ui_sys.lid_open = true;       /* process 的弹窗收尾逻辑沿用此标志 */
+        func_confirm_overlay_show();
+    }
+#endif
 
     home_gpu_wait_idle();
     WDT_CLR();
