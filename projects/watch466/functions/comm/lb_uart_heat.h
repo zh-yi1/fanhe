@@ -44,6 +44,11 @@
     0=不重启直接失败, 1=允许重启1次 */
 #define HEAT_OTA_MAX_RESTARTS       1
 
+/** @brief 单轮传输里"模块报某包写失败 → 补发那一包"的累计次数上限
+    超过则不再补发, 整个传输重启。防止模块反复报同一包时来回死循环
+    (补发成功会把 retry_count 清零, 单靠它拦不住) */
+#define HEAT_OTA_MAX_OOB_RESEND     8
+
 /** @brief 发送 BOOT 复位指令后等待加热模块就绪的延迟时间 (毫秒)
     发送 0xFFFFFFFF 后不验证模块应答, 直接等待此延迟后发第一条数据 (offset=0)
 

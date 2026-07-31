@@ -126,6 +126,12 @@ typedef struct {
     u8  current_msg_flag;
     u32 uart_send_tick;
 
+    /* 乱序补发: 模块先回 ACK 再写 Flash, 写失败会晚一两包才补报 err + 出错偏移。
+     * 补发那一包时要记住原来的进度, 补完跳回来接着往下发。 */
+    bool oob_resend;        // 当前在飞的是"乱序补发"的包
+    u32  oob_resume_off;    // 补发完成后要回到的 send_offset
+    u16  oob_total;         // 本次传输累计补发次数 (不被成功应答清零, 防死循环)
+
     // 统计
     u16 total_packets;
     u16 sent_packets;
@@ -151,6 +157,7 @@ static heat_ota_ctx_t g_heat_ota;
 static void heat_ota_reset(void);
 static void heat_ota_uart_send(u32 offset, const u8 *data, u16 data_len, u8 msg_flag);
 static void heat_ota_send_next_packet(void);
+static void heat_ota_resend_packet(u32 offset);
 static void heat_ota_send_boot_cmd(void);
 static void heat_ota_send_end_packet(void);
 static void heat_ota_start_uart_transfer(bool skip_boot);
@@ -513,6 +520,40 @@ static void heat_ota_send_next_packet(void)
     g_heat_ota.state = HEAT_OTA_WAIT_ACK;
 }
 
+/**
+ * @brief 从 Flash 重建指定偏移那一包并发出去 (不推进 send_offset)
+ *
+ * 两处用: 应答超时重发当前包 / 模块补报某一包写失败时重发那一包。
+ */
+static void heat_ota_resend_packet(u32 offset)
+{
+    u32 remaining = g_heat_ota.send_total - offset;
+    u16 pkt_len = (remaining >= HEAT_OTA_PACKET_SIZE) ? HEAT_OTA_PACKET_SIZE
+                                                       : (u16)remaining;
+    u16 aligned_len = pkt_len;
+    if (pkt_len & 0x0F) {
+        aligned_len = (pkt_len + 16) & ~0x0F;
+    }
+
+    u8 packet_buf[HEAT_OTA_PACKET_SIZE + 16];
+    u32 flash_off = HEAT_OTA_FLASH_ADDR + offset;
+    if (g_heat_ota.has_header) {
+        flash_off += HEAT_OTA_HEADER_SIZE;
+    }
+    os_spiflash_read(packet_buf, flash_off, pkt_len);
+    if (aligned_len > pkt_len) {
+        memset(packet_buf + pkt_len, 0x00, aligned_len - pkt_len);
+    }
+
+    u8 msg = g_heat_ota.uart_msg_flag++;
+    g_heat_ota.current_msg_flag      = msg;
+    g_heat_ota.current_packet_offset = offset;
+    g_heat_ota.current_packet_len    = pkt_len;
+
+    heat_ota_uart_send(offset, packet_buf, aligned_len, msg);
+    g_heat_ota.state = HEAT_OTA_WAIT_ACK;
+}
+
 static void heat_ota_send_end_packet(void)
 {
     g_heat_ota.uart_phase = HEAT_UART_PHASE_END;
@@ -580,6 +621,8 @@ static void heat_ota_start_uart_transfer(bool skip_boot)
     g_heat_ota.uart_msg_flag = 0;
     g_heat_ota.sent_packets = 0;
     g_heat_ota.retry_count = 0;
+    g_heat_ota.oob_resend = false;      // 从头重来, 之前的补发进度作废
+    g_heat_ota.oob_total  = 0;
     g_heat_ota.total_packets = (u16)((g_heat_ota.send_total + HEAT_OTA_PACKET_SIZE - 1)
                                      / HEAT_OTA_PACKET_SIZE);
 
@@ -611,23 +654,66 @@ static void heat_ota_start_uart_transfer(bool skip_boot)
 
 static void heat_ota_handle_ack(lb_rx_frame_t *rx)
 {
-    // 从响应中解析 offset (4 字节大端), 用于过滤过期应答
-    // DATA 阶段: 校验 rx offset 与 current_packet_offset 匹配, 丢弃过期应答
-    // BOOT 阶段: 模块回复 offset=0xFFFFFFFF + magic=0x44332211, 下面单独校验
+    /* 应答里的 offset (4 字节大端): 正常应答用来滤过期包, 错误应答用来
+     * 定位是哪一包出错 —— 后者不一定等于当前在飞的包, 见下面的说明。
+     * BOOT 阶段模块回 offset=0xFFFFFFFF + magic=0x44332211。 */
+    u32  rx_offset  = 0;
+    bool has_offset = false;
     if (rx->data && rx->data_len >= 4) {
-        u32 rx_offset = ((u32)rx->data[0] << 24) | ((u32)rx->data[1] << 16)
-                      | ((u32)rx->data[2] << 8)  | rx->data[3];
-        if (g_heat_ota.uart_phase == HEAT_UART_PHASE_DATA &&
-            rx_offset != g_heat_ota.current_packet_offset) {
-            printf("[HEAT_OTA] rx offset=0x%08lX != expected=0x%08lX, dropping\n",
-                   (unsigned long)rx_offset,
-                   (unsigned long)g_heat_ota.current_packet_offset);
-            return;
-        }
+        rx_offset = ((u32)rx->data[0] << 24) | ((u32)rx->data[1] << 16)
+                  | ((u32)rx->data[2] << 8)  | rx->data[3];
+        has_offset = true;
     }
 
-    // err_flag != 0 统一视为失败 (旧版 err=0x01 boot ACK 协议已废弃)
+    /* BOOT 阶段的 err=0x01 不是错误, 是"模块已经在 BOOT 模式里了" ——
+     * 新进 BOOT 回 err=0x00 + magic 0x44332211, 已在 BOOT 里回 err=0x01。
+     * 不认这条的话, 任何一次重启传输都会在 BOOT 这步被判死 (日志
+     * phase=1 err=0x01, max restarts reached), 重试机制等于没有。 */
+    if ((g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT
+         || g_heat_ota.uart_phase == HEAT_UART_PHASE_BOOT_DELAY)
+        && rx->err_flag == 0x01) {
+        printf("[HEAT_OTA] BOOT: module already in BOOT mode (err=0x01), "
+               "sending 1st packet now\n");
+        g_heat_ota.retry_count = 0;
+        g_heat_ota.uart_phase  = HEAT_UART_PHASE_DATA;
+        g_heat_ota.state       = HEAT_OTA_SENDING;
+        heat_ota_send_next_packet();
+        return;
+    }
+
+    /* 错误应答必须先于 offset 过滤处理 ——
+     * 模块是"先回 ACK 再写 Flash", 写失败会晚一两包才补报 err + 出错偏移。
+     * 这条补报的 offset 通常落后于当前在飞的包, 早期版本被 offset 过滤器
+     * 当过期应答丢掉(日志 rx offset=... dropping), 于是坏掉的那一包永远
+     * 没人重发, 一路发到 END 才被模块的整包 CRC 拒掉, 且看不出原因。 */
     if (rx->err_flag != 0x00) {
+        /* 数据阶段且能定位到具体偏移: 只补发那一包, 不整个传输重来 */
+        if (g_heat_ota.uart_phase == HEAT_UART_PHASE_DATA
+            && has_offset && rx_offset < g_heat_ota.send_total) {
+            g_heat_ota.retry_count++;
+            g_heat_ota.oob_total++;
+            /* retry_count 会被成功应答清零, 单看它拦不住"补发成功→又报错"
+             * 的来回; oob_total 整轮传输只增不减, 到顶就整个重启。 */
+            if (g_heat_ota.retry_count < HEAT_OTA_MAX_RETRIES
+                && g_heat_ota.oob_total <= HEAT_OTA_MAX_OOB_RESEND) {
+                printf("[HEAT_OTA] module write fail at 0x%08lX (err=0x%02X), "
+                       "resend %u/%u\n",
+                       (unsigned long)rx_offset, rx->err_flag,
+                       g_heat_ota.retry_count, HEAT_OTA_MAX_RETRIES);
+                /* 补发的包和当前进度不是一回事, 记住原进度, 补完跳回来。
+                 * 已经在补发中就不要覆盖原进度 (连续几次补发同一包)。 */
+                if (!g_heat_ota.oob_resend) {
+                    g_heat_ota.oob_resend     = true;
+                    g_heat_ota.oob_resume_off = g_heat_ota.send_offset;
+                }
+                heat_ota_resend_packet(rx_offset);
+                return;
+            }
+            printf("[HEAT_OTA] resend limit reached at 0x%08lX (retry=%u oob=%u)"
+                   " -> restart transfer\n",
+                   (unsigned long)rx_offset, g_heat_ota.retry_count,
+                   g_heat_ota.oob_total);
+        }
         if (g_heat_ota.total_restarts < HEAT_OTA_MAX_RESTARTS) {
             printf("[HEAT_OTA] phase=%d err=0x%02X, restarting UART transfer (%u/%u)\n",
                    g_heat_ota.uart_phase, rx->err_flag,
@@ -645,6 +731,15 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
         return;
     }
 
+    /* 正常应答的过期过滤: 只对得上当前在飞的那一包才算数 */
+    if (g_heat_ota.uart_phase == HEAT_UART_PHASE_DATA
+        && has_offset && rx_offset != g_heat_ota.current_packet_offset) {
+        printf("[HEAT_OTA] rx offset=0x%08lX != expected=0x%08lX, dropping\n",
+               (unsigned long)rx_offset,
+               (unsigned long)g_heat_ota.current_packet_offset);
+        return;
+    }
+
     g_heat_ota.retry_count = 0;
 
     switch (g_heat_ota.uart_phase) {
@@ -655,8 +750,17 @@ static void heat_ota_handle_ack(lb_rx_frame_t *rx)
         break;
 
     case HEAT_UART_PHASE_DATA:
-        g_heat_ota.sent_packets++;
-        g_heat_ota.send_offset += g_heat_ota.current_packet_len;
+        if (g_heat_ota.oob_resend) {
+            /* 刚补发的是模块报错那一包, 不推进进度 —— 跳回原来的位置继续 */
+            printf("[HEAT_OTA] resend at 0x%08lX acked, back to 0x%08lX\n",
+                   (unsigned long)g_heat_ota.current_packet_offset,
+                   (unsigned long)g_heat_ota.oob_resume_off);
+            g_heat_ota.oob_resend  = false;
+            g_heat_ota.send_offset = g_heat_ota.oob_resume_off;
+        } else {
+            g_heat_ota.sent_packets++;
+            g_heat_ota.send_offset += g_heat_ota.current_packet_len;
+        }
         g_heat_ota.state = HEAT_OTA_SENDING;
         heat_ota_send_next_packet();
         break;
@@ -689,30 +793,8 @@ static void heat_ota_handle_timeout(void)
                g_heat_ota.retry_count, HEAT_OTA_MAX_RETRIES);
 
         if (g_heat_ota.uart_phase == HEAT_UART_PHASE_DATA) {
-            // 从 Flash 重建当前包
-            u32 remaining = g_heat_ota.send_total - g_heat_ota.current_packet_offset;
-            u16 pkt_len = (remaining >= HEAT_OTA_PACKET_SIZE) ? HEAT_OTA_PACKET_SIZE
-                                                               : (u16)remaining;
-            u16 aligned_len = pkt_len;
-            if (pkt_len & 0x0F) aligned_len = (pkt_len + 16) & ~0x0F;
-
-            u8 packet_buf[HEAT_OTA_PACKET_SIZE + 16];
-            u32 flash_off;
-            if (g_heat_ota.has_header) {
-                flash_off = HEAT_OTA_FLASH_ADDR + HEAT_OTA_HEADER_SIZE
-                            + g_heat_ota.current_packet_offset;
-            } else {
-                flash_off = HEAT_OTA_FLASH_ADDR + g_heat_ota.current_packet_offset;
-            }
-            os_spiflash_read(packet_buf, flash_off, pkt_len);
-            if (aligned_len > pkt_len) {
-                memset(packet_buf + pkt_len, 0x00, aligned_len - pkt_len);
-            }
-
-            u8 msg = g_heat_ota.uart_msg_flag++;
-            g_heat_ota.current_msg_flag = msg;
-            heat_ota_uart_send(g_heat_ota.current_packet_offset,
-                               packet_buf, aligned_len, msg);
+            // 从 Flash 重建当前包重发 (补发中的包同样走这里, oob 状态不变)
+            heat_ota_resend_packet(g_heat_ota.current_packet_offset);
         } else {
             // END / RESTART_END 超时重发 (保留原 phase)
             heat_uart_phase_t prev_phase = g_heat_ota.uart_phase;
