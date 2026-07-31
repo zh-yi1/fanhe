@@ -631,8 +631,12 @@ static void sfunc_sleep(void)
 #if VBAT_DETECT_EN
     if (bsp_vbat_get_lpwr_status()) {           //低电不进sniff mode
 #if ELUNCHBOX_PANEL_EN
-        /* 睡不了就释放 manual_off, 否则 sleep_process 下轮又调进来死循环 */
+        /* 睡不了就释放 manual_off + guioff, 否则 sleep_process 下轮
+         * 以 auto_guioff 模式反复进浅睡 → BT/RTC 秒唤醒 → func_pwroff */
         elunchbox_pwr_manual_off_clr();
+        if (elunchbox_pwr_gui_off_is_on()) {
+            elunchbox_pwr_gui_wake();
+        }
 #endif
         return;
     }
@@ -782,11 +786,9 @@ static void sfunc_sleep(void)
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_manual_off_slp) {
         /* PE1(FLAG) 上拉必须在 rtc_sleep_enter 之前配好。
-         * rtc_sleep_enter 之后 GPIO 寄存器写可能被电源管理忽略,
-         * 仅靠后面的 200K 配置不够可靠, 自动休眠唤不醒。*/
+         * rtc_sleep_enter 之后 GPIO 寄存器写可能被电源管理忽略。*/
         GPIOEPU |= BIT(1);
         GPIOEPD &= ~BIT(1);
-        RTC_WDT_DIS();
     }
 #endif
     rtc_sleep_enter();
@@ -925,6 +927,14 @@ static void sfunc_sleep(void)
         port_wakeup_all_init(IO_PB9, 1, 1);
         printf("elunchbox: sfunc_sleep %s wakeup PE1+PB9 configured\n",
                elunchbox_manual_off_slp ? "manual_off" : "auto_guioff");
+    }
+#endif
+
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    if (elunchbox_manual_off_slp) {
+        /* RTC_WDT 移到 wakeup 配置之后: 若 rtc_sleep_enter→GPIO 段卡死,
+         * WDT 能复位救回, 不至于永远砖。*/
+        RTC_WDT_DIS();
     }
 #endif
 
