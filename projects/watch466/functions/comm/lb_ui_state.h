@@ -184,15 +184,18 @@ u8 lb_ui_schedule_alloc_id(void);
 //   case LB_UI_ROUTE_HOME: 若在加热/保温页 → 回首页;   break;
 //   default: break;   // LB_UI_ROUTE_NONE: 无需动作
 //   }
-// 边沿触发: 仅在加热模式/加热使能发生变化的那一轮返回非 NONE,
+// 边沿触发: 仅在加热模式/加热使能/故障(DP9)发生变化的那一轮返回非 NONE,
 // 是否真的切页由调用方结合当前页面判断 (已在目标页则忽略)。
+//
+// 唯一的副作用: 故障边沿那一轮, 若模块还在加热会顺手发一条停止命令
+// (见 lb_ui_heat_stop_expected 的说明)。除此之外 poll 只是给建议。
 //-----------------------------------------------------------------------------
 
 typedef enum {
     LB_UI_ROUTE_NONE = 0,      // 状态没变, 或变化不涉及页面
     LB_UI_ROUTE_HEAT,          // 模块开始加热 (模式1~4) → 加热页
     LB_UI_ROUTE_WARM,          // 模块开始保温 (模式5)   → 保温页
-    LB_UI_ROUTE_HOME,          // 加热/保温停止          → 首页
+    LB_UI_ROUTE_HOME,          // 加热/保温停止, 或模块报故障 → 首页
 } lb_ui_route_t;
 
 /** @brief 轮询跳页建议 (边沿触发, 一次变化只报一次) */
@@ -204,6 +207,9 @@ lb_ui_route_t lb_ui_route_poll(void);
  * 区分加热自然结束与主动停止: 自然结束 → 路由去保温页 (加热结束进保温);
  * 主动停止 → 回首页。模块被动停止时也会把 DP6 清 0, 剩余时间区分不了,
  * 只能靠发停止命令的人打招呼。lb_heat_cmd_stop/heat_off 内已调, 一般不用管。
+ *
+ * 第三种停止: 模块报故障(DP9, 低电除外) —— 由 lb_ui_route_poll 自己识别,
+ * 模块还在加热就补发一条停止, 页面一律回首页不进保温, 不需要调用方打招呼。
  */
 void lb_ui_heat_stop_expected(void);
 

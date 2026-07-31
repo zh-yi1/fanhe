@@ -74,6 +74,7 @@ static struct {
 static bool lb_route_inited;
 static u8   lb_route_last_mode;
 static u8   lb_route_last_enable;
+static u8   lb_route_last_fault;
 
 /** @brief 预写落账: 路由基线对齐 + seq++ + 开校正窗口 */
 static void lb_predict_commit(u8 mask)
@@ -81,6 +82,7 @@ static void lb_predict_commit(u8 mask)
     lb_route_inited      = true;         // 预写不产生路由边沿
     lb_route_last_mode   = lb_ui_state.heat_mode;
     lb_route_last_enable = lb_ui_state.heat_enable;
+    lb_route_last_fault  = lb_ui_state.fault;   // 预写不碰 fault, 对齐防万一
 
     /* 故意不置 valid: 正常运行时它本来就是真; 开机时序的 power_on 也走
      * 预写, 那一刻 lb_boot_lid_wait() 正在等"模块首帧"(以 valid 为判据),
@@ -492,6 +494,17 @@ void lb_ui_heat_stop_expected(void)
     lb_heat_stop_expected = true;
 }
 
+/*
+ * 路由意义上的"故障": 模块报了 DP9 且不是低电。
+ * 低电有独立页面 (func.c 按 g_ui_sys.lowbat 切 FUNC_LOWBAT), 不走这里,
+ * 否则会跟低电页抢跳页。
+ * 注: 模块若把 DP9 当 0/1 两值回 (见 lb_proto.h 的说明), 这里同样成立。
+ */
+static bool lb_fault_active(u8 fault)
+{
+    return fault != LB_FAULT_NONE && fault != LB_FAULT_LOW_BATTERY;
+}
+
 lb_ui_route_t lb_ui_route_poll(void)
 {
     /* 基线在文件级 (lb_route_*): 预写要同步它, 见 lb_predict_commit() */
@@ -500,17 +513,43 @@ lb_ui_route_t lb_ui_route_poll(void)
         return LB_UI_ROUTE_NONE;
     }
 
-    // 只盯路由相关的两个字段, 电量/温度等变化不触发跳页
+    // 只盯路由相关的三个字段, 电量/温度等变化不触发跳页
     if (lb_route_inited && st->heat_mode == lb_route_last_mode
-        && st->heat_enable == lb_route_last_enable) {
+        && st->heat_enable == lb_route_last_enable
+        && st->fault == lb_route_last_fault) {
         return LB_UI_ROUTE_NONE;
     }
     bool first = !lb_route_inited;
     u8 prev_enable = lb_route_last_enable;
     u8 prev_mode   = lb_route_last_mode;
+    u8 prev_fault  = lb_route_last_fault;
     lb_route_inited = true;
     lb_route_last_mode = st->heat_mode;
     lb_route_last_enable = st->heat_enable;
+    lb_route_last_fault = st->fault;
+
+    bool fault_now = lb_fault_active(st->fault);
+
+    /* 模块报故障 → 停止加热 + 回主界面, 不进保温。
+     * 故障与 DP10=0 通常在同一帧上报, 这里先判故障边沿把边沿吃掉;
+     * 若故障晚一帧到, 下面"自然结束"分支也会因 fault_now 改判回主界面。
+     *
+     * 模块只报故障没停加热时本机补一条停止 (DP10=0 + DP1=1, 与退出加热页
+     * 同一条): 不能只靠页面 exit —— 用户在设置页等非加热页时故障根本不跳页,
+     * 加热就停不下来。stop 内部已置停止标志并预写镜像 heat_enable=0,
+     * 所以加热页 exit 那条补发不会重复触发。
+     * 关机时序进行中不插队: 那边正按 heat_off → power_off 一步步走。 */
+    if (!first && fault_now && !lb_fault_active(prev_fault)) {
+        bool stop_sent = false;
+        lb_heat_stop_expected = true;
+        if (st->heat_enable && !lunchbox_shutdown_is_active()
+            && !lunchbox_shutdown_is_done()) {
+            stop_sent = lb_heat_cmd_stop();
+        }
+        printf("route: module fault=%u -> home (stop %s)\n", st->fault,
+               stop_sent ? "sent" : "skip");
+        return LB_UI_ROUTE_HOME;
+    }
 
     if (st->heat_enable) {
         lb_heat_stop_expected = false;       // 新任务开始, 旧的停止标志作废
@@ -526,9 +565,10 @@ lb_ui_route_t lb_ui_route_poll(void)
     if (!first && prev_enable) {
         bool expected = lb_heat_stop_expected;
         lb_heat_stop_expected = false;
-        // 加热(1~4)自然结束(没人发过停止) → 进保温;
+        // 加热(1~4)自然结束(没人发过停止, 且模块没在故障) → 进保温;
         // 保温页 enter 看到模块没在保温, 会自动下发保温命令
-        if (!expected && prev_mode >= LB_MODE_CUSTOM && prev_mode <= LB_MODE_RESERVE) {
+        if (!expected && !fault_now
+            && prev_mode >= LB_MODE_CUSTOM && prev_mode <= LB_MODE_RESERVE) {
             return LB_UI_ROUTE_WARM;
         }
         return LB_UI_ROUTE_HOME;             // 主动停止 / 保温结束, 回首页
