@@ -664,13 +664,29 @@ static void sfunc_sleep(void)
 #endif
     sleep_cb.sys_is_sleep = true;
     sys_cb.gui_need_wakeup = 0;
-
-    /* 先把 BT/BLE 活动停掉再进 sleep: 关 scan + 拉长 BLE 间隔,
-     * 等 200ms 让硬件完成当前操作, 之后 bt_enter_sleep 是干净态,
-     * PLL0 关断安全。不靠长时间 UART 轮询。*/
-    printf("slp: A0 (bt pre-sleep shutdown)\n");
+    /* lowpower 兼容: bt_enter_sleep 之前 ~2s UART 轮询预热。
+     * 外部关机后模块已关, 不发命令, 仅保持 lunchbox_uart_process
+     * + delay_5ms(5) 节奏。这段预热让 BT 控制器处于干净空闲态,
+     * 之后 PLL0 关断安全, rtc_sleep_enter 后 GPIO 访问正常。 */
+    {
+        int warmup;
+        for (warmup = 0; warmup < 400; warmup++) {  /* 400*5ms=2000ms */
+            lunchbox_uart_process();
+            delay_5ms(5);
+            WDT_CLR();
+        }
+        printf("slp: A0 (warmup done %d ms)\n", warmup * 5);
+    }
+    printf("slp: A (bt_enter_sleep)\n");
+    bt_enter_sleep();
+    bt_audio_bypass();
+    while(btstack_audio_is_busy());
+    printf("slp: B (audio idle)\n");
 #if LE_EN
     adv_interval = ble_get_adv_interval();
+    /* manual_off: 不能关广播！ble_adv_dis() 会让 BT 栈进入等完成状态
+     * → bt_sleep_proc() 永远返回 0 → sys_enter_sleep 永远不会被调。
+     * 只拉长间隔，BT 栈就能正常 sleep。BLE 唤醒已被忽略。 */
     ble_set_adv_interval(1600);                  //interval: 500 * 0.625ms = 500ms
     if (ble_is_connect()) {                     //ble已连接
         interval = ble_get_conn_interval();
@@ -681,7 +697,7 @@ static void sfunc_sleep(void)
 #endif
 #if BT_SINGLE_SLEEP_LPW_EN
     if (!bt_is_connected()){                    //蓝牙未连接
-        if (bt_get_scan()) {
+        if (bt_get_scan()) {                    //双模休眠
             bt_update_bt_scan_param(4096, 8, 4096, 12);
         } else {
             bt_update_bt_scan_param(4096, 0, 4096, 0);
@@ -693,22 +709,18 @@ static void sfunc_sleep(void)
         bt_update_bt_scan_param(4096, 12, 2048, 12);
     }
 #endif
+
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    /* manual_off: 强制关 BT scan。
+     * 第一次上电时 scan 未开启所以 bt_scan_disable 生效 → bt_sleep_proc 可睡。
+     * 唤醒亮屏后 scan 被 bt_update_bt_scan_param_default 恢复 → 第二次进
+     * manual_off 时 bt_get_scan()=true → 上面只调参不关 scan → bt_sleep_proc
+     * 不睡 → 10mA。此处强制关掉。 */
     if (elunchbox_manual_off_slp) {
         bt_scan_disable();
     }
 #endif
-    /* 等 BT 硬件完成当前操作 (scan/conn event 最大 ~500ms) */
-    for (int i = 0; i < 40; i++) {
-        lunchbox_uart_process();
-        delay_5ms(5);
-        WDT_CLR();
-    }
-    printf("slp: A (bt_enter_sleep)\n");
-    bt_enter_sleep();
-    bt_audio_bypass();
-    while(btstack_audio_is_busy());
-    printf("slp: B (audio idle)\n");
+    printf("slp: C (bt param/scan done)\n");
 
 #if DAC_DNR_EN
     u8 sta = dac_dnr_get_sta();
@@ -779,6 +791,12 @@ static void sfunc_sleep(void)
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     PLL1CON0 &= ~0x03;                          //disable pll1
     printf("slp: E3 (pll0 off)\n");
+#if FUNC_LUNCHBOX_UART_EN
+    /* 关 UART1, 释放 PB8/PB9 回 GPIO, 以便下面 rtc_sleep_enter 后
+     * GPIO 配置段自由设置引脚状态 (digital + pull)。*/
+    lunchbox_uart_suspend();
+    printf("slp: D0 (uart1 off)\n");
+#endif
     printf("slp: E (before rtc_sleep_enter)\n");
 
     //io analog input — 完整保存所有 GPIO 配置（必须在 rtc_sleep_enter 之前!
@@ -893,13 +911,6 @@ static void sfunc_sleep(void)
 
     wkie = WKUPCON & BIT(16);
     WKUPCON &= ~BIT(16);                        //休眠时关掉WKIE
-
-#if FUNC_LUNCHBOX_UART_EN
-    /* UART1 挂起移到 rtc_sleep_enter + GPIO 配置之后:
-     * lowpower 全程不挂 UART, rtc_sleep_enter 时 UART 活跃→硬件状态正确。
-     * GPIO 配置已把 PB8/PB9 切为数字输入+上拉, 此时挂 UART 安全。*/
-    lunchbox_uart_suspend();
-#endif
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_guioff_slp) {
