@@ -589,9 +589,11 @@ lb_ui_route_t lb_ui_route_poll(void)
         return LB_UI_ROUTE_HOME;
     }
 
-    /* 拔充电线。
-     * 加热中插电被转保温的那份加热还有剩余时间 → 回加热页把它跑完;
-     * 没有剩余 (加热本来就该结束了) / 普通保温 → 回主界面。
+    /* 拔充电线, 按"这份保温是哪来的"分三条:
+     *   加热中插电转来的, 还有剩余时间 → 回加热页, 补命令把剩下的跑完
+     *   加热中插电转来的, 时间已用完   → 回主界面 (加热本来就该结束了)
+     *   人自己选的保温, 还在跑         → 留在保温页, 拔线不打断
+     *   其余 (保温已停 / 空闲)         → 回主界面
      * 加热中拔线不动 —— 那是电池供电继续加热, 不该被拔线打断。
      * 黑屏充电页拔线是另一条路(走关机时序), 这里的边沿在 apply 里
      * 只作用于加热页/保温页, 碰不到它。 */
@@ -612,7 +614,16 @@ lb_ui_route_t lb_ui_route_poll(void)
             lb_heat_cmd_start(mode, temp, left);
             return LB_UI_ROUTE_HEAT;
         }
+        bool was_from_heat = lb_warm_from_heat.active;
         lb_warm_from_heat.active = false;
+        /* 人自己选的保温 (模式页下发 / APP 下发) 还在跑 → 拔线不打断,
+         * 留在保温页接着显示, 等它自己结束或用户退出。
+         * 加热转来的那份不适用: 它的时长是那份加热的, 跑完就该回主界面
+         * (上面 remain>0 已经先接走了续加热那条)。 */
+        if (!was_from_heat && st->heat_enable && st->heat_mode == LB_MODE_WARM) {
+            printf("route: unplugged, manual keep-warm still running -> stay\n");
+            return LB_UI_ROUTE_NONE;
+        }
         printf("route: charger unplugged -> home\n");
         return LB_UI_ROUTE_HOME;
     }
