@@ -1114,9 +1114,9 @@ static void sfunc_sleep(void)
         }
     }
 
-    /* manual_off key wake: restore GPU now (display on 由主循环排队) */
+    /* guioff wake: restore GPU now (auto_guioff + manual_off 统一, display on 由主循环排队) */
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    if (elunchbox_manual_off_slp && gui_need_wkp && sys_cb.gui_sleep_sta) {
+    if (elunchbox_guioff_slp && gui_need_wkp && sys_cb.gui_sleep_sta) {
         elunchbox_pwr_intentional_wake_set(true);
         gui_wakeup();
         elunchbox_pwr_intentional_wake_set(false);
@@ -1211,10 +1211,10 @@ bool sleep_process(is_sleep_func is_sleep)
         if ((elunchbox_guioff_sleep_ready() && (*is_sleep)()) || force_lowpwr) {
             if (force_lowpwr) {
                 printf("elunchbox: sleep_process force_lowpwr -> sfunc_sleep\n");
-                /* 手动关机深度休眠前须退出 GPU */
-                if (!sys_cb.gui_sleep_sta) {
-                    gui_sleep(true);
-                }
+            }
+            /* 深度休眠前须退出 GPU (auto_guioff + manual_off 统一) */
+            if (!sys_cb.gui_sleep_sta) {
+                gui_sleep(true);
             }
             sfunc_sleep();
             reset_sleep_delay_all();
