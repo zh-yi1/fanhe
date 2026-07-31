@@ -664,6 +664,19 @@ static void sfunc_sleep(void)
 #endif
     sleep_cb.sys_is_sleep = true;
     sys_cb.gui_need_wakeup = 0;
+    /* lowpower 兼容: bt_enter_sleep 之前 ~2s UART 轮询预热。
+     * 外部关机后模块已关, 不发命令, 仅保持 lunchbox_uart_process
+     * + delay_5ms(5) 节奏。这段预热让 BT 控制器处于干净空闲态,
+     * 之后 PLL0 关断安全, rtc_sleep_enter 后 GPIO 访问正常。 */
+    {
+        int warmup;
+        for (warmup = 0; warmup < 400; warmup++) {  /* 400*5ms=2000ms */
+            lunchbox_uart_process();
+            delay_5ms(5);
+            WDT_CLR();
+        }
+        printf("slp: A0 (warmup done %d ms)\n", warmup * 5);
+    }
     printf("slp: A (bt_enter_sleep)\n");
     bt_enter_sleep();
     bt_audio_bypass();
@@ -772,11 +785,12 @@ static void sfunc_sleep(void)
     printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     printf("slp: E2 (adda clk sel)\n");
-    /* PLL0/PLL1 不在此处手动关断。实测 bt_enter_sleep 后关 PLL0
-     * 会导致 AHB 总线挂死 → RTC_WDT 复位。让 rtc_sleep_enter →
-     * sys_enter_sleep 硬件序列去关 PLL, 省掉这段手动关断。
-     * 唤醒端 adpll_init() 会重新使能 PLL0, 不受影响。 */
-    printf("slp: E3 (pll0 off skipped)\n");
+    /* lowpower 兼容: UART 预热后 PLL0 关断安全。
+     * 没有预热时 bt_enter_sleep 后直接关 PLL0 → AHB 挂死。
+     * 没有 PLL0 关断则 rtc_sleep_enter 后 GPIO 读挂死。*/
+    PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
+    PLL1CON0 &= ~0x03;                          //disable pll1
+    printf("slp: E3 (pll0 off)\n");
 #if FUNC_LUNCHBOX_UART_EN
     /* 关 UART1, 释放 PB8/PB9 回 GPIO, 以便下面 rtc_sleep_enter 后
      * GPIO 配置段自由设置引脚状态 (digital + pull)。*/
