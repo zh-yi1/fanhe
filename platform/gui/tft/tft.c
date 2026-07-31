@@ -91,35 +91,10 @@ void tft_te_isr(void)
 #endif
 }
 
-//推屏帧门控: TE未证实前自由推屏, TE证实后对齐帧边界推屏消除撕裂
+//推屏帧门控: 当前TE仅用于背光kick递减, 推屏时序暂不改变
 bool tft_te_frame_gate(void)
 {
-#if (PORT_TFT_INT == IO_NONE)
-    return true;                            //无TE脚, 永远自由推
-#else
-    static u32 last_push_tick;              //上次放行时刻
-
-    /* TE 未证实: 自由推屏, 不卡首帧 */
-    if (te_pulse_cnt == 0) {
-        last_push_tick = tick_get();
-        return true;
-    }
-
-    /* TE 帧边界已到: 对齐推屏 */
-    if (te_frame_ready) {
-        te_frame_ready = false;
-        last_push_tick = tick_get();
-        return true;
-    }
-
-    /* TE 未到但超时: 防卡帧, 回落推屏 (TE 一时不来也不冻屏) */
-    if (tick_check_expire(last_push_tick, TFT_TE_GATE_TIMEOUT_MS)) {
-        last_push_tick = tick_get();
-        return true;
-    }
-
-    return false;                           //等待 TE 边界, 跳过本次推屏
-#endif
+    return true;    //TODO: TE同步验证通过后启用帧边界对齐
 }
 
 AT(.com_text.tft_spi)
