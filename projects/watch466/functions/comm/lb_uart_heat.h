@@ -45,8 +45,13 @@
 #define HEAT_OTA_MAX_RESTARTS       1
 
 /** @brief 发送 BOOT 复位指令后等待加热模块就绪的延迟时间 (毫秒)
-    发送 0xFFFFFFFF 后不验证模块应答, 直接等待此延迟后发第一条数据 (offset=0) */
-#define HEAT_OTA_BOOT_DELAY_MS      1000
+    发送 0xFFFFFFFF 后不验证模块应答, 直接等待此延迟后发第一条数据 (offset=0)
+
+    2026-07-31 从 1000 提到 3000: 1s 时 154 包全部 ACK 正常, 但 END 帧的 CRC
+    被模块拒 (err=0x01) —— 模块刚进 BOOT 要擦自身 App 区, 没擦完就开灌,
+    早期几包落在未擦干净的 Flash 上(模块照样回 ACK), 它自算的 CRC 自然对不上。
+    多等 2s 后实测升级成功。改小前先想清楚这一条。 */
+#define HEAT_OTA_BOOT_DELAY_MS      3000
 
 //-----------------------------------------------------------------------------
 // OTA 状态机
