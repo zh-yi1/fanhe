@@ -54,9 +54,7 @@ void func_lowbat_page(void)
         WDT_CLR();
         /* 只刷新 UI，不处理按键、不加任何退出逻辑 */
         compo_update();
-        if (tft_te_frame_gate()) {
-            gui_process();
-        }
+        gui_process();
         msg_dequeue(); /* 丢弃所有消息 */
     }
     func_lowbat_page_exit();

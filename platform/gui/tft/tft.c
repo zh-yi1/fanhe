@@ -11,17 +11,6 @@
 
 static tft_cb_t tft_cb;
 
-/* ---- TE 帧同步门控 (撕裂消除) ----
- * TE 中断只标记帧边界, 不再直接 os_gui_draw —— 与主循环 gui_process
- * 双推屏冲突是上次使能 TE 后切图卡死的根因 (见 ccaa4bf 回退)。
- * 推屏统一由主循环经 tft_te_frame_gate() 对齐到 TE 时隙后执行。
- * TE 未出脉冲时自动回落自由推屏, 不掉回旧行为。 */
-#define TFT_TE_GATE_WATCHDOG_MS         200     //TE连续无帧就绪超时, 回退自由推屏
-static volatile bool te_frame_ready;            //TE帧就绪标记 (中断置位/主循环消费)
-static volatile bool te_sync_on;                //TE已证真, 进入门控推屏
-static volatile u32  te_pulse_cnt;              //TE脉冲计数 (证明TE活着)
-static volatile u32  te_last_pushed;            //最近一次门控放行推屏的时间戳
-
 tft_cb_t* tft_get_tft_cb(void)
 {
     return &tft_cb;
@@ -38,7 +27,7 @@ static void tft_te_refresh(void)
     if (!gui_get_screenshot())
 #endif
 	{
-        te_frame_ready = true;      /* 帧边界就绪, 主循环门控消费 */
+        os_gui_draw();
     }
 }
 
@@ -54,7 +43,6 @@ void tft_te_isr(void)
 #if (PORT_TFT_INT != IO_NONE)
     if (WKUPEDG & BIT(16+PORT_TFT_INT_VECTOR)) {
         WKUPCPND = BIT(16+PORT_TFT_INT_VECTOR);
-        te_pulse_cnt++;
 
         bool flag_mode_nochange = true;
         if (tft_cb.te_mode != tft_cb.te_mode_next) {
@@ -85,35 +73,6 @@ void tft_te_isr(void)
             }
         }
     }
-#endif
-}
-
-//推屏帧门控: 返回true表示本帧可推屏 (已对齐TE推屏时隙)
-bool tft_te_frame_gate(void)
-{
-#if (PORT_TFT_INT == IO_NONE)
-    return true;                        //无TE脚: 维持自由推屏
-#else
-    if (!te_sync_on) {
-        if (te_pulse_cnt > 0) {         //TE已出脉冲: 从本帧起进入TE同步
-            te_sync_on = true;
-            te_frame_ready = false;
-        }
-        te_last_pushed = tick_get();
-        return true;                    //开机首帧/TE未证实: 先自由推屏
-    }
-    if (te_frame_ready) {
-        te_frame_ready = false;
-        te_last_pushed = tick_get();
-        return true;
-    }
-    if (tick_check_expire(te_last_pushed, TFT_TE_GATE_WATCHDOG_MS)) {
-        te_sync_on = false;             //TE停了: 回退自由推屏, 防画面冻结
-        te_frame_ready = false;
-        te_last_pushed = tick_get();
-        return true;
-    }
-    return false;                       //未到帧边界: 跳过本次推屏
 #endif
 }
 
@@ -250,12 +209,6 @@ void tft_init(void)
     tft_cb.te_mode = 0;                                 //初始化
     tft_cb.te_mode_next = 0;
     tft_set_temode(DEFAULT_TE_MODE);
-
-    /* 帧同步门控初始态: TE 未证实前自由推屏 */
-    te_pulse_cnt = 0;
-    te_frame_ready = false;
-    te_sync_on = false;
-    te_last_pushed = tick_get();
 #else
     CLKGAT0 |= BIT(31);                                 //TICK1
     TICK1CON = BIT(7) | BIT(6) | BIT(5) | BIT(2);       //TIE, div64[6:4], xosc26m[3:1]

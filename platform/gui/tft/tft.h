@@ -325,13 +325,4 @@ void tft_bglight_force_on(void);
 
 void tft_te_isr(void);
 
-/**
- * @brief 推屏帧门控 (撕裂消除)
- *        主循环在调 gui_process 前先询问: 返回true表示当前已对齐TE推屏
- *        时隙, 可以推屏; false表示未到帧边界, 应跳过本次推屏。
- *        TE未出脉冲时始终返回true (自由推屏), 不影响开机/无TE场景。
- * @return true=可以推屏, false=跳过本次
- */
-bool tft_te_frame_gate(void);
-
 #endif

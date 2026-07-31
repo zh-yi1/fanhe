@@ -460,19 +460,14 @@ void func_process(void)
         bool gui_do_refresh = !sys_cb.flag_swithing;
         compo_update();
         if (gui_do_refresh) {
-            /* TE帧门控: 对齐TE推屏时隙消除切图撕裂; 未出TE脉冲时照常推 */
-            if (tft_te_frame_gate()) {
-                gui_process();
-            }
+            gui_process();
         }
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
         func_elunchbox_res_key_poll();
 #endif
 #else
         compo_update();
-        if (tft_te_frame_gate()) {
-            gui_process();
-        }
+        gui_process();
 #endif
     }
 
