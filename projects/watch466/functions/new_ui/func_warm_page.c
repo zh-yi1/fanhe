@@ -33,6 +33,7 @@ typedef struct
 {
     u8 display_stage; // 0 = 正常运行, 1 = 首帧跳过 func_process
     u8  last_idx;       // 上次圆环索引
+    u32 warm_base_min;  // 进页时的已保温分钟基线, 显示用差值 (强制从 0 起算)
     general_status_bar_t sb;
     compo_picturebox_t *state_pic;
     compo_picturebox_t *schedule_pic;
@@ -41,6 +42,15 @@ typedef struct
     compo_textbox_t *residue_time_text;
     compo_textbox_t *residue_time_text1;
 } f_warm_page_t;
+
+/* 盖盖弹窗 YES 进保温页: 继承开盖前的已保温时长, 不清零显示
+ * (func.c 的 lb_lid_confirm_yes 在切页前置位, enter 取走) */
+static bool warm_inherit_pending;
+
+void func_warm_page_inherit_time(void)
+{
+    warm_inherit_pending = true;
+}
 
 compo_form_t *func_warm_page_form_create(void)
 {
@@ -166,10 +176,17 @@ static void func_warm_page_process(void)
     }
 
     /* 保温计时：从串口 g_ui_sys.keep_warm_min 读取已保温分钟数
-     *  圆环从空到满 (ANNULUS_12→ANNULUS_0)，按 keep_warm_min 均分 */
+     *  圆环从空到满 (ANNULUS_12→ANNULUS_0)，按 keep_warm_min 均分
+     *  显示 = 当前值 − 进页基线 (强制从 0 起算, 见 enter);
+     *  当前值 < 基线说明模块把计时重置了 (保温命令生效) → 基线跟着塌到当前值 */
     {
         u32 warm_min = g_ui_sys.keep_warm_min;
         u8  idx;
+
+        if (warm_min < inf->warm_base_min) {
+            inf->warm_base_min = warm_min;
+        }
+        warm_min -= inf->warm_base_min;
 
         if (warm_min == 0) {
             idx = 0; /* 空环 */
@@ -234,6 +251,19 @@ void func_warm_page_enter(void)
             printf("warm_page: keep warm %uF %umin sent\n",
                    (unsigned)LB_WARM_TEMP_F, (unsigned)LB_WARM_DURATION_MIN);
         }
+    }
+
+    /* 显示强制从 0 起算: 记进页基线, process 里用差值 ——
+     * 模块自动转保温(加热中插电)会带着加热残值的 DP5/DP6, 不减基线会显示
+     * "已保温 1 分钟"。模块重置计时后基线自动塌 0 (见 process)。
+     * 盖盖弹窗 YES 进来的例外: 继承开盖前的已保温时长, 基线为 0 */
+    if (warm_inherit_pending) {
+        warm_inherit_pending = false;
+        inf->warm_base_min = 0;
+        printf("warm_page: inherit warm time %umin\n",
+               (unsigned)g_ui_sys.keep_warm_min);
+    } else {
+        inf->warm_base_min = g_ui_sys.keep_warm_min;
     }
 #endif
 

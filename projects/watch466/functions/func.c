@@ -229,7 +229,11 @@ void lb_lid_confirm_yes(void)
     lb_lid_popup_tick = 0;
     if (lb_lid_mode == LB_MODE_WARM) {
         /* 没停过: 保温页 enter 见模块仍在保温, 不会重发(计时不清零);
-         * 超时停过: enter 见模块没在保温, 自动重发 194F/24h */
+         * 超时停过: enter 见模块没在保温, 自动重发 194F/24h。
+         * 继承显示: 保温页显示默认进页清零, 盖盖 YES 要接着开盖前的
+         * 已保温时长显示, 提前打招呼 */
+        extern void func_warm_page_inherit_time(void);
+        func_warm_page_inherit_time();
         func_cb.sta = FUNC_NEW_WARM_PAGE;
     } else if (lb_lid_mode != LB_MODE_OFF) {
         if (lb_lid_stopped) {
@@ -250,7 +254,10 @@ void lb_lid_confirm_no(void)
     }
 }
 
-/** func_run 启动段: 等模块首帧并判定盖盖弹窗 (阻塞 ≤3s, 喂狗) */
+/**
+ * func_run 启动段: 等模块首帧并按首帧数据定开机去向 (阻塞 ≤3s, 喂狗)
+ * 优先级: ① 加热/保温中 → 盖盖弹窗  ② 模块报充电 → 黑屏充电页  ③ 主页
+ */
 static void lb_boot_lid_wait(void)
 {
     u32 t0 = tick_get();
@@ -264,18 +271,34 @@ static void lb_boot_lid_wait(void)
 
     /* 低电直接读镜像 —— g_ui_sys 要到主循环 lb_ui_sync_pull 才刷 */
     lb_ui_state_t *st = lb_ui_state_get();
-    if (!st->valid || !lunchbox_heating_task_active()
-        || st->fault == LB_FAULT_LOW_BATTERY) {
-        return;                         /* 没在加热/低电 → 正常开机进主页 */
+    if (!st->valid) {
+        return;                         /* 模块不在/不答 → 照常开机进主页 */
     }
-    lb_lid_mode     = st->heat_mode;
-    lb_lid_temp     = st->heat_temp;
-    lb_lid_duration = st->heat_duration;
-    lb_lid_remain   = st->remain_time ? st->remain_time : st->heat_duration;
-    printf("boot: module heat/warm (mode=%u dur=%u remain=%u) -> lid popup\n",
-           lb_lid_mode, (unsigned)lb_lid_duration, (unsigned)lb_lid_remain);
-    lb_lid_popup_pending = true;        /* 主页 enter 把弹窗合成进第一帧;
+
+    /* ① 加热/保温中 (盖盖前开着) → 盖盖弹窗 */
+    if (lunchbox_heating_task_active() && st->fault != LB_FAULT_LOW_BATTERY) {
+        lb_lid_mode     = st->heat_mode;
+        lb_lid_temp     = st->heat_temp;
+        lb_lid_duration = st->heat_duration;
+        lb_lid_remain   = st->remain_time ? st->remain_time : st->heat_duration;
+        printf("boot: module heat/warm (mode=%u dur=%u remain=%u) -> lid popup\n",
+               lb_lid_mode, (unsigned)lb_lid_duration, (unsigned)lb_lid_remain);
+        lb_lid_popup_pending = true;    /* 主页 enter 把弹窗合成进第一帧;
                                          * 不停加热 —— 表态/超时才停 */
+        return;
+    }
+
+    /* ② 没有加热任务但模块报充电 → 黑屏充电页。
+     * 深睡中插电是把板子 WKUP reset 成冷启动 (不是串口唤醒, 醒因闩锁全丢),
+     * 且充电口在加热模块上、本机 DC_IN 检不到 —— 只有首帧 DP4 知道在充电。
+     * 开机时序刚把模块拍开了, 拍回去: 黑屏页语义是"关机+充电",
+     * 与关机时序落黑屏页、插线冷启动两条既有路径保持一致 (模块都是关的)。 */
+    if (st->charge == 1 || st->charge == 2) {
+        printf("boot: module charging (charge=%u) -> black screen charge page\n",
+               st->charge);
+        lb_heat_cmd_power(false);
+        func_cb.sta = FUNC_BLACK_SCREEN;
+    }
 }
 
 static void lb_shutdown_seq_apply(void)
@@ -1110,8 +1133,9 @@ void func_run(void)
     }
 #if FUNC_LUNCHBOX_UART_EN
     else {
-        /* 盖盖上电: 进页面前先把模块首帧等到手(≤3s), 加热中开过盖 →
-         * 停加热+置 pending, 主页 enter 把"继续加热?"弹窗合成进第一帧 */
+        /* 盖盖上电: 进页面前先把模块首帧等到手(≤3s), 按首帧定去向 ——
+         * 加热中开过盖 → 置 pending, 主页 enter 把"继续加热?"弹窗合成进
+         * 第一帧; 无加热但模块报充电(插电 WKUP reset 冷启动) → 黑屏充电页 */
         lb_boot_lid_wait();
     }
 #endif

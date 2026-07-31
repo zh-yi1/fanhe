@@ -522,8 +522,7 @@ bool sfunc_sleep_proc(void)
          *   - 非TCH5/轻触: 清pending → continue(不离while, bt_sleep_proc重睡)
          * ================================================================ */
 #if ELUNCHBOX_PANEL_EN && USER_PT8028_KEY
-        if (manual_off)
-        {
+        if (manual_off) {
             bool sw_has_event;
             bool hw_has_event;
 
@@ -551,15 +550,12 @@ bool sfunc_sleep_proc(void)
 
             /* Step 2.5: 非TCH5按键松手检测
              * PE1已切为上升沿等松手，唤醒=松手→恢复下降沿→重睡 */
-            if (elunchbox_waiting_key_release)
-            {
+            if (elunchbox_waiting_key_release) {
                 bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
                 u8 pe1 = ((GPIOE >> 1) & 1);
 
-                if (pb9_lo)
-                {
-                    if (manual_off_uart_wake_check())
-                    {
+                if (pb9_lo) {
+                    if (manual_off_uart_wake_check()) {
                         printf("lp: -> PB9 wake during wait-release\n");
                         gui_need_wkp = true;
                         break;
@@ -567,8 +563,7 @@ bool sfunc_sleep_proc(void)
                     /* 无关帧: 不唤醒, 落到下面继续等松手/重睡 */
                 }
 
-                if (pe1 != 0)
-                {
+                if (pe1 != 0) {
                     /* PE1 HIGH → 按键已松手 → 恢复下降沿唤醒 */
 #if LP_SLEEP_VERBOSE
                     printf("lp: -> key released, restore falling edge\n");
@@ -583,8 +578,7 @@ bool sfunc_sleep_proc(void)
                 continue;
             }
 
-            if (sw_has_event || hw_has_event)
-            {
+            if (sw_has_event || hw_has_event) {
                 /* Step 3: 读 PB9 + PE1/BCD */
                 bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
                 u8 bcd;
@@ -594,10 +588,8 @@ bool sfunc_sleep_proc(void)
                        sw_has_event, hw_has_event, pb9_lo, pe1_lo, bcd);
 #endif
 
-                if (pb9_lo)
-                {
-                    if (manual_off_uart_wake_check())
-                    {
+                if (pb9_lo) {
+                    if (manual_off_uart_wake_check()) {
                         printf("lp: -> UART/PB9 wake\n");
                         gui_need_wkp = true;
                         break;
@@ -607,22 +599,18 @@ bool sfunc_sleep_proc(void)
                     elunchbox_manual_wake_pending_take();
                     continue;
                 }
-                if (pe1_lo && bcd == 5)
-                {
+                if (pe1_lo && bcd == 5) {
                     /* TCH5: 要求持续 LOW≥2s 才当有效唤醒 */
                     int tch5_cnt = 0;
-                    while (tch5_cnt < 400)
-                    { /* 400*5ms=2000ms=2s */
+                    while (tch5_cnt < 400) {  /* 400*5ms=2000ms=2s */
                         delay_5ms(1);
                         WDT_CLR();
-                        if (((GPIOE >> 1) & 1) != 0)
-                        {
-                            break; /* PE1 回 HIGH → 未按够 2s */
+                        if (((GPIOE >> 1) & 1) != 0) {
+                            break;  /* PE1 回 HIGH → 未按够 2s */
                         }
                         tch5_cnt++;
                     }
-                    if (tch5_cnt >= 400)
-                    {
+                    if (tch5_cnt >= 400) {
                         printf("lp: -> TCH5 wake (held 2s)\n");
 #if FUNC_LUNCHBOX_UART_EN
                         lunchbox_wake_reason_set_key();
@@ -633,15 +621,11 @@ bool sfunc_sleep_proc(void)
 #if LP_SLEEP_VERBOSE
                     printf("lp: -> TCH5 brief (<2s), back to sleep\n");
 #endif
-                }
-                else if (pe1_lo)
-                {
+                } else if (pe1_lo) {
 #if LP_SLEEP_VERBOSE
                     printf("lp: -> non-TCH5 (bcd=%d), back to sleep\n", bcd);
 #endif
-                }
-                else
-                {
+                } else {
 #if LP_SLEEP_VERBOSE
                     printf("lp: -> stale/noise, ignore\n");
 #endif
@@ -652,7 +636,7 @@ bool sfunc_sleep_proc(void)
                  * PE1已HIGH(轻触弹跳)：切上升沿无影响 → 下次按键下降沿正常唤醒 */
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
                 elunchbox_manual_wake_pending_take();
-                port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1); /* 切上升沿 */
+                port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);  /* 切上升沿 */
                 elunchbox_waiting_key_release = true;
 #if LP_SLEEP_VERBOSE
                 printf("lp: -> sw to rising edge, wait release\n");
@@ -672,15 +656,12 @@ bool sfunc_sleep_proc(void)
         if (wkpnd)
         {
 #if ELUNCHBOX_PANEL_EN
-            if (manual_off)
-            {
+            if (manual_off) {
                 bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
                 u8 bcd;
                 bool pe1_lo = sleep_read_bcd_pe1(&bcd);
-                if (pb9_lo)
-                {
-                    if (manual_off_uart_wake_check())
-                    {
+                if (pb9_lo) {
+                    if (manual_off_uart_wake_check()) {
                         gui_need_wkp = true;
                         break;
                     }
@@ -688,19 +669,15 @@ bool sfunc_sleep_proc(void)
                     RTCCON9 = BIT(7) | BIT(5) | BIT(2);
                     continue;
                 }
-                if (pe1_lo && bcd == 5)
-                {
+                if (pe1_lo && bcd == 5) {
                     int tch5_cnt = 0;
-                    while (tch5_cnt < 400)
-                    {
+                    while (tch5_cnt < 400) {
                         delay_5ms(1);
                         WDT_CLR();
-                        if (((GPIOE >> 1) & 1) != 0)
-                            break;
+                        if (((GPIOE >> 1) & 1) != 0) break;
                         tch5_cnt++;
                     }
-                    if (tch5_cnt >= 400)
-                    {
+                    if (tch5_cnt >= 400) {
 #if FUNC_LUNCHBOX_UART_EN
                         lunchbox_wake_reason_set_key();
 #endif
@@ -713,8 +690,7 @@ bool sfunc_sleep_proc(void)
                 port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
                 elunchbox_waiting_key_release = true;
                 continue;
-            }
-            else
+            } else
 #endif
             {
                 printf(port_wakeup_str, wkpnd);
@@ -786,8 +762,7 @@ bool sfunc_sleep_proc(void)
         }
     }
     /* 真唤醒 → 重置松手等待标志，确保下次进 manual_off 休眠使用下降沿唤醒 */
-    if (gui_need_wkp)
-    {
+    if (gui_need_wkp) {
         elunchbox_waiting_key_release = false;
     }
     printf("lp: while exit loop=%u sleep_cnt=%u wkp=%u\n",
@@ -857,8 +832,7 @@ static void sfunc_sleep(void)
 #endif
 
 #if VBAT_DETECT_EN
-    if (bsp_vbat_get_lpwr_status())
-    { // 低电不进sniff mode
+    if (bsp_vbat_get_lpwr_status()) {           //低电不进sniff mode
         return;
     }
 #endif
@@ -1026,7 +1000,7 @@ static void sfunc_sleep(void)
     rtc_sleep_enter();
     printf("slp: F (rtc_sleep_enter ret)\n");
 
-    // io analog input — 完整保存所有 GPIO 配置
+    //io analog input — 完整保存所有 GPIO 配置
     pa_de = GPIOADE;
     pb_de = GPIOBDE;
     pe_de = GPIOEDE;
@@ -1048,10 +1022,9 @@ static void sfunc_sleep(void)
     pb_pd300 = GPIOBPD300;
     pe_pu200k = GPIOEPU200K;
     pe_pd200k = GPIOEPD200K;
-    pe_pu300 = GPIOEPU300;
-    pe_pd300 = GPIOEPD300;
-    if (vddio_sleep_level)
-    {
+    pe_pu300  = GPIOEPU300;
+    pe_pd300  = GPIOEPD300;
+    if(vddio_sleep_level) {
         GPIOADE = BIT(7);
     }
     else
@@ -1083,15 +1056,15 @@ static void sfunc_sleep(void)
             GPIOBPD = 0;
             GPIOBPU200K = 0;
             GPIOBPD200K = 0;
-            GPIOBPU300 = 0;
-            GPIOBPD300 = 0;
+            GPIOBPU300  = 0;
+            GPIOBPD300  = 0;
             /* PE2~4: 200K 弱上拉, 清强上下拉 */
             GPIOEPU &= ~(BIT(2) | BIT(3) | BIT(4));
             GPIOEPD &= ~(BIT(2) | BIT(3) | BIT(4));
             GPIOEPU200K |= (BIT(2) | BIT(3) | BIT(4));
             GPIOEPD200K &= ~(BIT(2) | BIT(3) | BIT(4));
-            GPIOEPU300 &= ~(BIT(2) | BIT(3) | BIT(4));
-            GPIOEPD300 &= ~(BIT(2) | BIT(3) | BIT(4));
+            GPIOEPU300  &= ~(BIT(2) | BIT(3) | BIT(4));
+            GPIOEPD300  &= ~(BIT(2) | BIT(3) | BIT(4));
             GPIOFPU = 0;
             GPIOFPD = 0;
             GPIOHPU = 0;
@@ -1167,8 +1140,7 @@ static void sfunc_sleep(void)
     printf("slp: J (sleep_wakeup_config done)\n");
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    if (elunchbox_guioff_slp)
-    {
+    if (elunchbox_guioff_slp) {
         /* manual_off: 先关 BT wakeup，再配 port wakeup 仅 PE1+PB9 */
         if (elunchbox_manual_off_slp)
         {
@@ -1177,10 +1149,17 @@ static void sfunc_sleep(void)
             BTCON2 &= ~(3 << 10);  /* disable bt sleep wakeup */
             RTCCON &= ~(0xf << 7); /* disable rtc sleep wakeup */
         }
-        port_wakeup_init(PT8028_GPIO_OUT_FLAG, 1, 1);
+        /* PE1: 检测当前电平, LOW则用上升沿等松手, HIGH则用下降沿等按下 */
+        {
+            u8 pe1_edge = ((GPIOE >> 1) & 1) ? 1 : 0;  /* HIGH→下降沿(1), LOW→上升沿(0) */
+            port_wakeup_init(PT8028_GPIO_OUT_FLAG, pe1_edge, 1);
+            elunchbox_waiting_key_release = (pe1_edge == 0);  /* 上升沿=等松手 */
+        }
         port_wakeup_all_init(IO_PB9, 1, 1);
-        printf("elunchbox: sfunc_sleep %s wakeup PE1+PB9 configured\n",
-               elunchbox_manual_off_slp ? "manual_off" : "auto_guioff");
+        printf("elunchbox: sfunc_sleep %s PE1=%s PB9=%s wakeup configured\n",
+               elunchbox_manual_off_slp ? "manual_off" : "auto_guioff",
+               ((GPIOE >> 1) & 1) ? "HI" : "LO",
+               ((GPIOB >> 9) & 1) ? "HI" : "LO");
     }
 #endif
 
