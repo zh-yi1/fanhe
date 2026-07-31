@@ -152,6 +152,9 @@ void sys_sleep_cb(u8 lpclk_type)
         RTCCON3 &= ~BIT(13);        /* disable bt wakeup */
         BTCON2 &= ~(3 << 10);       /* disable bt sleep wakeup */
         RTCCON  &= ~(0xf << 7);     /* disable rtc sleep wakeup */
+#if CHARGE_EN
+        RTCCON3 |= BIT(11);         /* VUSB 插电可唤醒: 关机后充电进黑屏充电页 */
+#endif
         RTCCON9 = BIT(7) | BIT(5) | BIT(2); /* clr bt/wko/port pending */
     }
 
@@ -414,6 +417,18 @@ bool sfunc_sleep_proc(void)
 #if ELUNCHBOX_PANEL_EN
             force_spin_cnt = 0;     /* BT 栈正常睡了 → 复位强睡计数 */
             if (manual_off) {
+#if CHARGE_EN
+                /* 本机 DC 插电 → 醒去黑屏充电页 (demo6 同款: 每次 sniff ~2s 一查,
+                 * 兜底 PB9 门铃首包丢失; charge_dc_detect 只读寄存器, 开销忽略) */
+                if (CHARGE_DC_IN()) {
+                    printf("lp: DC_IN while sniff -> wake for charge page\n");
+#if FUNC_LUNCHBOX_UART_EN
+                    lunchbox_wake_reason_set_uart();
+#endif
+                    gui_need_wkp = true;
+                    break;
+                }
+#endif
                 /* Reduced ADC: every 60 rounds (~30s), low-battery only */
                 if (++sys_cb.sleep_counter >= 60) {
                     sys_cb.sleep_counter = 0;
@@ -465,6 +480,19 @@ bool sfunc_sleep_proc(void)
         if (manual_off) {
             bool sw_has_event;
             bool hw_has_event;
+
+#if CHARGE_EN
+            /* 本机 VUSB 已插电: 退出深睡去黑屏充电页 (demo6 同款,
+             * 事件路径也查 —— 按键/PB9 事件与插电同时发生时充电优先) */
+            if (CHARGE_DC_IN()) {
+                printf("lp: -> VUSB/DC_IN wake (manual_off)\n");
+#if FUNC_LUNCHBOX_UART_EN
+                lunchbox_wake_reason_set_uart();
+#endif
+                gui_need_wkp = true;
+                break;
+            }
+#endif
 
             /* Step 1: 软件轮询 PE1 FLAG 下降沿 */
             elunchbox_manual_off_sleep_poll();
@@ -721,7 +749,7 @@ static void sfunc_sleep(void)
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     bool elunchbox_guioff_slp = elunchbox_pwr_gui_off_is_on();
     bool elunchbox_manual_off_slp = elunchbox_guioff_slp && elunchbox_pwr_is_manual_off();
-    printf("elunchbox: sfunc_sleep manual_off_slp=%u\n",
+    printf("elunchbox: sfunc_sleep manual_off_slp=%u [BUILD 0731-1100]\n",
            elunchbox_manual_off_slp ? 1u : 0u);
 #else
     bool elunchbox_guioff_slp = false;
@@ -896,6 +924,7 @@ static void sfunc_sleep(void)
     }
 #endif
     rtc_sleep_enter();
+    printf("slp: F (rtc_sleep_enter ret)\n");
 
     //io analog input — 完整保存所有 GPIO 配置
     pa_de = GPIOADE;
@@ -939,7 +968,10 @@ static void sfunc_sleep(void)
              * PE2~4 保留 200K 弱上拉 —— 匹配 PT8028 空闲态 BCD=111,
              * 防止 PT8028 扫描间隙 tri-state 时引脚浮空漏电。 */
             GPIOEDE = BIT(1) | BIT(2) | BIT(3) | BIT(4);
-            GPIOBDE = BIT(9) | BIT(8);              /* PB9 门铃唤醒 + PB8 TX 防浮空; PB3 analog */
+            /* DEBUG(0731): PB3 暂保留数字 —— 日志 UART TX 在 PB3(UART0_PRINTF_SEL=
+             * PRINTF_PB3), 此处切模拟会让 F 之后的定位打印全部丢失。
+             * 验证完成后恢复为 BIT(9)|BIT(8) 省电。 */
+            GPIOBDE = BIT(3) | BIT(9) | BIT(8);     /* PB3 日志 + PB9 门铃 + PB8 防浮空 */
             /* PB8+PB9: 数字输入+上拉, 防浮空漏电 */
             GPIOBDIR = 0;
             GPIOBPU  = BIT(9) | BIT(8);
@@ -1005,14 +1037,18 @@ static void sfunc_sleep(void)
             int drain = 0;
             while (((GPIOB >> 9) & 1) == 0 && drain < 4000) {
                 delay_us(100);
+                WDT_CLR();
                 drain++;
             }
         }
+        printf("slp: H (drain done)\n");
     }
 #endif
+    printf("slp: I (gpio/uart cfg done)\n");
 
     sleep_wakeup_config();
     RTCCON9 = BIT(2);   /* clr spurious port pending from wakeup config */
+    printf("slp: J (sleep_wakeup_config done)\n");
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_guioff_slp) {
