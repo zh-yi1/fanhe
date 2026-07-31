@@ -864,11 +864,6 @@ static void sfunc_sleep(void)
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     PLL1CON0 &= ~0x03;                          //disable pll1
-#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
-    if (elunchbox_manual_off_slp) {
-        RTC_WDT_DIS();
-    }
-#endif
     rtc_sleep_enter();
 
     //io analog input — 完整保存所有 GPIO 配置
@@ -1001,6 +996,15 @@ static void sfunc_sleep(void)
         port_wakeup_all_init(IO_PB9, 1, 1);
         printf("elunchbox: sfunc_sleep %s wakeup PE1+PB9 configured\n",
                elunchbox_manual_off_slp ? "manual_off" : "auto_guioff");
+    }
+
+    /* RTC_WDT 必须在 rtc_sleep_enter() 之后关: 它是库函数, 内部会把 RTC 域
+     * 配置带回来, 关早了等于没关 → 深睡几秒被 RTC_WDT 咬复位, 表现为
+     * "关机/拔线后自己开机"(启动横幅 RTC_WDT reset + RTCCNT 清零)。
+     * 放 wakeup 配置之后还有个好处: rtc_sleep_enter→GPIO 段若卡死,
+     * WDT 尚在能复位救回, 不至于永远砖。(2026-07-31 挪早过一次, 实测翻车) */
+    if (elunchbox_manual_off_slp) {
+        RTC_WDT_DIS();
     }
 #endif
 
