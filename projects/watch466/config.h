@@ -274,7 +274,7 @@
 #define GUI_WGT_BUF_EXTRA               0                       //disp 96KB 已满，勿增大 widget 池
 #define TFT_TE_CYCLE                    16.67                   //屏幕的刷新率TE周期时间 (ms)
 #define TFT_TE_CYCLE_DELAY              (TFT_TE_CYCLE / 3)
-#define DEFAULT_TE_MODE                 1                       //默认1 TE模式, 0为2 TE模式, 3为复杂界面专用模式
+#define DEFAULT_TE_MODE                 0                       //2TE模式: te_mode不切换避开baud跳变(21→14MHz), 但TE脉冲仍驱动背光kick
 #define GUI_LINES_CNT                   30                      //单次推屏行数
 
 #define GUI_FONT_W_SPACE                0                       //字的间距
