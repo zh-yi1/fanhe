@@ -781,6 +781,11 @@ static void sfunc_sleep(void)
     printf("slp: E (before rtc_sleep_enter)\n");
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_manual_off_slp) {
+        /* PE1(FLAG) 上拉必须在 rtc_sleep_enter 之前配好。
+         * rtc_sleep_enter 之后 GPIO 寄存器写可能被电源管理忽略,
+         * 仅靠后面的 200K 配置不够可靠, 自动休眠唤不醒。*/
+        GPIOEPU |= BIT(1);
+        GPIOEPD &= ~BIT(1);
         RTC_WDT_DIS();
     }
 #endif
