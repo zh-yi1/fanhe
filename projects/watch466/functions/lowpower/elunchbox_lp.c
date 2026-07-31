@@ -211,6 +211,14 @@ void elunchbox_pwr_gui_wake_reason(const char *reason)
 bool elunchbox_heating_blocks_idle(void)
 {
 #if FUNC_LUNCHBOX_UART_EN
+    /* BLE OTA 期间同样禁止熄屏/关机 (分包写 Flash, 与 UART OTA 同险) */
+    if (bt_get_status() == BT_STA_OTA) {
+        return true;
+    }
+    /* manual_off 深睡里 BT 状态机已 sleep, 不应再被"看起来像在工作"挡住 */
+    if (elunchbox_pwr_is_manual_off()) {
+        return false;
+    }
     return lunchbox_heating_task_active() || lb_ota_is_active();
 #else
     return false;
