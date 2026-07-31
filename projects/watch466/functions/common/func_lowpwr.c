@@ -825,8 +825,9 @@ static void sfunc_sleep(void)
     if (elunchbox_guioff_slp) {
         if (elunchbox_manual_off_slp) {
             /* PE1(FLAG) + PE2~4(D0~D2) 全数字输入。
-             * PE2~4 保留 200K 弱上拉 —— 匹配 PT8028 空闲态 BCD=111,
-             * 防止 PT8028 扫描间隙 tri-state 时引脚浮空漏电。 */
+             * PE1~4 保留 200K 弱上拉 —— PE1 必需上拉: PT8028 FLAG 是开漏输出,
+             * 无触摸时高阻态, 没上拉则 PE1 浮空→噪声→port wakeup 边沿不可靠,
+             * 自动休眠唤不醒。PE2~4 匹配 PT8028 空闲态 BCD=111。 */
             GPIOEDE = BIT(1) | BIT(2) | BIT(3) | BIT(4);
             GPIOBDE = BIT(9) | BIT(8);              /* PB9 门铃唤醒 + PB8 TX 防浮空; PB3 analog */
             /* PB8+PB9: 数字输入+上拉, 防浮空漏电 */
@@ -837,13 +838,13 @@ static void sfunc_sleep(void)
             GPIOBPD200K = 0;
             GPIOBPU300  = 0;
             GPIOBPD300  = 0;
-            /* PE2~4: 200K 弱上拉, 清强上下拉 */
-            GPIOEPU &= ~(BIT(2) | BIT(3) | BIT(4));
-            GPIOEPD &= ~(BIT(2) | BIT(3) | BIT(4));
-            GPIOEPU200K |= (BIT(2) | BIT(3) | BIT(4));
-            GPIOEPD200K &= ~(BIT(2) | BIT(3) | BIT(4));
-            GPIOEPU300  &= ~(BIT(2) | BIT(3) | BIT(4));
-            GPIOEPD300  &= ~(BIT(2) | BIT(3) | BIT(4));
+            /* PE1~4: 200K 弱上拉, 清强上下拉 */
+            GPIOEPU &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPD &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPU200K |= (BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPD200K &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPU300  &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+            GPIOEPD300  &= ~(BIT(1) | BIT(2) | BIT(3) | BIT(4));
             GPIOFPU = 0;
             GPIOFPD = 0;
             GPIOHPU = 0;
