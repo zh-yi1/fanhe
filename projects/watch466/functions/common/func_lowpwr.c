@@ -664,19 +664,6 @@ static void sfunc_sleep(void)
 #endif
     sleep_cb.sys_is_sleep = true;
     sys_cb.gui_need_wakeup = 0;
-    /* lowpower 兼容: bt_enter_sleep 之前 ~2s UART 轮询预热。
-     * 外部关机后模块已关, 不发命令, 仅保持 lunchbox_uart_process
-     * + delay_5ms(5) 节奏。这段预热让 BT 控制器处于干净空闲态,
-     * 之后 PLL0 关断安全, rtc_sleep_enter 后 GPIO 访问正常。 */
-    {
-        int warmup;
-        for (warmup = 0; warmup < 400; warmup++) {  /* 400*5ms=2000ms */
-            lunchbox_uart_process();
-            delay_5ms(5);
-            WDT_CLR();
-        }
-        printf("slp: A0 (warmup done %d ms)\n", warmup * 5);
-    }
     printf("slp: A (bt_enter_sleep)\n");
     bt_enter_sleep();
     bt_audio_bypass();
