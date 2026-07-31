@@ -68,7 +68,9 @@ compo_form_t *func_black_screen_page_form_create(void)
     inf->last_full_charge= false;
     inf->last_bat_level  = 0xff; /* 强制首次刷新 */
 
-    tft_bglight_force_on();
+    /* 不在这里开背光: 本页可能是冷启动首页(插电开机), form_create 时首帧
+     * 还没画, 强开背光会闪一下花屏 —— 交给 tft 的 kick 机制(首帧+3TE 后点亮)。
+     * 息屏唤醒进本页的背光由 elunchbox_lp.c 唤醒路径恢复, 不靠这里。 */
     return frm;
 }
 
