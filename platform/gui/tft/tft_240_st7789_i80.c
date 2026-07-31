@@ -114,7 +114,7 @@ static void tft_240_st7789_i80_init(void)
     WriteData(0xef);*/
 
     WriteComm(0x35);
-    WriteData(0x01);    /* TEON=1: 使能TE输出, V-blanking时产生下降沿; MCU侧PE9上拉已开, TE ISR同步推屏消除撕裂 */
+    WriteData(0x00);
 
     WriteComm(0x29);	  //Display on
     CommEnd();
