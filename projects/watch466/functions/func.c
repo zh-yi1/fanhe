@@ -229,7 +229,11 @@ void lb_lid_confirm_yes(void)
     lb_lid_popup_tick = 0;
     if (lb_lid_mode == LB_MODE_WARM) {
         /* 没停过: 保温页 enter 见模块仍在保温, 不会重发(计时不清零);
-         * 超时停过: enter 见模块没在保温, 自动重发 194F/24h */
+         * 超时停过: enter 见模块没在保温, 自动重发 194F/24h。
+         * 继承显示: 保温页显示默认进页清零, 盖盖 YES 要接着开盖前的
+         * 已保温时长显示, 提前打招呼 */
+        extern void func_warm_page_inherit_time(void);
+        func_warm_page_inherit_time();
         func_cb.sta = FUNC_NEW_WARM_PAGE;
     } else if (lb_lid_mode != LB_MODE_OFF) {
         if (lb_lid_stopped) {
