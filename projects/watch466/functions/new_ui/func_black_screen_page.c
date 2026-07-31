@@ -42,7 +42,7 @@ typedef struct
     bool last_charging;
     bool last_full_charge;
     u8  last_bat_level;
-    u32 unplug_tick;        /* 拔线去抖计时 (0=在充电) */
+    bool unplug_sent;       /* 拔线关机只发一次 (重新插上复位) */
 } f_black_screen_t;
 
 compo_form_t *func_black_screen_page_form_create(void)
@@ -115,14 +115,13 @@ static void func_black_screen_page_process(void)
 
 #if FUNC_LUNCHBOX_UART_EN
     /* 本页语义是"关机+充电", 模块已经关了, 与真关机唯一区别是还收串口状态。
-     * 拔线(去抖 2s)即真关机: 重走一遍关机时序 (对已关的模块重发 stop/power_off
-     * 无害, 不应答则各 500ms 超时推进), 时序完成后 func.c 落深睡。 */
+     * 拔线即真关机, 本机不去抖 —— 模块上报的 DP4 已在模块侧消抖过。
+     * 重走一遍关机时序 (对已关的模块重发 stop/power_off 无害,
+     * 不应答则各 500ms 超时推进), 时序完成后 func.c 落深睡。 */
     if (lunchbox_charging_now()) {
-        inf->unplug_tick = 0;
-    } else if (inf->unplug_tick == 0) {
-        inf->unplug_tick = tick_get();
-    } else if (tick_check_expire(inf->unplug_tick, 2000)) {
-        inf->unplug_tick = 0;
+        inf->unplug_sent = false;
+    } else if (!inf->unplug_sent) {
+        inf->unplug_sent = true;
         printf("black_screen: unplugged -> shutdown\n");
         lunchbox_shutdown_start(false, 0);  /* 重复调用无副作用 */
     }
