@@ -1260,7 +1260,7 @@ bool sleep_process(is_sleep_func is_sleep)
         }
 #endif
 
-        /* Manual off: 强制进深度休眠 (绕过 sleep_ready) */
+        /* Manual off / auto_guioff: 强制进深度休眠 (绕过 bt_is_allow_sleep) */
         bool force_lowpwr = false;
         if (elunchbox_pwr_is_manual_off()) {
             if (elunchbox_pwr_manual_off_should_stay_awake()) {
@@ -1270,12 +1270,13 @@ bool sleep_process(is_sleep_func is_sleep)
             }
             force_lowpwr = true;
         }
+        if (elunchbox_guioff_sleep_ready()) {
+            force_lowpwr = true;
+        }
 
         /* 进浅睡/深睡 */
-        if ((elunchbox_guioff_sleep_ready() && (*is_sleep)()) || force_lowpwr) {
-            if (force_lowpwr) {
-                printf("elunchbox: sleep_process force_lowpwr -> sfunc_sleep\n");
-            }
+        if (force_lowpwr) {
+            printf("elunchbox: sleep_process force_lowpwr -> sfunc_sleep\n");
             /* 深度休眠前须退出 GPU (auto_guioff + manual_off 统一) */
             if (!sys_cb.gui_sleep_sta) {
                 gui_sleep(true);
