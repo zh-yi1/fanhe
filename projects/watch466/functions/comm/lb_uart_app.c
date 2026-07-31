@@ -688,9 +688,6 @@ void lunchbox_uart_process(void)
     // 预约列表同步: 标脏后自动重查 + 超时重发
     lb_ui_schedules_sync_process();
 
-    // 镜像预写自愈: 预写后超时没等到模块 0x01 → 补发状态查询拉真相
-    lb_ui_state_predict_poll();
-
     // 开机/关机时序: 上电自动起开机流程 + 每步应答超时推进
     lb_seq_poll();
 

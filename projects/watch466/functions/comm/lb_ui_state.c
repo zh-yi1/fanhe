@@ -39,163 +39,6 @@ bool lb_ui_ble_is_connected(void)
     return lb_ui_state.ble_connected;
 }
 
-//-----------------------------------------------------------------------------
-// 镜像预写 (预测-校正机制)
-//
-// 本机发出改状态的命令后, 页面立刻切换, 而镜像要等模块应答才更新 ——
-// 首屏会拿旧数据渲染。预写 = 命令发出成功的同时把"期望结果"写进镜像:
-//   - seq++ 让页面立刻拿到新值
-//   - 同步路由基线: 预写不产生路由边沿 (否则本地写 en 0→1 会自己触发跳页,
-//     和页面手动切页打架; 1→0 会误判"自然结束进保温")
-//   - 不触发 schedules_mark_dirty (那是给"模块自己启动=消费预约"用的)
-// 校正: 模块应答(全量字段)回来, 值相同 → feed_dp 判无变化, 无痕;
-//       值不同 → 打 ERROR + 正常覆盖, 页面按 seq 自纠。
-// 自愈: 预写后 500ms 没等到任何 0x01 → 补发状态查询强制拉真相。
-//-----------------------------------------------------------------------------
-
-#define LB_PREDICT_TIMEOUT_MS   500
-
-#define LB_PRED_PWR     BIT(0)
-#define LB_PRED_MODE    BIT(1)
-#define LB_PRED_TEMP    BIT(2)
-#define LB_PRED_DUR     BIT(3)
-#define LB_PRED_REMAIN  BIT(4)
-#define LB_PRED_EN      BIT(5)
-
-static struct {
-    bool pending;       // 预写后还没等到模块 0x01 (应答/上报都算真相)
-    u32  tick;          // 预写时刻 (自愈超时用)
-    u8   mask;          // 本次预写了哪些字段 (LB_PRED_*)
-    u8   pwr, mode, temp, en;
-    u32  dur, remain;
-} lb_predict;
-
-/* 路由基线 (原 lb_ui_route_poll 的函数内 static, 预写要同步它所以提出来) */
-static bool lb_route_inited;
-static u8   lb_route_last_mode;
-static u8   lb_route_last_enable;
-
-/** @brief 预写落账: 路由基线对齐 + seq++ + 开校正窗口 */
-static void lb_predict_commit(u8 mask)
-{
-    lb_route_inited      = true;         // 预写不产生路由边沿
-    lb_route_last_mode   = lb_ui_state.heat_mode;
-    lb_route_last_enable = lb_ui_state.heat_enable;
-
-    /* 故意不置 valid: 正常运行时它本来就是真; 开机时序的 power_on 也走
-     * 预写, 那一刻 lb_boot_lid_wait() 正在等"模块首帧"(以 valid 为判据),
-     * 预写若置真会让等待提前结束, 盖盖弹窗判定拿到空镜像 */
-    lb_ui_state.tick = tick_get();
-    lb_ui_state.seq++;
-
-    lb_predict.pending = true;
-    lb_predict.tick    = tick_get();
-    lb_predict.mask    = mask;
-    printf("ui_state: predict pwr=%u mode=%u en=%u dur=%u remain=%u temp=%u\n",
-           lb_ui_state.power_on, lb_ui_state.heat_mode, lb_ui_state.heat_enable,
-           (unsigned)lb_ui_state.heat_duration,
-           (unsigned)lb_ui_state.remain_time, lb_ui_state.heat_temp);
-}
-
-void lb_ui_state_predict_start(u8 mode, u8 temp_idx, u32 duration_min, u32 remain_min)
-{
-    lb_ui_state.power_on      = 1;
-    lb_ui_state.heat_mode     = mode;
-    lb_ui_state.heat_temp     = temp_idx;
-    lb_ui_state.heat_duration = duration_min;
-    lb_ui_state.remain_time   = remain_min;
-    lb_ui_state.heat_enable   = 1;
-    lb_predict.pwr  = 1;
-    lb_predict.mode = mode;
-    lb_predict.temp = temp_idx;
-    lb_predict.dur  = duration_min;
-    lb_predict.remain = remain_min;
-    lb_predict.en   = 1;
-    lb_predict_commit(LB_PRED_PWR | LB_PRED_MODE | LB_PRED_TEMP |
-                      LB_PRED_DUR | LB_PRED_REMAIN | LB_PRED_EN);
-}
-
-void lb_ui_state_predict_stop(bool with_mode_off)
-{
-    lb_ui_state.heat_enable = 0;
-    lb_predict.en = 0;
-    u8 mask = LB_PRED_EN;
-    if (with_mode_off) {
-        lb_ui_state.heat_mode = LB_MODE_OFF;
-        lb_predict.mode = LB_MODE_OFF;
-        mask |= LB_PRED_MODE;
-    }
-    lb_predict_commit(mask);
-}
-
-void lb_ui_state_predict_power(bool on)
-{
-    lb_ui_state.power_on = on ? 1 : 0;
-    lb_predict.pwr = lb_ui_state.power_on;
-    lb_predict_commit(LB_PRED_PWR);
-}
-
-/** @brief 自愈轮询: 预写悬空超时没等到模块 0x01 → 补发状态查询拉真相 */
-void lb_ui_state_predict_poll(void)
-{
-    if (!lb_predict.pending) {
-        return;
-    }
-    if (tick_check_expire(lb_predict.tick, LB_PREDICT_TIMEOUT_MS)) {
-        lb_predict.pending = false;
-        printf("ui_state ERROR: predict no reply in %ums, query truth\n",
-               LB_PREDICT_TIMEOUT_MS);
-        lb_heat_cmd_status_query();
-    }
-}
-
-/** @brief 校正窗口内逐 DP 核对: 模块回的值和预写值不一致 → 打 ERROR */
-static void lb_predict_verify(u8 dpid, const u8 *val, u16 val_len)
-{
-    if (!lb_predict.pending) {
-        return;
-    }
-    u32 got;
-    switch (dpid) {
-    case LB_DPID_POWER_SWITCH:
-        if ((lb_predict.mask & LB_PRED_PWR) && val_len >= 1 && val[0] != lb_predict.pwr)
-            printf("ui_state ERROR: DP1 sent=%u got=%u\n", lb_predict.pwr, val[0]);
-        break;
-    case LB_DPID_HEAT_MODE:
-        if ((lb_predict.mask & LB_PRED_MODE) && val_len >= 1 && val[0] != lb_predict.mode)
-            printf("ui_state ERROR: DP2 sent=%u got=%u\n", lb_predict.mode, val[0]);
-        break;
-    case LB_DPID_HEAT_TEMP:
-        if ((lb_predict.mask & LB_PRED_TEMP) && val_len >= 1 && val[0] != lb_predict.temp)
-            printf("ui_state ERROR: DP7 sent=%u got=%u\n", lb_predict.temp, val[0]);
-        break;
-    case LB_DPID_HEAT_DURATION:
-        if ((lb_predict.mask & LB_PRED_DUR) && val_len >= 4) {
-            got = ((u32)val[0] << 24) | ((u32)val[1] << 16)
-                | ((u32)val[2] << 8)  |  (u32)val[3];
-            if (got != lb_predict.dur)
-                printf("ui_state ERROR: DP5 sent=%u got=%u\n",
-                       (unsigned)lb_predict.dur, (unsigned)got);
-        }
-        break;
-    case LB_DPID_REMAIN_TIME:
-        if ((lb_predict.mask & LB_PRED_REMAIN) && val_len >= 4) {
-            got = ((u32)val[0] << 24) | ((u32)val[1] << 16)
-                | ((u32)val[2] << 8)  |  (u32)val[3];
-            if (got != lb_predict.remain)
-                printf("ui_state ERROR: DP6 sent=%u got=%u\n",
-                       (unsigned)lb_predict.remain, (unsigned)got);
-        }
-        break;
-    case LB_DPID_HEAT_ENABLE:
-        if ((lb_predict.mask & LB_PRED_EN) && val_len >= 1 && val[0] != lb_predict.en)
-            printf("ui_state ERROR: DP10 sent=%u got=%u\n", lb_predict.en, val[0]);
-        break;
-    default:
-        break;
-    }
-}
-
 /** @brief 更新 u8 字段, 变化时返回 true */
 static bool lb_ui_set_u8(u8 *field, u8 val)
 {
@@ -234,8 +77,6 @@ bool lb_ui_state_feed_dp(const u8 *data, u16 len)
             break;                       // 长度越界, 丢弃余下部分
         }
         const u8 *val = data + off + 4;
-
-        lb_predict_verify(dpid, val, val_len);   // 预写校正窗口内核对
 
         switch (dpid) {
         case LB_DPID_POWER_SWITCH:
@@ -286,8 +127,6 @@ bool lb_ui_state_feed_dp(const u8 *data, u16 len)
     if (!prev_enable && lb_ui_state.heat_enable) {
         lb_ui_schedules_mark_dirty();
     }
-
-    lb_predict.pending = false;          // 真相已到 (不管对不对), 校正窗口关闭
 
     lb_ui_state.tick = tick_get();
     if (!lb_ui_state.valid) {
@@ -494,23 +333,25 @@ void lb_ui_heat_stop_expected(void)
 
 lb_ui_route_t lb_ui_route_poll(void)
 {
-    /* 基线在文件级 (lb_route_*): 预写要同步它, 见 lb_predict_commit() */
+    static bool inited;
+    static u8   last_mode;
+    static u8   last_enable;
+
     lb_ui_state_t *st = lb_ui_state_get();
     if (!st->valid) {
         return LB_UI_ROUTE_NONE;
     }
 
     // 只盯路由相关的两个字段, 电量/温度等变化不触发跳页
-    if (lb_route_inited && st->heat_mode == lb_route_last_mode
-        && st->heat_enable == lb_route_last_enable) {
+    if (inited && st->heat_mode == last_mode && st->heat_enable == last_enable) {
         return LB_UI_ROUTE_NONE;
     }
-    bool first = !lb_route_inited;
-    u8 prev_enable = lb_route_last_enable;
-    u8 prev_mode   = lb_route_last_mode;
-    lb_route_inited = true;
-    lb_route_last_mode = st->heat_mode;
-    lb_route_last_enable = st->heat_enable;
+    bool first = !inited;
+    u8 prev_enable = last_enable;
+    u8 prev_mode   = last_mode;
+    inited = true;
+    last_mode = st->heat_mode;
+    last_enable = st->heat_enable;
 
     if (st->heat_enable) {
         lb_heat_stop_expected = false;       // 新任务开始, 旧的停止标志作废

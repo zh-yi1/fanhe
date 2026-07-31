@@ -43,11 +43,7 @@ bool lb_heat_cmd_start(u8 mode, u8 temp_idx, u32 duration_min)
     p += lb_dp_encode_enum(p, LB_DPID_HEAT_TEMP, temp_idx);
     p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 1);
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
-    if (!lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data))) {
-        return false;
-    }
-    lb_ui_state_predict_start(mode, temp_idx, duration_min, duration_min);
-    return true;
+    return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data));
 }
 
 bool lb_heat_cmd_resume(u8 mode, u8 temp_idx, u32 duration_min, u32 remain_min)
@@ -61,11 +57,7 @@ bool lb_heat_cmd_resume(u8 mode, u8 temp_idx, u32 duration_min, u32 remain_min)
     p += lb_dp_encode_enum(p, LB_DPID_HEAT_TEMP, temp_idx);
     p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 1);
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
-    if (!lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data))) {
-        return false;
-    }
-    lb_ui_state_predict_start(mode, temp_idx, duration_min, remain_min);
-    return true;
+    return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data));
 }
 
 bool lb_heat_cmd_stop(void)
@@ -77,11 +69,7 @@ bool lb_heat_cmd_stop(void)
 
     p += lb_dp_encode_bool(p, LB_DPID_HEAT_ENABLE, 0);
     p += lb_dp_encode_bool(p, LB_DPID_POWER_SWITCH, 1);
-    if (!lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data))) {
-        return false;
-    }
-    lb_ui_state_predict_stop(true);     // 实测模块停止后 DP2 也回 0
-    return true;
+    return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, (u16)(p - data));
 }
 
 bool lb_heat_cmd_heat_off(void)
@@ -92,22 +80,14 @@ bool lb_heat_cmd_heat_off(void)
     lb_ui_heat_stop_expected();         // 关机时序的停止同样是主动停止
 
     len = lb_dp_encode_bool(data, LB_DPID_HEAT_ENABLE, 0);
-    if (!lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, len)) {
-        return false;
-    }
-    lb_ui_state_predict_stop(false);    // 只清使能, 不碰模式
-    return true;
+    return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, len);
 }
 
 bool lb_heat_cmd_power(bool on)
 {
     u8 data[8];
     u16 len = lb_dp_encode_bool(data, LB_DPID_POWER_SWITCH, on ? 1 : 0);
-    if (!lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, len)) {
-        return false;
-    }
-    lb_ui_state_predict_power(on);
-    return true;
+    return lb_heat_cmd_send(LB_UART_CMD_DYNAMIC, data, len);
 }
 
 bool lb_heat_cmd_key_notify(u8 key)
