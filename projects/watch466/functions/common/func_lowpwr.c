@@ -910,6 +910,9 @@ static void sfunc_sleep(void)
     RTCCON9 = BIT(2);   /* clr spurious port pending from wakeup config */
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    printf("elunchbox: sfunc_sleep wkup_cfg guioff_slp=%u manual_off_slp=%u\n",
+           elunchbox_guioff_slp ? 1u : 0u,
+           elunchbox_manual_off_slp ? 1u : 0u);
     if (elunchbox_guioff_slp) {
         /* manual_off: 先关 BT wakeup，再配 port wakeup 仅 PE1+PB9 */
         if (elunchbox_manual_off_slp) {
