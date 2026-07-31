@@ -585,16 +585,25 @@ bool sfunc_sleep_proc(void)
 #endif
                 }
 
-                /* 无效唤醒: 清 pending → 切上升沿等松手 → continue
-                 * PE1仍LOW(按键按住)：下降沿会立刻再唤醒 → 切上升沿等松手
-                 * PE1已HIGH(轻触弹跳)：切上升沿无影响 → 下次按键下降沿正常唤醒 */
+                /* 无效唤醒: PE1仍LOW(按键还按着)→切上升沿等松手;
+                 * PE1已HIGH(键已松开, 上升沿已错过)→恢复下降沿直接继续睡.
+                 * 不能在 PE1=HIGH 时切上升沿: 没边沿了 → sys_enter_sleep 再唤不醒. */
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
                 elunchbox_manual_wake_pending_take();
-                port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);  /* 切上升沿 */
-                elunchbox_waiting_key_release = true;
+                if (((GPIOE >> 1) & 1) == 0) {
+                    /* PE1 仍 LOW: 按键按住中, 切上升沿等松手 */
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
 #if LP_SLEEP_VERBOSE
-                printf("lp: -> sw to rising edge, wait release\n");
+                    printf("lp: -> sw to rising edge, wait release\n");
 #endif
+                } else {
+                    /* PE1 已 HIGH: 键已松开, 保持下降沿, 下次按键正常唤醒 */
+                    elunchbox_waiting_key_release = false;
+#if LP_SLEEP_VERBOSE
+                    printf("lp: -> key already released, stay falling edge\n");
+#endif
+                }
                 continue;
             }
         }
@@ -638,10 +647,14 @@ bool sfunc_sleep_proc(void)
                         break;
                     }
                 }
-                /* 非TCH5/无效: 切上升沿等松手, 防PE1=LOW死循环唤醒 */
+                /* 非TCH5/无效: PE1仍LOW→切上升沿等松手; PE1已HIGH→保持下降沿 */
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
-                port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
-                elunchbox_waiting_key_release = true;
+                if (((GPIOE >> 1) & 1) == 0) {
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
+                } else {
+                    elunchbox_waiting_key_release = false;
+                }
                 continue;
             } else
 #endif
