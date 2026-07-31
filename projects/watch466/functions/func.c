@@ -1,7 +1,7 @@
 #include "include.h"
 #include "func_tbl.h"
 #include "func.h"
-#include "new_ui/ui.h"
+#include "new_ui/general_ui.h"      /* g_ui_sys(转include app_ui.h) + lb_ui_sync_pull */
 #if ELUNCHBOX_PANEL_EN
 #include "lowpower/elunchbox_lp.h"
 #include "func_key_lock.h"
@@ -83,6 +83,269 @@ void func_elunchbox_res_key_poll(void)
 }
 #endif
 
+#if FUNC_LUNCHBOX_UART_EN
+/**
+ * @brief 加热模块状态变化 → 强制切页 (唯一调用点)
+ *
+ * lb_ui_route_poll() 是边沿触发且内部状态只能被消费一次, 全工程只准这里调。
+ * 覆盖的场景: APP 远程启停加热、预约到点模块自己开始加热、加热结束。
+ * 其余字段(电量/温度/剩余时间)变化不在这里管, 由各页面按 seq 自行刷新。
+ */
+/**
+ * 关机时序走完 → 主板真断电
+ *
+ * 落地方式与长按 TCH5 3s 完全一致 (func_key.c: manual_off 超低功耗深睡,
+ * 仅 PE1+PB9 唤醒), 不走 FUNC_PWROFF —— 那条路在充电时 func_pwroff() 会
+ * return 不断电, 会陷入反复进关机页。
+ *
+ * 时序期间用户插上了充电线的情况: 这里再查一次 blocked, 命中就放弃断电。
+ * 加热模块那边已经关了, 本机留着不关 —— 插线状态下本来就不该断电。
+ */
+/**
+ * manual_off 深睡唤醒后的落页 (唤醒不重启, 老页面原地复活, 这里纠正去向)
+ *
+ * 闩锁在深睡循环里置入 (func_lowpwr.c):
+ *   KEY  = TCH5 长按 2s → 补跑开机时序(模块还关着), 进主界面
+ *   UART = 任何串口指令 → 主动发状态查询读模块数据, 开 3s 观察窗等应答:
+ *          充电 → 黑屏充电页; 加热 → 加热页;
+ *          都不是 → 留在原页, 5min 无操作自动关机兜底
+ * (唤醒那一帧常因 UART 起得慢收残, 不能靠它判醒因, 所以醒来后主动查;
+ *  曾在睡眠循环里偷听判帧, 实测收帧不完整, 已废弃)
+ */
+static void lb_wake_apply(void)
+{
+    static u32 wake_watch_tick;         /* UART 唤醒观察窗起点, 0=没开 */
+    static u32 wake_query_tick;         /* 上次发状态查询的时刻 (窗内重发用) */
+
+    if (sys_cb.flag_swithing) {
+        return;                         /* 切页动画中不消费, 下一轮再取 */
+    }
+    switch (lunchbox_wake_reason_take()) {
+    case LB_WAKE_KEY:
+        printf("wake: key -> home\n");
+        wake_watch_tick = 0;
+        lunchbox_boot_seq_kick();       /* power_on + 查预约列表 */
+        if (func_cb.sta != FUNC_HOME) {
+            func_cb.sta = FUNC_HOME;
+        }
+        break;
+
+    case LB_WAKE_UART:
+        printf("wake: uart, query module status\n");
+        lb_heat_cmd_status_query();
+        wake_watch_tick = tick_get();
+        wake_query_tick = wake_watch_tick;
+        break;
+
+    default:
+        break;
+    }
+
+    if (wake_watch_tick == 0) {
+        return;
+    }
+    if (tick_check_expire(wake_watch_tick, 3000)) {
+        wake_watch_tick = 0;            /* 窗口过了还没等到充电/加热应答, 不动 */
+        printf("wake: uart watch timeout, stay\n");
+        return;
+    }
+    if (lunchbox_charging_now()) {
+        wake_watch_tick = 0;
+        printf("wake: charging -> black screen\n");
+        if (func_cb.sta != FUNC_BLACK_SCREEN) {
+            func_cb.sta = FUNC_BLACK_SCREEN;
+        }
+        return;
+    }
+    if (lunchbox_heating_task_active()) {
+        wake_watch_tick = 0;
+        printf("wake: module heating -> heat page\n");
+        if (func_cb.sta != FUNC_NEW_HEAT_PAGE) {
+            func_cb.sta = FUNC_NEW_HEAT_PAGE;
+        }
+        return;
+    }
+    if (tick_check_expire(wake_query_tick, 1000)) {
+        wake_query_tick = tick_get();   /* 1s 没等到判据: 查询可能丢了, 再查一把 */
+        lb_heat_cmd_status_query();
+    }
+}
+
+/**
+ * 盖盖上电确认 (开盖=整机断电, 盖盖=来电冷启动):
+ * 上电先不亮屏(主页 form 建好但背光压着), 等模块回的第一帧状态判定后再亮 ——
+ * 首帧带着加热/保温 = 加热中开过盖又盖上 → **先停加热**, 亮出来就是
+ * 主页+"继续加热?"弹窗 (func_confirm_page.c overlay);
+ * 首帧没在加热 → 亮出来就是纯主页。不会出现"先见主页、后弹窗"的闪切。
+ * 弹窗结果 (func_home_page.c): YES → lb_lid_confirm_yes() 按暂存数据续跑跳页
+ * (保温→保温页, 加热→重发 start+加热页); NO → 已经停了, 留在主界面。
+ * 弹窗决策期间路由边沿由 lb_ui_route_apply() 取走丢弃。
+ * 深睡唤醒不重启、statics 不清零, 所以本检查每次冷启动只跑一轮,
+ * 深睡醒来不会再弹 (深睡唤醒不是盖盖)。
+ */
+static bool lb_boot_gate;               /* 首帧已判定, 允许主页开背光 */
+static u8   lb_lid_mode;                /* 弹窗暂存: 开盖前的模式/温度 */
+static u8   lb_lid_temp;
+static u32  lb_lid_duration;            /* 弹窗暂存: 加热总时长(分钟) */
+static u32  lb_lid_remain;              /* 弹窗暂存: 剩余时长(分钟) */
+
+bool lb_boot_display_gate_open(void)
+{
+    return lb_boot_gate;
+}
+
+/** 盖盖弹窗选 YES: 按开盖前暂存的数据续跑并跳页 (弹窗入口已把模块停了) */
+void lb_lid_confirm_yes(void)
+{
+    if (lb_lid_mode == LB_MODE_WARM) {
+        /* 保温页 enter 见模块没在保温, 会自动重发 194F/24h */
+        func_cb.sta = FUNC_NEW_WARM_PAGE;
+    } else if (lb_lid_mode != LB_MODE_OFF) {
+        /* 总时长/剩余时长分开带, 模块接着开盖前的进度跑 */
+        lb_heat_cmd_resume(lb_lid_mode, lb_lid_temp, lb_lid_duration, lb_lid_remain);
+        func_cb.sta = FUNC_NEW_HEAT_PAGE;
+    }
+}
+
+static void lb_boot_lid_check(void)
+{
+    static u32  boot_tick;
+    static bool boot_checked;
+
+    if (boot_checked) {
+        return;
+    }
+    if (boot_tick == 0) {
+        boot_tick = tick_get() | 1;     /* 首轮记起点 (0 是"未起"哨兵) */
+        return;
+    }
+    /* 锚定"模块第一帧状态到达": 镜像冷启动全零, 首个 0x01 帧必有字段变化
+     * (至少 DP1=1), seq 从 0 起跳。不用时间窗判加热 —— 开机几秒后预约到点
+     * 新起的加热不该弹窗(直接路由去加热页), 首帧就带着才是"加热中开过盖" */
+    lb_ui_state_t *st = lb_ui_state_get();
+    if (st->seq == 0) {
+        /* 模块还没回状态: 最多黑屏等 3s, 模块不在/不答时也得亮屏 */
+        if (tick_check_expire(boot_tick, 3000)) {
+            boot_checked = true;
+            lb_boot_gate  = true;
+            tft_bglight_force_on();
+        }
+        return;
+    }
+    boot_checked = true;
+    /* 黑屏充电页不弹(form 不在主页); 低电不弹(与主页 lid_open 弹窗规则一致),
+     * 跳过时边沿不丢, 路由自然带去加热页 */
+    if (lunchbox_heating_task_active()
+        && (func_cb.sta == FUNC_HOME || func_cb.sta == FUNC_HOME_PAGE)
+        && !sys_cb.flag_swithing && !g_ui_sys.lowbat) {
+        lb_lid_mode     = st->heat_mode;
+        lb_lid_temp     = st->heat_temp;
+        lb_lid_duration = st->heat_duration;
+        lb_lid_remain   = st->remain_time ? st->remain_time : st->heat_duration;
+        printf("boot: module heat/warm (mode=%u dur=%u remain=%u) -> stop + lid popup\n",
+               lb_lid_mode, (unsigned)lb_lid_duration, (unsigned)lb_lid_remain);
+        lb_heat_cmd_stop();             /* 开过盖: 先停, YES 再续跑 */
+        g_ui_sys.lid_open = true;       /* 主页 process 见此标志弹窗 */
+    }
+    lb_boot_gate = true;
+    tft_bglight_force_on();             /* 判定完亮屏: 纯主页 或 主页+弹窗 */
+}
+
+static void lb_shutdown_seq_apply(void)
+{
+    if (!lunchbox_shutdown_done_take()) {       /* 边沿只取一次, 取走即回 IDLE */
+        return;
+    }
+    /* 时序已跑完: 加热停了、模块关了。落地按充电状态分流 ——
+     * 充电中 → 黑屏充电页: 与真关机唯一的区别是主板不深睡, 还收串口状态
+     *           (模块充电时仍上报 DP4), 屏上跑充电动画。拔线后页内自会真关机。
+     * 未充电 → manual_off 深睡 (真关机)。 */
+    if (lunchbox_charging_now()) {
+        if (func_cb.sta != FUNC_BLACK_SCREEN && !sys_cb.flag_swithing) {
+            printf("seq: shutdown done, charging -> black screen charge page\n");
+            func_cb.sta = FUNC_BLACK_SCREEN;
+        }
+        return;
+    }
+#if ELUNCHBOX_PANEL_EN
+    printf("seq: power down -> manual_off deep sleep\n");
+    elunchbox_pwr_manual_off_set();
+    elunchbox_screen_off();
+    elunchbox_guioff_sleep_arm_immediate();     /* 不等 30s 空闲倒计时, 立刻允许深睡 */
+#else
+    printf("seq: power down -> FUNC_PWROFF (no elunchbox panel)\n");
+    func_cb.sta = FUNC_PWROFF;
+#endif
+}
+
+static void lb_ui_route_apply(void)
+{
+    /* 关机时序进行中: 不抢页, 也不消费边沿 —— 万一最后一刻被 blocked 拦下没关机,
+     * "模块停了→回首页"这个跳页还是该生效的。 */
+    if (lunchbox_shutdown_is_active()) {
+        return;
+    }
+
+    /* 黑屏充电页: 只处理串口数据和开机键, 不被跳页拽走。
+     * 边沿不消费 —— APP 这时远程开了加热, 用户按开机键回主界面后立刻路由到加热页 */
+    if (func_cb.sta == FUNC_BLACK_SCREEN) {
+        return;
+    }
+
+#if ELUNCHBOX_PANEL_EN
+    /* 已进 manual_off (关机落地了): 不切页, 边沿取走丢弃。
+     *
+     * 必须丢弃: 关机时序第一步发的停止加热会让模块上报 HeatEn=OFF, 产生一个
+     * "模块停了→回首页"边沿。这个边沿在 is_active() 期间被挂着, 断电那一刻
+     * 状态回 IDLE, 下一句就把它放出来 —— 于是在关屏/存 keep_ram/gpu_exit 的
+     * 同时重建首页 form 和锁屏浮层, 醒来渲染失效控件 → resource halt C245。 */
+    if (elunchbox_pwr_is_manual_off()) {
+        (void)lb_ui_route_poll();
+        return;
+    }
+#endif
+
+    /* 盖盖开机"继续加热?"弹窗决策期间: 边沿取走丢弃 ——
+     * 去加热页还是停加热由弹窗结果定 (func_home_page.c), 不能让边沿抢先跳页 */
+    if (g_ui_sys.lid_open || func_confirm_overlay_visible()) {
+        (void)lb_ui_route_poll();
+        return;
+    }
+
+    /* 切换动画进行中 / OTA 进行中: 不抢页, 也不消费边沿, 下一轮再来 */
+    if (sys_cb.flag_swithing || lb_ota_is_active()) {
+        return;
+    }
+
+    switch (lb_ui_route_poll()) {
+    case LB_UI_ROUTE_HEAT:
+        if (func_cb.sta != FUNC_NEW_HEAT_PAGE) {
+            printf("route: module heating -> heat page\n");
+            func_cb.sta = FUNC_NEW_HEAT_PAGE;
+        }
+        break;
+
+    case LB_UI_ROUTE_WARM:
+        if (func_cb.sta != FUNC_NEW_WARM_PAGE) {
+            printf("route: module keep-warm -> warm page\n");
+            func_cb.sta = FUNC_NEW_WARM_PAGE;
+        }
+        break;
+
+    case LB_UI_ROUTE_HOME:
+        /* 只把加热/保温页拉回首页, 用户正在别的页面时不打扰 */
+        if (func_cb.sta == FUNC_NEW_HEAT_PAGE || func_cb.sta == FUNC_NEW_WARM_PAGE) {
+            printf("route: module stopped -> home\n");
+            func_cb.sta = FUNC_HOME_PAGE;
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+#endif // FUNC_LUNCHBOX_UART_EN
+
 AT(.text.func.process)
 void func_process(void)
 {
@@ -116,13 +379,19 @@ void func_process(void)
     func_led_scan();
 #endif
 
-    /* ======== 空闲到期 → 关屏 ======== */
-#if ELUNCHBOX_PANEL_EN
+    /* ======== 空闲到期 ======== */
+#if ELUNCHBOX_PANEL_EN && !FUNC_LUNCHBOX_UART_EN
+    /* 无串口功能: 维持旧行为, 空闲只息屏 */
     if (!guioff && elunchbox_guioff_idle_expired()) {
         elunchbox_screen_off();
         guioff = true;
     }
 #endif
+    /* FUNC_LUNCHBOX_UART_EN=1 时空闲处理只在 sleep_process (func_lowpwr.c):
+     * 5min 无操作 = 自动关机走关机时序 → manual_off 深睡。
+     * 这里原来有一份"到期即息屏"(合并带入), 每轮跑在 sleep_process 之前,
+     * 把机器抢进 auto-guioff 深睡 —— 那条路不关 RTC WDT, 睡下即被 RTC_WDT
+     * 硬复位重启, 表现为"定时进低功耗后自己起来跑、功耗不对"。已删。 */
 
     /* ======== 息屏路径 ======== */
 #if ELUNCHBOX_PANEL_EN
@@ -143,8 +412,26 @@ void func_process(void)
         sd_soft_cmd_detect(120);
 #endif
 
-        tft_bglight_frist_set_check();
+        /* 盖盖上电: TE 中断数帧后会把 first_set 拉起, 这里每轮套用 ——
+         * 首帧判定前拦住, 否则主页先亮出来、弹窗后到 (闪切) */
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+        if (lb_boot_display_gate_open())
+#endif
+            tft_bglight_frist_set_check();
     }
+
+#if FUNC_LUNCHBOX_UART_EN
+    /* 加热模块串口: 取字节 → 拼帧 → lb_uart_on_frame 分发。
+     * 内部还驱动: 桥接应答超时重试 / 预约列表同步 / 开机关机时序 / 加热模块 OTA。
+     * 息屏(guioff)时照常跑 —— 模块的心跳要回、预约到点要收。 */
+    lunchbox_uart_process();
+
+    lb_ui_sync_pull();                  /* 串口状态镜像 → g_ui_sys, 须在刷 UI 之前 */
+    lb_wake_apply();                    /* 深睡唤醒原因 → 落页 (按键/充电/加热) */
+    lb_shutdown_seq_apply();            /* 关机时序走完 → 主板断电 */
+    lb_boot_lid_check();                /* 盖盖上电+模块在加热 → 主页弹"继续加热?" (须在 route 前) */
+    lb_ui_route_apply();                /* 模块状态变化 → 强制切页 */
+#endif
 
     /* GUI 更新 (不休眠时才更新) */
     if (!guioff && !sys_cb.flag_halt) {
@@ -204,7 +491,16 @@ void func_process(void)
     if (bt_cb.bt_is_inited) {
         bt_thread_check_trigger();
 #if LE_EN
+#if FUNC_LUNCHBOX_UART_EN
+        /* 饭盒协议接收/分发在 functions/comm/lb_ble_app.c,
+         * 不走 ble_app_process() → ble_app_watch_process() 那条老链路 */
+        lunchbox_ble_process();
+#else
         ble_app_process();
+#endif
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+        lb_ota_process();               /* 主MCU OTA 状态机 */
 #endif
     }
 
@@ -767,12 +1063,32 @@ void func_run(void)
 #if ELUNCHBOX_PANEL_EN
     elunchbox_user_activity_reset();
 #endif
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+    /* 盖盖上电: gui 初始化早已把背光 PWM 打开, 这里先物理关掉 ——
+     * 等 lb_boot_lid_check() 拿到模块首帧、判定落页后再 force_on 亮屏,
+     * 保证第一眼要么纯主页、要么主页+弹窗, 不出现"主页闪现再弹窗" */
+    LCD_BL_DIS();
+#endif
 
     memset(func_cb.tbl_sort, 0, sizeof(func_cb.tbl_sort));
     func_cb.tbl_sort[0] = FUNC_HOME;
     func_cb.sort_cnt = 1;
     func_cb.flag_sort = false;
     func_cb.sta = FUNC_HOME;
+#if ELUNCHBOX_PANEL_EN && CHARGE_EN
+    /* 冷启动(装电池/复位)时就插着充电线 → 进黑屏充电页, 不进主界面。
+     * 注: 深睡中插线不走这里 —— manual_off 唤醒不重启, 深睡循环置 UART
+     * 闩锁, 醒后 lb_wake_apply() 观察窗判充电 → 黑屏页。
+     * 撤销上电自动 power_on: 黑屏页语义是"关机+充电", 模块保持关,
+     * 长按开机键时再 lunchbox_boot_seq_kick() 补跑。 */
+    if (CHARGE_DC_IN()) {
+        printf("func_run: DC in at boot -> black screen charge page\n");
+#if FUNC_LUNCHBOX_UART_EN
+        lunchbox_boot_seq_cancel();
+#endif
+        func_cb.sta = FUNC_BLACK_SCREEN;
+    }
+#endif
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
 

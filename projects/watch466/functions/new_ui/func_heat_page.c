@@ -120,10 +120,10 @@ compo_form_t *func_heat_page_form_create(void)
     {
         char buf[8];
         if (g_ui_sys.time_min % 60 == 0) {
-            snprintf(buf, sizeof(buf), "%uH", g_ui_sys.time_min / 60);
+            snprintf(buf, sizeof(buf), "%uH", (unsigned)(g_ui_sys.time_min / 60));
         } else {
             snprintf(buf, sizeof(buf), "%uH%02uMin",
-                     g_ui_sys.time_min / 60, g_ui_sys.time_min % 60);
+                     (unsigned)(g_ui_sys.time_min / 60), (unsigned)(g_ui_sys.time_min % 60));
         }
         compo_textbox_set(inf->time_text, buf);
     }
@@ -197,15 +197,6 @@ static void func_heat_page_process(void)
             func_lock_page_hide();
     }
 
-    /* TODO-TEST: 模拟倒计时每秒减 1 分钟，串口调通后删 */
-    {
-        static u32 sim_tick = 0;
-        if (tick_check_expire(sim_tick, 1000) && g_ui_sys.remain_min > 0) {
-            sim_tick = tick_get();
-            g_ui_sys.remain_min--;
-        }
-    }
-
     /* 倒计时：从串口 g_ui_sys.remain_min 读取剩余分钟数
      *  idx=0 固定 ANNULUS_0（满环），idx=1~12 按 time_min 均分 */
     {
@@ -231,10 +222,10 @@ static void func_heat_page_process(void)
             char buf[16];
             u32 remain_min = g_ui_sys.remain_min;
             if (remain_min % 60 == 0) {
-                snprintf(buf, sizeof(buf), "%uH", remain_min / 60);
+                snprintf(buf, sizeof(buf), "%uH", (unsigned)(remain_min / 60));
             } else {
                 snprintf(buf, sizeof(buf), "%uH%02uMin",
-                         remain_min / 60, remain_min % 60);
+                         (unsigned)(remain_min / 60), (unsigned)(remain_min % 60));
             }
             compo_textbox_set(inf->residue_time_text, buf);
         }
@@ -260,8 +251,7 @@ void func_heat_page_enter(void)
     inf->display_stage = 1;
     inf->last_idx   = 0;
 
-    /* 倒计时从总时长开始，串口调通后此句删除（由串口下发 remain_min） */
-    g_ui_sys.remain_min = g_ui_sys.time_min;
+    /* remain_min 由加热模块 DP6 上报, lb_ui_sync_pull() 每轮刷新, 此处不再预置 */
 
     /* 初始圆环图：满环 */
     compo_picturebox_set(inf->schedule_pic, ANNULUS_PICS[0]);
@@ -271,10 +261,10 @@ void func_heat_page_enter(void)
         char buf[16];
         u32 remain_min = g_ui_sys.remain_min;
         if (remain_min % 60 == 0) {
-            snprintf(buf, sizeof(buf), "%uH", remain_min / 60);
+            snprintf(buf, sizeof(buf), "%uH", (unsigned)(remain_min / 60));
         } else {
             snprintf(buf, sizeof(buf), "%uH%02uMin",
-                     remain_min / 60, remain_min % 60);
+                     (unsigned)(remain_min / 60), (unsigned)(remain_min % 60));
         }
         compo_textbox_set(inf->residue_time_text, buf);
     }
@@ -288,6 +278,23 @@ void func_heat_page_enter(void)
 
 void func_heat_page_exit(void)
 {
+#if FUNC_LUNCHBOX_UART_EN
+    /* 退出加热界面即停止加热 (返回键/加热键/模式键/预约键, 任何离开方式)。
+     *
+     * 两种不该发 stop 的情况, 靠"模块是否还在干本页负责的事"一并排除:
+     *   - 加热自然结束 / APP 远程停止 → heat_enable=0
+     *   - 模块转去保温(APP 改的), lb_ui_route_poll 把屏幕带去保温页
+     *     → heat_enable 仍是 1, 但 heat_mode 已是 WARM, 这时 stop 会把
+     *       刚开始的保温掐掉 */
+    {
+        lb_ui_state_t *st = lb_ui_state_get();
+        if (st->valid && st->heat_enable && st->heat_mode != LB_MODE_WARM
+            && !lunchbox_shutdown_is_active() && !lunchbox_shutdown_is_done()) {
+            lb_heat_cmd_stop();
+            printf("heat_page: exit -> stop heating\n");
+        }
+    }
+#endif
     func_key_lock_on_heating_stop();
     func_key_flush();
     general_status_bar_detach();

@@ -26,7 +26,8 @@
 #define FUNC_CAMERA_TRANS_EN            0   //是否打开相机传输功能,需要一张图片的RGB数据缓存
 #define FUNC_IDLE_EN                    0   //是否打开IDLE功能
 #define FUNC_GAME_TETRIS_EN             0   //是否打开俄罗斯方块游戏
-#define FUNC_BLE_GATTS_EN               0   //是否打开BLE GATTS Demo功能
+#define FUNC_BLE_GATTS_EN               0   //是否打开BLE GATTS Demo功能 (对齐elunchbox: 饭盒协议不用该demo服务)
+#define FUNC_LUNCHBOX_UART_EN           1   //是否打开智能盒饭串口协议功能
 
 /******************************************************************************
 *Module      :BT EMIT FUNCTION
@@ -94,7 +95,7 @@
 #define FLASH_UI_BASE                   0x200000                                            //UI资源起始地址(最小值为FLASH_CODE_SIZE)
 #define FLASH_UI_SIZE                   0x100000                                            //UI资源大小(ui.bin的大小)
 #define FLASH_PKG_START                 0x300000                                            //升级压缩包存放起始地址
-#define FLASH_PKG_SIZE                  0x050000                                            //升级压缩包大小
+#define FLASH_PKG_SIZE                  0x096000                                            //升级压缩包大小600K: 0x300000~0x396000
 #define FLASH_DISK_START                FLASH_PKG_START                                     //FLASH DISK 功能与OTA升级复用
 #define FLASH_DISK_LEN                  FLASH_PKG_SIZE                                      //FLASH DISK 功能与OTA升级复用, 0为关闭此功能
 #define FLASH_CM_SIZE                   0x5000
@@ -198,7 +199,7 @@
 #undef  SOFT_POWER_VDDIO_EN
 #define SOFT_POWER_VDDIO_EN             1           /* 硬关机保持 VDDIO，PT8028/PE1 可唤醒开机 */
 #define ELUNCHBOX_KEEP_AWAKE            0           /* 允许深度休眠 */
-#define ELUNCHBOX_GUIOFF_TIME_SEC       300         /* 无操作自动关机(秒)，默认 5 分钟 */
+#define ELUNCHBOX_GUIOFF_TIME_SEC       60         /* 无操作自动关机(秒)，默认 5 分钟 */
 #define ELUNCHBOX_GUIOFF_SLEEP_EN       1           /* 息屏后再进 BT 浅睡降功耗 */
 #define ELUNCHBOX_GUIOFF_SLEEP_DELAY_SEC 30         /* 息屏后延迟多少秒进浅睡 */
 #define LPWR_BUCK_TO_LDO_EN             0           /* manual_off 休眠 BUCK→LDO, 省 50-200μA (暂时关闭排查) */
@@ -405,8 +406,10 @@
 #define LE_WIN10_POPUP                  0   //是否打开win10 swift pair快速配对
 
 //FOTA功能配置
-#define LE_AB_FOT_EN                    0   //是否打开BLE FOTA服务,需同时打开LE_AB_LINK_APP_EN
-#define AB_FOT_TYPE_PACK                0   //FOTA压缩升级（代码做压缩处理，升级完成需做解压才可正常运行）
+#define LE_AB_FOT_EN                    0   //是否打开BLE FOTA服务,需同时打开LE_AB_LINK_APP_EN (原厂BLE通道, 饭盒走自己的lb_ota, 保持0)
+#define AB_FOT_TYPE_PACK                1   //FOTA压缩升级（代码做压缩处理，升级完成需做解压才可正常运行）
+                                            //置1后 app.xm 把 setunpack+setpkgarea 编进 dcf, Downloader 才会按暂存区出 POT 压缩包;
+                                            //为0时无暂存区信息, 固件>~1.3M 会退化出 FOT 格式, 设备端 ota_pack 报 FILE_FORMAT
 #define SW_VERSION		                "V0.0.1"   //只能使用数字0-9,ota需要转码
 #define HW_VERSION		                "V0.0.1"   //只能使用数字0-9,ota需要转码
 #define FOTA_UI_EN                      0          //是否支持UI升级，需要用一个批处理打包UI+FOT

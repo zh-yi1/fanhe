@@ -189,11 +189,13 @@ static void func_warm_page_process(void)
             char buf[16];
             if (warm_min == 0) {
                 snprintf(buf, sizeof(buf), "0Min");
+            } else if (warm_min < 60) {
+                snprintf(buf, sizeof(buf), "%uMin", (unsigned)warm_min);
             } else if (warm_min % 60 == 0) {
-                snprintf(buf, sizeof(buf), "%uH", warm_min / 60);
+                snprintf(buf, sizeof(buf), "%uH", (unsigned)(warm_min / 60));
             } else {
                 snprintf(buf, sizeof(buf), "%uH%02uMin",
-                         warm_min / 60, warm_min % 60);
+                         (unsigned)(warm_min / 60), (unsigned)(warm_min % 60));
             }
             compo_textbox_set(inf->residue_time_text, buf);
         }
@@ -219,6 +221,22 @@ void func_warm_page_enter(void)
     inf->display_stage = 1;
     inf->last_idx   = 0xff; /* 强制首帧刷新 */
 
+#if FUNC_LUNCHBOX_UART_EN
+    /* 下发保温: 固定 194F(=90°C) / 24 小时。
+     * 模块已在保温说明本页是被 lb_ui_route_poll 驱动跳过来的, 不重发,
+     * 否则会把模块那边的 24 小时计时清零 */
+    {
+        lb_ui_state_t *st = lb_ui_state_get();
+        if (!(st->valid && st->heat_enable && st->heat_mode == LB_MODE_WARM)) {
+            lb_heat_cmd_start(LB_MODE_WARM,
+                              lunchbox_temp_f_to_idx(LB_WARM_TEMP_F),
+                              LB_WARM_DURATION_MIN);
+            printf("warm_page: keep warm %uF %umin sent\n",
+                   (unsigned)LB_WARM_TEMP_F, (unsigned)LB_WARM_DURATION_MIN);
+        }
+    }
+#endif
+
     /* 初始圆环图：空环 (ANNULUS_12) */
     compo_picturebox_set(inf->schedule_pic, ANNULUS_PICS[0]);
 
@@ -229,10 +247,26 @@ void func_warm_page_enter(void)
     WDT_CLR();
 
     general_status_bar_attach(&inf->sb);
+    func_key_lock_on_heating_start(); /* 保温 30s 后自动童锁 (与加热页一致) */
 }
 
 void func_warm_page_exit(void)
 {
+#if FUNC_LUNCHBOX_UART_EN
+    /* 退出保温界面即停止保温 (与加热页一致)。
+     * 只在"模块确实还在保温"时发: 已停(heat_enable=0)不重发;
+     * 模块转去加热(APP 改的, route 把屏幕带走)时 heat_mode 已不是 WARM,
+     * 那份加热不该被这里掐掉 */
+    {
+        lb_ui_state_t *st = lb_ui_state_get();
+        if (st->valid && st->heat_enable && st->heat_mode == LB_MODE_WARM
+            && !lunchbox_shutdown_is_active() && !lunchbox_shutdown_is_done()) {
+            lb_heat_cmd_stop();
+            printf("warm_page: exit -> stop keep warm\n");
+        }
+    }
+#endif
+    func_key_lock_on_heating_stop();
     func_key_flush();
     general_status_bar_detach();
 }

@@ -11,6 +11,10 @@
 #if USER_PT8028_KEY
 #include "bsp_pt8028_key.h"
 #endif
+#if FUNC_LUNCHBOX_UART_EN
+#include "lb_ui_state.h"    // lunchbox_heating_task_active()
+#include "lb_ota.h"         // lb_ota_is_active()
+#endif
 
 /* ============================================================
  * 物理屏幕控制 (替代 gui_sleep/gui_wakeup，仅关物理屏，保持GPU链路)
@@ -48,7 +52,23 @@ bool elunchbox_is_guioff(void)                  { return sys_cb.gui_sleep_sta ||
 AT(.com_text.sleep)
 bool elunchbox_pwr_gui_off_is_on(void)           { return elunchbox_pwr_gui_off; }
 bool elunchbox_guioff_sleep_ready(void)          { return elunchbox_guioff_sleep_delay == 0; }
-bool elunchbox_guioff_idle_expired(void)         { return elunchbox_idle_tmr == 0; }
+
+/* 空闲计时到点? 加热/OTA 进行中一律不到点 —— 挡在这里而不是等 screen_off 之后
+ * 再靠 func_lowpwr 的"加热中自动亮回"救, 否则每轮都是关屏→亮回, 屏会闪。 */
+bool elunchbox_guioff_idle_expired(void)
+{
+    if (elunchbox_idle_tmr != 0) {
+        return false;
+    }
+    if (elunchbox_heating_blocks_idle()) {
+        /* 顺手把空闲计时喂满: 否则加热一结束 idle_tmr 还是 0, 屏立刻黑,
+         * 用户看不到"加热完成"。加热结束后重新走完整的 5 分钟倒计时。 */
+        elunchbox_lp_user_activity_reset();
+        return false;
+    }
+    return true;
+}
+
 
 /* --- 息屏倒计时 --- */
 void elunchbox_guioff_sleep_delay_reset(void) {
@@ -160,6 +180,11 @@ void elunchbox_guioff_sleep_post_wake(bool wkp)
         elunchbox_manual_off = false;
         elunchbox_pwr_gui_off = false;
         elunchbox_pwroff_sent_reset();
+        /* 深睡唤醒后重置空闲计时器。不走 elunchbox_lp_user_activity_reset()
+         * 因为此时 gui_sleep_sta 通常还是 true (gui_wakeup 在后面才调),
+         * elunchbox_is_guioff()=true → 重置被跳过。
+         * 不重置则下轮 sleep_process → idle_expired → 立即再次关机 → 唤不醒。 */
+        elunchbox_idle_tmr = (u32)ELUNCHBOX_GUIOFF_TIME_SEC * 10;
         /* 唤醒后强制回主界面 */
         extern func_cb_t func_cb;
         if (func_cb.sta != FUNC_HOME) {
@@ -178,10 +203,18 @@ void elunchbox_pwr_gui_wake_reason(const char *reason)
     elunchbox_pwr_gui_wake();
 }
 
-/* 加热进行中 → 不关屏/不深睡 (当前版本返回 false, 后续由 func_heat 模块对接) */
+/* 加热进行中 / OTA 进行中 → 不关屏/不深睡
+ *
+ * 加热: 串口状态镜像的 DP10(加热使能), 本机下发和模块自己启动(预约到点)都覆盖。
+ * OTA:  lb_ota_is_active() 同时覆盖主 MCU OTA 和加热模块 OTA ——
+ *       Flash 擦写期间关屏会让 LCD 断电、GPU 状态异常复位。 */
 bool elunchbox_heating_blocks_idle(void)
 {
+#if FUNC_LUNCHBOX_UART_EN
+    return lunchbox_heating_task_active() || lb_ota_is_active();
+#else
     return false;
+#endif
 }
 
 /* manual_off 中按键刚按下 → 保持唤醒等长按计时器 */
@@ -196,8 +229,11 @@ bool elunchbox_pwr_manual_off_should_stay_awake(void)
     return false;
 }
 
-/* UART TX block stub (FUNC_LUNCHBOX_UART_EN=0 时为空) */
+/* UART TX block stub —— 真实实现在 comm/lb_uart_app.c, 这里只补串口关掉时的空壳。
+ * 少了这个 #if 会和 lb_uart_app.c 撞出 multiple definition。 */
+#if !FUNC_LUNCHBOX_UART_EN
 void lb_uart_tx_block(bool block)
 {
     (void)block;
 }
+#endif

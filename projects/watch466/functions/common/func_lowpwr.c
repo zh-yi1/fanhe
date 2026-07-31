@@ -13,6 +13,19 @@
 #define LP_SLEEP_VERBOSE 0
 #endif
 
+#if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
+/* manual_off 中 PB9(串口)唤醒: 任何指令都唤醒, 置 UART 闩锁,
+ * 醒因由主循环收帧后判 (lb_wake_apply: 充电→黑屏页, 加热→路由去加热页)。
+ * 曾在这里偷听判帧再决定睡不睡, 实测睡眠上下文收帧不完整, 已回退。 */
+static bool manual_off_uart_wake_check(void)
+{
+    lunchbox_wake_reason_set_uart();
+    return true;
+}
+#else
+#define manual_off_uart_wake_check()    true    /* 无串口功能: 任何 PB9 都唤醒 */
+#endif
+
 AT(.sleep_backup.gui)
 u8 sys_backup_buf[32 * 1024 - 8];
 
@@ -48,10 +61,10 @@ bool keep_ram_tbl_restore(void);
 AT(.com_text.sleep)
 void lowpwr_tout_ticks(void)
 {
-    static u8 div;  /* 5ms * 20 = 100ms 分频 */
+    // static u8 div;  /* 5ms * 20 = 100ms 分频 */
 
-    if (++div < 20) return;
-    div = 0;
+    // if (++div < 20) return;
+    // div = 0;
 
     if(sys_cb.sleep_delay != -1L && sys_cb.sleep_delay > 0) {
         sys_cb.sleep_delay--;
@@ -468,9 +481,12 @@ bool sfunc_sleep_proc(void)
                 u8 pe1 = ((GPIOE >> 1) & 1);
 
                 if (pb9_lo) {
-                    printf("lp: -> PB9 wake during wait-release\n");
-                    gui_need_wkp = true;
-                    break;
+                    if (manual_off_uart_wake_check()) {
+                        printf("lp: -> PB9 wake during wait-release\n");
+                        gui_need_wkp = true;
+                        break;
+                    }
+                    /* 无关帧: 不唤醒, 落到下面继续等松手/重睡 */
                 }
 
                 if (pe1 != 0) {
@@ -499,9 +515,15 @@ bool sfunc_sleep_proc(void)
 #endif
 
                 if (pb9_lo) {
-                    printf("lp: -> UART/PB9 wake\n");
-                    gui_need_wkp = true;
-                    break;
+                    if (manual_off_uart_wake_check()) {
+                        printf("lp: -> UART/PB9 wake\n");
+                        gui_need_wkp = true;
+                        break;
+                    }
+                    /* 无关帧(心跳等): 清 pending 回去继续睡 */
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                    elunchbox_manual_wake_pending_take();
+                    continue;
                 }
                 if (pe1_lo && bcd == 5) {
                     /* TCH5: 要求持续 LOW≥2s 才当有效唤醒 */
@@ -516,6 +538,9 @@ bool sfunc_sleep_proc(void)
                     }
                     if (tch5_cnt >= 400) {
                         printf("lp: -> TCH5 wake (held 2s)\n");
+#if FUNC_LUNCHBOX_UART_EN
+                        lunchbox_wake_reason_set_key();
+#endif
                         gui_need_wkp = true;
                         break;
                     }
@@ -561,8 +586,13 @@ bool sfunc_sleep_proc(void)
                 u8 bcd;
                 bool pe1_lo = sleep_read_bcd_pe1(&bcd);
                 if (pb9_lo) {
-                    gui_need_wkp = true;
-                    break;
+                    if (manual_off_uart_wake_check()) {
+                        gui_need_wkp = true;
+                        break;
+                    }
+                    /* 无关帧: 清 pending 回去继续睡 */
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                    continue;
                 }
                 if (pe1_lo && bcd == 5) {
                     int tch5_cnt = 0;
@@ -573,6 +603,9 @@ bool sfunc_sleep_proc(void)
                         tch5_cnt++;
                     }
                     if (tch5_cnt >= 400) {
+#if FUNC_LUNCHBOX_UART_EN
+                        lunchbox_wake_reason_set_key();
+#endif
                         gui_need_wkp = true;
                         break;
                     }
@@ -708,6 +741,10 @@ static void sfunc_sleep(void)
 
 #if VBAT_DETECT_EN
     if (bsp_vbat_get_lpwr_status()) {           //低电不进sniff mode
+#if ELUNCHBOX_PANEL_EN
+        /* 睡不了就释放 manual_off, 否则 sleep_process 下轮又调进来死循环 */
+        elunchbox_pwr_manual_off_clr();
+#endif
         return;
     }
 #endif
@@ -733,9 +770,11 @@ static void sfunc_sleep(void)
 #endif
     sleep_cb.sys_is_sleep = true;
     sys_cb.gui_need_wakeup = 0;
+    printf("slp: A (bt_enter_sleep)\n");
     bt_enter_sleep();
     bt_audio_bypass();
     while(btstack_audio_is_busy());
+    printf("slp: B (audio idle)\n");
 #if LE_EN
     adv_interval = ble_get_adv_interval();
     /* manual_off: 不能关广播！ble_adv_dis() 会让 BT 栈进入等完成状态
@@ -766,12 +805,15 @@ static void sfunc_sleep(void)
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     /* manual_off: 强制关 BT scan。
-     * 第二次进 manual_off 时 scan 已被 bt_update_bt_scan_param_default 恢复
-     * → bt_sleep_proc 不睡 → 强睡绕过 → 10mA。此处强制关掉。 */
+     * 第一次上电时 scan 未开启所以 bt_scan_disable 生效 → bt_sleep_proc 可睡。
+     * 唤醒亮屏后 scan 被 bt_update_bt_scan_param_default 恢复 → 第二次进
+     * manual_off 时 bt_get_scan()=true → 上面只调参不关 scan → bt_sleep_proc
+     * 不睡 → 10mA。此处强制关掉。 */
     if (elunchbox_manual_off_slp) {
         bt_scan_disable();
     }
 #endif
+    printf("slp: C (bt param/scan done)\n");
 
 #if DAC_DNR_EN
     u8 sta = dac_dnr_get_sta();
@@ -804,10 +846,12 @@ static void sfunc_sleep(void)
 #endif
 #endif
 
+    printf("slp: D (dac/adc/charge done, dac_was=%u)\n", dac_status);
     usbcon0 = USBCON0;                          //需要先关中断再保存
     usbcon1 = USBCON1;
     USBCON0 = BIT(5);
     USBCON1 = 0;
+    printf("slp: D1 (usb off)\n");
 #if SD_SUPPORT_EN
     SD0_LDO_DIS();
 #endif
@@ -816,6 +860,7 @@ static void sfunc_sleep(void)
     if (!elunchbox_guioff_slp) {
         gui_sleep(true);
     }
+    printf("slp: D2 (gui_sleep/sd done)\n");
 
 #if MODEM_CAT1_EN
     bsp_modem_sleep_enter();
@@ -826,11 +871,25 @@ static void sfunc_sleep(void)
 #endif
 
     sysclk = sys_clk_get();
+    printf("slp: D3 (sysclk=%u -> 24M)\n", (unsigned)sysclk);
     sys_clk_set(SYS_24M);
+    printf("slp: D4 (clk switched)\n");
     DACDIGCON0 &= ~BIT(0);                      //disable digital dac
+    printf("slp: E1 (dacdig off)\n");
     adda_clk_source_sel(1);                     //adda_clk48_a select xosc52m
-    PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
-    PLL1CON0 &= ~0x03;                          //disable pll1
+    printf("slp: E2 (adda clk sel)\n");
+    /* PLL0/PLL1 不在此处手动关断。实测 bt_enter_sleep 后关 PLL0
+     * 会导致 AHB 总线挂死 → RTC_WDT 复位。让 rtc_sleep_enter →
+     * sys_enter_sleep 硬件序列去关 PLL, 省掉这段手动关断。
+     * 唤醒端 adpll_init() 会重新使能 PLL0, 不受影响。 */
+    printf("slp: E3 (pll0 off skipped)\n");
+#if FUNC_LUNCHBOX_UART_EN
+    /* 关 UART1, 释放 PB8/PB9 回 GPIO, 以便下面 rtc_sleep_enter 后
+     * GPIO 配置段自由设置引脚状态 (digital + pull)。*/
+    lunchbox_uart_suspend();
+    printf("slp: D0 (uart1 off)\n");
+#endif
+    printf("slp: E (before rtc_sleep_enter)\n");
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_manual_off_slp) {
         RTC_WDT_DIS();
@@ -1048,6 +1107,11 @@ static void sfunc_sleep(void)
     DACDIGCON0 |= BIT(0);                      //enable digital dac
 #if FPGA_EN
     fpga_uart_reinit();
+#endif
+#if FUNC_LUNCHBOX_UART_EN
+    /* UART1 在睡下前 suspend 过，这里恢复。须在系统时钟恢复后 (adpll_init) 再做，
+     * 因为 lb_link_init → uart_init 用 sys_clk 算波特率。 */
+    lunchbox_uart_resume();
 #endif
     dac_aubuf_init();
     /* 【低功耗优化】恢复 BUCK 模式 */
@@ -1268,9 +1332,23 @@ bool sleep_process(is_sleep_func is_sleep)
     }
 #endif
 #if ELUNCHBOX_PANEL_EN
-    /* 饭盒：独立 idle 计时到 0 即息屏 */
+    /* 饭盒：5min 无操作 = 自动关机 (config.h: ELUNCHBOX_GUIOFF_TIME_SEC)。
+     * 与长按 TCH5 完全同一条路: 停加热 → 关模块 → 未充电深睡 / 充电中黑屏页。
+     * 不走"息屏→30s→bt_is_allow_sleep→深睡"的旧机制 —— 那条路会被模块心跳
+     * 反复吵醒、还被 BT 状态卡住, 实测睡不下去; 长按关机这条已验证。
+     * 加热/OTA 中 idle_expired 恒 false (elunchbox_lp.c 挡掉并喂满计时);
+     * 黑屏充电页本身就是"关机+充电"态, 不重复触发。 */
     if (elunchbox_guioff_idle_expired()) {
+#if FUNC_LUNCHBOX_UART_EN
+        if (!lunchbox_shutdown_is_active() && !lunchbox_shutdown_is_done()
+            && func_cb.sta != FUNC_BLACK_SCREEN) {
+            printf("elunchbox: idle %us -> auto shutdown\n",
+                   (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
+            lunchbox_shutdown_start(false, 0);
+        }
+#else
         elunchbox_screen_off();
+#endif
         return false;
     }
     /* 已息屏但加热进行中：自动亮回 */

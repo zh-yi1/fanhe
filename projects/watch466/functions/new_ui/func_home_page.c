@@ -7,24 +7,15 @@
 extern bool func_confirm_overlay_visible(void);
 extern void func_confirm_overlay_show(void);
 extern bool func_confirm_overlay_poll(void);
+extern bool func_confirm_overlay_get_result(void);
+#if FUNC_LUNCHBOX_UART_EN
+extern bool lb_boot_display_gate_open(void);    /* 盖盖上电: 首帧判定前不亮屏 */
+extern void lb_lid_confirm_yes(void);           /* 弹窗 YES: 按数据续跑跳页 */
+#endif
 
-/* 系统状态实例 */
-/* TODO-TEST: 写死测试初值，串口调通后删掉初始化器恢复 ui_sys_t g_ui_sys; */
-ui_sys_t g_ui_sys = {
-    .temp = 140,
-    .keep_warm_min = 30,
-    .time_min = 60,   /* TODO-TEST: 总时长 120 分钟 → 模拟 120 秒跑完 */
-    .remain_min = 60, /* TODO-TEST: 初始满倒计时 */
-    .bat_level = 0,    /* 电量 0 档 → DL1 空电图标 */
-    .bat_pct = 0,
-    .charging = true, /* 充电中 → 轮播 CHARGING_1~4 动画 */
-    .lowbat = false,      /* 低电状态 → 进入低电页 */
-    .full_charge = false,
-    .bt_linked = false, /* 蓝牙已连 → 图标显示 */
-    .lid_open = false, /* 上盖打开 → 进入上盖页 */
-    .hour = 12, /* 时间 12:34 */
-    .min = 34,
-};
+/* 系统状态实例 —— 全部字段由 lb_ui_sync_pull() 从串口状态镜像刷新,
+ * 见 general_ui.c 末尾; 页面只读, 不要在这里写初值 */
+ui_sys_t g_ui_sys;
 
 #if TRACE_EN
 #define TRACE(...) printf(__VA_ARGS__)
@@ -129,7 +120,12 @@ compo_form_t *func_home_page_form_create(void)
     compo_textbox_set_forecolor(inf->txt_mode, COLOR_BLUE);
     compo_textbox_set_forecolor(inf->txt_set, COLOR_BLUE);
 
-    tft_bglight_force_on();
+#if FUNC_LUNCHBOX_UART_EN
+    /* 盖盖上电: 首帧未判定时压着背光, 由 lb_boot_lid_check() 判定后亮 ——
+     * 亮出来的第一眼要么纯主页、要么主页+弹窗, 不闪切 */
+    if (lb_boot_display_gate_open())
+#endif
+        tft_bglight_force_on();
     return frm;
 }
 
@@ -219,6 +215,14 @@ static void func_home_page_process(void)
         func_confirm_overlay_poll();
         if (!func_confirm_overlay_visible()) {
             g_ui_sys.lid_open = false; /* 用户已处理 */
+#if FUNC_LUNCHBOX_UART_EN
+            /* 盖盖上电弹窗结果 (弹窗入口已下发停止加热):
+             * YES → 按开盖前暂存的数据续跑并跳页(保温→保温页, 加热→加热页);
+             * NO  → 已经停了, 留在主界面 */
+            if (func_confirm_overlay_get_result()) {
+                lb_lid_confirm_yes();
+            }
+#endif
         }
     }
 
