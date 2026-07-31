@@ -630,6 +630,7 @@ static void sfunc_sleep(void)
 
 #if VBAT_DETECT_EN
     if (bsp_vbat_get_lpwr_status()) {           //低电不进sniff mode
+        printf("elunchbox: VBAT low power, abort sleep & wake screen\n");
 #if ELUNCHBOX_PANEL_EN
         /* 睡不了就释放 manual_off + guioff, 否则 sleep_process 下轮
          * 以 auto_guioff 模式反复进浅睡 → BT/RTC 秒唤醒 → func_pwroff */
