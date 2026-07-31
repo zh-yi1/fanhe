@@ -510,6 +510,30 @@ static bool lb_fault_active(u8 fault)
 /* 充电线在不在: DP4 0=未充电 1=充电中 2=已充满 —— 充满时线还插着, 算在充电。
  * 用模块的 DP4 而不是本机 CHARGE_DC_IN(): 模块侧已消抖 (见黑屏充电页拔线处理),
  * 且路由本来就只吃镜像这一份数据。 */
+/* 加热中插电 → 模块把这份任务改成保温, 但 DP5(时长)/DP6(剩余) 仍是原来那份,
+ * 剩余时间继续往下走。记住原加热模式和转保温前的温度档位 (转完 DP7 就变成
+ * 保温温度了), 拔线时按 DP6 的剩余分钟数续跑:
+ *   DP6 > 0  → 回加热页, 补一条加热命令把剩下的时间跑完
+ *   DP6 == 0 → 加热时长已经用完, 回主界面
+ * 别的保温 (APP 下发 / 加热自然结束转的) 不置 active, 不适用这套。 */
+static struct {
+    bool active;
+    u8   mode;          // 被转走的加热模式 (1~4)
+    u8   temp;          // 转保温之前的温度档位
+} lb_warm_from_heat;
+
+static u8 lb_last_heat_temp;    // 加热中持续记录, 转保温后 DP7 会变成保温温度
+
+/* 保温页每帧报上来的"已保温"显示值: 补发保温命令时要把它写进 DP6, 让模块
+ * 的账接着屏幕走。页面不在保温页时这个值是上次留下的残值, 只有上面那条
+ * "补发"分支会读它, 而那条分支只在保温进行中触发, 值必然是新鲜的。 */
+static u32 lb_warm_elapsed_min;
+
+void lb_ui_warm_elapsed_set(u32 minutes)
+{
+    lb_warm_elapsed_min = minutes;
+}
+
 static bool lb_charge_plugged(u8 charge)
 {
     return charge != 0;
@@ -565,15 +589,30 @@ lb_ui_route_t lb_ui_route_poll(void)
         return LB_UI_ROUTE_HOME;
     }
 
-    /* 拔充电线 → 回主界面 (充电中保温那条路的收尾)。
-     * 只管"不在加热"的情况: 保温中 / 保温已结束还停在保温页, 拔线即回首页
-     * (保温中回首页时保温页 exit 会顺手停保温)。加热中拔线不动 ——
-     * 那是电池供电继续加热, 不该被拔线打断。
-     * 黑屏充电页拔线是另一条路(走关机时序), 这里的 HOME 边沿在 apply 里
+    /* 拔充电线。
+     * 加热中插电被转保温的那份加热还有剩余时间 → 回加热页把它跑完;
+     * 没有剩余 (加热本来就该结束了) / 普通保温 → 回主界面。
+     * 加热中拔线不动 —— 那是电池供电继续加热, 不该被拔线打断。
+     * 黑屏充电页拔线是另一条路(走关机时序), 这里的边沿在 apply 里
      * 只作用于加热页/保温页, 碰不到它。 */
     if (!first && !plugged && lb_charge_plugged(prev_charge)
         && !(st->heat_enable && st->heat_mode >= LB_MODE_CUSTOM
              && st->heat_mode <= LB_MODE_RESERVE)) {
+        if (lb_warm_from_heat.active && st->remain_time > 0) {
+            u8  mode = lb_warm_from_heat.mode;
+            u8  temp = lb_warm_from_heat.temp;
+            u32 left = st->remain_time;
+            lb_warm_from_heat.active = false;
+            printf("route: unplugged, %lu min heat left -> resume heat (mode=%u temp=%u)\n",
+                   (unsigned long)left, mode, temp);
+            /* 必须补这条命令, 不能只跳页:
+             *   ① 模块这会儿在保温, 不发它就一直保温, 加热页的倒计时是假的;
+             *   ② 保温页 exit 有一条"还在保温就停保温", 发了这条之后镜像预写
+             *      成 mode=加热, 那条判据不成立, 不会把刚续上的加热掐掉。 */
+            lb_heat_cmd_start(mode, temp, left);
+            return LB_UI_ROUTE_HEAT;
+        }
+        lb_warm_from_heat.active = false;
         printf("route: charger unplugged -> home\n");
         return LB_UI_ROUTE_HOME;
     }
@@ -581,24 +620,61 @@ lb_ui_route_t lb_ui_route_poll(void)
     if (st->heat_enable) {
         lb_heat_stop_expected = false;       // 新任务开始, 旧的停止标志作废
         if (st->heat_mode == LB_MODE_WARM) {
+            /* 加热中插电 → 模块转保温, DP5/DP6 仍是那份加热的, 剩余继续走。
+             * 记下原模式和转保温前的温度, 拔线时续跑。 */
+            if (!first && plugged && prev_enable
+                && prev_mode >= LB_MODE_CUSTOM && prev_mode <= LB_MODE_RESERVE) {
+                lb_warm_from_heat.active = true;
+                lb_warm_from_heat.mode   = prev_mode;
+                lb_warm_from_heat.temp   = lb_last_heat_temp;
+                printf("route: heating(mode=%u) -> keep-warm on charge, %lu min left\n",
+                       prev_mode, (unsigned long)st->remain_time);
+            }
             return LB_UI_ROUTE_WARM;         // 保温进行中
         }
         if (st->heat_mode >= LB_MODE_CUSTOM && st->heat_mode <= LB_MODE_RESERVE) {
+            lb_last_heat_temp = st->heat_temp;   // 转保温后 DP7 会变, 先记着
+            lb_warm_from_heat.active = false;    // 新的加热任务, 旧标记作废
             return LB_UI_ROUTE_HEAT;         // 自定义/鸡腿/意面/预约加热中
         }
         return LB_UI_ROUTE_NONE;             // 使能但模式未知, 不动
     }
 
     if (!first && prev_enable) {
-        bool expected = lb_heat_stop_expected;
+        bool expected  = lb_heat_stop_expected;
+        bool from_heat = lb_warm_from_heat.active;
         lb_heat_stop_expected = false;
         // 加热(1~4)自然结束(没人发过停止, 且模块没在故障) → 进保温;
         // 保温页 enter 看到模块没在保温, 会自动下发保温命令
         if (!expected && !fault_now
             && prev_mode >= LB_MODE_CUSTOM && prev_mode <= LB_MODE_RESERVE) {
+            lb_warm_from_heat.active = false;
             return LB_UI_ROUTE_WARM;
         }
-        // 充电中保温结束(24h 走完/模块自己停) → 页面留在保温界面, 等拔线才回首页。
+        /* 充电中由加热转来的保温会话: 模块的保温时长是它自己定的 (实测转保温
+         * 给 3 分钟, 我们下发 1440 它回 72), 到点就停。只要线还插着、人还在
+         * 这个会话里, 就补一条 194F/24h 让它接着保温 —— 标志不清, 下次它再
+         * 停还要补。页面留在保温界面。
+         *
+         * 用 resume 而不是 start: 带上 DP6 = 24h − 已保温, 让模块的账
+         * (DP5−DP6) 一上来就等于屏幕显示值, 而不是从 0 重开。
+         * ⚠ 协议 §4 标 DP6 "APP下发 = ×", 模块认不认待实测 —— 看应答的 DP6:
+         *   回我们下发的值   → 认了 (页面可改成直接读 DP5−DP6, 删掉本机累加器)
+         *   回 DP5 / 压缩值  → 忽略了 (退回 start + 本机累加器) */
+        if (!expected && !fault_now && prev_mode == LB_MODE_WARM
+            && plugged && from_heat) {
+            u32 done = lb_warm_elapsed_min;
+            u32 left = (done < LB_WARM_DURATION_MIN)
+                     ? LB_WARM_DURATION_MIN - done : 1;
+            printf("route: module ended keep-warm (its own timer) -> resume 194F, done=%lu left=%lu\n",
+                   (unsigned long)done, (unsigned long)left);
+            lb_heat_cmd_resume(LB_MODE_WARM,
+                               lunchbox_temp_f_to_idx(LB_WARM_TEMP_F),
+                               LB_WARM_DURATION_MIN, left);
+            return LB_UI_ROUTE_NONE;
+        }
+        lb_warm_from_heat.active = false;
+        // 充电中普通保温结束 → 页面留在保温界面, 等拔线才回首页。
         // 未充电时保温结束仍按老规矩回首页。
         if (!expected && !fault_now && prev_mode == LB_MODE_WARM && plugged) {
             printf("route: keep-warm ended while charging, stay on warm page\n");

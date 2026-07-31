@@ -11,7 +11,7 @@
 #define TRACE(...)
 #endif
 
-/* 圆环进度图 13 张：ANNULUS_12(空)→ANNULUS_0(满)，按 keep_warm_min 均分 */
+/* 圆环进度图 13 张：ANNULUS_12(空)→ANNULUS_0(满)，按 24H 均分 */
 static const u32 ANNULUS_PICS[13] = {
     UI_BUF_NEW_UI_ANNULUS_12_BIN,  /*  0: 空环 (0%) */
     UI_BUF_NEW_UI_ANNULUS_11_BIN,  /*  1:       (~8%) */
@@ -33,7 +33,9 @@ typedef struct
 {
     u8 display_stage; // 0 = 正常运行, 1 = 首帧跳过 func_process
     u8  last_idx;       // 上次圆环索引
-    u32 warm_base_min;  // 进页时的已保温分钟基线, 显示用差值 (强制从 0 起算)
+    /* 已保温时长: 累加模块的进度增量, 只增不减 (算法见 process) */
+    u32 warm_min;       // 显示值
+    u32 warm_prev_raw;  // 上一帧模块这一轮已跑的分钟数 (增量参考点)
     general_status_bar_t sb;
     compo_picturebox_t *state_pic;
     compo_picturebox_t *schedule_pic;
@@ -175,18 +177,32 @@ static void func_warm_page_process(void)
             func_lock_page_hide();
     }
 
-    /* 保温计时：从串口 g_ui_sys.keep_warm_min 读取已保温分钟数
-     *  圆环从空到满 (ANNULUS_12→ANNULUS_0)，按 keep_warm_min 均分
-     *  显示 = 当前值 − 进页基线 (强制从 0 起算, 见 enter);
-     *  当前值 < 基线说明模块把计时重置了 (保温命令生效) → 基线跟着塌到当前值 */
+    /* 保温计时 —— 累加模块的进度增量。
+     *
+     * 模块每收到一条命令就开新一轮: DP6 重置成 DP5, 然后往下减。
+     * g_ui_sys.keep_warm_min = DP5 − DP6 = 模块"这一轮"已经跑了多少分钟,
+     * 换轮时它会突变 (归零, 或因测试压缩直接跳到 1368), 直接显示必然乱跳。
+     *
+     * 判据只有一条: 只接受"合理的前进"。一帧是毫秒级, 真实进度一帧最多
+     * 跨 1 分钟; 往回跳、或一次跨好几分钟, 都是模块重开了账, 这一帧的差值
+     * 没有意义, 丢掉只对齐参考点。累加器因此只增不减, 模块怎么清零/重置
+     * 都不影响显示 —— 加热中插电那条路上, 原加热那份跑完、补发保温命令
+     * 换轮时, 显示就能接着往下走。
+     *
+     * 注: 走的是模块的进度, 不是墙上时间。测试模式模块按 1/20 压缩跑,
+     * 显示也跟着快 20 倍, 这样一轮几分钟就能验完。 */
+    #define WARM_STEP_MAX   2u      /* 一帧可信的最大进度(分钟), 超出即换轮 */
     {
-        u32 warm_min = g_ui_sys.keep_warm_min;
+        u32 raw = g_ui_sys.keep_warm_min;
+        u32 warm_min;
         u8  idx;
 
-        if (warm_min < inf->warm_base_min) {
-            inf->warm_base_min = warm_min;
+        if (raw > inf->warm_prev_raw && raw - inf->warm_prev_raw <= WARM_STEP_MAX) {
+            inf->warm_min += raw - inf->warm_prev_raw;
         }
-        warm_min -= inf->warm_base_min;
+        inf->warm_prev_raw = raw;
+        warm_min = inf->warm_min;
+        lb_ui_warm_elapsed_set(warm_min);   // 路由补发保温时按这个值续 DP6
 
         if (warm_min == 0) {
             idx = 0; /* 空环 */
@@ -253,18 +269,16 @@ void func_warm_page_enter(void)
         }
     }
 
-    /* 显示强制从 0 起算: 记进页基线, process 里用差值 ——
-     * 模块自动转保温(加热中插电)会带着加热残值的 DP5/DP6, 不减基线会显示
-     * "已保温 1 分钟"。模块重置计时后基线自动塌 0 (见 process)。
-     * 盖盖弹窗 YES 进来的例外: 继承开盖前的已保温时长, 基线为 0 */
+    /* 累加器从 0 起 —— 进页时模块那一轮可能已经跑了一段 (加热中插电转保温
+     * 会带着原加热的 DP5/DP6), 不能把它算进"已保温"。
+     * 盖盖弹窗 YES 进来的例外: 继承开盖前的已保温时长。 */
+    inf->warm_min = warm_inherit_pending ? g_ui_sys.keep_warm_min : 0;
     if (warm_inherit_pending) {
         warm_inherit_pending = false;
-        inf->warm_base_min = 0;
-        printf("warm_page: inherit warm time %umin\n",
-               (unsigned)g_ui_sys.keep_warm_min);
-    } else {
-        inf->warm_base_min = g_ui_sys.keep_warm_min;
+        printf("warm_page: inherit warm time %umin\n", (unsigned)inf->warm_min);
     }
+    inf->warm_prev_raw = g_ui_sys.keep_warm_min;    // 增量参考点
+    lb_ui_warm_elapsed_set(inf->warm_min);          // 首帧之前也要有值可用
 #endif
 
     /* 初始圆环图：空环 (ANNULUS_12) */
