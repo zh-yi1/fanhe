@@ -575,6 +575,13 @@ bool sfunc_sleep_proc(void)
 #if LP_SLEEP_VERBOSE
                     printf("lp: -> TCH5 brief (<2s), back to sleep\n");
 #endif
+                    /* 误触: 不走共享cleanup, 自己清理+统一上升沿+强睡标定, 同lowpower风格 */
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                    elunchbox_manual_wake_pending_take();
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
+                    force_spin_cnt = 4;
+                    continue;
                 } else if (pe1_lo) {
 #if LP_SLEEP_VERBOSE
                     printf("lp: -> non-TCH5 (bcd=%d), back to sleep\n", bcd);
@@ -646,6 +653,12 @@ bool sfunc_sleep_proc(void)
                         gui_need_wkp = true;
                         break;
                     }
+                    /* 误触: 不走共享cleanup, 自己清理+统一上升沿+强睡标定 */
+                    RTCCON9 = BIT(7) | BIT(5) | BIT(2);
+                    port_wakeup_init(PT8028_GPIO_OUT_FLAG, 0, 1);
+                    elunchbox_waiting_key_release = true;
+                    force_spin_cnt = 4;
+                    continue;
                 }
                 /* 非TCH5/无效: PE1仍LOW→切上升沿等松手; PE1已HIGH→保持下降沿 */
                 RTCCON9 = BIT(7) | BIT(5) | BIT(2);
