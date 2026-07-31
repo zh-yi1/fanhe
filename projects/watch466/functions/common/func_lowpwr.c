@@ -778,12 +778,6 @@ static void sfunc_sleep(void)
     PLL0CON0 &= ~(BIT(18) | BIT(6));            //pll0 sdm & analog disable
     PLL1CON0 &= ~0x03;                          //disable pll1
     printf("slp: E3 (pll0 off)\n");
-#if FUNC_LUNCHBOX_UART_EN
-    /* 关 UART1, 释放 PB8/PB9 回 GPIO, 以便下面 rtc_sleep_enter 后
-     * GPIO 配置段自由设置引脚状态 (digital + pull)。*/
-    lunchbox_uart_suspend();
-    printf("slp: D0 (uart1 off)\n");
-#endif
     printf("slp: E (before rtc_sleep_enter)\n");
 
     //io analog input — 完整保存所有 GPIO 配置（必须在 rtc_sleep_enter 之前!
@@ -898,6 +892,13 @@ static void sfunc_sleep(void)
 
     wkie = WKUPCON & BIT(16);
     WKUPCON &= ~BIT(16);                        //休眠时关掉WKIE
+
+#if FUNC_LUNCHBOX_UART_EN
+    /* UART1 挂起移到 rtc_sleep_enter + GPIO 配置之后:
+     * lowpower 全程不挂 UART, rtc_sleep_enter 时 UART 活跃→硬件状态正确。
+     * GPIO 配置已把 PB8/PB9 切为数字输入+上拉, 此时挂 UART 安全。*/
+    lunchbox_uart_suspend();
+#endif
 
 #if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
     if (elunchbox_guioff_slp) {
