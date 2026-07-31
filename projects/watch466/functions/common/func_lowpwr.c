@@ -495,9 +495,9 @@ bool sfunc_sleep_proc(void)
 
             /* Step 1: 软件轮询 PE1 FLAG 下降沿 */
             elunchbox_manual_off_sleep_poll();
-            bool sw_has_event = elunchbox_manual_wake_pending_peek();
+            sw_has_event = elunchbox_manual_wake_pending_peek();
             wkpnd = port_wakeup_get_status();
-            bool hw_has_event = (wkpnd != 0);
+            hw_has_event = (wkpnd != 0);
 
             if (sw_has_event || hw_has_event) {
                 bool pb9_lo = ((GPIOB >> 9) & 1) == 0;
