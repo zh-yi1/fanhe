@@ -113,8 +113,10 @@ static void tft_240_st7789_i80_init(void)
     WriteData(0x00);
     WriteData(0xef);*/
 
-    WriteComm(0x35);    // TEON=1: 使能TE输出, V-blanking输出下降沿
-    WriteData(0x01);    // MCU PE9上拉+下降沿中断, 主循环门控对齐推屏消除撕裂
+    WriteComm(0x35);    // TE ON (0x34才是关), 参数bit0是M模式位而非开关
+    WriteData(0x00);    // M=0: 仅V-blanking出脉冲(每帧1个,帧边界);
+                        // 0x01是V+H都出, 每行1个脉冲→TE中断风暴,
+                        // TICK0CNT每行清零, tft_te_getnorm失去帧相位意义
 
     WriteComm(0x29);	  //Display on
     CommEnd();
