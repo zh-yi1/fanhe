@@ -25,17 +25,12 @@ static u32 bglight_kick_tick;           /* kick 置 te_bglight_cnt 的时刻 */
 static volatile bool te_frame_ready;            /* TE 帧边界就绪 (ISR 置位/主循环消费) */
 static volatile u32  te_pulse_cnt;              /* TE 脉冲计数 (证真+背光 kick 递减用) */
 
-/* ---- V+H 模式帧边界识别 ----
- * 本屏 0x35=0x00(仅V-blank) 实测不出 TE 脉冲(黑屏+背光kick死锁),
- * 只能用 0x01(V+H): 每行 1 脉冲(~20 tick 间隔), V-blank 期间无行脉冲
- * → 跨 V-blank 的首个边沿间隔达数百 tick。据此只把该边沿当帧边界清
- * TICK0CNT, 否则每行清零, tft_te_getnorm 失去帧相位, GUI 库内
- * te_margin 起绘门控失效(撕裂根源)。
- * TICK0: xosc26m/64 ≈ 2.46us/tick, 行 ≈ 20 tick, 帧 ≈ 6770 tick */
-#define TFT_TE_VBLANK_GAP_TICKS         100     /* >~5 行间隔判为跨 V-blank */
-#define TFT_TE_FRAME_MAX_TICKS          ((int)((XOSC_CLK_HZ / 1000) * TFT_TE_CYCLE * 3 / 2) / 64)
-                                                /* 1.5 帧兜底: 间隔识别失效也保持帧界循环 */
-static u16 te_edge_last;                        /* 上一边沿的 TICK0CNT (仅ISR访问) */
+/* ---- TE 脉冲形态诊断 ----
+ * 本屏 0x35=0x00 实测无脉冲; 0x01 有脉冲但形态未证实(标准 V+H 应为
+ * 每行 1 脉冲 ~19k/s, 若实测 ~60/s 则是纯帧脉冲)。逐边沿 tft_te_refresh
+ * 是当前唯一确认能亮屏的行为; 帧边界间隔识别首版实测黑屏, 待下方
+ * TE/s 打印确认脉冲形态后再定方案。 */
+#define TFT_TE_PULSE_DEBUG              1       /* 每秒打印 TE 脉冲数, 定位后关闭 */
 
 tft_cb_t* tft_get_tft_cb(void)
 {
@@ -89,14 +84,9 @@ void tft_te_isr(void)
         } else {
             //>1TE MODE, 如果Mode change停一个TE
             if (flag_mode_nochange) {
-                /* V+H 行脉冲流中识别帧边界: 见文件头注释 */
-                u16 now = (u16)TICK0CNT;
-                u16 delta = now - te_edge_last;
-                te_edge_last = now;
-                if (delta > TFT_TE_VBLANK_GAP_TICKS || now > TFT_TE_FRAME_MAX_TICKS) {
-                    te_edge_last = 0;
-                    tft_te_refresh();   /* 内部清 TICK0CNT → 新帧相位从 0 起 */
-                }
+                /* 暂回逐边沿刷新 (帧边界间隔识别实测黑屏, 待下方 TE/s
+                 * 诊断确认本屏脉冲形态后再定方案) */
+                tft_te_refresh();
             }
         }
         //延时打开背光
@@ -189,6 +179,15 @@ void tft_frame_end(void)
 //背光亮度初始设置检测
 void tft_bglight_frist_set_check(void)
 {
+#if TFT_TE_PULSE_DEBUG
+    /* TE 脉冲频率: ~60/s=帧脉冲, ~19000/s=行脉冲, 0=无脉冲 */
+    static u32 te_dbg_tick;
+    if (tick_check_expire(te_dbg_tick, 1000)) {
+        te_dbg_tick = tick_get();
+        printf("TE:%d/s norm:%d\n", (int)te_pulse_cnt, tft_te_getnorm());
+        te_pulse_cnt = 0;
+    }
+#endif
     /* kick 后 TE 一直没来(0x35=0x00 无TE脉冲), 超时强制点亮 */
     if (tft_cb.te_bglight_cnt > 0
         && tick_check_expire(bglight_kick_tick, TFT_BGLIGHT_KICK_TIMEOUT_MS)) {
