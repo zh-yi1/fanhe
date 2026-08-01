@@ -23,7 +23,8 @@
  *   上下箭头：new_up / new_down
  *   底部 NO/YES：new_gray_bj2 / new_blue_bj2
  *
- * 按键：UP/DOWN 调值或切换 NO/YES；CONFIRM 推进焦点 / 确认；BACK 回设置
+ * 按键：UP/DOWN 调值或切换 NO/YES；CONFIRM 推进焦点 / 确认；
+ *       BACK 逐级回退焦点(NO/YES→分→时)，停在"时"再按才回设置页
  */
 #define TIME_PAGE_BG                    0xEF5D
 #define TIME_PAGE_PANEL_Y               142
@@ -423,7 +424,17 @@ static void func_time_page_handle_keys(void)
             break;
 
         case FUNC_KEY_BACK:
-            func_cb.sta = FUNC_NEW_SETUP;
+            /* 逐级回退 (与 func_heat_set_page 一致): NO/YES → 分 → 时,
+             * 只有停在"时"再按才退出到设置页 */
+            if (inf->focus == TIME_PAGE_FOCUS_BOTTOM) {
+                inf->focus = TIME_PAGE_FOCUS_MIN;
+                time_page_update_display();
+            } else if (inf->focus == TIME_PAGE_FOCUS_MIN) {
+                inf->focus = TIME_PAGE_FOCUS_HOUR;
+                time_page_update_display();
+            } else {
+                func_cb.sta = FUNC_NEW_SETUP;
+            }
             break;
 
         /* 直接按键：加热键 → 加热设置页 */
