@@ -43,7 +43,9 @@ typedef struct
  * compo_picturebox_set 只换资源地址, 像素在下一次 GPU 绘制时才从 SPI Flash
  * 现取; 取图期间推屏块断流, 屏幕自刷扫描越过写指针 → 切换选中态时撕裂。
  * 预载进 RAM 后绘制不再碰 Flash (模式同 func_lock_page: ab_malloc 常驻只读一次) */
-#define HOME_ICON_SLOT      0x680       /* 单张最大 0x64e (HEAT_1) */
+#define HOME_ICON_SLOT      0x680       /* 按当前压缩bin最大0x64e取;
+                                         * 若重生成裸RGB565(79*88需0x3658)
+                                         * 须同步加大, 否则长度守卫跳过预载 */
 #define HOME_ICON_CNT       6
 
 static u8  *home_icon_ram;              /* 常驻, 页面退出不释放 */
@@ -58,31 +60,29 @@ static const u32 home_icon_res[HOME_ICON_CNT][2] = {
     { UI_BUF_NEW_UI_SETUP_1_BIN, UI_LEN_NEW_UI_SETUP_1_BIN },
 };
 
-/* 本组图标是厂商转换器压缩格式: 头 'PA'+格式字节(实测 50 41 00 01),
- * 长度远小于 w*h*2, 与 gen_*_icons.py 生成的 0x24150 裸 RGB565 不同,
- * gui_set_ram_check 会误杀。渲染器解码对 RAM/Flash 同一套, 这里只校验
- * 'PA' 魔数 + 非零尺寸 */
-static bool home_icon_ram_check(const u8 *ram)
-{
-    if (GET_LE16(&ram[0]) != 0x4150
-        || GET_LE16(&ram[4]) == 0 || GET_LE16(&ram[6]) == 0) {
-        printf("home_icon bad hdr<0x%x>:%d*%d\n",
-               GET_LE32(&ram[0]), GET_LE16(&ram[4]), GET_LE16(&ram[6]));
-        return false;
-    }
-    return true;
-}
-
 static void home_icons_preload(void)
 {
+    u8 hdr[8];
     u8 i;
 
     if (home_icon_ok) {
-        if (home_icon_ram_check(home_icon_ram)) {
+        if (gui_set_ram_check(home_icon_ram, __func__)) {
             return;                 /* RAM 内容仍有效, 直接复用 */
         }
         home_icon_ok = false;       /* 深睡等场景 RAM 失效 → 重载 */
     }
+
+    /* 先探首张图头: set_ram 只支持 0x24150 裸 RGB565 (gen_*_icons.py 产物)。
+     * 当前 flash 里是厂商压缩格式 (50 41 00 01) —— 实测 set_ram 绑压缩数据
+     * 会让 GUI 线程画第一帧就卡死 (开机黑屏/雪花), 严格校验是保命的,
+     * 此时直接放弃预载走 Flash 路径 */
+    home_gpu_wait_idle();               /* Flash 读别与 GPU 取图抢总线 */
+    os_spiflash_read(hdr, home_icon_res[0][0], sizeof(hdr));
+    if (GET_LE32(&hdr[0]) != 0x24150) {
+        printf("home_icons: fmt<0x%x> no set_ram, keep flash\n", GET_LE32(&hdr[0]));
+        return;
+    }
+
     if (home_icon_ram == NULL) {
         home_icon_ram = (u8 *)ab_malloc(HOME_ICON_SLOT * HOME_ICON_CNT);
     }
@@ -90,7 +90,6 @@ static void home_icons_preload(void)
         return;                         /* 失败回退 Flash 路径, 只丢防撕裂 */
     }
 
-    home_gpu_wait_idle();               /* Flash 读别与 GPU 取图抢总线 */
     for (i = 0; i < HOME_ICON_CNT; i++) {
         if (home_icon_res[i][1] > HOME_ICON_SLOT) {
             return;
@@ -101,7 +100,7 @@ static void home_icons_preload(void)
     WDT_CLR();
 
     for (i = 0; i < HOME_ICON_CNT; i++) {
-        if (!home_icon_ram_check(home_icon_ram + i * HOME_ICON_SLOT)) {
+        if (!gui_set_ram_check(home_icon_ram + i * HOME_ICON_SLOT, __func__)) {
             return;
         }
     }
