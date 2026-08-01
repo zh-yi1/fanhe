@@ -15,6 +15,7 @@ static compo_shape_t      *g_lock_dim;
 static compo_picturebox_t *g_lock_pic;
 static u8                 *g_lock_ram;
 static bool                g_lock_visible;
+static bool                g_lock_ram_cached;   /* g_lock_ram 是否已缓存上一次加载的图标 */
 
 static void lock_cleanup(void)
 {
@@ -23,6 +24,7 @@ static void lock_cleanup(void)
     g_lock_dim = NULL;
     g_lock_pic = NULL;
     g_lock_visible = false;
+    g_lock_ram_cached = false;   /* form 切换后 RAM 绑定失效, 重新读 */
 }
 
 static bool lock_load_icon(bool unlock_icon, u16 *out_w, u16 *out_h)
@@ -35,6 +37,12 @@ static bool lock_load_icon(bool unlock_icon, u16 *out_w, u16 *out_h)
     *out_w = unlock_icon ? 106 : 80;
     *out_h = unlock_icon ? 100 : 80;
 
+    /* 同一图标不重复读 Flash: 锁振荡时每帧都调 show, 22KB SPI 读 + GPU 等
+     * 待没有 WDT_CLR 会让看门狗饿死 → WDT_RST */
+    if (g_lock_ram_cached && g_lock_ram != NULL) {
+        return gui_set_ram_check(g_lock_ram, __func__);
+    }
+
     if (len == 0 || len > LOCK_RAM_SIZE) {
         return false;
     }
@@ -45,10 +53,16 @@ static bool lock_load_icon(bool unlock_icon, u16 *out_w, u16 *out_h)
         return false;
     }
 
+    WDT_CLR();
     home_gpu_wait_idle();
+    WDT_CLR();
     os_spiflash_read(g_lock_ram, addr, len);
     WDT_CLR();
-    return gui_set_ram_check(g_lock_ram, __func__);
+    if (gui_set_ram_check(g_lock_ram, __func__)) {
+        g_lock_ram_cached = true;
+        return true;
+    }
+    return false;
 }
 
 static bool lock_ensure_widgets(compo_form_t *frm)

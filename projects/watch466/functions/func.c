@@ -936,15 +936,10 @@ void func_message(size_msg_t msg)
 #endif
 
     case KU_MODE:
-            if (func_cb.sta == FUNC_HOME) {
-                break;
-            }
-            if (func_cb.sta != FUNC_MODE &&
-                       func_cb.sta != FUNC_SETUP && func_cb.sta != FUNC_RESERVATION &&
-                       func_cb.sta != FUNC_TIMEING && func_cb.sta != FUNC_LANGUAGEING &&
-                       func_cb.sta != FUNC_VERINFO) {
-                func_cb.sta = FUNC_NULL;
-            }
+            /* 手表遗留逻辑曾在这里写 func_cb.sta = FUNC_NULL —— FUNC_NULL 在
+             * tbl_func_entry 四张表里都没登记, func_run 查不到入口 → 主循环
+             * 空转不喂狗 → WDT_RST (实测: 锁屏下按模式键崩溃, PC 落在
+             * func_run 尾部)。饭盒的模式键走 func_key 路径, 这里不切页。 */
             break;
 
         case MSG_SYS_500MS:
@@ -1051,6 +1046,7 @@ void func_run(void)
 
     for (;;) {
         func_enter();
+        func_entry = NULL;
         for (int i = 0; i < FUNC_ENTRY_CNT; i++) {
             if (tbl_func_entry[i].func_idx == func_cb.sta) {
                 task_stack_push(func_cb.sta);
@@ -1059,6 +1055,13 @@ void func_run(void)
                 func_entry();
                 break;
             }
+        }
+        if (func_entry == NULL) {
+            /* sta 不在表里 (如 FUNC_NULL): 不兜住的话本循环空转不喂狗 →
+             * WDT_RST。打印肇事值并回主页。 */
+            printf("func_run: no entry for sta=%d -> HOME\n", func_cb.sta);
+            WDT_CLR();
+            func_cb.sta = FUNC_HOME;
         }
         if (func_cb.sta == FUNC_PWROFF) {
             printf("func_run: -> func_pwroff\n");
