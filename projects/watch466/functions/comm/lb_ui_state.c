@@ -274,6 +274,9 @@ bool lb_ui_state_feed_dp(const u8 *data, u16 len)
         case LB_DPID_FAULT:
             if (val_len >= 1) changed |= lb_ui_set_u8(&lb_ui_state.fault, val[0]);
             break;
+        case LB_DPID_HEAT_TRIGGER:
+            if (val_len >= 1) changed |= lb_ui_set_u8(&lb_ui_state.heat_trigger, val[0]);
+            break;
         case LB_DPID_HEAT_ENABLE:
             if (val_len >= 1) changed |= lb_ui_set_u8(&lb_ui_state.heat_enable, val[0]);
             break;

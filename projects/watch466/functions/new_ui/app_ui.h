@@ -22,6 +22,7 @@ typedef struct {
     bool full_charge;    // 充满电
     bool bt_linked;      // 蓝牙已连接
     bool lid_open;       // 上盖打开
+    u8  heat_trigger;    // DP15 加热触发模式: 0=正常 1=预约触发 2=开关盖恢复
     u8  hour;            // 系统时钟 时
     u8  min;             // 系统时钟 分
 } ui_sys_t;

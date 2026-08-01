@@ -192,8 +192,17 @@ static void lb_startup_decide(void)
         return;                         /* 模块不答 → 主页 */
     }
 
-    /* ① 加热/保温中 → 盖盖弹窗 */
+    /* ① 加热/保温中 → 按触发模式分流 */
     if (lunchbox_heating_task_active() && st->fault != LB_FAULT_LOW_BATTERY) {
+        /* 预约触发 → 不弹窗, 直接进加热页。充电/保温切换由模块+路由处理:
+         * 插电 → 模块自动转保温 → 路由跳保温页;
+         * 拔线 → 时长没用完继续加热 / 用完了继续保温 (模块侧行为) */
+        if (st->heat_trigger == 1) {
+            printf("boot: reservation heat (charge=%u) -> heat page\n", st->charge);
+            func_cb.sta = FUNC_NEW_HEAT_PAGE;
+            return;
+        }
+        /* 正常/开关盖恢复 → 盖盖弹窗 */
         lb_lid_mode     = st->heat_mode;
         lb_lid_temp     = st->heat_temp;
         lb_lid_duration = st->heat_duration;

@@ -34,6 +34,7 @@ typedef struct {
     u8  heat_temp;         // DP7  温度档位: 0=40°C ~ 6=100°C
     u8  fault;             // DP9  故障: 0=正常, 其他见协议 §4.1.6 fault_code
     u8  heat_enable;       // DP10 是否加热: 0=停止 1=加热中
+    u8  heat_trigger;      // DP15 加热触发模式: 0=正常 1=预约触发 2=开关盖恢复
 
     // ── 链路状态 (非模块上报, 由 BLE 回调写入) ──
     bool ble_connected;    // 蓝牙是否已连上 APP (画连接图标用)

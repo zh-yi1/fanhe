@@ -46,6 +46,7 @@ enum {
     LB_DPID_TIME_SYNC       = 11,       // app同步时间戳: value(4B) unix时间 (APP→加热模块设置时间)
     LB_DPID_KEY_NOTIFY      = 12,       // 模组按键通知: enum, 0-9, MCU→加热模块通知按键按下
     LB_DPID_RTC_TIME        = 14,       // rtc的unix时间: value(4B) unix时间 (加热模块→MCU上报设备时间, v1.0.7新增)
+    LB_DPID_HEAT_TRIGGER    = 15,       // 加热触发模式: enum, 0=正常 1=预约触发 2=开关盖恢复 (v1.0.x新增)
 };
 
 // 故障码 (DP9 取值, 见《MCU通信协议》§4.1.6)

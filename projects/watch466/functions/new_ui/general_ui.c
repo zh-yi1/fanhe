@@ -262,6 +262,9 @@ void lb_ui_sync_pull(void)
     g_ui_sys.charging    = (st->charge == 1);
     g_ui_sys.full_charge = (st->charge == 2);
 
+    /* 加热触发模式: DP15 0=正常 1=预约触发 2=开关盖恢复 */
+    g_ui_sys.heat_trigger = st->heat_trigger;
+
     /* lid_open: 协议无上盖状态属性, 恒 false (见《通信移植遗留事项》) */
 }
 #endif // FUNC_LUNCHBOX_UART_EN
