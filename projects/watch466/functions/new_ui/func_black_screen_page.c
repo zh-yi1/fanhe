@@ -172,8 +172,9 @@ static void func_black_screen_page_process(void)
 
             if (g_ui_sys.bat_level < 5)
             {
-                compo_picturebox_set(inf->pic_bat,
-                                     g_bs_bat_icons[g_ui_sys.bat_level]);
+                compo_picturebox_set(inf->pic_bat, g_bs_charge_icons[3]);
+                // compo_picturebox_set(inf->pic_bat,
+                //                      g_bs_bat_icons[g_ui_sys.bat_level]);
             }
         }
     }
