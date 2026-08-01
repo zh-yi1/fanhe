@@ -58,6 +58,14 @@ static void key_queue_push(func_key_event_t evt)
 
 static void func_key_handle_lock_long(u8 held_tch)
 {
+    /* 黑屏充电页 = "关机+充电"态, 不允许长按 TCH0 上锁/解锁 */
+    if (func_cb.sta == FUNC_BLACK_SCREEN) {
+        lock_lp_wait_rel = false;
+        lock_lp_tch = PT8028_KEY_NONE;
+        lock_lp_tick = 0;
+        return;
+    }
+
     if (lock_lp_wait_rel) {
         /* 等待 TCH0 松手后再接受下一次长按 */
         if (held_tch != PT8028_KEY_TCH0) {
