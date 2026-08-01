@@ -39,6 +39,74 @@ typedef struct
     compo_textbox_t *txt_set;
 } f_home_t;
 
+/* ---- 三组图标选中/普通态 Flash→RAM 预载 (防切换撕裂) ----
+ * compo_picturebox_set 只换资源地址, 像素在下一次 GPU 绘制时才从 SPI Flash
+ * 现取; 取图期间推屏块断流, 屏幕自刷扫描越过写指针 → 切换选中态时撕裂。
+ * 预载进 RAM 后绘制不再碰 Flash (模式同 func_lock_page: ab_malloc 常驻只读一次) */
+#define HOME_ICON_SLOT      0x680       /* 单张最大 0x64e (HEAT_1) */
+#define HOME_ICON_CNT       6
+
+static u8  *home_icon_ram;              /* 常驻, 页面退出不释放 */
+static bool home_icon_ok;
+
+static const u32 home_icon_res[HOME_ICON_CNT][2] = {
+    { UI_BUF_NEW_UI_HEAT_0_BIN,  UI_LEN_NEW_UI_HEAT_0_BIN  },
+    { UI_BUF_NEW_UI_HEAT_1_BIN,  UI_LEN_NEW_UI_HEAT_1_BIN  },
+    { UI_BUF_NEW_UI_MODE_0_BIN,  UI_LEN_NEW_UI_MODE_0_BIN  },
+    { UI_BUF_NEW_UI_MODE_1_BIN,  UI_LEN_NEW_UI_MODE_1_BIN  },
+    { UI_BUF_NEW_UI_SETUP_0_BIN, UI_LEN_NEW_UI_SETUP_0_BIN },
+    { UI_BUF_NEW_UI_SETUP_1_BIN, UI_LEN_NEW_UI_SETUP_1_BIN },
+};
+
+static void home_icons_preload(void)
+{
+    u8 i;
+
+    if (home_icon_ok) {
+        if (gui_set_ram_check(home_icon_ram, __func__)) {
+            return;                 /* RAM 内容仍有效, 直接复用 */
+        }
+        home_icon_ok = false;       /* 深睡等场景 RAM 失效 → 重载 */
+    }
+    if (home_icon_ram == NULL) {
+        home_icon_ram = (u8 *)ab_malloc(HOME_ICON_SLOT * HOME_ICON_CNT);
+    }
+    if (home_icon_ram == NULL) {
+        return;                         /* 失败回退 Flash 路径, 只丢防撕裂 */
+    }
+
+    home_gpu_wait_idle();               /* Flash 读别与 GPU 取图抢总线 */
+    for (i = 0; i < HOME_ICON_CNT; i++) {
+        if (home_icon_res[i][1] > HOME_ICON_SLOT) {
+            return;
+        }
+        os_spiflash_read(home_icon_ram + i * HOME_ICON_SLOT,
+                         home_icon_res[i][0], home_icon_res[i][1]);
+    }
+    WDT_CLR();
+
+    for (i = 0; i < HOME_ICON_CNT; i++) {
+        if (!gui_set_ram_check(home_icon_ram + i * HOME_ICON_SLOT, __func__)) {
+            return;
+        }
+    }
+    home_icon_ok = true;
+}
+
+/* idx: 0=加热 1=模式 2=设置 */
+static void home_pic_bind(compo_picturebox_t *pic, u8 idx, bool sel)
+{
+    u8 slot = idx * 2 + (sel ? 1 : 0);
+
+    if (home_icon_ok) {
+        u8 *ram = home_icon_ram + slot * HOME_ICON_SLOT;
+        compo_picturebox_set_ram(pic, ram);
+        compo_picturebox_set_size(pic, GET_LE16(&ram[4]), GET_LE16(&ram[6]));
+    } else {
+        compo_picturebox_set(pic, home_icon_res[slot][0]);
+    }
+}
+
 static void home_update_display(void)
 {
     f_home_t *inf = (f_home_t *)func_cb.f_cb;
@@ -47,28 +115,25 @@ static void home_update_display(void)
     bool sel_set  = (inf->selection == 2);
 
     /* 加热：选中态 vs 普通态 */
-    compo_picturebox_set(inf->pic_heat, sel_heat
-                                            ? UI_BUF_NEW_UI_HEAT_1_BIN
-                                            : UI_BUF_NEW_UI_HEAT_0_BIN);
+    home_pic_bind(inf->pic_heat, 0, sel_heat);
     compo_textbox_set_forecolor(inf->txt_heat, sel_heat ? COLOR_WHITE : COLOR_BLUE);
 
     /* 模式：选中态 vs 普通态 */
-    compo_picturebox_set(inf->pic_mode, sel_mode
-                                           ? UI_BUF_NEW_UI_MODE_1_BIN
-                                           : UI_BUF_NEW_UI_MODE_0_BIN);
+    home_pic_bind(inf->pic_mode, 1, sel_mode);
     compo_textbox_set_forecolor(inf->txt_mode, sel_mode ? COLOR_WHITE : COLOR_BLUE);
 
     /* 设置：选中态 vs 普通态 */
-    compo_picturebox_set(inf->pic_set, sel_set
-                                           ? UI_BUF_NEW_UI_SETUP_1_BIN
-                                           : UI_BUF_NEW_UI_SETUP_0_BIN);
+    home_pic_bind(inf->pic_set, 2, sel_set);
     compo_textbox_set_forecolor(inf->txt_set, sel_set ? COLOR_WHITE : COLOR_BLUE);
 }
 
 compo_form_t *func_home_page_form_create(void)
 {
     f_home_t *inf = (f_home_t *)func_cb.f_cb;
-    compo_form_t *frm = compo_form_create(true);
+    compo_form_t *frm;
+
+    home_icons_preload();               /* 建 form 前载完, 首帧即走 RAM */
+    frm = compo_form_create(true);
 
     /* 白色背景 */
     widget_set_visible(frm->icon, false);
@@ -117,10 +182,9 @@ compo_form_t *func_home_page_form_create(void)
     compo_textbox_set_font(inf->txt_set, UI_BUF_0FONT_FONT_TEST_14_BIN);
     compo_textbox_set(inf->txt_set, i18n[STR_SETUP]);
 
-    /* 初始选中加热 */
-    compo_textbox_set_forecolor(inf->txt_heat, COLOR_WHITE);
-    compo_textbox_set_forecolor(inf->txt_mode, COLOR_BLUE);
-    compo_textbox_set_forecolor(inf->txt_set, COLOR_BLUE);
+    /* 初始选中加热 (selection 由 zalloc 清 0)；同时把三张图从 Flash 源
+     * 换绑到预载 RAM, 首帧起绘制就不读 Flash */
+    home_update_display();
 
     /* 不 force_on: 开机首页背光走 tft 的 kick 机制 —— 首帧推完+3TE 才开,
      * 避免 form 刚建、帧还没推就点亮 (花屏/闪切)。
