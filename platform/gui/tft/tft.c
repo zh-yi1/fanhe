@@ -25,6 +25,18 @@ static u32 bglight_kick_tick;           /* kick 置 te_bglight_cnt 的时刻 */
 static volatile bool te_frame_ready;            /* TE 帧边界就绪 (ISR 置位/主循环消费) */
 static volatile u32  te_pulse_cnt;              /* TE 脉冲计数 (证真+背光 kick 递减用) */
 
+/* ---- V+H 模式帧边界识别 ----
+ * 本屏 0x35=0x00(仅V-blank) 实测不出 TE 脉冲(黑屏+背光kick死锁),
+ * 只能用 0x01(V+H): 每行 1 脉冲(~20 tick 间隔), V-blank 期间无行脉冲
+ * → 跨 V-blank 的首个边沿间隔达数百 tick。据此只把该边沿当帧边界清
+ * TICK0CNT, 否则每行清零, tft_te_getnorm 失去帧相位, GUI 库内
+ * te_margin 起绘门控失效(撕裂根源)。
+ * TICK0: xosc26m/64 ≈ 2.46us/tick, 行 ≈ 20 tick, 帧 ≈ 6770 tick */
+#define TFT_TE_VBLANK_GAP_TICKS         100     /* >~5 行间隔判为跨 V-blank */
+#define TFT_TE_FRAME_MAX_TICKS          ((int)((XOSC_CLK_HZ / 1000) * TFT_TE_CYCLE * 3 / 2) / 64)
+                                                /* 1.5 帧兜底: 间隔识别失效也保持帧界循环 */
+static u16 te_edge_last;                        /* 上一边沿的 TICK0CNT (仅ISR访问) */
+
 tft_cb_t* tft_get_tft_cb(void)
 {
     return &tft_cb;
@@ -77,7 +89,14 @@ void tft_te_isr(void)
         } else {
             //>1TE MODE, 如果Mode change停一个TE
             if (flag_mode_nochange) {
-                tft_te_refresh();
+                /* V+H 行脉冲流中识别帧边界: 见文件头注释 */
+                u16 now = (u16)TICK0CNT;
+                u16 delta = now - te_edge_last;
+                te_edge_last = now;
+                if (delta > TFT_TE_VBLANK_GAP_TICKS || now > TFT_TE_FRAME_MAX_TICKS) {
+                    te_edge_last = 0;
+                    tft_te_refresh();   /* 内部清 TICK0CNT → 新帧相位从 0 起 */
+                }
             }
         }
         //延时打开背光

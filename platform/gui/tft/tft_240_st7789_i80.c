@@ -113,10 +113,10 @@ static void tft_240_st7789_i80_init(void)
     WriteData(0x00);
     WriteData(0xef);*/
 
-    WriteComm(0x35);    // TE ON (0x34才是关), 参数bit0是M模式位而非开关
-    WriteData(0x00);    // M=0: 仅V-blanking出脉冲(每帧1个,帧边界);
-                        // 0x01是V+H都出, 每行1个脉冲→TE中断风暴,
-                        // TICK0CNT每行清零, tft_te_getnorm失去帧相位意义
+    WriteComm(0x35);    // TE ON; 参数bit0按标准手册是M模式位(0=仅V-blank,1=V+H)
+    WriteData(0x01);    // 本屏实测: 0x00 完全不出TE脉冲(黑屏+背光kick死锁,
+                        // 见 tft.c 超时兜底注释), 只能用 0x01 行脉冲模式;
+                        // 帧边界由 tft_te_isr 依边沿间隔跨V-blank识别
 
     WriteComm(0x29);	  //Display on
     CommEnd();

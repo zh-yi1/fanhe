@@ -58,12 +58,27 @@ static const u32 home_icon_res[HOME_ICON_CNT][2] = {
     { UI_BUF_NEW_UI_SETUP_1_BIN, UI_LEN_NEW_UI_SETUP_1_BIN },
 };
 
+/* 本组图标是厂商转换器压缩格式: 头 'PA'+格式字节(实测 50 41 00 01),
+ * 长度远小于 w*h*2, 与 gen_*_icons.py 生成的 0x24150 裸 RGB565 不同,
+ * gui_set_ram_check 会误杀。渲染器解码对 RAM/Flash 同一套, 这里只校验
+ * 'PA' 魔数 + 非零尺寸 */
+static bool home_icon_ram_check(const u8 *ram)
+{
+    if (GET_LE16(&ram[0]) != 0x4150
+        || GET_LE16(&ram[4]) == 0 || GET_LE16(&ram[6]) == 0) {
+        printf("home_icon bad hdr<0x%x>:%d*%d\n",
+               GET_LE32(&ram[0]), GET_LE16(&ram[4]), GET_LE16(&ram[6]));
+        return false;
+    }
+    return true;
+}
+
 static void home_icons_preload(void)
 {
     u8 i;
 
     if (home_icon_ok) {
-        if (gui_set_ram_check(home_icon_ram, __func__)) {
+        if (home_icon_ram_check(home_icon_ram)) {
             return;                 /* RAM 内容仍有效, 直接复用 */
         }
         home_icon_ok = false;       /* 深睡等场景 RAM 失效 → 重载 */
@@ -86,7 +101,7 @@ static void home_icons_preload(void)
     WDT_CLR();
 
     for (i = 0; i < HOME_ICON_CNT; i++) {
-        if (!gui_set_ram_check(home_icon_ram + i * HOME_ICON_SLOT, __func__)) {
+        if (!home_icon_ram_check(home_icon_ram + i * HOME_ICON_SLOT)) {
             return;
         }
     }
