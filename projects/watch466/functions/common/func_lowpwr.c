@@ -1464,11 +1464,12 @@ bool sleep_process(is_sleep_func is_sleep)
     }
 #endif
 #if ELUNCHBOX_PANEL_EN
-    /* 饭盒：5min 无操作 = 自动关机, 与长按 TCH5 一样立 manual_off 标志,
-     * 进 sfunc_sleep 的代码完全一致 (PE1+PB9 port wakeup / RTC_WDT_DIS).
-     * 多一句 lb_heat_cmd_heat_off() 通知模块停加热, 一发即走不等应答.
+    /* 饭盒：5min 无操作 = 自动关机。
+     * 不停加热/OTA 中 idle_expired 恒 false (elunchbox_lp.c 挡死)。
      * 不可走 lunchbox_shutdown_start: 异步等 ack 期间 bt_is_allow_sleep 可能
-     * 先跑进正常深睡(未配 PE1/PB9 wakeup) → 唤不醒. */
+     * 先跑进正常深睡(未配 PE1/PB9 wakeup) → 唤不醒。
+     * 直接 fire-and-forget 停加热+关模块, 然后按充电状态分流:
+     * 充电中/充满 → 黑屏充电页; 未充电 → manual_off 深睡。 */
     if (elunchbox_guioff_idle_expired()) {
 #if FUNC_LUNCHBOX_UART_EN
         if (func_cb.sta == FUNC_BLACK_SCREEN) {
@@ -1476,13 +1477,23 @@ bool sleep_process(is_sleep_func is_sleep)
             return false;
         }
         if (!elunchbox_pwr_is_manual_off()) {
-            printf("elunchbox: idle %us -> manual_off deep sleep\n",
-                   (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
-            lb_heat_cmd_heat_off();               /* 停加热, 不等应答 */
-            lb_heat_cmd_power(false);             /* 关模块, 不等应答 */
-            elunchbox_pwr_manual_off_set();       /* 立手动关机标志 → sfunc_sleep 配 PE1+PB9 唤醒 */
-            elunchbox_screen_off();
-            elunchbox_guioff_sleep_arm_immediate();
+            /* 充电中/充满 → 黑屏充电页 (不深睡, 还收串口状态);
+             * 未充电 → manual_off 深睡 */
+            if (lunchbox_charging_now()) {
+                printf("elunchbox: idle %us -> black screen charge page\n",
+                       (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
+                lb_heat_cmd_heat_off();
+                lb_heat_cmd_power(false);
+                func_cb.sta = FUNC_BLACK_SCREEN;
+            } else {
+                printf("elunchbox: idle %us -> manual_off deep sleep\n",
+                       (unsigned)ELUNCHBOX_GUIOFF_TIME_SEC);
+                lb_heat_cmd_heat_off();
+                lb_heat_cmd_power(false);
+                elunchbox_pwr_manual_off_set();
+                elunchbox_screen_off();
+                elunchbox_guioff_sleep_arm_immediate();
+            }
         }
 #else
         printf("elunchbox: idle %us -> manual_off deep sleep\n",
