@@ -1037,6 +1037,8 @@ void func_run(void)
     /* 所有唤醒都走复位冷启动, 等模块首帧 ≤3s 判定去向:
      * 加热/保温中 → 主页+盖盖弹窗; 充电中(未充满) → 黑屏充电页; 其余 → 主页 */
     lb_startup_decide();
+    lb_ui_sync_pull();          /* 首帧到新页面之前把 g_ui_sys 刷好,
+                                   不然加热页/黑屏页首屏读到的全是 0 */
 #endif
     task_stack_init();  //任务堆栈
     latest_task_init(); //最近任务
