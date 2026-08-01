@@ -77,6 +77,21 @@ static u8   lb_route_last_enable;
 static u8   lb_route_last_fault;
 static u8   lb_route_last_charge;
 
+/* 加热中插电 → 模块把这份任务改成保温, 但 DP5(时长)/DP6(剩余) 仍是原来那份,
+ * 剩余时间继续往下走。记住原加热模式和转保温前的温度档位 (转完 DP7 就变成
+ * 保温温度了), 拔线时按 DP6 的剩余分钟数续跑:
+ *   DP6 > 0  → 回加热页, 补一条加热命令把剩下的时间跑完
+ *   DP6 == 0 → 加热时长已经用完, 回主界面
+ * 别的保温 (APP 下发 / 加热自然结束转的) 不置 active, 不适用这套。
+ * (声明放在预写函数之前: 预写路径不产生路由边沿, 标记的记录/清理要在预写里做) */
+static struct {
+    bool active;
+    u8   mode;          // 被转走的加热模式 (1~4)
+    u8   temp;          // 转保温之前的温度档位
+} lb_warm_from_heat;
+
+static u8 lb_last_heat_temp;    // 加热中持续记录, 转保温后 DP7 会变成保温温度
+
 /** @brief 预写落账: 路由基线对齐 + seq++ + 开校正窗口 */
 static void lb_predict_commit(u8 mask)
 {
@@ -115,12 +130,26 @@ void lb_ui_state_predict_start(u8 mode, u8 temp_idx, u32 duration_min, u32 remai
     lb_predict.dur  = duration_min;
     lb_predict.remain = remain_min;
     lb_predict.en   = 1;
+    /* 预写把路由基线一起同步掉, lb_ui_route_poll 看不到这次启动的边沿,
+     * 它里面"新加热任务 → 记温度/清转保温标记"那两行不会执行, 在这补:
+     * 否则拔线续跑会用上一份加热的旧温度 (实测日志: 140F 续成了 158F)。
+     * 保温启动(mode=5)不清标记 —— 路由补发续保温走 lb_heat_cmd_resume
+     * 也到这里, 那条要求标记存活。 */
+    if (mode >= LB_MODE_CUSTOM && mode <= LB_MODE_RESERVE) {
+        lb_last_heat_temp = temp_idx;
+        lb_warm_from_heat.active = false;
+    }
     lb_predict_commit(LB_PRED_PWR | LB_PRED_MODE | LB_PRED_TEMP |
                       LB_PRED_DUR | LB_PRED_REMAIN | LB_PRED_EN);
 }
 
 void lb_ui_state_predict_stop(bool with_mode_off)
 {
+    /* 主动停止 = 这份加热/保温会话终结, 转保温标记随之作废。
+     * 必须在这清: 停止走预写, 路由基线被同步, en 1→0 的边沿路由看不到,
+     * 它里面的清理执行不到 → 残留标记会污染下一份手动保温, 拔线时被
+     * 误判成"加热转来的"而自动续跑一条不存在的加热 (实测日志 15:52:44)。 */
+    lb_warm_from_heat.active = false;
     lb_ui_state.heat_enable = 0;
     lb_predict.en = 0;
     u8 mask = LB_PRED_EN;
@@ -513,20 +542,6 @@ static bool lb_fault_active(u8 fault)
 /* 充电线在不在: DP4 0=未充电 1=充电中 2=已充满 —— 充满时线还插着, 算在充电。
  * 用模块的 DP4 而不是本机 CHARGE_DC_IN(): 模块侧已消抖 (见黑屏充电页拔线处理),
  * 且路由本来就只吃镜像这一份数据。 */
-/* 加热中插电 → 模块把这份任务改成保温, 但 DP5(时长)/DP6(剩余) 仍是原来那份,
- * 剩余时间继续往下走。记住原加热模式和转保温前的温度档位 (转完 DP7 就变成
- * 保温温度了), 拔线时按 DP6 的剩余分钟数续跑:
- *   DP6 > 0  → 回加热页, 补一条加热命令把剩下的时间跑完
- *   DP6 == 0 → 加热时长已经用完, 回主界面
- * 别的保温 (APP 下发 / 加热自然结束转的) 不置 active, 不适用这套。 */
-static struct {
-    bool active;
-    u8   mode;          // 被转走的加热模式 (1~4)
-    u8   temp;          // 转保温之前的温度档位
-} lb_warm_from_heat;
-
-static u8 lb_last_heat_temp;    // 加热中持续记录, 转保温后 DP7 会变成保温温度
-
 /* 保温页每帧报上来的"已保温"显示值: 补发保温命令时要把它写进 DP6, 让模块
  * 的账接着屏幕走。页面不在保温页时这个值是上次留下的残值, 只有上面那条
  * "补发"分支会读它, 而那条分支只在保温进行中触发, 值必然是新鲜的。 */
