@@ -222,38 +222,8 @@ static void lb_startup_decide(void)
     /* ③ 其余 → 主页 (默认 FUNC_HOME, 不写) */
 }
 
-/* OFF_DONE 已取走、等 BLE 断开后再深睡的中间态 */
-static bool lb_off_wait_ble;
-static u32  lb_off_wait_ble_tick;
-
-/** @brief 关机落地最后一步: 置 manual_off + 息屏 + 立即武装深睡 */
-static void lb_shutdown_power_down(void)
-{
-#if ELUNCHBOX_PANEL_EN
-    printf("seq: power down -> manual_off deep sleep\n");
-    elunchbox_pwr_manual_off_set();
-    elunchbox_screen_off();
-    elunchbox_guioff_sleep_arm_immediate();     /* 不等 30s 空闲倒计时, 立刻允许深睡 */
-#else
-    printf("seq: power down -> FUNC_PWROFF (no elunchbox panel)\n");
-    func_cb.sta = FUNC_PWROFF;
-#endif
-}
-
 static void lb_shutdown_seq_apply(void)
 {
-    /* 等 BLE 断开的中间态: 断开回调到位或 1s 超时就落地深睡 */
-    if (lb_off_wait_ble) {
-        if (ble_is_connected() && !tick_check_expire(lb_off_wait_ble_tick, 1000)) {
-            return;
-        }
-        lb_off_wait_ble = false;
-        printf("seq: ble %s, power down\n",
-               ble_is_connected() ? "disconnect timeout" : "disconnected");
-        lb_shutdown_power_down();
-        return;
-    }
-
     if (!lunchbox_shutdown_done_take()) {       /* 边沿只取一次, 取走即回 IDLE */
         return;
     }
@@ -268,18 +238,15 @@ static void lb_shutdown_seq_apply(void)
         }
         return;
     }
-    /* 深睡前先断 BLE (原厂 func_pwroff 断电前同款动作):
-     * 带着活连接进 manual_off 睡眠循环会卡死且唤不醒 —— 实测 APP 蓝牙关机
-     * 睡下去后 TCH5 长按无响应; 按键关机没踩到只是因为当时蓝牙没连接。
-     * ble_disconnect 是异步的, 转中间态等断开完成(限时 1s)再落地。 */
-    if (ble_is_connected()) {
-        printf("seq: ble connected, disconnect before deep sleep\n");
-        ble_disconnect();
-        lb_off_wait_ble = true;
-        lb_off_wait_ble_tick = tick_get();
-        return;
-    }
-    lb_shutdown_power_down();
+#if ELUNCHBOX_PANEL_EN
+    printf("seq: power down -> manual_off deep sleep\n");
+    elunchbox_pwr_manual_off_set();
+    elunchbox_screen_off();
+    elunchbox_guioff_sleep_arm_immediate();     /* 不等 30s 空闲倒计时, 立刻允许深睡 */
+#else
+    printf("seq: power down -> FUNC_PWROFF (no elunchbox panel)\n");
+    func_cb.sta = FUNC_PWROFF;
+#endif
 }
 
 static void lb_ui_route_apply(void)
