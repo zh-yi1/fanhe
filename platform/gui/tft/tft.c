@@ -34,10 +34,11 @@ static volatile u32  te_pulse_cnt;              /* TE 脉冲计数 (证真+背�
  * te_margin(默认30) 起绘门控真正对齐帧界 (撕裂治本)。
  * 保险: 开机 10s 内若推帧 FPS=0 而 TE 脉冲正常, 自动退回逐边沿
  * 清零 (旧行为) 并打印, 不会再黑屏。 */
-#define TFT_TE_PULSE_DEBUG              1       /* 每秒打印 TE:脉冲 norm fps, 定位后关闭 */
+#define TFT_TE_PULSE_DEBUG              1       /* 每秒打印 TE:脉冲 norm push, 定位后关闭 */
 #define TFT_TE_EDGE_GAP_TICKS           100     /* 边沿间隔>此值判帧间隙 (行≈21tick, 隙≈570tick) */
 static volatile bool te_phase_clear;            /* true=仅帧界清TICK0(实验) false=逐边沿(旧行为) */
-static volatile u16  te_fps_cnt;                /* tft_frame_end 推帧计数 (诊断+保险) */
+volatile u16 tft_push_cnt;                      /* set_window 推送计数 (i80 不走 frame_start/end,
+                                                 * 由驱动 set_window 递增; 诊断+保险) */
 static u16 te_edge_last;                        /* 上一边沿 TICK0CNT (仅ISR访问) */
 
 tft_cb_t* tft_get_tft_cb(void)
@@ -188,7 +189,6 @@ void tft_frame_end(void)
 
     tft_write_end();
     tft_cb.flag_in_frame = false;
-    te_fps_cnt++;                   /* 实际推帧计数 (诊断+相位实验保险) */
     if (tft_cb.tft_bglight_kick) {
         tft_cb.tft_bglight_kick = false;
         tft_cb.te_bglight_cnt = 3; //3TE后打开背光
@@ -204,23 +204,30 @@ void tft_frame_end(void)
 void tft_bglight_frist_set_check(void)
 {
 #if TFT_TE_PULSE_DEBUG
-    /* TE:脉冲/s norm:帧内相位 fps:实际推帧 ph:相位实验开 */
+    /* TE:脉冲/s norm:帧内相位 push:set_window推送次数 ph:相位实验开 */
     static u32 te_dbg_tick;
-    static u8 te_dbg_boot_chk = 10;
+    static u8 te_dbg_boot_chk = 15;
+    static u8 te_dbg_zero_sec;
     if (tick_check_expire(te_dbg_tick, 1000)) {
         te_dbg_tick = tick_get();
-        printf("TE:%d/s norm:%d fps:%d%s\n", (int)te_pulse_cnt, tft_te_getnorm(),
-               te_fps_cnt, te_phase_clear ? " ph" : "");
-        /* 保险: 开机 10s 内 TE 正常但一帧未推 → 相位实验退回逐边沿清零 */
+        printf("TE:%d/s norm:%d push:%d%s\n", (int)te_pulse_cnt, tft_te_getnorm(),
+               tft_push_cnt, te_phase_clear ? " ph" : "");
+        /* 保险: TE 稳态行频(排除开机首秒~59k噪声)下连续 3 秒零推送
+         * → 相位实验退回逐边沿清零。只在开机 15s 内检测 */
         if (te_dbg_boot_chk > 0) {
             te_dbg_boot_chk--;
-            if (te_phase_clear && te_pulse_cnt > 1000 && te_fps_cnt == 0) {
-                te_phase_clear = false;
-                printf("TE phase clear OFF (fps=0)\n");
+            if (te_phase_clear && tft_push_cnt == 0
+                && te_pulse_cnt > 15000 && te_pulse_cnt < 25000) {
+                if (++te_dbg_zero_sec >= 3) {
+                    te_phase_clear = false;
+                    printf("TE phase clear OFF (no push)\n");
+                }
+            } else {
+                te_dbg_zero_sec = 0;
             }
         }
         te_pulse_cnt = 0;
-        te_fps_cnt = 0;
+        tft_push_cnt = 0;
     }
 #endif
     /* kick 后 TE 一直没来(0x35=0x00 无TE脉冲), 超时强制点亮 */

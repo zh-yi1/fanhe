@@ -123,9 +123,12 @@ static void tft_240_st7789_i80_init(void)
 }
 
 
+extern volatile u16 tft_push_cnt;   /* tft.c: 推送活跃度诊断计数 */
+
 AT(.com_text.tft_spi)
 static void tft_240_st7789_i80_set_window(u16 x0, u16 y0, u16 x1, u16 y1)
 {
+    tft_push_cnt++;
     x0 += GUI_SCREEN_OFS_X;
     x1 += GUI_SCREEN_OFS_X;
     y0 += GUI_SCREEN_OFS_Y;
