@@ -50,8 +50,8 @@ compo_form_t *func_setup_page_form_create(void)
     compo_shape_set_location(bg, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y,
                              GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
 
-    /* 顶部标题栏（左上角标题 + 右上角蓝牙/电量） */
-    general_title_bar_create(frm, &inf->tb, i18n[STR_SETUP]);
+    /* 顶部标题栏（时间 + 标题 + 蓝牙/电量） */
+    general_title_bar_create(frm, &inf->tb, i18n[STR_SETUP], &g_ui_sys);
 
     /* 设置主图（初始第 0 张） */
     inf->selection = 0;
@@ -164,6 +164,7 @@ static void func_setup_page_process(void)
         }
     }
 
+    general_title_bar_tick(&((f_setup_t *)func_cb.f_cb)->tb);
     func_process();
 }
 

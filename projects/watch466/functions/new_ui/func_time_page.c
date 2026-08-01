@@ -302,8 +302,8 @@ compo_form_t *func_time_page_form_create(void)
     compo_shape_set_location(shape, GUI_SCREEN_CENTER_X, GUI_SCREEN_CENTER_Y,
                              GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
 
-    /* 顶部标题栏 */
-    general_title_bar_create(frm, &inf->tb, i18n[STR_SETUP_TIME]);
+    /* 顶部标题栏（时间 + 标题 + 蓝牙/电量） */
+    general_title_bar_create(frm, &inf->tb, i18n[STR_SETUP_TIME], &g_ui_sys);
 
     /* 白色圆角卡片 */
     shape = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
@@ -464,6 +464,7 @@ static void func_time_page_process(void)
         }
     }
 
+    general_title_bar_tick(&((f_time_page_t *)func_cb.f_cb)->tb);
     func_process();
 }
 

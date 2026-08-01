@@ -121,7 +121,7 @@ compo_form_t *func_language_page_form_create(void)
                              GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT);
 
     /* 顶部标题栏 */
-    general_title_bar_create(frm, &inf->tb, i18n[STR_LANGUAGE]);
+    general_title_bar_create(frm, &inf->tb, i18n[STR_LANGUAGE], &g_ui_sys);
 
     /* 白色圆角列表面板 */
     inf->shape_panel = compo_shape_create(frm, COMPO_SHAPE_TYPE_RECTANGLE);
@@ -249,6 +249,7 @@ static void func_language_page_process(void)
         }
     }
 
+    general_title_bar_tick(&((f_language_t *)func_cb.f_cb)->tb);
     func_process();
 }
 

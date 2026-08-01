@@ -1,16 +1,19 @@
 #ifndef _GENERAL_TITLE_UI_H
 #define _GENERAL_TITLE_UI_H
 
-/* 通用顶部标题栏：页面标题、蓝牙、电量
- * 与 general_ui（左上角时间）相对：左上角显示页面标题。
+#include "ui.h"
+#include "app_ui.h"     /* ui_sys_t / g_ui_sys */
+
+/* 通用顶部标题栏：时间、页面标题、蓝牙、电量（含充电动画）
+ * 与 general_status_bar 同一数据源（g_ui_sys），布局为时间 + 标题 + 右上角图标。
  *
  * 使用方式：
- *   1. 在 xxx_form_create() 中调用 general_title_bar_create(frm, &bar, title)
+ *   1. 在 xxx_form_create() 中调用 general_title_bar_create(frm, &bar, title, &g_ui_sys)
  *   2. 在 xxx_enter() 中调用 general_title_bar_attach()
- *   3. 在 xxx_exit() 中调用 general_title_bar_detach()
+ *   3. 在 xxx_process() 中调用 general_title_bar_tick()
+ *   4. 在 xxx_exit() 中调用 general_title_bar_detach()
  *
- * func_process() 内部已调用 home_ui_shared_ble_status_poll() 和
- * home_ui_shared_battery_chg_poll()，页面无需重复调用。
+ * func_process() 内已 lb_ui_sync_pull()，页面只需 tick 刷 UI。
  */
 
 #define GENERAL_TB_Y                    20
@@ -20,25 +23,38 @@
 
 /* composet ID，与 general_status_bar 错开 */
 enum {
-    GENERAL_TB_ID_TXT_TITLE = 0x210,
+    GENERAL_TB_ID_TXT_TIME = 0x210,
+    GENERAL_TB_ID_TXT_TITLE,
     GENERAL_TB_ID_PIC_BT,
     GENERAL_TB_ID_PIC_BAT,
 };
 
 typedef struct
 {
+    compo_textbox_t *txt_time;
     compo_textbox_t *txt_title;
     compo_picturebox_t *pic_bt;
     compo_picturebox_t *pic_bat;
+    ui_sys_t *sys_data;
+    u8 last_min;
+    u8 last_hour;
+    u8 last_bat_level;
+    bool last_charging;
+    bool last_full_charge;
+    bool last_bt_linked;
+    u32 charge_tick_ms;
+    u8  charge_frame;
 } general_title_bar_t;
 
 /**
  * 在 form 上创建标题栏所有控件。
- * @param frm    所属 form
- * @param bar    标题栏实例（调用方分配）
- * @param title  页面标题（i18n 或字面量，NULL 则不创建标题文本）
+ * @param frm       所属 form
+ * @param bar       标题栏实例（调用方分配）
+ * @param title     页面标题（i18n 或字面量，NULL 则不创建标题文本）
+ * @param sys_data  系统状态指针，tick 时从此读取时间/电量/蓝牙
  */
-void general_title_bar_create(compo_form_t *frm, general_title_bar_t *bar, const char *title);
+void general_title_bar_create(compo_form_t *frm, general_title_bar_t *bar,
+                              const char *title, ui_sys_t *sys_data);
 
 /**
  * 运行时更新标题文字。
@@ -59,5 +75,10 @@ void general_title_bar_attach(general_title_bar_t *bar);
  * 页面 exit 时调用：解绑电池 pic。
  */
 void general_title_bar_detach(void);
+
+/**
+ * 每帧 tick：从 sys_data 更新时间、电量图标、充电动画、蓝牙显隐。
+ */
+void general_title_bar_tick(general_title_bar_t *bar);
 
 #endif
