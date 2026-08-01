@@ -14,13 +14,79 @@
 #endif
 
 #if ELUNCHBOX_PANEL_EN && FUNC_LUNCHBOX_UART_EN
-/* manual_off 中 PB9(串口)唤醒: 任何指令都唤醒, 置 UART 闩锁,
- * 醒因由主循环收帧后判 (lb_wake_apply: 充电→黑屏页, 加热→路由去加热页)。
- * 曾在这里偷听判帧再决定睡不睡, 实测睡眠上下文收帧不完整, 已回退。 */
+/**
+ * manual_off 中 PB9(串口)唤醒过滤:
+ *   1. 恢复 UART (PB9 唤醒首帧已丢失, 恢复后主动发查询)
+ *   2. 发送 0x01 动态属性查询 → 等加热模块应答
+ *   3. 扫描应答帧 DataPoints:
+ *        DP4 (充电状态)==1  → 唤醒
+ *        DP10(是否加热)==1  → 唤醒
+ *   4. 都不满足/超时 → suspend UART 回去继续睡
+ *
+ * 注: 大缓冲用 static 省栈 (sleep 上下文栈仅 ~1200B)
+ */
+AT(.sleep_text.sleep.proc)
 static bool manual_off_uart_wake_check(void)
 {
-    lunchbox_wake_reason_set_uart();
-    return true;
+    static lb_proto_parser_t parser;      /* 260B, 省栈 */
+    static u8 tx_buf[LB_TXBUF_SIZE];      /* 256B, 省栈 */
+    lb_rx_frame_t frame;
+    u32 deadline;
+    bool got_frame = false;
+
+    /* 深睡时 UART 已 suspend, PB9 切回 GPIO 做下降沿唤醒源; 这里恢复 */
+    lb_link_resume();
+    lb_proto_parser_reset(&parser);
+
+    /* 唤醒首帧已丢失: 主动发查询(空数据, 不发时间戳避免扰乱加热模块时钟) */
+    {
+        u16 total = lb_proto_build_frame(tx_buf, LB_UART_CMD_DYNAMIC,
+                                          0x80, LB_ERR_SUCCESS, NULL, 0);
+        if (total > 0) {
+            lb_link_tx(tx_buf, total);
+            printf("lp: uart query sent, waiting response\n");
+        }
+    }
+
+    /* 等应答帧 (500ms 超时) */
+    deadline = tick_get();
+    while (!tick_check_expire(deadline, 500)) {
+        u8 ch;
+        while (lb_link_getc(&ch)) {
+            if (lb_proto_parser_feed(&parser, ch, &frame)) {
+                got_frame = true;
+                break;
+            }
+        }
+        if (got_frame) break;
+        WDT_CLR();
+    }
+
+    if (got_frame) {
+        u8 val;
+
+        /* DP4 充电状态: 1=充电中 */
+        if (lb_dp_scan_bool(frame.data, frame.data_len,
+                            LB_DPID_CHARGE_STATUS, &val) && val == 1) {
+            printf("lp: uart wake DP4=charging -> wake up\n");
+            lunchbox_wake_reason_set_uart();
+            return true;
+        }
+        /* DP10 是否加热: 1=立即加热 */
+        if (lb_dp_scan_bool(frame.data, frame.data_len,
+                            LB_DPID_HEAT_ENABLE, &val) && val == 1) {
+            printf("lp: uart wake DP10=heating -> wake up\n");
+            lunchbox_wake_reason_set_uart();
+            return true;
+        }
+        printf("lp: uart frame ignored (DP4/DP10 not match)\n");
+    } else {
+        printf("lp: uart wake timeout, no response\n");
+    }
+
+    /* 未命中或超时: suspend UART, PB9 还给 GPIO 做下次唤醒源 */
+    lb_link_suspend();
+    return false;
 }
 #else
 #define manual_off_uart_wake_check()    true    /* 无串口功能: 任何 PB9 都唤醒 */
