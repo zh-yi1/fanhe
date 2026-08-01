@@ -69,6 +69,7 @@ bool func_key_lock_pre_gui_poll(void);
 void func_key_lock_on_page_change(void);
 void func_key_lock_on_form_destroy(void);
 void func_key_lock_on_manual_shutdown(void);
+void func_key_lock_force_clear(void);   /* 强制清锁不弹提示 (黑屏充电页 enter) */
 void func_key_lock_overlay_to_front(void);
 void func_key_lock_on_heating_start(void);
 void func_key_lock_on_heating_stop(void);
@@ -132,6 +133,7 @@ static inline void func_lock_page_show(bool unlock_icon) { (void)unlock_icon; }
 static inline void func_lock_page_hide(void) {}
 static inline void func_lock_page_on_form_destroy(void) {}
 static inline void func_key_lock_on_manual_shutdown(void) {}
+static inline void func_key_lock_force_clear(void) {}
 static inline void func_key_lock_overlay_to_front(void) {}
 static inline void func_key_lock_on_heating_start(void) {}
 static inline void func_key_lock_on_heating_stop(void) {}

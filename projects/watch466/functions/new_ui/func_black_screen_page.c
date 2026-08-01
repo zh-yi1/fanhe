@@ -189,6 +189,9 @@ void func_black_screen_page_enter(void)
 {
     func_cb.f_cb = func_zalloc(sizeof(f_black_screen_t));
     func_key_reset();
+    /* 本页语义是关机: 上锁状态下关机, 锁随关机作废 (不弹解锁提示)。
+     * 配合 func_key.c 里"本页禁止长按 TCH0 上锁", 黑屏充电页全程无锁。 */
+    func_key_lock_force_clear();
     func_cb.frm_main = func_black_screen_page_form_create();
 }
 

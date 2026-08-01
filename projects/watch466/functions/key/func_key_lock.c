@@ -380,6 +380,26 @@ void func_key_lock_on_manual_shutdown(void)
     key_lock_gui_dirty = false;
 }
 
+/* 强制清锁, 不弹解锁图标提示 —— 与 lock_exit() 的区别。
+ * 关机态场景用: 上锁状态下关机进黑屏充电页, 锁随关机作废,
+ * 否则重新开机前按键还会走"锁定态吞键+蜂鸣"。 */
+void func_key_lock_force_clear(void)
+{
+    key_lock_active = false;
+    key_lock_need_key_rel = false;
+    key_lock_entry_hint_settled = false;
+    key_lock_pwr_sound_sent = false;
+    key_lock_pwr_hold_tick = 0;
+    key_lock_overlay_visible = false;
+    key_lock_hint_show_tick = 0;
+    key_lock_hint_min_polls = 0;
+    key_lock_hint_cooldown_tick = 0;
+    key_lock_gui_dirty = false;
+#if USER_PANEL_LED
+    func_led_scan();
+#endif
+}
+
 /*===========================================================================
  * 每帧轮询 — 只跑计时器，不做 GUI 操作
  *===========================================================================*/
