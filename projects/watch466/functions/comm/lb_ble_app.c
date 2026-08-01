@@ -31,6 +31,8 @@
 #include "lb_ota.h"         // 主MCU OTA (target=0x01)
 #include "lb_uart_heat.h"   // 加热模块 OTA (target=0x02)
 #include "lb_ui_state.h"    // lb_ui_heat_stop_expected(): APP 主动停止不进保温
+#include "func.h"           // func_cb/FUNC_BLACK_SCREEN: APP 关机充电中转黑屏页
+#include "lowpower/elunchbox_lp.h"  // APP 关机直接置 manual_off 深睡 (同定时休眠)
 
 #if FUNC_LUNCHBOX_UART_EN
 
@@ -689,9 +691,30 @@ static void lb_ble_dispatch(lb_rx_frame_t *rx)
 
     case LB_CMD_CONTROL:            // 0x04 控制指令 (DataPoints 修改属性)
         if (lb_ble_control_is_power_off(rx)) {
-            // APP 下发关机 → 两步时序, 每步应答各回 APP 一条, 不走普通转发
+            /* APP 下发关机 → 与定时休眠/拔线关机同款 fire-and-forget:
+             * 不走 lunchbox_shutdown_start 的异步等 ack 时序 —— 等待窗口里
+             * manual_off 标志还没置, bt_is_allow_sleep 可能先跑进正常深睡
+             * (未配 PE1/PB9 唤醒源) → 唤不醒 (func_lowpwr.c 定时关机同注释)。
+             * 先回 APP 成功应答, 停加热+关模块直接发出, 立刻置手动关机标志。 */
             printf("BLE: power off from APP\n");
-            lunchbox_shutdown_start(true, rx->msg_flag);
+            if (lunchbox_shutdown_blocked()) {          /* OTA 中不关机 */
+                lb_ble_send_response(LB_CMD_CONTROL, rx->msg_flag,
+                                     LB_ERR_EXEC_FAIL, NULL, 0);
+                break;
+            }
+            lb_ble_send_response(LB_CMD_CONTROL, rx->msg_flag,
+                                 LB_ERR_SUCCESS, NULL, 0);
+            lb_heat_cmd_heat_off();
+            lb_heat_cmd_power(false);
+            if (lunchbox_charging_now()) {
+                printf("BLE: power off, charging -> black screen charge page\n");
+                func_cb.sta = FUNC_BLACK_SCREEN;
+            } else {
+                printf("BLE: power off -> manual_off deep sleep\n");
+                elunchbox_pwr_manual_off_set();
+                elunchbox_screen_off();
+                elunchbox_guioff_sleep_arm_immediate();
+            }
             break;
         }
         if (lb_ble_control_has_heat_stop(rx)) {
