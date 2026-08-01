@@ -15,7 +15,7 @@ static compo_shape_t      *g_lock_dim;
 static compo_picturebox_t *g_lock_pic;
 static u8                 *g_lock_ram;
 static bool                g_lock_visible;
-static bool                g_lock_ram_cached;   /* g_lock_ram 是否已缓存上一次加载的图标 */
+static u32                 g_lock_cached_addr;  /* g_lock_ram 里缓存的图标资源地址, 0=无 */
 
 static void lock_cleanup(void)
 {
@@ -24,7 +24,7 @@ static void lock_cleanup(void)
     g_lock_dim = NULL;
     g_lock_pic = NULL;
     g_lock_visible = false;
-    g_lock_ram_cached = false;   /* form 切换后 RAM 绑定失效, 重新读 */
+    g_lock_cached_addr = 0;      /* form 切换后 RAM 绑定失效, 重新读 */
 }
 
 static bool lock_load_icon(bool unlock_icon, u16 *out_w, u16 *out_h)
@@ -38,8 +38,9 @@ static bool lock_load_icon(bool unlock_icon, u16 *out_w, u16 *out_h)
     *out_h = unlock_icon ? 100 : 80;
 
     /* 同一图标不重复读 Flash: 锁振荡时每帧都调 show, 22KB SPI 读 + GPU 等
-     * 待没有 WDT_CLR 会让看门狗饿死 → WDT_RST */
-    if (g_lock_ram_cached && g_lock_ram != NULL) {
+     * 待没有 WDT_CLR 会让看门狗饿死 → WDT_RST。
+     * 锁/解锁两张图共用 g_lock_ram, 必须比对地址, 图标切换时重新读 */
+    if (g_lock_cached_addr == addr && g_lock_ram != NULL) {
         return gui_set_ram_check(g_lock_ram, __func__);
     }
 
@@ -59,7 +60,7 @@ static bool lock_load_icon(bool unlock_icon, u16 *out_w, u16 *out_h)
     os_spiflash_read(g_lock_ram, addr, len);
     WDT_CLR();
     if (gui_set_ram_check(g_lock_ram, __func__)) {
-        g_lock_ram_cached = true;
+        g_lock_cached_addr = addr;
         return true;
     }
     return false;
