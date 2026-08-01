@@ -357,12 +357,7 @@ bool func_confirm_overlay_poll(void)
             func_confirm_overlay_hide();
             return true;
 
-        case FUNC_KEY_BACK:
-            g_cfm_result = false;
-            g_cfm_done   = true;
-            func_confirm_overlay_hide();
-            return true;
-
+        /* BACK 键不响应: 弹窗只能通过 YES/NO 操作退出, 防止误触返回 */
         default:
             break;
         }
