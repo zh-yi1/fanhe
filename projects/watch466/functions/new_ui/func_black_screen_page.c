@@ -146,8 +146,8 @@ static void func_black_screen_page_process(void)
             inf->last_bat_level    = 0xff; /* 强制退出充电后刷新 */
             inf->last_full_charge  = false;
         }
-        /* 充满电 → 静态显示 CHARGING_4 (charge=2 时 charging=false) */
-        else if (g_ui_sys.full_charge)
+        /* 充满电（充电中充满）→ 静态显示 CHARGING_4 */
+        else if (g_ui_sys.charging && g_ui_sys.full_charge)
         {
             if (inf->last_full_charge != true || inf->last_charging != true)
             {

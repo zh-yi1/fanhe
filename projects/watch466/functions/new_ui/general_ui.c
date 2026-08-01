@@ -182,8 +182,8 @@ void general_status_bar_tick(general_status_bar_t *bar)
             bar->last_bat_level    = 0xff; /* 强制退出充电后刷新 */
             bar->last_full_charge  = false;
         }
-        /* 充满电 → 静态显示 CHARGING_4 (charge=2 时 charging=false) */
-        else if (bar->sys_data->full_charge) {
+        /* 充满电（充电中充满）：静态显示 CHARGING_4 */
+        else if (bar->sys_data->charging && bar->sys_data->full_charge) {
             if (bar->last_full_charge != true || bar->last_charging != true) {
                 bar->last_charging    = true;
                 bar->last_full_charge = true;
