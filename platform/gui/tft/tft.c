@@ -25,22 +25,30 @@ static u32 bglight_kick_tick;           /* kick 置 te_bglight_cnt 的时刻 */
 static volatile bool te_frame_ready;            /* TE 帧边界就绪 (ISR 置位/主循环消费) */
 static volatile u32  te_pulse_cnt;              /* TE 脉冲计数 (证真+背光 kick 递减用) */
 
-/* ---- TE 脉冲形态诊断 ----
- * 本屏 0x35=0x00 实测无脉冲; 0x01 有脉冲但形态未证实(标准 V+H 应为
- * 每行 1 脉冲 ~19k/s, 若实测 ~60/s 则是纯帧脉冲)。逐边沿 tft_te_refresh
- * 是当前唯一确认能亮屏的行为; 帧边界间隔识别首版实测黑屏, 待下方
- * TE/s 打印确认脉冲形态后再定方案。 */
-#define TFT_TE_PULSE_DEBUG              1       /* 每秒打印 TE 脉冲数, 定位后关闭 */
+/* ---- TE 脉冲形态 (实测 2026-08-01) ----
+ * 0x35=0x00: 无脉冲。0x01: 19246/s = 320.8行 × 60Hz → 行脉冲仅在
+ * 有效行输出, V-blank(~28行, ~1.4ms)静默 → 有可识别的帧间隙。
+ * 帧相位实验: 行边沿保持完整 tft_te_refresh(rtc快照/te_frame_ready
+ * 节奏与旧行为逐位一致), 仅 TICK0CNT 清零挪到帧间隙后首个边沿,
+ * 使 tft_te_getnorm 输出真实帧内相位 (0..100), 让 GUI 库内
+ * te_margin(默认30) 起绘门控真正对齐帧界 (撕裂治本)。
+ * 保险: 开机 10s 内若推帧 FPS=0 而 TE 脉冲正常, 自动退回逐边沿
+ * 清零 (旧行为) 并打印, 不会再黑屏。 */
+#define TFT_TE_PULSE_DEBUG              1       /* 每秒打印 TE:脉冲 norm fps, 定位后关闭 */
+#define TFT_TE_EDGE_GAP_TICKS           100     /* 边沿间隔>此值判帧间隙 (行≈21tick, 隙≈570tick) */
+static volatile bool te_phase_clear;            /* true=仅帧界清TICK0(实验) false=逐边沿(旧行为) */
+static volatile u16  te_fps_cnt;                /* tft_frame_end 推帧计数 (诊断+保险) */
+static u16 te_edge_last;                        /* 上一边沿 TICK0CNT (仅ISR访问) */
 
 tft_cb_t* tft_get_tft_cb(void)
 {
     return &tft_cb;
 }
 
+/* rtc 快照 + 帧就绪标志 (与旧逐边沿行为一致的部分, 不含 TICK0CNT 清零) */
 AT(.com_text.tft_spi)
-static void tft_te_refresh(void)
+static void te_edge_mark(void)
 {
-    TICK0CNT = 0;
     compo_cb.rtc_cnt = RTCCNT;
     compo_cb.rtc_cnt2 = RTCCON2;
     compo_cb.rtc_update = true;
@@ -50,6 +58,13 @@ static void tft_te_refresh(void)
 	{
         te_frame_ready = true;      /* 帧边界就绪, 主循环门控消费 */
     }
+}
+
+AT(.com_text.tft_spi)
+static void tft_te_refresh(void)
+{
+    TICK0CNT = 0;
+    te_edge_mark();
 }
 
 AT(.com_text.tft_spi)
@@ -84,9 +99,17 @@ void tft_te_isr(void)
         } else {
             //>1TE MODE, 如果Mode change停一个TE
             if (flag_mode_nochange) {
-                /* 暂回逐边沿刷新 (帧边界间隔识别实测黑屏, 待下方 TE/s
-                 * 诊断确认本屏脉冲形态后再定方案) */
-                tft_te_refresh();
+                u16 now = (u16)TICK0CNT;
+                u16 delta = now - te_edge_last;
+                te_edge_last = now;
+                if (!te_phase_clear || delta > TFT_TE_EDGE_GAP_TICKS) {
+                    /* 帧间隙后首个边沿(或旧行为模式): 清 TICK0 定帧相位 */
+                    te_edge_last = 0;
+                    tft_te_refresh();
+                } else {
+                    /* 行边沿: 快照/就绪与旧行为一致, 仅不清 TICK0CNT */
+                    te_edge_mark();
+                }
             }
         }
         //延时打开背光
@@ -165,6 +188,7 @@ void tft_frame_end(void)
 
     tft_write_end();
     tft_cb.flag_in_frame = false;
+    te_fps_cnt++;                   /* 实际推帧计数 (诊断+相位实验保险) */
     if (tft_cb.tft_bglight_kick) {
         tft_cb.tft_bglight_kick = false;
         tft_cb.te_bglight_cnt = 3; //3TE后打开背光
@@ -180,12 +204,23 @@ void tft_frame_end(void)
 void tft_bglight_frist_set_check(void)
 {
 #if TFT_TE_PULSE_DEBUG
-    /* TE 脉冲频率: ~60/s=帧脉冲, ~19000/s=行脉冲, 0=无脉冲 */
+    /* TE:脉冲/s norm:帧内相位 fps:实际推帧 ph:相位实验开 */
     static u32 te_dbg_tick;
+    static u8 te_dbg_boot_chk = 10;
     if (tick_check_expire(te_dbg_tick, 1000)) {
         te_dbg_tick = tick_get();
-        printf("TE:%d/s norm:%d\n", (int)te_pulse_cnt, tft_te_getnorm());
+        printf("TE:%d/s norm:%d fps:%d%s\n", (int)te_pulse_cnt, tft_te_getnorm(),
+               te_fps_cnt, te_phase_clear ? " ph" : "");
+        /* 保险: 开机 10s 内 TE 正常但一帧未推 → 相位实验退回逐边沿清零 */
+        if (te_dbg_boot_chk > 0) {
+            te_dbg_boot_chk--;
+            if (te_phase_clear && te_pulse_cnt > 1000 && te_fps_cnt == 0) {
+                te_phase_clear = false;
+                printf("TE phase clear OFF (fps=0)\n");
+            }
+        }
         te_pulse_cnt = 0;
+        te_fps_cnt = 0;
     }
 #endif
     /* kick 后 TE 一直没来(0x35=0x00 无TE脉冲), 超时强制点亮 */
@@ -259,6 +294,8 @@ void tft_init(void)
     /* 帧门控初始态: TE 未证实前自由推屏 */
     te_pulse_cnt = 0;
     te_frame_ready = false;
+    te_edge_last = 0;
+    te_phase_clear = true;          /* 帧相位实验开 (fps=0 保险会自动关) */
 #else
     CLKGAT0 |= BIT(31);                                 //TICK1
     TICK1CON = BIT(7) | BIT(6) | BIT(5) | BIT(2);       //TIE, div64[6:4], xosc26m[3:1]
