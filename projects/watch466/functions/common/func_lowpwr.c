@@ -1177,6 +1177,21 @@ static void sfunc_sleep(void)
            gui_need_wkp ? 1u : 0u);
     elunchbox_manual_off_in_sleep = false;
 
+#if ELUNCHBOX_PANEL_EN && ELUNCHBOX_GUIOFF_SLEEP_EN
+    /* manual_off(关机态深睡)唤醒 = 开机, 统一走复位冷启动, 不原地复活:
+     * 唤醒路径里 customer_heap_init 会重置 ab_malloc 堆, 睡前的 form/f_cb/
+     * 锁图标缓存全变野指针 (实测: 童锁开着时 TCH5 唤醒瞬间画锁图标 →
+     * resource halt 8001 → WDT 兜底复位)。这里主动复位, 和预约唤醒/插电
+     * 唤醒同一条冷启动入口 lb_startup_decide, 不给旧上下文跑任何一帧。
+     * 息屏(auto guioff)唤醒不在此列, 仍走下面的原地恢复亮屏。 */
+    if (elunchbox_manual_off_slp && gui_need_wkp) {
+        printf("elunchbox: manual_off wake -> reboot (cold boot entry)\n");
+        RTCCON9 = BIT(7) | BIT(5) | BIT(2);     /* RTC 域跨复位, 先清唤醒挂起 */
+        RTCCON3 &= ~(BIT(17) | BIT(13));        /* 关 port/bt 唤醒, 下次睡再配 */
+        WDT_RST();                  /* 宏内含 while(1) 等复位 */
+    }
+#endif
+
     RTCCON9 = BIT(7) | BIT(5) | BIT(2);         //clr port, bt, wko wakeup pending
     RTCCON3 &= ~(BIT(17) | BIT(13));            //disable port, bt wakeup
     sleep_wakeup_exit();
