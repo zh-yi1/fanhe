@@ -258,9 +258,15 @@ static void lb_ui_route_apply(void)
     }
 
     /* 黑屏充电页: 只处理串口数据和开机键, 不被跳页拽走。
-     * 边沿不消费 —— APP 这时远程开了加热, 用户按开机键回主界面后立刻路由到加热页 */
+     * 预约到点除外: 用户等的就是这个, 直接跳加热页。
+     * 其余边沿保留, 用户按开机键回主界面后补跳。 */
     if (func_cb.sta == FUNC_BLACK_SCREEN) {
-        return;
+        lb_ui_state_t *st = lb_ui_state_get();
+        if (st->valid && st->heat_enable && st->heat_trigger == 1) {
+            /* 预约到点: 放行 */
+        } else {
+            return;
+        }
     }
 
 #if ELUNCHBOX_PANEL_EN
