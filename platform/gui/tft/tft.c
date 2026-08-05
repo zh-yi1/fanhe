@@ -16,6 +16,39 @@ tft_cb_t* tft_get_tft_cb(void)
     return &tft_cb;
 }
 
+/* ---- 撕裂排查仪表 (量完请把 TFT_TE_DBG_EN 关掉) --------------------------
+ * TICK0 = XOSC26M / 64 = 406.25kHz, 1 count = 2.46us, 一个 16.67ms 的 TE 周期 = 6772 count
+ * TICK0CNT 在 tft_te_refresh() 里清零, 所以:
+ *   TE 中断里读到的 = 上次"起画"到本次 TE 的间隔  (te_mode 0 下起画就在 TE 中断里 => 约等于 TE 周期)
+ *   tft_frame_end 里读到的 = 本帧从起画到推完的实际耗时(含被主循环打断的时间)
+ * 判据: frame 耗时若接近或超过 TE 周期(6772), 说明推屏被主循环拖到跨帧, 撕裂是必然的 */
+#ifndef TFT_TE_DBG_EN
+#define TFT_TE_DBG_EN                   0
+#endif
+
+#if TFT_TE_DBG_EN
+static u16 tft_dbg_te_min = 0xFFFF, tft_dbg_te_max;
+static u16 tft_dbg_frame_min = 0xFFFF, tft_dbg_frame_max;
+static u32 tft_dbg_te_cnt, tft_dbg_frame_cnt;
+static bool tft_dbg_skip;               //printf 自身会阻塞主循环几 ms, 丢掉它污染的那一帧
+
+//主循环调用, 每 60 帧(约1秒)打印一次并清零
+void tft_dbg_report(void)
+{
+    if (tft_dbg_frame_cnt < 60) {
+        return;
+    }
+    printf("TE: te=%d..%d cnt=%d | frame=%d..%d cnt=%d (1cnt=2.46us, 1TE=%d)\n",
+           tft_dbg_te_min, tft_dbg_te_max, (int)tft_dbg_te_cnt,
+           tft_dbg_frame_min, tft_dbg_frame_max, (int)tft_dbg_frame_cnt,
+           (int)((XOSC_CLK_HZ / 1000) * TFT_TE_CYCLE) / 64);
+    tft_dbg_te_min = tft_dbg_frame_min = 0xFFFF;
+    tft_dbg_te_max = tft_dbg_frame_max = 0;
+    tft_dbg_te_cnt = tft_dbg_frame_cnt = 0;
+    tft_dbg_skip = true;
+}
+#endif
+
 AT(.com_text.tft_spi)
 static void tft_te_refresh(void)
 {
@@ -44,6 +77,14 @@ void tft_te_isr(void)
     if (WKUPEDG & BIT(16+PORT_TFT_INT_VECTOR)) {
         WKUPCPND = BIT(16+PORT_TFT_INT_VECTOR);
 
+#if TFT_TE_DBG_EN
+        {
+            u16 t = TICK0CNT;           //须在 tft_te_refresh() 清零 TICK0 之前采样
+            if (t < tft_dbg_te_min) tft_dbg_te_min = t;
+            if (t > tft_dbg_te_max) tft_dbg_te_max = t;
+            tft_dbg_te_cnt++;
+        }
+#endif
         bool flag_mode_nochange = true;
         if (tft_cb.te_mode != tft_cb.te_mode_next) {
             tft_cb.te_mode = tft_cb.te_mode_next;
@@ -134,6 +175,18 @@ void tft_frame_end(void)
     }
 
     tft_write_end();
+#if TFT_TE_DBG_EN
+    {
+        u16 t = TICK0CNT;               //本帧从起画到推完的实际耗时
+        if (tft_dbg_skip) {
+            tft_dbg_skip = false;       //丢掉被上一次 printf 污染的那一帧
+        } else {
+            if (t < tft_dbg_frame_min) tft_dbg_frame_min = t;
+            if (t > tft_dbg_frame_max) tft_dbg_frame_max = t;
+        }
+        tft_dbg_frame_cnt++;
+    }
+#endif
     tft_cb.flag_in_frame = false;
     if (tft_cb.tft_bglight_kick) {
         tft_cb.tft_bglight_kick = false;

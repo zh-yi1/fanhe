@@ -272,9 +272,19 @@
  *****************************************************************************/
 #define COMPO_BUF_SIZE                  (3584)              	//组件BUF大小(2个BUF)
 #define GUI_WGT_BUF_EXTRA               0                       //disp 96KB 已满，勿增大 widget 池
-#define TFT_TE_CYCLE                    16.67                   //屏幕的刷新率TE周期时间 (ms)
+//TE周期(ms). 须与驱动里 B2h(BPA/FPA) + C6h(RTNA) 算出的帧率一致:
+//帧率 = 10MHz/((320+FPA+BPA)*(250+RTNA*16)); 当前 B2h=0x40/0x40, C6h=0x1F => 29.9Hz => 33.4ms
+#define TFT_TE_CYCLE                    33.4                    //屏幕的刷新率TE周期时间 (ms)
 #define TFT_TE_CYCLE_DELAY              (TFT_TE_CYCLE / 3)
-#define DEFAULT_TE_MODE                 1                       //默认1 TE模式, 0为2 TE模式, 3为复杂界面专用模式
+//TE触发边沿: 0=上升沿(垂直消隐开始起写), 1=下降沿(面板开始扫描后才起写)
+//一帧 320*240*16bpp = 153600B, 21MHz i8080 约 7.3ms; ST7789P3 手册 Table15 扫描期 tvdl >= 13ms
+//推屏比扫描快 => 按手册 8.14.3 用上升沿, 写指针全程领先扫描线
+#define TFT_TE_EDGE                     0
+#define TFT_TE_DBG_EN                   1                       //撕裂排查: 串口打印TE周期/一帧推屏耗时, 排查完请置0
+//1: TE后延迟TE_CYCLE/3起画 + 14MHz慢推(写指针贴着扫描线后面追, 余量仅约4行, 易撕裂)
+//0: TE到立刻起画 + 21MHz快推(写指针全程领先扫描线, 余量大) —— 排查撕裂用这个
+//3: 立刻起画 + 14MHz慢推(复杂界面渲染慢时用)
+#define DEFAULT_TE_MODE                 0                       //默认1 TE模式, 0为2 TE模式, 3为复杂界面专用模式
 #define GUI_LINES_CNT                   30                      //单次推屏行数
 
 #define GUI_FONT_W_SPACE                0                       //字的间距

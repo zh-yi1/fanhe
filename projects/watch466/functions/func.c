@@ -411,6 +411,10 @@ void func_process(void)
         if (gui_do_refresh) {
             gui_process();
         }
+#if TFT_TE_DBG_EN
+        void tft_dbg_report(void);       /* 撕裂排查仪表, 见 platform/gui/tft/tft.c */
+        tft_dbg_report();
+#endif
 #if USER_PT8028_KEY && FUNC_RESERVATION_UI_EN
         func_elunchbox_res_key_poll();
 #endif

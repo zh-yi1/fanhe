@@ -521,9 +521,16 @@ void lcd_drv_io_init(lcd_drv_t *drv)
         TRACE("lcd port rst init end\n");
 
         //te
+        //TFT_TE_EDGE: 0=上升沿(TE拉高=垂直消隐开始, 面板停止读GRAM), 1=下降沿(消隐结束, 面板开始扫描第1行)
+        //ST7789P3 手册 8.14.3: MPU 推屏比面板扫描快时, 应在消隐期(上升沿)起写, 写指针全程领先扫描线
+        //        手册 8.14.4: MPU 推屏比面板扫描慢时, 才在扫描开始后(下降沿)起写, 写指针跟在读指针后面跨帧写完
+        //未定义时保持 SDK 原行为(下降沿)
+#ifndef TFT_TE_EDGE
+#define TFT_TE_EDGE                     1
+#endif
         if (drv->io.spi_drv_io.control.cio.te != IO_NONE) {
             port_irq_register(PORT_TFT_INT_VECTOR, drv->tft_te_isr);
-            port_wakeup_init(drv->io.spi_drv_io.control.cio.te, 1, 1);               //开内部上拉, 下降沿唤醒
+            port_wakeup_init(drv->io.spi_drv_io.control.cio.te, TFT_TE_EDGE, 1);     //开内部上拉
         }
         TRACE("lcd port te init end\n");
 

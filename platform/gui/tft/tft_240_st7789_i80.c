@@ -32,9 +32,12 @@ static void tft_240_st7789_i80_init(void)
     WriteComm(0x3A);
     WriteData(0x55);
 
+    /* PORCTRL 前后消隐行数 BPA/FPA. 原值 0x0C/0x0C(各12行) => 消隐仅约1ms, 装不下一帧推屏(7.3ms),
+     * 写入必然溢进扫描期 => 撕裂. 加到 0x40/0x40(各64行) 后消隐约9.5ms, 整帧可在面板起扫前写完.
+     * 帧率 = 10MHz/((320+FPA+BPA)*(250+RTNA*16)), 配合 C6h=0x1F 后约 30Hz */
     WriteComm(0xB2);
-    WriteData(0x0C);
-    WriteData(0x0C);
+    WriteData(0x40);        //BPA 原 0x0C
+    WriteData(0x40);        //FPA 原 0x0C
     WriteData(0x00);
     WriteData(0x33);
     WriteData(0x33);
@@ -57,8 +60,9 @@ static void tft_240_st7789_i80_init(void)
     WriteComm(0xC4);   //VRL
     WriteData(0x10); // 10 0x23);
 
+    /* FRCTRL2 RTNA: 0x0F=60Hz(原值), 0x1F=39Hz(最低). 降帧率拉长扫描期, 给推屏更大余量 */
     WriteComm(0xC6);
-    WriteData(0x0F);
+    WriteData(0x1F);        //原 0x0F
 
     WriteComm(0xD0);
     WriteData(0xA4);
