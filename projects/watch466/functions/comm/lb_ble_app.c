@@ -652,7 +652,12 @@ static bool lb_ble_control_is_power_off(lb_rx_frame_t *rx)
     return false;
 }
 
-/** @brief 0x04 控制帧里是否带 DP10=0 (APP 主动停止加热) */
+/** @brief 0x04 控制帧里是否带停止加热意图 (APP 主动停止, 不进保温)
+ *
+ * 协议 §4.1.7 停止加热 = DP10=0; 实测 APP 停止只发 DP2=0(模式=关闭) 不带
+ * DP10, 桥层 (lb_translate_ble_data_to_uart) 会自动补 DP10=0 发给模块,
+ * 这里同样把 DP2=0 认作主动停止, 否则模块停止的边沿被路由当"自然结束"
+ * 进保温 (见 通信移植遗留事项.md "APP 停止加热误进保温")。 */
 static bool lb_ble_control_has_heat_stop(lb_rx_frame_t *rx)
 {
     u16 off = 0;
@@ -665,6 +670,9 @@ static bool lb_ble_control_has_heat_stop(lb_rx_frame_t *rx)
             break;
         }
         if (dpid == LB_DPID_HEAT_ENABLE && val_len >= 1 && rx->data[off + 4] == 0) {
+            return true;
+        }
+        if (dpid == LB_DPID_HEAT_MODE && val_len >= 1 && rx->data[off + 4] == 0) {
             return true;
         }
         off += 4 + val_len;
