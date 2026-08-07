@@ -299,6 +299,26 @@ bool lb_translate_uart_data_to_ble(lb_rx_frame_t *rx, u8 ble_cmd, u8 *out_data, 
         out_data[1] = rx->data[1];  // seq
         memcpy(out_data + 2, rx->data + 3, 41);
         out_data[42] |= 0x80;  // repeat bit7=1
+        /* 模块回读的 time 被截断成 UTC 天内秒 (% 86400, 丢日期, 协议 §3.6
+         * 应回完整 unix)。APP 会把这个值当本地时间显示, 并在开关预约时原样
+         * 回发 → 下发方向 fixup 再 -8h, 每开关一次漂 8 小时。这里把 <86400
+         * 的值 +8h 转回本地天内秒再给 APP: 显示归位, 回发值经 fixup -8h 后
+         * 落回同一 UTC 时刻, 往返自洽不再漂移。>=86400 视为完整 unix 原样
+         * 放行, 模块修好后本转换自动失效 (与 lb_schedule_time_fixup 对称)。 */
+        {
+            u8 *t = out_data + 35;  // 总条数1+序号1+ID1+name32 后为 time(BE)
+            u32 val = ((u32)t[0] << 24) | ((u32)t[1] << 16)
+                    | ((u32)t[2] << 8)  | t[3];
+            if (val < 86400) {
+                u32 local = (val + 8 * 3600) % 86400;
+                t[0] = (u8)(local >> 24);
+                t[1] = (u8)(local >> 16);
+                t[2] = (u8)(local >> 8);
+                t[3] = (u8)(local);
+                printf("lb_bridge: sched time utc %u -> local %u day-sec\n",
+                       (unsigned)val, (unsigned)local);
+            }
+        }
         *out_len = 43;
         return true;
     }
