@@ -92,6 +92,13 @@ static struct {
 
 static u8 lb_last_heat_temp;    // 加热中持续记录, 转保温后 DP7 会变成保温温度
 
+/* 本机/APP 主动发过停止命令 → 接下来的"加热中→停止"是人停的, 不进保温。
+ * 不能用 DP6 剩余时间区分: 实测模块被动停止时也会把 Remain 清 0。
+ * 声明放预写区之前: 本机停止走预写, en 1→0 边沿被基线同步吃掉, 路由的
+ * 消费清零执行不到, 标志会残留; 只能靠下一次 predict_start 清 (漏清的
+ * 实测现象: 1H 自然结束被误判成主动停止, 直接回主界面不进保温)。 */
+static bool lb_heat_stop_expected;
+
 /** @brief 预写落账: 路由基线对齐 + seq++ + 开校正窗口 */
 static void lb_predict_commit(u8 mask)
 {
@@ -139,6 +146,9 @@ void lb_ui_state_predict_start(u8 mode, u8 temp_idx, u32 duration_min, u32 remai
         lb_last_heat_temp = temp_idx;
         lb_warm_from_heat.active = false;
     }
+    /* 路由 "st->heat_enable → 旧停止标志作废" 那句同样被基线同步跳过, 在这补:
+     * 上一次手动退出加热/保温页残留的停止标志, 不能污染这份新任务的自然结束 */
+    lb_heat_stop_expected = false;
     lb_predict_commit(LB_PRED_PWR | LB_PRED_MODE | LB_PRED_TEMP |
                       LB_PRED_DUR | LB_PRED_REMAIN | LB_PRED_EN);
 }
@@ -519,10 +529,7 @@ bool lb_ui_schedules_feed_entry(const u8 *data, u16 len)
 // 自动跳页路由
 //-----------------------------------------------------------------------------
 
-// 本机/APP 主动发过停止命令 → 接下来的"加热中→停止"是人停的, 不进保温。
-// 不能用 DP6 剩余时间区分: 实测模块被动停止时也会把 Remain 清 0。
-static bool lb_heat_stop_expected;
-
+// lb_heat_stop_expected 声明在预写区之前 (predict_start 要清它, 见那边注释)
 void lb_ui_heat_stop_expected(void)
 {
     lb_heat_stop_expected = true;
