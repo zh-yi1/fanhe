@@ -82,6 +82,8 @@ static u8   lb_route_last_charge;
  * 保温温度了), 拔线时按 DP6 的剩余分钟数续跑:
  *   DP6 > 0  → 回加热页, 补一条加热命令把剩下的时间跑完
  *   DP6 == 0 → 加热时长已经用完, 回主界面
+ * 加热账在保温里耗完 (模块把 DP6 走到 0 自停, 路由补 24h 续保温) 时标记
+ * 随之清掉 —— 账没了, 之后拔线走"手动保温"路线留在保温页, 不再续加热。
  * 别的保温 (APP 下发 / 加热自然结束转的) 不置 active, 不适用这套。
  * (声明放在预写函数之前: 预写路径不产生路由边沿, 标记的记录/清理要在预写里做) */
 static struct {
@@ -140,8 +142,9 @@ void lb_ui_state_predict_start(u8 mode, u8 temp_idx, u32 duration_min, u32 remai
     /* 预写把路由基线一起同步掉, lb_ui_route_poll 看不到这次启动的边沿,
      * 它里面"新加热任务 → 记温度/清转保温标记"那两行不会执行, 在这补:
      * 否则拔线续跑会用上一份加热的旧温度 (实测日志: 140F 续成了 158F)。
-     * 保温启动(mode=5)不清标记 —— 路由补发续保温走 lb_heat_cmd_resume
-     * 也到这里, 那条要求标记存活。 */
+     * 保温启动(mode=5)不清标记 —— 加热中插电转保温期间, APP/页面若下发
+     * 保温也不该抹掉"拔线续加热"的资格; 加热账耗完的清理由路由的续保温
+     * 分支自己做 (那边清完才发 resume)。 */
     if (mode >= LB_MODE_CUSTOM && mode <= LB_MODE_RESERVE) {
         lb_last_heat_temp = temp_idx;
         lb_warm_from_heat.active = false;
@@ -687,22 +690,27 @@ lb_ui_route_t lb_ui_route_poll(void)
             lb_warm_from_heat.active = false;
             return LB_UI_ROUTE_WARM;
         }
-        /* 充电中由加热转来的保温会话: 模块的保温时长是它自己定的 (实测转保温
-         * 给 3 分钟, 我们下发 1440 它回 72), 到点就停。只要线还插着、人还在
-         * 这个会话里, 就补一条 194F/24h 让它接着保温 —— 标志不清, 下次它再
-         * 停还要补。页面留在保温界面。
+        /* 充电中由加热转来的保温会话到点停了 (实测 2026-08-08: 模块不是短计时
+         * 自停, 而是把那份加热账 DP5/DP6 一路走到 0 才停 —— 这一下就是"加热
+         * 时长在保温里耗完了")。线还插着就补一条 194F/24h 接着保温, 页面留在
+         * 保温界面。
          *
          * 用 resume 而不是 start: 带上 DP6 = 24h − 已保温, 让模块的账
          * (DP5−DP6) 一上来就等于屏幕显示值, 而不是从 0 重开。
-         * ⚠ 协议 §4 标 DP6 "APP下发 = ×", 模块认不认待实测 —— 看应答的 DP6:
-         *   回我们下发的值   → 认了 (页面可改成直接读 DP5−DP6, 删掉本机累加器)
-         *   回 DP5 / 压缩值  → 忽略了 (退回 start + 本机累加器) */
+         * 协议 §4 标 DP6 "APP下发 = ×", 但实测模块认: 下 1440/1386 应答原样
+         * 回 1440/1386, 保温时间无缝接续。
+         *
+         * from_heat 必须清: 加热账已耗完, 这份保温从此按"手动保温"路线走,
+         * 之后拔线留在保温页 (:648), 不再续加热。不清的话拔线会拿保温账的
+         * DP6 当"加热剩余"续出一条超长加热 (实测日志 15:19:02: 凭空续出
+         * 1366 分钟 Custom 加热并跳回加热页)。 */
         if (!expected && !fault_now && prev_mode == LB_MODE_WARM
             && plugged && from_heat) {
             u32 done = lb_warm_elapsed_min;
             u32 left = (done < LB_WARM_DURATION_MIN)
                      ? LB_WARM_DURATION_MIN - done : 1;
-            printf("route: module ended keep-warm (its own timer) -> resume 194F, done=%lu left=%lu\n",
+            lb_warm_from_heat.active = false;
+            printf("route: heat quota used up in keep-warm -> resume 194F, done=%lu left=%lu\n",
                    (unsigned long)done, (unsigned long)left);
             lb_heat_cmd_resume(LB_MODE_WARM,
                                lunchbox_temp_f_to_idx(LB_WARM_TEMP_F),
